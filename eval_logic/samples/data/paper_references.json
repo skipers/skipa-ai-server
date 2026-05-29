@@ -1,0 +1,71 @@
+{
+  "meta": {
+    "query_keywords": ["audiobook", "TTS", "text-to-speech", "voice style", "audio quality", "blockchain content"],
+    "search_sources": ["SCOPUS", "Google Scholar", "RISS"],
+    "search_date": "2026-04-28",
+    "total_retrieved": 318,
+    "selection_criteria": [
+      "1순위: 피인용 수 상위",
+      "2순위: 최근 3년 이내(2023~2026) 게재",
+      "3순위: 리뷰 논문(Survey/Review) 우선"
+    ],
+    "selected_count": 5
+  },
+  "papers": [
+    {
+      "rank": 1,
+      "title": "A Survey on Neural Text-to-Speech Synthesis: Architectures, Applications, and Future Directions",
+      "authors": ["Kim, J.", "Park, S.", "Lee, H."],
+      "journal": "IEEE Transactions on Neural Networks and Learning Systems",
+      "year": 2023,
+      "citation_count": 214,
+      "paper_type": "review",
+      "doi": "10.1109/TNNLS.2023.3241872",
+      "relevance_summary": "신경망 기반 TTS 합성 기술의 전반적 동향을 정리한 리뷰 논문. 보이스 스타일 제어, 감정 표현, 화자 적응 기법 등 본 특허의 핵심 기술과 직접 연관됨."
+    },
+    {
+      "rank": 2,
+      "title": "Voice Style Transfer and Speaker Adaptation in Modern TTS Systems",
+      "authors": ["Chen, W.", "Liu, Y.", "Zhao, M.", "Wang, X."],
+      "journal": "Speech Communication",
+      "year": 2024,
+      "citation_count": 87,
+      "paper_type": "research",
+      "doi": "10.1016/j.specom.2024.01.005",
+      "relevance_summary": "TTS 시스템에서 화자 스타일 전이 및 보이스 특성 추출 기법을 다룬 논문. 본 특허의 보이스 분석부 및 스타일 분류 기능과 기술적으로 유사한 방법론을 제시함."
+    },
+    {
+      "rank": 3,
+      "title": "Automated Audio Quality Assessment for Audiobook Production: A Deep Learning Approach",
+      "authors": ["Jeong, M.", "Choi, K.", "Yoon, S."],
+      "journal": "Applied Acoustics",
+      "year": 2024,
+      "citation_count": 52,
+      "paper_type": "research",
+      "doi": "10.1016/j.apacoust.2024.109821",
+      "relevance_summary": "오디오북 제작 환경에서 딥러닝 기반 자동 음질 검수 방법론을 제안한 논문. 파형 분석 및 노이즈 탐지 기법이 본 특허의 품질 검수부와 직접 연관됨."
+    },
+    {
+      "rank": 4,
+      "title": "Blockchain-Based Digital Content Rights Management: A Systematic Review",
+      "authors": ["Ahmed, R.", "Hassan, F.", "Nguyen, T."],
+      "journal": "Journal of Information Security and Applications",
+      "year": 2025,
+      "citation_count": 38,
+      "paper_type": "review",
+      "doi": "10.1016/j.jisa.2025.103612",
+      "relevance_summary": "블록체인 스마트컨트랙트 기반 디지털 콘텐츠 저작권 관리 기술을 체계적으로 정리한 리뷰 논문. 본 특허의 블록체인 관리부 및 계약 유통 관리부와 기술적으로 연관됨."
+    },
+    {
+      "rank": 5,
+      "title": "Market Trends and Growth Drivers in the Global Audiobook Industry: An Empirical Analysis",
+      "authors": ["Smith, L.", "Brown, A.", "Garcia, P."],
+      "journal": "Telematics and Informatics",
+      "year": 2025,
+      "citation_count": 29,
+      "paper_type": "research",
+      "doi": "10.1016/j.tele.2025.102014",
+      "relevance_summary": "글로벌 오디오북 시장의 성장 동인과 트렌드를 실증 분석한 논문. 연 25% 성장률 및 AI 기반 제작 자동화 수요 확대를 데이터로 검증하여 본 특허의 시장성 평가에 참고 가능."
+    }
+  ]
+}

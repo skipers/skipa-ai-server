@@ -1,0 +1,58 @@
+# Python cache/build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments and local Python tooling
+.venv/
+venv/
+env/
+ENV/
+__pypackages__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.coverage
+.coverage.*
+htmlcov/
+
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+
+# Logs and local runtime files
+*.log
+*.pid
+*.tmp
+*.temp
+.DS_Store
+
+# IDE/editor local files
+.idea/
+.vscode/
+*.swp
+*.swo
+tempCodeRunnerFile.py
+
+# Swagger/API test fixtures under api_test are intentionally versioned.
+# Do not put secrets or private customer data in api_test JSON/PDF files.
+
+# Generated artifacts, caches, crawled pages, vector indexes, and reports
+artifacts/
+src/artifacts/
+resources/business_rag/index/
+resources/business_rag/processed/
+resources/business_rag/raw/
+
+# Sample patent PDFs are intentionally versioned for reproducible API tests.
+# Do not put private or sensitive patent documents here.
+
+# Browser/driver cache from prototype crawlers
+.wdm/
