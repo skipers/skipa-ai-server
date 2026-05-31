@@ -66,3 +66,14 @@ eval_logic/resources/business_rag/raw/
 
 # Nested git metadata should not be committed into the parent repository.
 eval_logic/.git/
+# Chatbot local/runtime files
+chatbot/.env
+chatbot/.env.*
+!chatbot/.env.example
+chatbot/.venv/
+chatbot/logs/
+chatbot/tmp/
+chatbot/storage/
+chatbot/patents_backup_*/
+chatbot/.DS_Store
+chatbot/data/.DS_Store
