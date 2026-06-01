@@ -155,7 +155,7 @@ def list_patents() -> list[dict[str, Any]]:
         return []
     patents = []
     for patent_dir in sorted(PATENTS_ROOT.iterdir(), key=lambda item: item.name):
-        if patent_dir.name.startswith(".") or not patent_dir.is_dir():
+        if patent_dir.name.startswith(".") or patent_dir.name == "_global" or not patent_dir.is_dir():
             continue
         patents.append(patent_summary(patent_dir))
     return patents
