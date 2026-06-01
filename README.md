@@ -68,6 +68,112 @@ skipa-ai-server/
     legacy/               # 현재 API와 직접 무관한 프로토타입/레거시 코드
 ```
 
+## 전체 아키텍처
+
+전체 시스템은 `data/`를 중심에 두고, 보고서 생성 로직과 챗봇 RAG가 같은 특허별
+폴더를 바라보는 구조입니다.
+
+```text
+사용자 / Swagger / CLI
+        |
+        v
+eval_logic FastAPI
+  - PDF 업로드
+  - JSON 업로드
+  - tool API
+  - 보고서 생성 API
+        |
+        v
+전처리 / 정규화
+  - PDF 원문 파싱
+  - normalize_patent_input()
+  - 표준 특허 input JSON 생성
+        |
+        v
+PatentDecisionWorkflow
+  - collect_evidence
+  - validate_input
+  - run_valuation
+  - analyze_similar_patents
+  - make_decision
+  - build_report
+        |
+        v
+data/
+  - api_test/                         Swagger/API 재현용 입출력
+  - mapped_patent_reports/<patent_id> 특허별 원문, 보고서, 위키, index
+        ^
+        |
+chatbot
+  - 특허별 원문 chunk
+  - 보고서 chunk
+  - wiki/vectorstore
+  - FAISS index 기반 질의 응답
+```
+
+역할 분리는 다음과 같습니다.
+
+```text
+eval_logic
+  PDF/JSON 입력을 받아 평가 workflow를 실행하고 보고서 JSON을 생성합니다.
+
+chatbot
+  특허별 원문, 보고서, wiki, vector index를 읽어 질의 응답에 사용합니다.
+
+data
+  두 시스템이 공유하는 단일 데이터 루트입니다. 특허 하나는
+  data/mapped_patent_reports/<patent_id> 하나의 폴더에서 관리합니다.
+```
+
+기존 경로와의 호환성을 위해 `chatbot/data/mapped_patent_reports`,
+`chatbot/data/business`, `eval_logic/api_test`는 중앙 `data/` 아래의 실제 폴더를
+가리키도록 연결되어 있습니다.
+
+## 중앙 데이터 저장 규칙
+
+보고서 생성 로직과 챗봇은 모두 `SKIPA_DATA_ROOT` 또는 `DATA_ROOT`를 먼저 확인하고,
+값이 없으면 repository 루트의 `data/`를 기본값으로 사용합니다.
+
+특허별 표준 폴더 구조:
+
+```text
+data/mapped_patent_reports/<patent_id>/
+  manifest.json
+  original/
+    pdf/
+      latest.pdf
+      <timestamp>_<source>.pdf
+    input/
+      latest.json
+      <timestamp>_<kind>_<source>.json
+  reports/
+    json/
+      latest.json
+      <timestamp>_<job_id>.json
+  wiki/
+    vectorstore/
+  extracted/
+    all_chunks.jsonl
+    original_pdf_chunks.jsonl
+    report_pdf_chunks.jsonl
+    original_visual_chunks.jsonl
+    report_visual_chunks.jsonl
+    assets/
+  index/
+    faiss/
+```
+
+`manifest.json`에는 특허 ID, 제목, 최신 input, 최신 PDF, 최신 보고서, wiki/index
+위치, 저장 이력이 기록됩니다. 발표나 디버깅 때는 이 파일을 보면 해당 특허에 어떤
+데이터가 연결되어 있는지 빠르게 확인할 수 있습니다.
+
+이 구조로 통합한 이유:
+
+- 보고서 생성 결과가 곧바로 챗봇 질의 응답 데이터가 됩니다.
+- `eval_logic/api_test`와 `chatbot/data`에 흩어져 있던 입출력을 한곳에서 추적합니다.
+- 특허별로 원문, 보고서, wiki, vector index를 같이 보관해 재현성이 좋아집니다.
+- `latest.*` 파일을 두어 API나 챗봇이 가장 최근 데이터를 쉽게 찾을 수 있습니다.
+
 ## Agent Workflow
 
 현재 workflow는 기능별 review node를 별도로 두지 않고, `supervisor`가 전체 상태를 점검하며 다음 worker node를 결정합니다.
@@ -167,6 +273,63 @@ build_report
 PDF 추출 결과 JSON
 ```
 
+## 챗봇 전처리 방식
+
+챗봇은 보고서 생성 로직이 저장한 특허별 폴더를 그대로 사용합니다. 전처리 결과는
+`data/mapped_patent_reports/<patent_id>/extracted`, `index`, `wiki` 아래에
+저장됩니다.
+
+전처리 대상:
+
+```text
+특허 원문 PDF
+  명세서, 청구항, 도면/이미지, 페이지 단위 텍스트
+
+보고서 PDF 또는 보고서 JSON
+  평가 항목, 표, 유지/포기 판단 근거, 점수, 코멘트
+
+wiki 데이터
+  특허별 배경 지식, 용어 설명, 외부/내부 정리 문서
+```
+
+전처리 산출물:
+
+```text
+extracted/all_chunks.jsonl
+  원문, 보고서, 시각 자료 chunk를 통합한 검색 단위
+
+extracted/original_pdf_chunks.jsonl
+  특허 원문 텍스트 chunk
+
+extracted/report_pdf_chunks.jsonl
+  보고서 텍스트 chunk
+
+extracted/original_visual_chunks.jsonl
+extracted/report_visual_chunks.jsonl
+  도면, 이미지, 표 같은 시각 자료 chunk
+
+extracted/assets/
+  PDF에서 추출한 이미지, 표 HTML/PNG, thumbnail
+
+index/faiss/
+  특허별 RAG 검색용 FAISS index
+
+wiki/vectorstore/faiss/
+  특허별 wiki 검색용 FAISS index
+```
+
+이 방식으로 전처리한 이유:
+
+- 원문과 보고서의 출처를 chunk metadata로 유지해 답변 근거를 추적할 수 있습니다.
+- 긴 PDF를 한 번에 LLM에 넣지 않고 검색 가능한 작은 단위로 쪼개 응답 품질을 높입니다.
+- 표, 도면, 페이지 이미지 같은 시각 자료도 별도 asset으로 남겨 챗봇이 근거 자료를 연결할 수 있습니다.
+- 특허별 index를 분리해 다른 특허의 내용이 섞이는 문제를 줄입니다.
+- `_global` index를 같이 두어 전체 특허를 대상으로 한 검색도 확장할 수 있습니다.
+
+보고서 생성 API가 새 input/output을 만들면 `patent_data_store.py`가 같은 특허 폴더의
+`original/input`과 `reports/json`에 최신 파일을 저장합니다. 이후 챗봇 전처리 또는
+index 재생성 단계에서 이 파일들을 읽으면 새 보고서가 RAG에 반영됩니다.
+
 ## 환경 설정
 
 `skipa-ai-server/eval_logic` 기준으로 실행합니다.
@@ -194,7 +357,7 @@ KSIC_TABLE_PATH=resources/산업_KSIC_-특허_IPC__연계표.xlsx
 `skipa-ai-server/eval_logic`에서 실행합니다.
 
 ```bash
-uvicorn src.api.main:app --reload --port 8000
+PYTHONPATH=src uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Swagger UI:
@@ -339,6 +502,45 @@ data/mapped_patent_reports/<patent_id>/original/input/
 }
 ```
 
+## 통합 워크플로우
+
+### PDF에서 보고서와 챗봇 데이터까지
+
+```text
+1. 사용자가 Swagger에서 특허 PDF 업로드
+2. eval_logic이 PDF를 data/api_test/input/pdf/에 저장
+3. document_processing이 PDF에서 특허번호, 제목, 청구항, 명세서 섹션 추출
+4. normalize_patent_input()이 표준 input JSON으로 정규화
+5. 추출 JSON을 data/api_test/input/extracted/에 저장
+6. 같은 input을 data/mapped_patent_reports/<patent_id>/original/input/에 저장
+7. 원본 PDF를 data/mapped_patent_reports/<patent_id>/original/pdf/에 저장
+8. PatentDecisionWorkflow가 평가와 의사결정 보고서 생성
+9. 보고서 JSON을 data/api_test/output/reports/에 저장
+10. 같은 보고서를 data/mapped_patent_reports/<patent_id>/reports/json/에 저장
+11. 챗봇은 해당 특허 폴더의 original, reports, wiki, index 데이터를 사용
+```
+
+### JSON에서 보고서 생성
+
+```text
+1. 사용자가 표준 특허 JSON 또는 PDF 추출 JSON 업로드
+2. normalize_patent_input()으로 입력 형태 통일
+3. data/api_test/input/uploads/에 업로드 원본 저장
+4. data/mapped_patent_reports/<patent_id>/original/input/에 특허별 input 저장
+5. workflow 실행 후 보고서 생성
+6. data/api_test/output/reports/와 특허별 reports/json/에 결과 저장
+```
+
+### 챗봇 조회 흐름
+
+```text
+1. 사용자가 특정 특허에 대해 질문
+2. 챗봇이 data/mapped_patent_reports/<patent_id>를 찾음
+3. index/faiss, wiki/vectorstore/faiss, extracted/*.jsonl에서 관련 chunk 검색
+4. 원문 chunk, 보고서 chunk, wiki chunk를 context로 구성
+5. 답변과 함께 근거가 되는 원문/보고서/wiki 정보를 반환
+```
+
 ## API 테스트 흐름
 
 ### JSON 파일 기반 보고서 생성
@@ -363,6 +565,154 @@ data/mapped_patent_reports/<patent_id>/original/input/
 2. PDF 파일 업로드
 3. 응답의 `input_path`, `output_path`, `result_url` 확인
 4. 생성된 보고서 결과는 `data/api_test/output/reports/`와 `data/mapped_patent_reports/<patent_id>/reports/json/` 아래 저장됨
+
+## 기능별 검증 방법
+
+### GitHub 반영 확인
+
+```bash
+cd /Users/kgw/skipers-ai
+git log -1 --oneline --decorate
+git status --short
+```
+
+정상 기준:
+
+```text
+HEAD와 origin/<current-branch>가 같은 커밋을 가리킴
+git status --short 출력이 비어 있음
+```
+
+### 공통 데이터 폴더 확인
+
+```bash
+cd /Users/kgw/skipers-ai
+ls data
+find data/mapped_patent_reports -maxdepth 2 -name manifest.json
+```
+
+정상 기준:
+
+```text
+data/api_test
+data/mapped_patent_reports
+data/business
+특허별 manifest.json
+```
+
+### 챗봇 데이터 연결 확인
+
+```bash
+cd /Users/kgw/skipers-ai
+readlink chatbot/data/mapped_patent_reports
+readlink chatbot/data/business
+find data/mapped_patent_reports -path '*index/faiss/*' -type f
+find data/mapped_patent_reports -path '*wiki/vectorstore/faiss/*' -type f
+```
+
+정상 기준:
+
+```text
+chatbot/data/mapped_patent_reports -> ../../data/mapped_patent_reports
+chatbot/data/business -> ../../data/business
+FAISS index.faiss, index.pkl 파일 존재
+```
+
+### Python import와 문법 확인
+
+```bash
+cd /Users/kgw/skipers-ai
+python3 -m compileall eval_logic/src
+```
+
+정상 기준:
+
+```text
+compile error 없이 종료
+```
+
+### PDF 추출 API 확인
+
+서버 실행:
+
+```bash
+cd /Users/kgw/skipers-ai/eval_logic
+PYTHONPATH=src uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Swagger에서 실행:
+
+```text
+POST /api/v1/tools/patent-metadata
+파일 예시: ../data/api_test/input/pdf/20260529_144101_pdf.pdf
+```
+
+정상 기준:
+
+```text
+응답에 normalized_patent, extracted_input_path 포함
+data/api_test/input/extracted/에 JSON 생성
+data/mapped_patent_reports/<patent_id>/original/pdf/latest.pdf 생성
+data/mapped_patent_reports/<patent_id>/original/input/latest.json 생성
+```
+
+### JSON 보고서 생성 API 확인
+
+Swagger에서 실행:
+
+```text
+POST /api/v1/reports/patent-maintenance/from-json-file
+파일 예시: ../data/api_test/input/extracted/20260529_144106_10-1959619_20260529_144101_pdf.json
+GET /api/v1/reports/{job_id}/result
+```
+
+정상 기준:
+
+```text
+status가 success
+data/api_test/output/reports/에 보고서 JSON 생성
+data/mapped_patent_reports/<patent_id>/reports/json/latest.json 생성
+응답 artifacts에 patent_data_dir, patent_report_output_path 포함
+```
+
+### PDF 기반 보고서 생성 API 확인
+
+Swagger에서 실행:
+
+```text
+POST /api/v1/reports/patent-maintenance/from-pdf
+파일 예시: ../data/api_test/input/pdf/20260529_144101_pdf.pdf
+GET /api/v1/reports/{job_id}/result
+```
+
+정상 기준:
+
+```text
+PDF 추출 JSON과 보고서 JSON이 모두 생성됨
+특허별 original/pdf, original/input, reports/json이 모두 갱신됨
+```
+
+### CLI workflow 확인
+
+```bash
+cd /Users/kgw/skipers-ai/eval_logic
+python3 src/cli/run_agent.py samples/input/patent_10_1306409.json
+```
+
+정상 기준:
+
+```text
+Workflow: langgraph
+Status: success
+결과 저장 경로 출력
+```
+
+### 챗봇 서버 확인 시 주의
+
+현재 이 repository에서는 챗봇 데이터 연결과 RAG 산출물 경로를 확인할 수 있습니다.
+챗봇 앱 소스가 별도 repository 또는 별도 배포물에 있을 경우, 해당 앱의 실행 명령으로
+서버를 띄운 뒤 `DATA_ROOT=../data`, `PATENTS_ROOT=../data/mapped_patent_reports`를
+사용하는지 확인해야 합니다.
 
 ## 로컬 CLI
 
