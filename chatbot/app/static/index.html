@@ -3,170 +3,103 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SKIPA Chatbot Console</title>
+    <title>SKIPA Chatbot Test</title>
     <link rel="stylesheet" href="/ui/static/styles.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div class="brand">
-          <div class="brand-mark">S</div>
+    <main class="page">
+      <header class="header">
+        <div>
+          <p>SKIPA Chatbot</p>
+          <h1>Simple Test UI</h1>
+        </div>
+        <div class="actions">
+          <a href="/docs" target="_blank" rel="noreferrer">Swagger</a>
+          <button id="reloadButton" type="button">Reload</button>
+        </div>
+      </header>
+
+      <section class="status-grid" aria-label="status">
+        <article>
+          <span>Server</span>
+          <strong id="serverStatus">-</strong>
+        </article>
+        <article>
+          <span>Patents</span>
+          <strong id="patentCount">-</strong>
+        </article>
+        <article>
+          <span>Vector source</span>
+          <strong id="vectorSource">-</strong>
+        </article>
+        <article>
+          <span>Documents</span>
+          <strong id="globalDocCount">-</strong>
+        </article>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
           <div>
-            <strong>SKIPA Console</strong>
-            <span id="serverStatus">connecting</span>
+            <h2>Audit</h2>
+            <span id="auditSummary">No audit loaded</span>
+          </div>
+          <div class="actions">
+            <button id="runAuditButton" type="button">Run</button>
+            <button id="loadReviewButton" type="button">Review</button>
+            <button id="applyAuditButton" type="button">Apply</button>
           </div>
         </div>
-        <nav class="nav">
-          <a href="#overview">Overview</a>
-          <a href="#patents">Patents</a>
-          <a href="#audit">Audit</a>
-          <a href="#query">Query</a>
-          <a href="#graph">Graph</a>
-        </nav>
-        <div class="side-panel">
-          <span>Data root</span>
-          <code id="dataRoot">-</code>
+
+        <div class="form-row">
+          <label>
+            Audit ID
+            <input id="auditIdInput" type="text" placeholder="latest" />
+          </label>
+          <label>
+            Reviewer
+            <input id="reviewerInput" type="text" value="demo-user" />
+          </label>
         </div>
-      </aside>
 
-      <main class="workspace">
-        <header class="topbar">
+        <div id="findingList" class="findings">
+          <div class="empty">Run audit to load findings.</div>
+        </div>
+
+        <details class="review-box">
+          <summary>Review Markdown</summary>
+          <pre id="reviewMarkdown">No review loaded.</pre>
+        </details>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
           <div>
-            <p class="eyebrow">Chatbot, Wiki Audit, Vectorstore</p>
-            <h1>Integrated Test Console</h1>
+            <h2>Query</h2>
+            <span id="querySummary">No query sent</span>
           </div>
-          <div class="top-actions">
-            <a class="ghost-button" href="/docs" target="_blank" rel="noreferrer">Swagger</a>
-            <button id="reloadAllButton" type="button">Reload</button>
-          </div>
-        </header>
+          <button id="sendQueryButton" type="button">Send</button>
+        </div>
 
-        <section id="overview" class="section">
-          <div class="section-title">
-            <h2>Overview</h2>
-            <button id="refreshStatusButton" type="button">Status</button>
-          </div>
-          <div class="metrics">
-            <article class="metric">
-              <span>Patents</span>
-              <strong id="patentCount">-</strong>
-            </article>
-            <article class="metric">
-              <span>Global documents</span>
-              <strong id="globalDocCount">-</strong>
-            </article>
-            <article class="metric">
-              <span>Vector source</span>
-              <strong id="vectorSource">-</strong>
-            </article>
-            <article class="metric">
-              <span>Reviewed patents</span>
-              <strong id="reviewedCount">-</strong>
-            </article>
-          </div>
-        </section>
+        <div class="form-row query-row">
+          <label>
+            Patent
+            <select id="queryPatentSelect"></select>
+          </label>
+          <label class="query-input">
+            Question
+            <input id="queryInput" type="text" value="CMP Pad 물류 관리 시스템의 유지 판단 근거" />
+          </label>
+        </div>
 
-        <section id="patents" class="section split">
-          <div>
-            <div class="section-title">
-              <h2>Patents</h2>
-              <button id="loadPatentsButton" type="button">Load</button>
-            </div>
-            <div id="patentList" class="list"></div>
-          </div>
-          <div class="panel">
-            <div class="section-title compact">
-              <h3 id="selectedPatentTitle">Patent detail</h3>
-              <button id="loadPatentButton" type="button">Detail</button>
-            </div>
-            <div id="patentDetail" class="detail-grid"></div>
-          </div>
-        </section>
+        <div id="queryResults" class="results"></div>
+      </section>
 
-        <section id="audit" class="section audit-layout">
-          <div class="audit-main">
-            <div class="section-title">
-              <h2>Audit</h2>
-              <div class="button-row">
-                <button id="runAuditButton" type="button">Run Audit</button>
-                <button id="loadReviewButton" type="button">Review</button>
-                <button id="applyAuditButton" type="button">Apply</button>
-              </div>
-            </div>
-            <div class="audit-meta">
-              <label>
-                Audit ID
-                <input id="auditIdInput" type="text" placeholder="latest" />
-              </label>
-              <label>
-                Reviewer
-                <input id="reviewerInput" type="text" value="demo-user" />
-              </label>
-              <label>
-                Notes
-                <input id="notesInput" type="text" value="UI reviewed" />
-              </label>
-            </div>
-            <div id="auditSummary" class="summary-strip"></div>
-            <div id="findingList" class="finding-list"></div>
-          </div>
-          <div class="panel review-panel">
-            <div class="section-title compact">
-              <h3>Review Markdown</h3>
-              <button id="selectDefaultsButton" type="button">Defaults</button>
-            </div>
-            <pre id="reviewMarkdown" class="markdown-box">No review loaded.</pre>
-          </div>
-        </section>
-
-        <section id="query" class="section query-layout">
-          <div>
-            <div class="section-title">
-              <h2>Query</h2>
-              <button id="sendQueryButton" type="button">Send</button>
-            </div>
-            <div class="query-controls">
-              <label>
-                Patent
-                <select id="queryPatentSelect"></select>
-              </label>
-              <label>
-                Top K
-                <input id="topKInput" type="number" min="1" max="50" value="5" />
-              </label>
-            </div>
-            <textarea id="queryInput" rows="4">CMP Pad 물류 관리 시스템의 유지 판단 근거</textarea>
-            <div class="source-filters">
-              <label><input type="checkbox" value="ORIGINAL_PDF" /> ORIGINAL_PDF</label>
-              <label><input type="checkbox" value="REPORT_PDF" /> REPORT_PDF</label>
-              <label><input type="checkbox" value="WIKI" /> WIKI</label>
-              <label><input type="checkbox" value="PATENT_INPUT_JSON" /> INPUT_JSON</label>
-              <label><input type="checkbox" value="REPORT_JSON" /> REPORT_JSON</label>
-            </div>
-          </div>
-          <div id="queryResults" class="result-list"></div>
-        </section>
-
-        <section id="graph" class="section">
-          <div class="section-title">
-            <h2>LangGraph</h2>
-            <div class="button-row">
-              <button id="loadGraphButton" type="button">Mermaid</button>
-              <button id="refreshVectorButton" type="button">Refresh Vectorstore</button>
-            </div>
-          </div>
-          <pre id="graphBox" class="markdown-box">No graph loaded.</pre>
-        </section>
-
-        <section class="section">
-          <div class="section-title compact">
-            <h3>Activity</h3>
-            <button id="clearLogButton" type="button">Clear</button>
-          </div>
-          <pre id="activityLog" class="log-box"></pre>
-        </section>
-      </main>
-    </div>
+      <footer class="footer">
+        <span id="message">Ready</span>
+        <code id="dataRoot">-</code>
+      </footer>
+    </main>
     <script src="/ui/static/app.js"></script>
   </body>
 </html>
