@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
+from ..agents.wiki_graph import run_wiki_audit_graph, wiki_audit_graph_mermaid
 from ..config import EMBEDDING_MODEL, GEN_MODEL, PUBLIC_FILE_BASE_URL, TOP_K
-from ..schemas import AuditApplyRequest, SearchRequest, SearchResponse
+from ..schemas import AuditApplyRequest, SearchRequest, SearchResponse, WikiAgentRunRequest
 from ..store import (
     business_chunks,
     data_overview,
@@ -18,13 +19,7 @@ from ..store import (
     search_chunks,
     wiki_audit_report,
 )
-from ..vectorstore import (
-    apply_human_review,
-    audit_and_refresh_vectorstores,
-    audit_review_report,
-    refresh_vectorstores,
-    vectorstore_status,
-)
+from ..vectorstore import vectorstore_status
 
 
 router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
@@ -105,7 +100,8 @@ def get_vectorstore_status() -> dict:
 
 @router.post("/vectorstore/refresh", summary="전체 특허/사업 데이터 vectorstore 재생성")
 def post_vectorstore_refresh() -> dict:
-    return refresh_vectorstores()
+    result = run_wiki_audit_graph(mode="refresh")
+    return result.get("refresh_result", result)
 
 
 @router.post("/search", response_model=SearchResponse, summary="챗봇 RAG 검색 확인")
@@ -142,22 +138,52 @@ def get_wiki_audit_report() -> dict:
 @router.post("/wiki-audit/run", summary="wiki/챗봇 데이터 감사 실행 및 나쁜 데이터 후보 추출")
 @wiki_router.post("/audit", summary="wiki/챗봇 데이터 감사 실행 및 나쁜 데이터 후보 추출")
 def post_wiki_audit(refresh_vectorstore: bool = Query(False, description="사람 검토 전 raw vectorstore 강제 갱신 여부")) -> dict:
-    return audit_and_refresh_vectorstores(refresh_vectorstore=refresh_vectorstore)
+    result = run_wiki_audit_graph(mode="audit", refresh_vectorstore=refresh_vectorstore)
+    audit = result.get("audit", result)
+    if isinstance(audit, dict):
+        audit["agent_trace"] = result.get("trace", [])
+    return audit
 
 
 @router.get("/wiki-audit/review", summary="사람 검토용 감사 Markdown 조회")
 @wiki_router.get("/audit-review", summary="사람 검토용 감사 Markdown 조회")
 def get_wiki_audit_review(audit_id: str | None = Query(None, description="조회할 audit_id. 비우면 최신 감사")) -> dict:
-    return audit_review_report(audit_id=audit_id)
+    result = run_wiki_audit_graph(mode="review", audit_id=audit_id)
+    review = result.get("review", result)
+    if isinstance(review, dict):
+        review["agent_trace"] = result.get("trace", [])
+    return review
 
 
 @router.post("/wiki-audit/apply", summary="사람 검토 결과 적용, 승인 Markdown 저장, vectorstore 갱신")
 @wiki_router.post("/audit-apply", summary="사람 검토 결과 적용, 승인 Markdown 저장, vectorstore 갱신")
 def post_wiki_audit_apply(request: AuditApplyRequest) -> dict:
-    return apply_human_review(
+    result = run_wiki_audit_graph(
+        mode="apply",
         audit_id=request.audit_id,
         exclude_finding_ids=request.exclude_finding_ids,
         reviewer=request.reviewer,
         notes=request.notes,
         refresh_vectorstore=request.refresh_vectorstore,
     )
+    apply_result = result.get("apply_result", result)
+    if isinstance(apply_result, dict):
+        apply_result["agent_trace"] = result.get("trace", [])
+    return apply_result
+
+
+@wiki_router.post("/agent/run", summary="Wiki LangGraph agent 직접 실행")
+def post_wiki_agent_run(request: WikiAgentRunRequest) -> dict:
+    return run_wiki_audit_graph(
+        mode=request.mode,
+        audit_id=request.audit_id,
+        exclude_finding_ids=request.exclude_finding_ids,
+        reviewer=request.reviewer,
+        notes=request.notes,
+        refresh_vectorstore=request.refresh_vectorstore,
+    )
+
+
+@wiki_router.get("/agent/mermaid", summary="Wiki LangGraph agent Mermaid")
+def get_wiki_agent_mermaid() -> dict:
+    return {"format": "mermaid", "diagram": wiki_audit_graph_mermaid()}

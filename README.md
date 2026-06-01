@@ -226,6 +226,8 @@ GET  /api/v1/wiki/audit-report
 POST /api/v1/wiki/audit
 GET  /api/v1/wiki/audit-review
 POST /api/v1/wiki/audit-apply
+POST /api/v1/wiki/agent/run
+GET  /api/v1/wiki/agent/mermaid
 ```
 
 `POST /api/v1/wiki/audit` 또는 `POST /api/v1/chatbot/wiki-audit/run`을 실행하면
@@ -236,6 +238,10 @@ POST /api/v1/wiki/audit-apply
 vectorstore가 갱신됩니다. 생성 파일은 Git 커밋 대상에서 제외됩니다.
 
 ### 감사 프로세스와 평가 기준
+
+Wiki 감사, 사람 검토, 승인본 저장, vectorstore 갱신은 `chatbot/app/agents/wiki_graph.py`
+의 LangGraph agent로 실행됩니다. `/api/v1/wiki/audit`, `/api/v1/wiki/audit-review`,
+`/api/v1/wiki/audit-apply`는 모두 이 graph의 mode별 실행 wrapper입니다.
 
 감사는 원본 chunk, 최신 input JSON, 최신 report JSON, wiki 문서, business chunk를
 문서 단위로 스캔합니다. 감사 결과는 자동 삭제가 아니라 사람 검토 후보입니다.
@@ -289,6 +295,98 @@ MISSING_METADATA
 
 OVERSIZED_DOCUMENT
   문서가 너무 길어 vectorstore 저장 시 잘릴 가능성이 있으면 low/review 후보로 표시합니다.
+```
+
+Wiki LangGraph agent:
+
+```mermaid
+flowchart TD
+  W0([Wiki API Request]) --> W1[route_request]
+  W1 -->|mode=audit| W2[run_audit]
+  W1 -->|mode=review| W3[load_review]
+  W1 -->|mode=apply| W4[apply_review]
+  W1 -->|mode=refresh| W5[refresh_vectorstore]
+  W1 -->|mode=status| W6[collect_status]
+
+  W2 --> W6
+  W3 --> W6
+  W4 --> W6
+  W5 --> W6
+  W6 --> W7[finish]
+  W7 --> W8([END])
+
+  W2 -. scans .-> D1[(data/mapped_patent_reports)]
+  W2 -. writes .-> A1[logs/wiki_auditor/audits/audit.json]
+  W2 -. writes .-> A2[logs/wiki_auditor/audits/review.md]
+  W4 -. writes .-> R1[reviewed/approved_context.md]
+  W4 -. writes .-> R2[reviewed/approved_documents.jsonl]
+  W4 -. refreshes .-> V1[index/vectorstore]
+```
+
+전체 시스템 Mermaid:
+
+```mermaid
+flowchart LR
+  U([User / Swagger / CLI])
+
+  subgraph EVAL[eval_logic Report LangGraph]
+    E0[PDF or JSON input]
+    E1[PDF extraction]
+    E2[normalize_patent_input]
+    E3[collect_evidence]
+    E4[validate_input]
+    E5[run_valuation]
+    E6[analyze_similar_patents]
+    E7[make_decision]
+    E8[build_report]
+  end
+
+  subgraph DATA[Shared data root]
+    D0[(data/api_test)]
+    D1[("data/mapped_patent_reports/{patent_id}")]
+    D2[original/input/latest.json]
+    D3[original/pdf/latest.pdf]
+    D4[reports/json/latest.json]
+    D5[extracted/all_chunks.jsonl]
+    D6[wiki/*]
+    D7[reviewed/approved_context.md]
+    D8[index/vectorstore]
+  end
+
+  subgraph CHATBOT[chatbot LangGraph + RAG]
+    C0[POST /api/v1/wiki/audit]
+    C1[WikiAuditGraph route_request]
+    C2[run_audit]
+    C3[GET /api/v1/wiki/audit-review]
+    C4[Human review]
+    C5[POST /api/v1/wiki/audit-apply]
+    C6[apply_review]
+    C7[refresh_vectorstore]
+    C8[POST /api/v1/chatbot/query]
+    C9[local_vectorstore_search]
+    C10[chunk keyword fallback]
+  end
+
+  U --> E0
+  E0 --> E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7 --> E8
+  E2 --> D2
+  E1 --> D3
+  E8 --> D4
+  D1 --> D2
+  D1 --> D3
+  D1 --> D4
+  D1 --> D5
+  D1 --> D6
+
+  U --> C0 --> C1 --> C2
+  C2 --> D5
+  C2 --> D6
+  C2 --> D2
+  C2 --> D4
+  C2 --> C3 --> C4 --> C5 --> C6
+  C6 --> D7 --> C7 --> D8
+  U --> C8 --> C9 --> D8
+  C9 -->|no hit| C10 --> D5
 ```
 
 ## 중앙 데이터 저장 규칙
@@ -565,6 +663,10 @@ GET  /api/v1/chatbot/patents/10-2886381
 GET  /api/v1/chatbot/patents/10-2886381/chunks
 GET  /api/v1/chatbot/vectorstore/status
 POST /api/v1/wiki/audit
+GET  /api/v1/wiki/audit-review
+POST /api/v1/wiki/audit-apply
+POST /api/v1/wiki/agent/run
+GET  /api/v1/wiki/agent/mermaid
 POST /api/v1/chatbot/query
 POST /api/v1/rag/query
 GET  /api/v1/wiki/audit-report
@@ -967,6 +1069,8 @@ GET  /api/v1/chatbot/vectorstore/status
 POST /api/v1/wiki/audit
 GET  /api/v1/wiki/audit-review
 POST /api/v1/wiki/audit-apply
+POST /api/v1/wiki/agent/run
+GET  /api/v1/wiki/agent/mermaid
 POST /api/v1/chatbot/query
 POST /api/v1/rag/query
 POST /api/v1/agent/query
