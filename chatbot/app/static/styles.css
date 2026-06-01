@@ -298,12 +298,14 @@ h2 {
 }
 
 .chip {
+  max-width: 100%;
   border-radius: 999px;
   background: #eef2f7;
   color: var(--muted);
   padding: 2px 7px;
   font-size: 11px;
   font-weight: 750;
+  overflow-wrap: anywhere;
 }
 
 .chip.high,
@@ -467,10 +469,29 @@ main {
   border-color: #b8d8ca;
 }
 
+.source-card-main {
+  width: 100%;
+  min-height: 0;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.source-card-main strong,
 .source-card strong {
   display: block;
   margin-bottom: 3px;
   font-size: 13px;
+}
+
+.source-card-main span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .source-card p {
@@ -495,6 +516,13 @@ main {
   min-height: 30px;
   padding: 0 10px;
   font-size: 12px;
+}
+
+.source-highlight mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: #ffe78a;
+  color: inherit;
 }
 
 footer {

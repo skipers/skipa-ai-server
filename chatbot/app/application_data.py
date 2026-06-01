@@ -23,6 +23,7 @@ import xml.etree.ElementTree as ET
 from fastapi import HTTPException
 
 from .config import DATA_ROOT, PATENT_APPLICATION_ROOT
+from .rag.source_card_utils import enrich_source_card
 
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
@@ -277,6 +278,18 @@ def _source_url(metadata: dict[str, Any]) -> str | None:
     return "/files/data/" + quote(str(rel).replace("\\", "/"))
 
 
+def _download_manifest_by_path() -> dict[str, dict[str, Any]]:
+    manifest = _read_json(PATENT_APPLICATION_ROOT / "download_manifest.json")
+    results = manifest.get("results") if isinstance(manifest, dict) else []
+    by_path: dict[str, dict[str, Any]] = {}
+    for item in results or []:
+        path = item.get("path") if isinstance(item, dict) else None
+        if path:
+            by_path[str(Path(path))] = item
+            by_path[Path(str(path)).name] = item
+    return by_path
+
+
 def refresh_application_index(*, force: bool = True) -> dict[str, Any]:
     if not PATENT_APPLICATION_ROOT.exists():
         raise HTTPException(status_code=404, detail=f"출원 공식팩을 찾을 수 없습니다: {PATENT_APPLICATION_ROOT}")
@@ -445,20 +458,32 @@ def preferred_application_hits(preferred_terms: list[str], *, top_k: int = 6) ->
     return hits[:top_k]
 
 
-def cards_from_application_hits(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def cards_from_application_hits(hits: list[dict[str, Any]], *, query: str | None = None) -> list[dict[str, Any]]:
     cards = []
+    manifest_by_path = _download_manifest_by_path()
     for index, hit in enumerate(hits, 1):
         metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        source_path = str(metadata.get("source_path") or "")
+        manifest_item = manifest_by_path.get(source_path) or manifest_by_path.get(Path(source_path).name)
+        title = (
+            manifest_item.get("title")
+            if isinstance(manifest_item, dict) and manifest_item.get("title")
+            else metadata.get("title") or metadata.get("file_name")
+        )
         cards.append(
-            {
-                "label": f"출원 근거 {index}",
-                "title": metadata.get("file_name"),
-                "source_type": str(metadata.get("source_type") or "APPLICATION_OFFICIAL"),
-                "page_no": None,
-                "url": _source_url(metadata),
-                "snippet": str(hit.get("excerpt") or ""),
-                "metadata": metadata,
-            }
+            enrich_source_card(
+                {
+                    "label": f"출원 근거 {index}",
+                    "title": title,
+                    "source_type": str(metadata.get("source_type") or "APPLICATION_OFFICIAL"),
+                    "page_no": None,
+                    "url": _source_url(metadata),
+                    "snippet": str(hit.get("excerpt") or ""),
+                    "metadata": metadata,
+                },
+                query=query,
+                index=index,
+            )
         )
     return cards
 

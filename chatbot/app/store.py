@@ -12,6 +12,7 @@ from urllib.parse import quote
 from fastapi import HTTPException
 
 from .config import BUSINESS_ROOT, DATA_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT
+from .rag.source_card_utils import enrich_source_card
 from .vectorstore import search_vectorstore, vectorstore_status
 
 
@@ -412,15 +413,19 @@ def answer_query(query: str, *, patent_id: str | None, source_types: set[str] | 
         except (TypeError, ValueError):
             page_no = None
         source_cards.append(
-            {
-                "label": f"근거 {index}",
-                "title": str(title) if title else None,
-                "source_type": source_type,
-                "page_no": page_no,
-                "url": _source_url(metadata),
-                "snippet": str(hit.get("excerpt") or hit.get("page_content") or ""),
-                "metadata": metadata,
-            }
+            enrich_source_card(
+                {
+                    "label": f"근거 {index}",
+                    "title": str(title) if title else None,
+                    "source_type": source_type,
+                    "page_no": page_no,
+                    "url": _source_url(metadata),
+                    "snippet": str(hit.get("excerpt") or hit.get("page_content") or ""),
+                    "metadata": metadata,
+                },
+                query=query,
+                index=index,
+            )
         )
 
     return {

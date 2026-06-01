@@ -87,9 +87,13 @@ class SearchResponse(BaseModel):
 class AnswerSourceCard(BaseModel):
     label: str
     title: str | None = None
+    display_title: str | None = None
     source_type: str
     page_no: int | None = None
     url: str | None = None
+    location_label: str | None = None
+    source_path: str | None = None
+    match_terms: list[str] = Field(default_factory=list)
     snippet: str
     metadata: dict[str, Any] = Field(default_factory=dict)
 

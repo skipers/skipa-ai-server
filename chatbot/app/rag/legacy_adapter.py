@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from ..config import LOG_ROOT, PATENTS_ROOT
 from ..store import list_patents
 from ..vectorstore import refresh_vectorstores
+from .source_card_utils import enrich_source_card, replace_answer_citation_labels
 
 
 @lru_cache(maxsize=1)
@@ -90,7 +91,20 @@ def _resolve_source_url(url: str | None, metadata: dict[str, Any]) -> str | None
 def _normalize_source_card(card: dict[str, Any], index: int) -> dict[str, Any]:
     metadata = dict(card.get("metadata") or {})
     for key, value in card.items():
-        if key not in {"label", "title", "source_type", "page_no", "url", "source_url", "snippet", "metadata"}:
+        if key not in {
+            "label",
+            "title",
+            "display_title",
+            "source_type",
+            "page_no",
+            "url",
+            "source_url",
+            "location_label",
+            "source_path",
+            "match_terms",
+            "snippet",
+            "metadata",
+        }:
             metadata.setdefault(key, value)
     page_no = _card_value(card, "page_no", "page")
     try:
@@ -99,7 +113,7 @@ def _normalize_source_card(card: dict[str, Any], index: int) -> dict[str, Any]:
         page_no = None
     raw_url = _card_value(card, "url", "source_url")
     url = _resolve_source_url(raw_url if isinstance(raw_url, str) else None, metadata)
-    return {
+    normalized = {
         "label": str(card.get("label") or f"자료{index}"),
         "title": _card_value(card, "title", "section_title", "file_name"),
         "source_type": str(card.get("source_type") or metadata.get("source_type") or "UNKNOWN"),
@@ -108,6 +122,7 @@ def _normalize_source_card(card: dict[str, Any], index: int) -> dict[str, Any]:
         "snippet": str(card.get("snippet") or card.get("excerpt") or ""),
         "metadata": metadata,
     }
+    return enrich_source_card(normalized, index=index)
 
 
 def normalize_legacy_answer(result: dict[str, Any], *, query: str, patent_id: str | None) -> dict[str, Any]:
@@ -119,10 +134,11 @@ def normalize_legacy_answer(result: dict[str, Any], *, query: str, patent_id: st
         for index, card in enumerate(list(result.get("source_cards") or []), 1)
         if isinstance(card, dict)
     ]
+    answer = replace_answer_citation_labels(str(result.get("answer") or ""), cards)
     return {
         "query": query,
         "patent_id": patent_id or metrics.get("patent_id"),
-        "answer": str(result.get("answer") or ""),
+        "answer": answer,
         "source_cards": cards,
         "metrics": metrics,
     }

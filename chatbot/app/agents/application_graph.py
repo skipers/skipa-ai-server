@@ -352,7 +352,7 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
         "query": state.get("query", ""),
         "patent_id": "patent_application",
         "answer": str(answer or ""),
-        "source_cards": cards_from_application_hits(hits),
+        "source_cards": cards_from_application_hits(hits, query=state.get("query", "")),
         "metrics": {
             "engine": "patent_application_langgraph",
             "intent_agent": intent,

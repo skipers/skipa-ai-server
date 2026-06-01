@@ -123,6 +123,73 @@ function detailList(items) {
   return `<dl>${items.map(([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value ?? "-")}</dd>`).join("")}</dl>`;
 }
 
+function sourceTitle(source) {
+  return (
+    source?.display_title ||
+    source?.metadata?.source_title ||
+    source?.title ||
+    source?.metadata?.title ||
+    source?.metadata?.section_title ||
+    source?.metadata?.file_name ||
+    source?.source_type ||
+    source?.label ||
+    "근거 자료"
+  );
+}
+
+function sourceLocation(source) {
+  const chunk = source?.metadata?.chunk_index ?? source?.metadata?.chunk_id;
+  return (
+    source?.location_label ||
+    source?.metadata?.location_label ||
+    [
+      source?.source_type,
+      source?.page_no ? `p.${source.page_no}` : "",
+      source?.metadata?.section_title ? `섹션: ${source.metadata.section_title}` : "",
+      chunk ? `청크: ${chunk}` : "",
+    ].filter(Boolean).join(" · ") ||
+    "근거 위치 정보 없음"
+  );
+}
+
+function sourcePath(source) {
+  return (
+    source?.source_path ||
+    source?.metadata?.source_path_for_display ||
+    source?.metadata?.relative_source_path ||
+    source?.metadata?.source_path ||
+    source?.metadata?.file_name ||
+    source?.url ||
+    ""
+  );
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightedEvidence(source) {
+  let text = escapeHtml(source?.snippet || source?.metadata?.evidence_excerpt || "");
+  const terms = [...new Set([...(source?.match_terms || []), ...(source?.metadata?.match_terms || [])].filter(Boolean))].slice(0, 12);
+  terms.forEach((term) => {
+    const pattern = new RegExp(`(${escapeRegExp(term)})`, "gi");
+    text = text.replace(pattern, "<mark>$1</mark>");
+  });
+  return text;
+}
+
+function sourceModalBody(source) {
+  return `${detailList([
+    ["문서 제목", sourceTitle(source)],
+    ["근거 위치", sourceLocation(source)],
+    ["기존 인용", source?.metadata?.citation_label || source?.label],
+    ["자료 유형", source?.source_type],
+    ["페이지", source?.page_no],
+    ["파일/경로", sourcePath(source)],
+    ["URL", source?.url],
+  ])}<h2>근거로 사용된 부분</h2><pre class="source-highlight">${highlightedEvidence(source)}</pre><h2>Metadata</h2>${jsonBlock(source?.metadata)}`;
+}
+
 function renderPatentOptions() {
   const select = $("patentSelect");
   select.innerHTML = `<option value="__all__">전체 특허</option>`;
@@ -266,29 +333,27 @@ function appendSources(sourceCards, containerId = "messages") {
   sourceCards.forEach((source) => {
     const card = document.createElement("article");
     card.className = "source-card";
+    const title = sourceTitle(source);
+    const location = sourceLocation(source);
+    const originalLabel = source?.metadata?.citation_label || source.label || "";
     card.innerHTML = `
-      <strong>${escapeHtml(source.label)} · ${escapeHtml(source.title || source.source_type)}</strong>
+      <button class="source-card-main" type="button" aria-label="${escapeHtml(title)} 근거 보기">
+        <strong>${escapeHtml(title)}</strong>
+        ${originalLabel ? `<span>${escapeHtml(originalLabel)}</span>` : ""}
+      </button>
       <div class="chip-row">
         ${chip(source.source_type)}
-        ${chip(source.page_no ? `p.${source.page_no}` : "page -")}
+        ${chip(location, "location")}
       </div>
       <p>${escapeHtml(source.snippet || "")}</p>
       <div class="source-actions">
-        <button type="button">상세</button>
+        <button type="button">근거 보기</button>
         ${source.url ? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">파일</a>` : ""}
       </div>
     `;
-    card.querySelector("button").addEventListener("click", () => {
-      showModal(
-        source.label,
-        `${detailList([
-          ["title", source.title],
-          ["source_type", source.source_type],
-          ["page_no", source.page_no],
-          ["url", source.url],
-        ])}<h2>Snippet</h2><pre>${escapeHtml(source.snippet || "")}</pre><h2>Metadata</h2>${jsonBlock(source.metadata)}`,
-      );
-    });
+    const openSource = () => showModal(title, sourceModalBody(source));
+    card.querySelector(".source-card-main").addEventListener("click", openSource);
+    card.querySelector(".source-actions button").addEventListener("click", openSource);
     list.appendChild(card);
   });
   details.appendChild(list);

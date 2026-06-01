@@ -37,6 +37,7 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
         result["source_cards"] = list(result.get("source_cards") or []) + cards_from_web(
             web_results,
             start_index=len(result.get("source_cards") or []) + 1,
+            query=state.get("query", ""),
         )
 
     metrics = dict(result.get("metrics") or {})

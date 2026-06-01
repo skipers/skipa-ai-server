@@ -60,7 +60,10 @@ def answer_question(
         if llm_result.get("ok")
         else fallback_answer(query, local_hits=local_hits, web_results=web_results, llm_error=llm_result.get("error"))
     )
-    source_cards = [*cards_from_hits(local_hits), *cards_from_web(web_results, start_index=len(local_hits) + 1)]
+    source_cards = [
+        *cards_from_hits(local_hits, query=query),
+        *cards_from_web(web_results, start_index=len(local_hits) + 1, query=query),
+    ]
 
     metrics = build_metrics(intent=intent, local_result=local_result, web_result=web_result, llm_result=llm_result)
     metrics["engine"] = "lightweight_fallback"

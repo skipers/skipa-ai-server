@@ -7,6 +7,7 @@ from typing import Any
 from urllib.parse import quote
 
 from ..config import DATA_ROOT
+from .source_card_utils import enrich_source_card
 
 
 def _source_url(metadata: dict[str, Any]) -> str | None:
@@ -21,7 +22,7 @@ def _source_url(metadata: dict[str, Any]) -> str | None:
     return "/files/data/" + quote(str(rel).replace("\\", "/"))
 
 
-def cards_from_hits(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def cards_from_hits(hits: list[dict[str, Any]], *, query: str | None = None) -> list[dict[str, Any]]:
     cards = []
     for index, hit in enumerate(hits, 1):
         metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
@@ -33,31 +34,39 @@ def cards_from_hits(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
         except (TypeError, ValueError):
             page_no = None
         cards.append(
-            {
-                "label": f"근거 {index}",
-                "title": str(title) if title else None,
-                "source_type": source_type,
-                "page_no": page_no,
-                "url": _source_url(metadata),
-                "snippet": str(hit.get("excerpt") or hit.get("page_content") or ""),
-                "metadata": metadata,
-            }
+            enrich_source_card(
+                {
+                    "label": f"근거 {index}",
+                    "title": str(title) if title else None,
+                    "source_type": source_type,
+                    "page_no": page_no,
+                    "url": _source_url(metadata),
+                    "snippet": str(hit.get("excerpt") or hit.get("page_content") or ""),
+                    "metadata": metadata,
+                },
+                query=query,
+                index=index,
+            )
         )
     return cards
 
 
-def cards_from_web(results: list[dict[str, Any]], *, start_index: int = 1) -> list[dict[str, Any]]:
+def cards_from_web(results: list[dict[str, Any]], *, start_index: int = 1, query: str | None = None) -> list[dict[str, Any]]:
     cards = []
     for offset, item in enumerate(results, start_index):
         cards.append(
-            {
-                "label": f"웹 근거 {offset}",
-                "title": item.get("title"),
-                "source_type": "WEB",
-                "page_no": None,
-                "url": item.get("url"),
-                "snippet": str(item.get("snippet") or ""),
-                "metadata": {"url": item.get("url"), "provider_source_type": item.get("source_type", "WEB")},
-            }
+            enrich_source_card(
+                {
+                    "label": f"웹 근거 {offset}",
+                    "title": item.get("title"),
+                    "source_type": "WEB",
+                    "page_no": None,
+                    "url": item.get("url"),
+                    "snippet": str(item.get("snippet") or ""),
+                    "metadata": {"url": item.get("url"), "provider_source_type": item.get("source_type", "WEB")},
+                },
+                query=query,
+                index=offset,
+            )
         )
     return cards
