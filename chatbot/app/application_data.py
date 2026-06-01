@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime
-from html import unescape
+from html import escape as html_escape, unescape
 from html.parser import HTMLParser
 import csv
 import hashlib
@@ -228,8 +228,16 @@ def _iter_source_files() -> Iterable[Path]:
     if not PATENT_APPLICATION_ROOT.exists():
         return
     allowed = {".md", ".txt", ".csv", ".json", ".html", ".htm", ".pdf", ".xlsx", ".do", ".jsp", ".bin"}
-    skip_parts = {"index", "__pycache__", "readable"}
-    generated_names = {"download_manifest.json", "download_report.md", "file_index.csv", "file_index.json", "README.md"}
+    skip_parts = {"index", "__pycache__", "readable", "named"}
+    generated_names = {
+        "download_manifest.json",
+        "download_report.md",
+        "file_index.csv",
+        "file_index.json",
+        "file_names.md",
+        "open_index.html",
+        "README.md",
+    }
     for path in sorted(PATENT_APPLICATION_ROOT.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in allowed:
             continue
@@ -713,6 +721,7 @@ def download_application_sources(
     report_path = PATENT_APPLICATION_ROOT / "download_report.md"
     _write_json(manifest_path, manifest)
     _write_download_report(report_path, manifest)
+    _write_download_open_helpers(manifest)
     return {
         "status": "completed",
         "attempted_count": len(results),
@@ -749,6 +758,288 @@ def _write_download_report(path: Path, manifest: dict[str, Any]) -> None:
     for item in failures:
         lines.append(f"- `{item.get('source_id')}` {item.get('title')}: {item.get('error')} ({item.get('url')})")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _download_file_kind(path: Path, item: dict[str, Any]) -> tuple[str, str, str]:
+    suffix = path.suffix.lower()
+    try:
+        head = path.read_bytes()[:2048]
+    except Exception:
+        head = b""
+    text_hint = " ".join(str(item.get(key, "")) for key in ("title", "url", "content_type")).lower()
+    if head.startswith(b"%PDF") or suffix == ".pdf":
+        return "pdf", ".pdf", "PDF 문서: 브라우저, Preview, Acrobat으로 열기"
+    if head.startswith(b"\xd0\xcf\x11\xe0") or suffix == ".hwp":
+        return "hwp", ".hwp", "HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기"
+    if head.startswith(b"PK"):
+        if "hwpx" in text_hint or suffix == ".hwpx":
+            return "zip/hwpx", ".hwpx", "HWPX 문서: 한글/한컴오피스로 열기"
+        return "zip", ".zip", "ZIP 압축파일: 압축 해제로 확인"
+    if head.startswith(b"MZ") or suffix == ".exe":
+        return "exe", ".exe", "Windows 실행 설치파일: macOS에서는 내용 확인용으로만 보관"
+    lower_head = head.lower()
+    if suffix in {".html", ".htm"} or b"<html" in lower_head or b"<!doctype html" in lower_head:
+        return "html", ".html", "HTML 웹페이지: 브라우저로 열기"
+    if suffix in {".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"}:
+        kind = suffix.lstrip(".")
+        return kind, suffix, "Office 문서: Microsoft Office 또는 호환 앱으로 열기"
+    return suffix.lstrip(".") or "file", suffix if suffix else ".bin", "파일 형식 자동 판별 필요"
+
+
+def _safe_local_title(value: str) -> str:
+    compact = re.sub(r"\s+", " ", (value or "").strip())
+    compact = re.sub(r"[\\/:*?\"<>|]", "_", compact)
+    compact = compact.replace("[", "").replace("]", "")
+    return (compact.strip(" ._") or "untitled")[:90].strip(" ._") or "untitled"
+
+
+def _without_duplicate_extension(title: str, extension: str) -> str:
+    cleaned = title
+    for suffix in (extension.lower(), ".pdf", ".hwp", ".hwpx", ".html", ".htm", ".zip"):
+        while suffix and cleaned.lower().endswith(suffix):
+            cleaned = cleaned[: -len(suffix)].strip(" ._")
+    return cleaned
+
+
+def _size_label(size: int) -> str:
+    size = int(size or 0)
+    if size >= 1024 * 1024:
+        return f"{size / (1024 * 1024):.1f} MB"
+    if size >= 1024:
+        return f"{size / 1024:.1f} KB"
+    return f"{size} B"
+
+
+def _write_download_open_helpers(manifest: dict[str, Any]) -> None:
+    downloads_dir = PATENT_APPLICATION_ROOT / "downloads"
+    raw_dir = downloads_dir / "raw"
+    readable_dir = downloads_dir / "readable"
+    named_dir = downloads_dir / "named"
+    readable_dir.mkdir(parents=True, exist_ok=True)
+    named_dir.mkdir(parents=True, exist_ok=True)
+    for folder in (readable_dir, named_dir):
+        for child in folder.iterdir():
+            if child.is_file() or child.is_symlink():
+                child.unlink()
+
+    rows: list[dict[str, Any]] = []
+    successes = [item for item in manifest.get("results") or [] if item.get("ok") and item.get("path")]
+    for index, item in enumerate(successes, start=1):
+        raw_path = Path(str(item.get("path")))
+        if not raw_path.exists():
+            continue
+        kind, extension, open_method = _download_file_kind(raw_path, item)
+        source_id = _safe_local_title(str(item.get("source_id") or raw_path.stem))
+        title = _without_duplicate_extension(_safe_local_title(str(item.get("title") or raw_path.stem)), extension)
+        readable_name = f"{raw_path.stem}{extension}"
+        named_name = f"{index:03d}_{source_id}_{title}{extension}"
+        readable_link = readable_dir / readable_name
+        named_link = named_dir / named_name
+        if readable_link.exists() or readable_link.is_symlink():
+            readable_link.unlink()
+        if named_link.exists() or named_link.is_symlink():
+            named_link.unlink()
+        readable_link.symlink_to(Path("..") / "raw" / raw_path.name)
+        named_link.symlink_to(Path("..") / "readable" / readable_name)
+        rows.append(
+            {
+                "no": index,
+                "title": title,
+                "source_id": source_id,
+                "kind": kind,
+                "size_bytes": raw_path.stat().st_size,
+                "size": _size_label(raw_path.stat().st_size),
+                "raw_file": raw_path.name,
+                "readable_file": readable_name,
+                "named_file": named_name,
+                "open_method": open_method,
+                "url": item.get("url", ""),
+            }
+        )
+
+    csv_path = downloads_dir / "file_index.csv"
+    with csv_path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(
+            file,
+            fieldnames=[
+                "no",
+                "title",
+                "source_id",
+                "kind",
+                "size_bytes",
+                "size",
+                "raw_file",
+                "readable_file",
+                "named_file",
+                "open_method",
+                "url",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+    _write_json(downloads_dir / "file_index.json", rows)
+
+    counts = Counter(row["kind"] for row in rows)
+    readme_lines = [
+        "# 다운로드 자료 보는 방법",
+        "",
+        "이 폴더의 `raw/*.do` 파일은 정부/공공기관 URL endpoint 이름이 그대로 저장된 것입니다. 실제 파일 형식은 확장자가 아니라 파일 내부 MIME/signature로 판단해야 합니다.",
+        "",
+        "## 빠르게 보는 방법",
+        "",
+        "- `open_index.html`: 브라우저에서 문서명으로 검색하고 `열기` 버튼으로 바로 확인하는 로컬 목록입니다.",
+        "- `named/` 폴더: 한국어 제목과 실제 확장자를 붙인 보기용 바로가기입니다.",
+        "- `readable/` 폴더: 원본 파일명을 유지하되 실제 형식에 맞춰 `.pdf`, `.html`, `.hwp`, `.hwpx`, `.exe` 이름으로 만든 바로가기입니다.",
+        "- `file_names.md`: 전체 파일명을 표로 정리한 문서입니다.",
+        "- `raw/` 폴더: 원본 그대로 저장한 파일입니다. 챗봇 인덱싱은 이 원본을 사용합니다.",
+        "",
+        "## 파일 종류 요약",
+        "",
+    ]
+    for kind, count in sorted(counts.items()):
+        readme_lines.append(f"- {kind}: {count}개")
+    readme_lines.extend(
+        [
+            "",
+            "## 추천",
+            "",
+            "발표나 직접 확인에는 `open_index.html` 또는 `named/` 폴더를 사용하세요. `.do` 파일을 직접 더블클릭하면 macOS가 파일 종류를 몰라 깨져 보일 수 있습니다.",
+        ]
+    )
+    (downloads_dir / "README.md").write_text("\n".join(readme_lines) + "\n", encoding="utf-8")
+
+    names_lines = [
+        "# 출원 공식 자료 로컬 파일 목록",
+        "",
+        "이 문서는 `downloads/raw`에 `.do`로 저장된 원본 파일을 사람이 열기 쉬운 이름과 확장자로 다시 연결한 목록입니다.",
+        "",
+        "- 바로 열기용 폴더: `downloads/named`",
+        "- 원본 보관 폴더: `downloads/raw`",
+        "- 확장자 보정 폴더: `downloads/readable`",
+        "- 로컬 HTML 목록: `downloads/open_index.html`",
+        "",
+        "| 번호 | 문서명 | 형식 | 파일명 | 열기 방법 |",
+        "|---:|---|---|---|---|",
+    ]
+    for row in rows:
+        names_lines.append(
+            f"| {row['no']} | {row['title']} | {row['kind'].upper()} | `named/{row['named_file']}` | {row['open_method']} |"
+        )
+    failures = [item for item in manifest.get("results") or [] if not item.get("ok")]
+    if failures:
+        names_lines.extend(["", "## 다운로드 실패", ""])
+        for item in failures:
+            names_lines.append(f"- `{item.get('source_id')}` {item.get('title')}: {item.get('error')} ({item.get('url')})")
+    (downloads_dir / "file_names.md").write_text("\n".join(names_lines) + "\n", encoding="utf-8")
+
+    html_rows = []
+    for row in rows:
+        local_href = quote(f"named/{row['named_file']}")
+        source_href = html_escape(str(row.get("url") or ""), quote=True)
+        searchable = html_escape(f"{row['title']} {row['source_id']} {row['named_file']}".lower(), quote=True)
+        html_rows.append(
+            "<tr data-kind=\"{kind}\" data-text=\"{searchable}\">"
+            "<td class=\"num\">{no:03d}</td>"
+            "<td><strong>{title}</strong><span>{source_id}</span></td>"
+            "<td><code>{kind}</code></td>"
+            "<td>{size}</td>"
+            "<td><a class=\"button\" href=\"{local_href}\">열기</a></td>"
+            "<td class=\"file\"><code>{named_file}</code></td>"
+            "<td><a href=\"{source_href}\" target=\"_blank\" rel=\"noopener\">원문 URL</a></td>"
+            "</tr>".format(
+                kind=html_escape(row["kind"].upper()),
+                searchable=searchable,
+                no=row["no"],
+                title=html_escape(row["title"]),
+                source_id=html_escape(row["source_id"]),
+                size=html_escape(row["size"]),
+                local_href=local_href,
+                named_file=html_escape(row["named_file"]),
+                source_href=source_href,
+            )
+        )
+    failure_html = ""
+    if failures:
+        items = [
+            "<li><code>{source_id}</code> {title} <span>{status}</span></li>".format(
+                source_id=html_escape(str(item.get("source_id", ""))),
+                title=html_escape(str(item.get("title", ""))),
+                status=html_escape(str(item.get("status", ""))),
+            )
+            for item in failures
+        ]
+        failure_html = f"<section><h2>다운로드 실패</h2><ul>{''.join(items)}</ul></section>"
+    html_body = "\n        ".join(html_rows)
+    (downloads_dir / "open_index.html").write_text(
+        f"""<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>출원 공식 자료 로컬 파일 목록</title>
+  <style>
+    :root {{ color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }}
+    body {{ margin: 0; background: #f7f7f4; color: #202124; }}
+    header {{ position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #dedbd2; padding: 18px 24px 16px; }}
+    h1 {{ margin: 0 0 10px; font-size: 22px; font-weight: 750; }}
+    .meta {{ display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: #5f6368; }}
+    .toolbar {{ display: flex; gap: 8px; align-items: center; margin-top: 14px; flex-wrap: wrap; }}
+    input, select {{ height: 36px; border: 1px solid #c9c5ba; background: #fff; border-radius: 6px; padding: 0 10px; font-size: 14px; }}
+    input {{ min-width: 280px; flex: 1; }}
+    main {{ padding: 18px 24px 32px; }}
+    .hint {{ margin: 0 0 14px; color: #4b4f55; font-size: 14px; line-height: 1.5; }}
+    table {{ width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #dedbd2; }}
+    th, td {{ border-bottom: 1px solid #ebe8df; padding: 10px 12px; text-align: left; vertical-align: middle; font-size: 14px; }}
+    th {{ position: sticky; top: 112px; background: #efede7; font-size: 12px; color: #4b4f55; text-transform: uppercase; letter-spacing: .02em; z-index: 1; }}
+    tr:hover td {{ background: #fbfaf7; }}
+    td.num {{ width: 54px; color: #6f746f; font-variant-numeric: tabular-nums; }}
+    td span {{ display: block; margin-top: 3px; color: #6f746f; font-size: 12px; }}
+    code {{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }}
+    .file code {{ word-break: break-all; }}
+    .button {{ display: inline-flex; align-items: center; justify-content: center; min-width: 52px; height: 30px; padding: 0 10px; border: 1px solid #9b8d67; border-radius: 6px; color: #312b1b; text-decoration: none; background: #fff7df; font-weight: 650; }}
+    a {{ color: #2457a6; }}
+    section {{ margin-top: 22px; }}
+    h2 {{ font-size: 16px; margin: 0 0 8px; }}
+    @media (max-width: 820px) {{ header {{ padding: 14px; }} main {{ padding: 14px; overflow-x: auto; }} table {{ min-width: 920px; }} th {{ top: 134px; }} }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>출원 공식 자료 로컬 파일 목록</h1>
+    <div class="meta"><div>성공 파일 {len(rows)}개</div><div>보기용 폴더: <code>downloads/named</code></div><div>원본 폴더: <code>downloads/raw</code></div></div>
+    <div class="toolbar"><input id="q" type="search" placeholder="파일명, 문서명, SRC 번호 검색"><select id="kind"><option value="">전체 형식</option><option value="PDF">PDF</option><option value="HTML">HTML</option><option value="HWP">HWP</option><option value="ZIP/HWPX">HWPX</option><option value="EXE">EXE</option></select></div>
+  </header>
+  <main>
+    <p class="hint">아래의 <strong>열기</strong>를 누르면 <code>named/</code> 폴더의 보기용 파일이 열립니다. HWP/HWPX는 한컴오피스가 설치되어 있어야 정상적으로 열립니다.</p>
+    <table><thead><tr><th>번호</th><th>문서명</th><th>형식</th><th>크기</th><th>열기</th><th>로컬 파일명</th><th>원문</th></tr></thead><tbody id="rows">
+        {html_body}
+    </tbody></table>
+    {failure_html}
+  </main>
+  <script>
+    const q = document.getElementById('q');
+    const kind = document.getElementById('kind');
+    const rows = Array.from(document.querySelectorAll('#rows tr'));
+    function applyFilter() {{
+      const needle = q.value.trim().toLowerCase();
+      const selected = kind.value;
+      for (const row of rows) {{
+        const textOk = !needle || row.dataset.text.includes(needle);
+        const kindOk = !selected || row.dataset.kind === selected;
+        row.style.display = textOk && kindOk ? '' : 'none';
+      }}
+    }}
+    q.addEventListener('input', applyFilter);
+    kind.addEventListener('change', applyFilter);
+  </script>
+</body>
+</html>
+""",
+        encoding="utf-8",
+    )
+    command_path = downloads_dir / "open_downloads.command"
+    command_path.write_text(f'#!/bin/zsh\ncd "{downloads_dir}"\nopen "open_index.html"\nopen "named"\n', encoding="utf-8")
+    command_path.chmod(0o755)
 
 
 def application_download_report() -> dict[str, Any]:

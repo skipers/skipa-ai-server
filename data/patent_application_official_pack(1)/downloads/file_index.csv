@@ -1,82 +1,82 @@
-raw_file,readable_file,kind,size_bytes,open_method
-SRC-001-DOC-001_7f3ae84a90.do,SRC-001-DOC-001_7f3ae84a90.hwp,hwp,545280,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-002_41c17479b2.do,SRC-001-DOC-002_41c17479b2.hwp,hwp,6322176,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-003_14b59479b4.do,SRC-001-DOC-003_14b59479b4.hwp,hwp,30720,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-004_b33482b587.do,SRC-001-DOC-004_b33482b587.hwp,hwp,404480,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-005_6c23fffa24.do,SRC-001-DOC-005_6c23fffa24.hwp,hwp,18944,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-006_23e313002e.do,SRC-001-DOC-006_23e313002e.hwp,hwp,32256,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-007_aa4293e083.do,SRC-001-DOC-007_aa4293e083.hwp,hwp,29184,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-008_79b865ddc9.do,SRC-001-DOC-008_79b865ddc9.hwp,hwp,33792,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-009_7a836feec4.do,SRC-001-DOC-009_7a836feec4.hwp,hwp,37376,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-010_5d2778b0f4.do,SRC-001-DOC-010_5d2778b0f4.hwp,hwp,26624,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-011_94338f9d03.do,SRC-001-DOC-011_94338f9d03.hwp,hwp,42496,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-012_d23c405205.do,SRC-001-DOC-012_d23c405205.hwp,hwp,66048,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001-DOC-013_cf53db25dd.do,SRC-001-DOC-013_cf53db25dd.hwp,hwp,1946624,"HWP 문서: 한글/한컴오피스, 또는 hwp 변환 도구로 열기"
-SRC-001_8496909b50.do,SRC-001_8496909b50.html,html,121799,HTML 웹페이지: 브라우저로 열기
-SRC-002-DOC-014_9312abe02d.html,SRC-002-DOC-014_9312abe02d.html,html,455725,HTML 웹페이지: 브라우저로 열기
-SRC-002-DOC-015_789a911233.html,SRC-002-DOC-015_789a911233.html,html,63618,HTML 웹페이지: 브라우저로 열기
-SRC-002-DOC-016_a43a5d7ab6.exe,SRC-002-DOC-016_a43a5d7ab6.exe,exe,24306856,Windows 실행 설치파일: macOS에서는 내용 확인용으로만 보관
-SRC-002-DOC-017_fa70a7d3a6.exe,SRC-002-DOC-017_fa70a7d3a6.exe,exe,30669048,Windows 실행 설치파일: macOS에서는 내용 확인용으로만 보관
-SRC-002-DOC-018_1522237ed7.exe,SRC-002-DOC-018_1522237ed7.exe,exe,10648904,Windows 실행 설치파일: macOS에서는 내용 확인용으로만 보관
-SRC-002-DOC-019_3d876e4b65.exe,SRC-002-DOC-019_3d876e4b65.exe,exe,4826152,Windows 실행 설치파일: macOS에서는 내용 확인용으로만 보관
-SRC-002_8c45815116.do,SRC-002_8c45815116.html,html,198711,HTML 웹페이지: 브라우저로 열기
-SRC-003_4c6db459ee.do,SRC-003_4c6db459ee.html,html,107461,HTML 웹페이지: 브라우저로 열기
-SRC-004_894134253b.do,SRC-004_894134253b.html,html,233369,HTML 웹페이지: 브라우저로 열기
-SRC-005-DOC-020_bc86a1a882.do,SRC-005-DOC-020_bc86a1a882.html,html,282381,HTML 웹페이지: 브라우저로 열기
-SRC-005_72934bb860.do,SRC-005_72934bb860.html,html,291941,HTML 웹페이지: 브라우저로 열기
-SRC-006-DOC-021_cb7d026584.do,SRC-006-DOC-021_cb7d026584.pdf,pdf,12266980,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-006_6548c9fa75.do,SRC-006_6548c9fa75.pdf,pdf,12266980,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-006_82b2227d3c.do,SRC-006_82b2227d3c.html,html,224054,HTML 웹페이지: 브라우저로 열기
-SRC-007-DOC-022_e6761b5fe0.do,SRC-007-DOC-022_e6761b5fe0.pdf,pdf,24213255,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-007_1942117df5.do,SRC-007_1942117df5.html,html,224415,HTML 웹페이지: 브라우저로 열기
-SRC-007_21b972afb1.do,SRC-007_21b972afb1.pdf,pdf,24213255,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-023_4d266c4ad8.do,SRC-008-DOC-023_4d266c4ad8.pdf,pdf,12266980,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-024_c9fd7dd978.do,SRC-008-DOC-024_c9fd7dd978.pdf,pdf,24213255,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-025_eb81d2a44c.do,SRC-008-DOC-025_eb81d2a44c.pdf,pdf,3101309,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-026_f72199f945.do,SRC-008-DOC-026_f72199f945.pdf,pdf,5745767,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-027_a0987e0b70.do,SRC-008-DOC-027_a0987e0b70.pdf,pdf,9234793,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-028_729b4ea5d9.do,SRC-008-DOC-028_729b4ea5d9.pdf,pdf,5821779,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-029_448d9372bb.do,SRC-008-DOC-029_448d9372bb.pdf,pdf,21884540,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-030_1f5819e6f0.do,SRC-008-DOC-030_1f5819e6f0.pdf,pdf,21859723,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-031_c2f76acfd2.do,SRC-008-DOC-031_c2f76acfd2.pdf,pdf,23524586,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-032_bd4e24b20e.do,SRC-008-DOC-032_bd4e24b20e.pdf,pdf,104020993,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-033_676650b77b.do,SRC-008-DOC-033_676650b77b.pdf,pdf,32300462,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-034_91dd3c0e6d.do,SRC-008-DOC-034_91dd3c0e6d.pdf,pdf,3847135,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-035_b4ccebd928.do,SRC-008-DOC-035_b4ccebd928.pdf,pdf,49923025,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-036_f28dbf3406.do,SRC-008-DOC-036_f28dbf3406.pdf,pdf,6126099,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-037_a03e4b0673.do,SRC-008-DOC-037_a03e4b0673.pdf,pdf,2983355,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-038_6c670cfdef.do,SRC-008-DOC-038_6c670cfdef.pdf,pdf,2138730,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-039_2ee132c806.do,SRC-008-DOC-039_2ee132c806.pdf,pdf,3138149,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-040_c5fa3a9bcc.do,SRC-008-DOC-040_c5fa3a9bcc.pdf,pdf,3316611,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-041_dc8363b3fe.do,SRC-008-DOC-041_dc8363b3fe.pdf,pdf,3247551,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-042_ac5c060eab.do,SRC-008-DOC-042_ac5c060eab.pdf,pdf,17552717,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-043_3be2e666f5.do,SRC-008-DOC-043_3be2e666f5.pdf,pdf,376836,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008-DOC-044_22f48c5bdb.do,SRC-008-DOC-044_22f48c5bdb.html,html,4868,HTML 웹페이지: 브라우저로 열기
-SRC-008_a10f1904f9.do,SRC-008_a10f1904f9.pdf,pdf,49923025,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-008_ee5b997d0c.do,SRC-008_ee5b997d0c.html,html,164833,HTML 웹페이지: 브라우저로 열기
-SRC-009-DOC-045_2b3beee5be.do,SRC-009-DOC-045_2b3beee5be.pdf,pdf,443978,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-009_38d57c9864.do,SRC-009_38d57c9864.html,html,228146,HTML 웹페이지: 브라우저로 열기
-SRC-010_cae3cec926.do,SRC-010_cae3cec926.html,html,87836,HTML 웹페이지: 브라우저로 열기
-SRC-011_d6cd171293.do,SRC-011_d6cd171293.pdf,pdf,376836,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-012_81be85e5c9.do,SRC-012_81be85e5c9.html,html,307184,HTML 웹페이지: 브라우저로 열기
-SRC-013_39f78cee06.do,SRC-013_39f78cee06.html,html,122720,HTML 웹페이지: 브라우저로 열기
-SRC-014_9224c3258f.pdf,SRC-014_9224c3258f.pdf,pdf,5035724,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-015_0de73052d0.pdf,SRC-015_0de73052d0.pdf,pdf,15614567,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-016-DOC-046_94af7dac4c.do,SRC-016-DOC-046_94af7dac4c.pdf,pdf,31198191,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-016_8a197ba32c.do,SRC-016_8a197ba32c.pdf,pdf,31198191,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-016_a89e1cfcd2.do,SRC-016_a89e1cfcd2.html,html,168153,HTML 웹페이지: 브라우저로 열기
-SRC-017-DOC-047_e75b9d1c35.do,SRC-017-DOC-047_e75b9d1c35.hwpx,zip/hwpx,129045,ZIP/HWPX 계열 문서: 한컴오피스 또는 압축 해제로 확인
-SRC-017-DOC-048_55610739cc.do,SRC-017-DOC-048_55610739cc.pdf,pdf,188746,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-017_0657e7db59.do,SRC-017_0657e7db59.html,html,154310,HTML 웹페이지: 브라우저로 열기
-SRC-017_1b7e0d218e.do,SRC-017_1b7e0d218e.pdf,pdf,188746,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-018_37258b8647.do,SRC-018_37258b8647.html,html,162829,HTML 웹페이지: 브라우저로 열기
-SRC-019-DOC-049_d9429c4e00.do,SRC-019-DOC-049_d9429c4e00.pdf,pdf,38861323,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-019_7c87796d38.do,SRC-019_7c87796d38.html,html,159379,HTML 웹페이지: 브라우저로 열기
-SRC-020-DOC-050_61442a4b90.do,SRC-020-DOC-050_61442a4b90.pdf,pdf,2325467,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-020_1d8708628f.do,SRC-020_1d8708628f.html,html,158229,HTML 웹페이지: 브라우저로 열기
-SRC-020_3a869c0620.do,SRC-020_3a869c0620.pdf,pdf,2325467,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-021_f028f66dda.do,SRC-021_f028f66dda.pdf,pdf,136645,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
-SRC-022_fe91cb6d0a.do,SRC-022_fe91cb6d0a.html,html,71819,HTML 웹페이지: 브라우저로 열기
-SRC-023_c146cb6519.do,SRC-023_c146cb6519.html,html,155329,HTML 웹페이지: 브라우저로 열기
-SRC-024_338653b73e.do,SRC-024_338653b73e.html,html,155189,HTML 웹페이지: 브라우저로 열기
-patent_rejection_notice_original_3cc6ee04fb.jsp,patent_rejection_notice_original_3cc6ee04fb.pdf,pdf,87196,"PDF 문서: 브라우저, Preview, Acrobat으로 열기"
+no,title,source_id,kind,size_bytes,size,raw_file,readable_file,named_file,open_method,url
+1,특허로 특허출원가이드,SRC-001,html,121799,118.9 KB,SRC-001_8496909b50.do,SRC-001_8496909b50.html,001_SRC-001_특허로 특허출원가이드.html,HTML 웹페이지: 브라우저로 열기,https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do
+2,특허고객번호부여신청,SRC-002,html,198711,194.1 KB,SRC-002_8c45815116.do,SRC-002_8c45815116.html,002_SRC-002_특허고객번호부여신청.html,HTML 웹페이지: 브라우저로 열기,https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do
+3,인증서 사용등록,SRC-003,html,107461,104.9 KB,SRC-003_4c6db459ee.do,SRC-003_4c6db459ee.html,003_SRC-003_인증서 사용등록.html,HTML 웹페이지: 브라우저로 열기,https://patent.go.kr/smart/jsp/ka/pki/kipocertmgr/KCertMgrView.do
+4,수수료정보안내,SRC-004,html,233369,227.9 KB,SRC-004_894134253b.do,SRC-004_894134253b.html,004_SRC-004_수수료정보안내.html,HTML 웹페이지: 브라우저로 열기,https://www.patent.go.kr/smart/jsp/ka/menu/fee/main/FeeMain01.do
+5,특허의 이해,SRC-005,html,291941,285.1 KB,SRC-005_72934bb860.do,SRC-005_72934bb860.html,005_SRC-005_특허의 이해.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200111
+6,특허·실용신안 심사기준 2026.03.12,SRC-006,pdf,12266980,11.7 MB,SRC-006_6548c9fa75.do,SRC-006_6548c9fa75.pdf,006_SRC-006_특허·실용신안 심사기준 2026.03.12.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=1&seq=30
+7,특허·실용신안 심사기준 2026.03.12,SRC-006,html,224054,218.8 KB,SRC-006_82b2227d3c.do,SRC-006_82b2227d3c.html,007_SRC-006_특허·실용신안 심사기준 2026.03.12.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200146
+8,기술분야별 심사실무가이드 2026.03,SRC-007,pdf,24213255,23.1 MB,SRC-007_21b972afb1.do,SRC-007_21b972afb1.pdf,008_SRC-007_기술분야별 심사실무가이드 2026.03.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=2&seq=30
+9,기술분야별 심사실무가이드 2026.03,SRC-007,html,224415,219.2 KB,SRC-007_1942117df5.do,SRC-007_1942117df5.html,009_SRC-007_기술분야별 심사실무가이드 2026.03.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200147
+10,출원방식심사기준,SRC-008,pdf,49923025,47.6 MB,SRC-008_a10f1904f9.do,SRC-008_a10f1904f9.pdf,010_SRC-008_출원방식심사기준.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=12&seq=30
+11,출원방식심사기준,SRC-008,html,164833,161.0 KB,SRC-008_ee5b997d0c.do,SRC-008_ee5b997d0c.html,011_SRC-008_출원방식심사기준.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119
+12,보정안 리뷰,SRC-009,html,228146,222.8 KB,SRC-009_38d57c9864.do,SRC-009_38d57c9864.html,012_SRC-009_보정안 리뷰.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200117
+13,특허심판원 심판수수료_심판 종류,SRC-010,html,87836,85.8 KB,SRC-010_cae3cec926.do,SRC-010_cae3cec926.html,013_SRC-010_특허심판원 심판수수료_심판 종류.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ipt/iptContentView.do?menuCd=SCD0400083
+14,지식재산권 권리회복 심사 가이드라인,SRC-011,pdf,376836,368.0 KB,SRC-011_d6cd171293.do,SRC-011_d6cd171293.pdf,014_SRC-011_지식재산권 권리회복 심사 가이드라인.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=20&seq=30
+15,KIPRIS 특허정보검색서비스,SRC-012,html,307184,300.0 KB,SRC-012_81be85e5c9.do,SRC-012_81be85e5c9.html,015_SRC-012_KIPRIS 특허정보검색서비스.html,HTML 웹페이지: 브라우저로 열기,https://www.kipris.or.kr/kportal/search/total_search.do
+16,KIPRIS 검색도움말,SRC-013,html,122720,119.8 KB,SRC-013_39f78cee06.do,SRC-013_39f78cee06.html,016_SRC-013_KIPRIS 검색도움말.html,HTML 웹페이지: 브라우저로 열기,https://www.kipris.or.kr/khome/board/help/basic.do
+17,CPC 매뉴얼 2020,SRC-014,pdf,5035724,4.8 MB,SRC-014_9224c3258f.pdf,SRC-014_9224c3258f.pdf,017_SRC-014_CPC 매뉴얼 2020.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://file.kipris.or.kr/abpat_manual/%EB%A7%A4%EB%89%B4%EC%96%BC%28%EA%B5%AD%EB%AC%B8%29.pdf
+18,IP정보 활용 길라잡이,SRC-015,pdf,15614567,14.9 MB,SRC-015_0de73052d0.pdf,SRC-015_0de73052d0.pdf,018_SRC-015_IP정보 활용 길라잡이.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://plus.kipris.or.kr/sampledata/KIPRISPlus%20IP%20Information%20Guide.pdf
+19,2026 지식재산권의 손쉬운 이용,SRC-016,pdf,31198191,29.8 MB,SRC-016_8a197ba32c.do,SRC-016_8a197ba32c.pdf,019_SRC-016_2026 지식재산권의 손쉬운 이용.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000048&ntatcAtflSeq=1&ntatcSeq=17056&sysCd=SCD02
+20,2026 지식재산권의 손쉬운 이용,SRC-016,html,168153,164.2 KB,SRC-016_a89e1cfcd2.do,SRC-016_a89e1cfcd2.html,020_SRC-016_2026 지식재산권의 손쉬운 이용.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&keyword=&menuCd=SCD0200640&ntatcSeq=17056&pageIndex=&searchCondition=&sysCd=SCD02
+21,CEO·연구자를 위한 특허출원 전략,SRC-017,pdf,188746,184.3 KB,SRC-017_1b7e0d218e.do,SRC-017_1b7e0d218e.pdf,021_SRC-017_CEO·연구자를 위한 특허출원 전략.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000029&ntatcAtflSeq=2&ntatcSeq=20755&sysCd=SCD02
+22,CEO·연구자를 위한 특허출원 전략,SRC-017,html,154310,150.7 KB,SRC-017_0657e7db59.do,SRC-017_0657e7db59.html,022_SRC-017_CEO·연구자를 위한 특허출원 전략.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000029&menuCd=SCD0200618&ntatcSeq=20755&sysCd=SCD02
+23,주요 발행물 목록,SRC-018,html,162829,159.0 KB,SRC-018_37258b8647.do,SRC-018_37258b8647.html,023_SRC-018_주요 발행물 목록.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/issue/kpoIssuePgmMgmt.do?menuCd=SCD0200658&parntMenuCd2=SCD0200281
+24,BM 특허 길라잡이,SRC-019,html,159379,155.6 KB,SRC-019_7c87796d38.do,SRC-019_7c87796d38.html,024_SRC-019_BM 특허 길라잡이.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&menuCd=SCD0200640&ntatcSeq=16423&sysCd=SCD02
+25,통지서 표준 문안집,SRC-020,pdf,2325467,2.2 MB,SRC-020_3a869c0620.do,SRC-020_3a869c0620.pdf,025_SRC-020_통지서 표준 문안집.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000048&ntatcAtflSeq=1&ntatcSeq=10148&sysCd=
+26,통지서 표준 문안집,SRC-020,html,158229,154.5 KB,SRC-020_1d8708628f.do,SRC-020_1d8708628f.html,026_SRC-020_통지서 표준 문안집.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&menuCd=SCD0200640&ntatcSeq=10148&sysCd=
+27,의견(답변 소명)서 별지 제24호서식,SRC-021,pdf,136645,133.4 KB,SRC-021_f028f66dda.do,SRC-021_f028f66dda.pdf,027_SRC-021_의견(답변 소명)서 별지 제24호서식.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.law.go.kr/flDownload.do?flNm=%5B%EB%B3%84%EC%A7%80+%EC%A0%9C24%ED%98%B8%EC%84%9C%EC%8B%9D%5D+%EC%9D%98%EA%B2%AC%28%EB%8B%B5%EB%B3%80%2C+%EC%86%8C%EB%AA%85%29%EC%84%9C%0A&flSeq=71598639
+28,특허법 제63조 거절이유통지,SRC-022,html,71819,70.1 KB,SRC-022_fe91cb6d0a.do,SRC-022_fe91cb6d0a.html,028_SRC-022_특허법 제63조 거절이유통지.html,HTML 웹페이지: 브라우저로 열기,https://www.law.go.kr/LSW//lsSideInfoP.do?docCls=jo&joBrNo=00&joNo=0063&lsiSeq=279827&urlMode=lsScJoRltInfoR
+29,지식재산처 KIPRISPlus 의견제출통지서 REST API,SRC-023,html,155329,151.7 KB,SRC-023_c146cb6519.do,SRC-023_c146cb6519.html,029_SRC-023_지식재산처 KIPRISPlus 의견제출통지서 REST API.html,HTML 웹페이지: 브라우저로 열기,https://www.data.go.kr/data/15059446/openapi.do?recommendDataYn=Y
+30,지식재산처 KIPRISPlus 거절결정서 REST API,SRC-024,html,155189,151.6 KB,SRC-024_338653b73e.do,SRC-024_338653b73e.html,030_SRC-024_지식재산처 KIPRISPlus 거절결정서 REST API.html,HTML 웹페이지: 브라우저로 열기,https://www.data.go.kr/data/15056951/openapi.do
+31,patent_rejection_notice_original_links,patent_rejection_notice_original_links,pdf,87196,85.2 KB,patent_rejection_notice_original_3cc6ee04fb.jsp,patent_rejection_notice_original_3cc6ee04fb.pdf,031_patent_rejection_notice_original_links_patent_rejection_notice_original_links.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://plus.kipris.or.kr/openapi/fileToss.jsp?arg=348aaf18c46825cf15bf684c56c5907b523bceb566974ce00c913d0e1193363cb22971157ae8d0219bdf17f7f0d61bc57746d305fa8de6549f68b1e3e969f734cacb05a867ec689baef5963a884373f243778abbe8707cf2d1fbdc37d5df05958811f12ddb8538b0
+32,특허로 특허출원가이드 _ 특허출원서,SRC-001-DOC-001,hwp,545280,532.5 KB,SRC-001-DOC-001_7f3ae84a90.do,SRC-001-DOC-001_7f3ae84a90.hwp,032_SRC-001-DOC-001_특허로 특허출원가이드 _ 특허출원서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?fileNm=p-14_s.hwp&path=/upload/kipo/new/form/file/p-14_s.hwp
+33,특허로 특허출원가이드 _ 실용신안등록출원서,SRC-001-DOC-002,hwp,6322176,6.0 MB,SRC-001-DOC-002_41c17479b2.do,SRC-001-DOC-002_41c17479b2.hwp,033_SRC-001-DOC-002_특허로 특허출원가이드 _ 실용신안등록출원서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/u-1_s.hwp&fileNm=u-1_s.hwp
+34,특허로 특허출원가이드 _ 보정서,SRC-001-DOC-003,hwp,30720,30.0 KB,SRC-001-DOC-003_14b59479b4.do,SRC-001-DOC-003_14b59479b4.hwp,034_SRC-001-DOC-003_특허로 특허출원가이드 _ 보정서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-9_s.hwp&fileNm=p-9_s.hwp
+35,특허로 특허출원가이드 _ 심사청구서,SRC-001-DOC-004,hwp,404480,395.0 KB,SRC-001-DOC-004_b33482b587.do,SRC-001-DOC-004_b33482b587.hwp,035_SRC-001-DOC-004_특허로 특허출원가이드 _ 심사청구서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-22_s.hwp&fileNm=p-22_s.hwp
+36,특허로 특허출원가이드 _ 조기공개신청서,SRC-001-DOC-005,hwp,18944,18.5 KB,SRC-001-DOC-005_6c23fffa24.do,SRC-001-DOC-005_6c23fffa24.hwp,036_SRC-001-DOC-005_특허로 특허출원가이드 _ 조기공개신청서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-25_s.hwp&fileNm=p-25_s.hwp
+37,특허로 특허출원가이드 _ 대리인(대표자)에 관한 신고서,SRC-001-DOC-006,hwp,32256,31.5 KB,SRC-001-DOC-006_23e313002e.do,SRC-001-DOC-006_23e313002e.hwp,037_SRC-001-DOC-006_특허로 특허출원가이드 _ 대리인(대표자)에 관한 신고서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-2_s.hwp&fileNm=p-2_s.hwp
+38,특허로 특허출원가이드 _ 기간연장신청서,SRC-001-DOC-007,hwp,29184,28.5 KB,SRC-001-DOC-007_aa4293e083.do,SRC-001-DOC-007_aa4293e083.hwp,038_SRC-001-DOC-007_특허로 특허출원가이드 _ 기간연장신청서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-10_d.hwp&fileNm=p-10_d.hwp
+39,특허로 특허출원가이드 _ 취하서,SRC-001-DOC-008,hwp,33792,33.0 KB,SRC-001-DOC-008_79b865ddc9.do,SRC-001-DOC-008_79b865ddc9.hwp,039_SRC-001-DOC-008_특허로 특허출원가이드 _ 취하서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-12_s.hwp&fileNm=p-12_s.hwp
+40,특허로 특허출원가이드 _ 권리관계변경신고서,SRC-001-DOC-009,hwp,37376,36.5 KB,SRC-001-DOC-009_7a836feec4.do,SRC-001-DOC-009_7a836feec4.hwp,040_SRC-001-DOC-009_특허로 특허출원가이드 _ 권리관계변경신고서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-20_s.hwp&fileNm=p-20_s.hwp
+41,특허로 특허출원가이드 _ 서류제출서,SRC-001-DOC-010,hwp,26624,26.0 KB,SRC-001-DOC-010_5d2778b0f4.do,SRC-001-DOC-010_5d2778b0f4.hwp,041_SRC-001-DOC-010_특허로 특허출원가이드 _ 서류제출서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-13_s.hwp&fileNm=p-13_s.hwp
+42,특허로 특허출원가이드 _ 의견서,SRC-001-DOC-011,hwp,42496,41.5 KB,SRC-001-DOC-011_94338f9d03.do,SRC-001-DOC-011_94338f9d03.hwp,042_SRC-001-DOC-011_특허로 특허출원가이드 _ 의견서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-24_s.hwp&fileNm=p-24_s.hwp
+43,특허로 특허출원가이드 _ 정보제출서,SRC-001-DOC-012,hwp,66048,64.5 KB,SRC-001-DOC-012_d23c405205.do,SRC-001-DOC-012_d23c405205.hwp,043_SRC-001-DOC-012_특허로 특허출원가이드 _ 정보제출서.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-23_s.hwp&fileNm=p-23_s.hwp
+44,특허로 특허출원가이드 _ 출원절차안내,SRC-001-DOC-013,hwp,1946624,1.9 MB,SRC-001-DOC-013_cf53db25dd.do,SRC-001-DOC-013_cf53db25dd.hwp,044_SRC-001-DOC-013_특허로 특허출원가이드 _ 출원절차안내.hwp,"HWP 문서: 한글/한컴오피스, 또는 HWP 변환 도구로 열기",https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/patent.hwp&fileNm=patent.hwp
+45,특허고객번호부여신청 _ 크롬 다운로드,SRC-002-DOC-014,html,455725,445.0 KB,SRC-002-DOC-014_9312abe02d.html,SRC-002-DOC-014_9312abe02d.html,045_SRC-002-DOC-014_특허고객번호부여신청 _ 크롬 다운로드.html,HTML 웹페이지: 브라우저로 열기,https://www.google.com/chrome/index.html#eula
+46,특허고객번호부여신청 _ 파이어폭스 다운로드,SRC-002-DOC-015,html,63618,62.1 KB,SRC-002-DOC-015_789a911233.html,SRC-002-DOC-015_789a911233.html,046_SRC-002-DOC-015_특허고객번호부여신청 _ 파이어폭스 다운로드.html,HTML 웹페이지: 브라우저로 열기,https://www.mozilla.org/ko/firefox/new/?scene=2
+47,특허고객번호부여신청 _ 다운로드,SRC-002-DOC-016,exe,24306856,23.2 MB,SRC-002-DOC-016_a43a5d7ab6.exe,SRC-002-DOC-016_a43a5d7ab6.exe,047_SRC-002-DOC-016_특허고객번호부여신청 _ 다운로드.exe,Windows 실행 설치파일: macOS에서는 내용 확인용으로만 보관,https://patent.go.kr/smart/raonkupload/agent/Patent.exe
+48,특허고객번호부여신청 _ 다운로드,SRC-002-DOC-017,exe,30669048,29.2 MB,SRC-002-DOC-017_fa70a7d3a6.exe,SRC-002-DOC-017_fa70a7d3a6.exe,048_SRC-002-DOC-017_특허고객번호부여신청 _ 다운로드.exe,Windows 실행 설치파일: macOS에서는 내용 확인용으로만 보관,https://supdate.nprotect.net/nprotect/nos_service/windows/install/nos_setup.exe
+49,특허고객번호부여신청 _ 다운로드,SRC-002-DOC-018,exe,10648904,10.2 MB,SRC-002-DOC-018_1522237ed7.exe,SRC-002-DOC-018_1522237ed7.exe,049_SRC-002-DOC-018_특허고객번호부여신청 _ 다운로드.exe,Windows 실행 설치파일: macOS에서는 내용 확인용으로만 보관,https://patent.go.kr/smart/MagicLine4Web/ML4Web/install_bin/magicline4nx_setup.exe
+50,특허고객번호부여신청 _ 다운로드,SRC-002-DOC-019,exe,4826152,4.6 MB,SRC-002-DOC-019_3d876e4b65.exe,SRC-002-DOC-019_3d876e4b65.exe,050_SRC-002-DOC-019_특허고객번호부여신청 _ 다운로드.exe,Windows 실행 설치파일: macOS에서는 내용 확인용으로만 보관,https://patent.go.kr/smart/raonkupload/agent/raonkSetup.exe
+51,특허의 이해 _ 첨부서류 양식,SRC-005-DOC-020,html,282381,275.8 KB,SRC-005-DOC-020_bc86a1a882.do,SRC-005-DOC-020_bc86a1a882.html,051_SRC-005-DOC-020_특허의 이해 _ 첨부서류 양식.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/ko/kpoBultnMgmt.do?menuCd=SCD0200636&parntMenuCd2=SCD0200198
+52,특허·실용신안 심사기준 2026.03.12 _ PDF 다운로드,SRC-006-DOC-021,pdf,12266980,11.7 MB,SRC-006-DOC-021_cb7d026584.do,SRC-006-DOC-021_cb7d026584.pdf,052_SRC-006-DOC-021_특허·실용신안 심사기준 2026.03.12 _ PDF 다운로드.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=4&fileNum=1
+53,기술분야별 심사실무가이드 2026.03 _ PDF 다운로드,SRC-007-DOC-022,pdf,24213255,23.1 MB,SRC-007-DOC-022_e6761b5fe0.do,SRC-007-DOC-022_e6761b5fe0.pdf,053_SRC-007-DOC-022_기술분야별 심사실무가이드 2026.03 _ PDF 다운로드.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=5&fileNum=1
+54,출원방식심사기준 _ 특허ㆍ실용신안 심사기준,SRC-008-DOC-023,pdf,12266980,11.7 MB,SRC-008-DOC-023_4d266c4ad8.do,SRC-008-DOC-023_4d266c4ad8.pdf,054_SRC-008-DOC-023_출원방식심사기준 _ 특허ㆍ실용신안 심사기준.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=1
+55,출원방식심사기준 _ 기술분야별 심사실무가이드,SRC-008-DOC-024,pdf,24213255,23.1 MB,SRC-008-DOC-024_c9fd7dd978.do,SRC-008-DOC-024_c9fd7dd978.pdf,055_SRC-008-DOC-024_출원방식심사기준 _ 기술분야별 심사실무가이드.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=2
+56,출원방식심사기준 _ PCT 국제조사 및 국제예비심사 가이드라인,SRC-008-DOC-025,pdf,3101309,3.0 MB,SRC-008-DOC-025_eb81d2a44c.do,SRC-008-DOC-025_eb81d2a44c.pdf,056_SRC-008-DOC-025_출원방식심사기준 _ PCT 국제조사 및 국제예비심사 가이드라인.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=3
+57,출원방식심사기준 _ 상표심사기준,SRC-008-DOC-026,pdf,5745767,5.5 MB,SRC-008-DOC-026_f72199f945.do,SRC-008-DOC-026_f72199f945.pdf,057_SRC-008-DOC-026_출원방식심사기준 _ 상표심사기준.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=4
+58,출원방식심사기준 _ 디자인 심사기준,SRC-008-DOC-027,pdf,9234793,8.8 MB,SRC-008-DOC-027_a0987e0b70.do,SRC-008-DOC-027_a0987e0b70.pdf,058_SRC-008-DOC-027_출원방식심사기준 _ 디자인 심사기준.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=5
+59,"출원방식심사기준 _ 심사자료, 니스 제9판 기준",SRC-008-DOC-028,pdf,5821779,5.6 MB,SRC-008-DOC-028_729b4ea5d9.do,SRC-008-DOC-028_729b4ea5d9.pdf,"059_SRC-008-DOC-028_출원방식심사기준 _ 심사자료, 니스 제9판 기준.pdf","PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=6
+60,출원방식심사기준 _ 유사상품 심사기준(니스 제13판 기준),SRC-008-DOC-029,pdf,21884540,20.9 MB,SRC-008-DOC-029_448d9372bb.do,SRC-008-DOC-029_448d9372bb.pdf,060_SRC-008-DOC-029_출원방식심사기준 _ 유사상품 심사기준(니스 제13판 기준).pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=25
+61,출원방식심사기준 _ 유사상품 심사기준(니스 제12판 기준),SRC-008-DOC-030,pdf,21859723,20.8 MB,SRC-008-DOC-030_1f5819e6f0.do,SRC-008-DOC-030_1f5819e6f0.pdf,061_SRC-008-DOC-030_출원방식심사기준 _ 유사상품 심사기준(니스 제12판 기준).pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=7
+62,출원방식심사기준 _ 유사상품 심사기준(니스 제11판 기준),SRC-008-DOC-031,pdf,23524586,22.4 MB,SRC-008-DOC-031_c2f76acfd2.do,SRC-008-DOC-031_c2f76acfd2.pdf,062_SRC-008-DOC-031_출원방식심사기준 _ 유사상품 심사기준(니스 제11판 기준).pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=8
+63,출원방식심사기준 _ 유사상품·서비스업 심사기준(니스 제10판 기준),SRC-008-DOC-032,pdf,104020993,99.2 MB,SRC-008-DOC-032_bd4e24b20e.do,SRC-008-DOC-032_bd4e24b20e.pdf,063_SRC-008-DOC-032_출원방식심사기준 _ 유사상품·서비스업 심사기준(니스 제10판 기준).pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=9
+64,출원방식심사기준 _ 유사상품·서비스업 심사기준(니스 제9판 기준),SRC-008-DOC-033,pdf,32300462,30.8 MB,SRC-008-DOC-033_676650b77b.do,SRC-008-DOC-033_676650b77b.pdf,064_SRC-008-DOC-033_출원방식심사기준 _ 유사상품·서비스업 심사기준(니스 제9판 기준).pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=10
+65,출원방식심사기준 _ 유사상품·서비스업 심사기준(니스 제8판 기준),SRC-008-DOC-034,pdf,3847135,3.7 MB,SRC-008-DOC-034_91dd3c0e6d.do,SRC-008-DOC-034_91dd3c0e6d.pdf,065_SRC-008-DOC-034_출원방식심사기준 _ 유사상품·서비스업 심사기준(니스 제8판 기준).pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=11
+66,출원방식심사기준 _ 출원방식심사기준,SRC-008-DOC-035,pdf,49923025,47.6 MB,SRC-008-DOC-035_b4ccebd928.do,SRC-008-DOC-035_b4ccebd928.pdf,066_SRC-008-DOC-035_출원방식심사기준 _ 출원방식심사기준.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=12
+67,출원방식심사기준 _ 등록업무 편람,SRC-008-DOC-036,pdf,6126099,5.8 MB,SRC-008-DOC-036_f28dbf3406.do,SRC-008-DOC-036_f28dbf3406.pdf,067_SRC-008-DOC-036_출원방식심사기준 _ 등록업무 편람.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=13
+68,출원방식심사기준 _ NICE 국제상품분류 Class Heading 해설서,SRC-008-DOC-037,pdf,2983355,2.8 MB,SRC-008-DOC-037_a03e4b0673.do,SRC-008-DOC-037_a03e4b0673.pdf,068_SRC-008-DOC-037_출원방식심사기준 _ NICE 국제상품분류 Class Heading 해설서.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=14
+69,출원방식심사기준 _ 디자인 물품류별 물품목록 (2026년),SRC-008-DOC-038,pdf,2138730,2.0 MB,SRC-008-DOC-038_6c670cfdef.do,SRC-008-DOC-038_6c670cfdef.pdf,069_SRC-008-DOC-038_출원방식심사기준 _ 디자인 물품류별 물품목록 (2026년).pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=24
+70,출원방식심사기준 _ 디자인 물품류별 물품목록 (2025년),SRC-008-DOC-039,pdf,3138149,3.0 MB,SRC-008-DOC-039_2ee132c806.do,SRC-008-DOC-039_2ee132c806.pdf,070_SRC-008-DOC-039_출원방식심사기준 _ 디자인 물품류별 물품목록 (2025년).pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=23
+71,출원방식심사기준 _ 디자인 물품류별 물품목록 (2024년),SRC-008-DOC-040,pdf,3316611,3.2 MB,SRC-008-DOC-040_c5fa3a9bcc.do,SRC-008-DOC-040_c5fa3a9bcc.pdf,071_SRC-008-DOC-040_출원방식심사기준 _ 디자인 물품류별 물품목록 (2024년).pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=22
+72,출원방식심사기준 _ 디자인 물품류별 물품목록 (2021년),SRC-008-DOC-041,pdf,3247551,3.1 MB,SRC-008-DOC-041_dc8363b3fe.do,SRC-008-DOC-041_dc8363b3fe.pdf,072_SRC-008-DOC-041_출원방식심사기준 _ 디자인 물품류별 물품목록 (2021년).pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=15
+73,출원방식심사기준 _ 디자이너를 위한 디자인출원도면 작성 가이드북,SRC-008-DOC-042,pdf,17552717,16.7 MB,SRC-008-DOC-042_ac5c060eab.do,SRC-008-DOC-042_ac5c060eab.pdf,073_SRC-008-DOC-042_출원방식심사기준 _ 디자이너를 위한 디자인출원도면 작성 가이드북.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=19
+74,출원방식심사기준 _ 지식재산권 권리회복 심사 가이드라인,SRC-008-DOC-043,pdf,376836,368.0 KB,SRC-008-DOC-043_3be2e666f5.do,SRC-008-DOC-043_3be2e666f5.pdf,074_SRC-008-DOC-043_출원방식심사기준 _ 지식재산권 권리회복 심사 가이드라인.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=20
+75,출원방식심사기준 _ 뷰어 프로그램 다운로드,SRC-008-DOC-044,html,4868,4.8 KB,SRC-008-DOC-044_22f48c5bdb.do,SRC-008-DOC-044_22f48c5bdb.html,075_SRC-008-DOC-044_출원방식심사기준 _ 뷰어 프로그램 다운로드.html,HTML 웹페이지: 브라우저로 열기,https://www.kipo.go.kr/kipo/kipoContentView.do?menuCd=SCD0201127
+76,보정안 리뷰 _ 다운로드,SRC-009-DOC-045,pdf,443978,433.6 KB,SRC-009-DOC-045_2b3beee5be.do,SRC-009-DOC-045_2b3beee5be.pdf,076_SRC-009-DOC-045_보정안 리뷰 _ 다운로드.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=3&fileNum=1
+77,2026 지식재산권의 손쉬운 이용 _ 13.2026 지식재산권의 손쉬운 이용,SRC-016-DOC-046,pdf,31198191,29.8 MB,SRC-016-DOC-046_94af7dac4c.do,SRC-016-DOC-046_94af7dac4c.pdf,077_SRC-016-DOC-046_2026 지식재산권의 손쉬운 이용 _ 13.2026 지식재산권의 손쉬운 이용.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=17056&ntatcAtflSeq=1&sysCd=SCD02&aprchId=BUT0000048
+78,"CEO·연구자를 위한 특허출원 전략 _ 014 지식재산처 지식재산처, 「CEO·연구자를 위한 특허출원 전략」 발간",SRC-017-DOC-047,zip/hwpx,129045,126.0 KB,SRC-017-DOC-047_e75b9d1c35.do,SRC-017-DOC-047_e75b9d1c35.hwpx,"078_SRC-017-DOC-047_CEO·연구자를 위한 특허출원 전략 _ 014 지식재산처 지식재산처, 「CEO·연구자를 위한 특허출원 전략」 발간.hwpx",HWPX 문서: 한글/한컴오피스로 열기,https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=20755&ntatcAtflSeq=1&sysCd=SCD02&aprchId=BUT0000029
+79,"CEO·연구자를 위한 특허출원 전략 _ 014 지식재산처 지식재산처, 「CEO·연구자를 위한 특허출원 전략」 발간",SRC-017-DOC-048,pdf,188746,184.3 KB,SRC-017-DOC-048_55610739cc.do,SRC-017-DOC-048_55610739cc.pdf,"079_SRC-017-DOC-048_CEO·연구자를 위한 특허출원 전략 _ 014 지식재산처 지식재산처, 「CEO·연구자를 위한 특허출원 전략」 발간.pdf","PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=20755&ntatcAtflSeq=2&sysCd=SCD02&aprchId=BUT0000029
+80,BM 특허 길라잡이 _ 5.BM 길라잡이,SRC-019-DOC-049,pdf,38861323,37.1 MB,SRC-019-DOC-049_d9429c4e00.do,SRC-019-DOC-049_d9429c4e00.pdf,080_SRC-019-DOC-049_BM 특허 길라잡이 _ 5.BM 길라잡이.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=16423&ntatcAtflSeq=2&sysCd=SCD02&aprchId=BUT0000048
+81,통지서 표준 문안집 _ 통지서표준문안집,SRC-020-DOC-050,pdf,2325467,2.2 MB,SRC-020-DOC-050_61442a4b90.do,SRC-020-DOC-050_61442a4b90.pdf,081_SRC-020-DOC-050_통지서 표준 문안집 _ 통지서표준문안집.pdf,"PDF 문서: 브라우저, Preview, Acrobat으로 열기",https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=10148&ntatcAtflSeq=1&sysCd=&aprchId=BUT0000048
