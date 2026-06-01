@@ -1,4 +1,4 @@
-"""Read-only access to the shared chatbot/eval data folder."""
+"""Access to the shared chatbot/eval data folder."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from typing import Any, Iterable
 from fastapi import HTTPException
 
 from .config import BUSINESS_ROOT, DATA_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT
+from .vectorstore import search_vectorstore, vectorstore_status
 
 
 CHUNK_FILES = {
@@ -101,7 +102,9 @@ def data_overview() -> dict[str, Any]:
             "chunks": _file_summary(BUSINESS_ROOT / "index" / "all_chunks.jsonl"),
             "faiss": _file_summary(BUSINESS_ROOT / "index" / "faiss" / "index.faiss"),
             "pickle": _file_summary(BUSINESS_ROOT / "index" / "faiss" / "index.pkl"),
+            "vectorstore": _file_summary(BUSINESS_ROOT / "index" / "vectorstore" / "manifest.json"),
         },
+        "vectorstore": vectorstore_status(),
     }
 
 
@@ -138,6 +141,7 @@ def patent_summary(patent_dir: Path) -> dict[str, Any]:
         "has_latest_report": latest_report.exists(),
         "has_patent_index": (patent_dir / "index" / "faiss" / "index.faiss").exists(),
         "has_wiki_index": (patent_dir / "wiki" / "vectorstore" / "faiss" / "index.faiss").exists(),
+        "has_local_vectorstore": (patent_dir / "index" / "vectorstore" / "manifest.json").exists(),
         "chunk_count": _count_lines(all_chunks),
         "report_json_count": _count_files(patent_dir / "reports" / "json", "*.json"),
         "asset_count": _count_files(patent_dir / "extracted" / "assets"),
@@ -167,6 +171,7 @@ def patent_detail(patent_id: str, include_files: bool = True) -> dict[str, Any]:
         "all_chunks": _file_summary(patent_dir / "extracted" / "all_chunks.jsonl"),
         "patent_index": _file_summary(patent_dir / "index" / "faiss" / "index.faiss"),
         "wiki_index": _file_summary(patent_dir / "wiki" / "vectorstore" / "faiss" / "index.faiss"),
+        "local_vectorstore": _file_summary(patent_dir / "index" / "vectorstore" / "manifest.json"),
     }
     if include_files:
         detail["files"] = list_files(patent_id, limit=300)
@@ -306,6 +311,10 @@ def _excerpt(text: str, query: str, size: int = 360) -> str:
 
 
 def search_chunks(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int) -> dict[str, Any]:
+    vector_result = search_vectorstore(query, patent_id=patent_id, source_types=source_types, top_k=top_k)
+    if vector_result["hit_count"] > 0:
+        return vector_result
+
     scored: list[tuple[float, dict[str, Any]]] = []
     for item in _iter_chunk_items(patent_id, source_types):
         score = _score(query, item)
@@ -345,4 +354,3 @@ def wiki_audit_report() -> dict[str, Any]:
         if path.exists():
             return {"path": _file_summary(path), "markdown": path.read_text(encoding="utf-8")}
     raise HTTPException(status_code=404, detail="wiki audit report를 찾을 수 없습니다.")
-

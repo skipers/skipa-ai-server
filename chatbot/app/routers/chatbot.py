@@ -18,6 +18,7 @@ from ..store import (
     search_chunks,
     wiki_audit_report,
 )
+from ..vectorstore import audit_and_refresh_vectorstores, refresh_vectorstores, vectorstore_status
 
 
 router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
@@ -91,6 +92,16 @@ def get_business_chunks(offset: int = Query(0, ge=0), limit: int = Query(20, ge=
     return business_chunks(offset=offset, limit=limit)
 
 
+@router.get("/vectorstore/status", summary="챗봇 vectorstore 갱신 상태")
+def get_vectorstore_status() -> dict:
+    return vectorstore_status()
+
+
+@router.post("/vectorstore/refresh", summary="전체 특허/사업 데이터 vectorstore 재생성")
+def post_vectorstore_refresh() -> dict:
+    return refresh_vectorstores()
+
+
 @router.post("/search", response_model=SearchResponse, summary="챗봇 RAG 검색 확인")
 def post_search(request: SearchRequest) -> dict:
     return search_chunks(
@@ -121,3 +132,8 @@ def agent_query(request: SearchRequest) -> dict:
 def get_wiki_audit_report() -> dict:
     return wiki_audit_report()
 
+
+@router.post("/wiki-audit/run", summary="wiki/챗봇 데이터 감사 실행 및 vectorstore 갱신")
+@wiki_router.post("/audit", summary="wiki/챗봇 데이터 감사 실행 및 vectorstore 갱신")
+def post_wiki_audit(refresh_vectorstore: bool = Query(True, description="감사 후 전체 vectorstore 재생성 여부")) -> dict:
+    return audit_and_refresh_vectorstores(refresh_vectorstore=refresh_vectorstore)

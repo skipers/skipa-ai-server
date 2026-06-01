@@ -81,8 +81,9 @@ skipa-ai-server/
     data/
       mapped_patent_reports -> ../../data/mapped_patent_reports
       business -> ../../data/business
-    wiki_auditor/         # wiki 감사 결과와 대화 이력
+    wiki_auditor/         # 기존 wiki 감사 fixture
     logs/                 # 로컬 실행 로그, git 제외
+      wiki_auditor/       # 새 감사 실행 결과, git 제외
     patents_backup_*/     # 이전 특허 데이터 backup, git 제외
 ```
 
@@ -168,7 +169,8 @@ chatbot/
     제품/사업화 RAG에 필요한 공통 business index를 읽습니다.
 
   wiki_auditor/
-    wiki 문서 구조, 고아 페이지, 모순 여부를 점검한 결과를 보관합니다.
+    기존 wiki 감사 fixture입니다. Swagger에서 새 감사를 실행하면 기본적으로
+    chatbot/logs/wiki_auditor 아래에 새 감사 리포트와 audit.log가 저장됩니다.
 ```
 
 현재 `chatbot/app`에는 Swagger에서 챗봇 API를 확인할 수 있는 FastAPI 앱이
@@ -182,7 +184,7 @@ app/config.py
   chatbot/.env, DATA_ROOT, PATENTS_ROOT, PUBLIC_FILE_BASE_URL, embedding/model 설정을 읽습니다.
 
 app/store.py
-  data/mapped_patent_reports, data/business, wiki_auditor 파일을 읽고
+  data/mapped_patent_reports, data/business, wiki 감사 파일을 읽고
   특허 목록, manifest, latest input/report, chunk, 간단 검색 결과를 반환합니다.
 
 app/schemas.py
@@ -210,13 +212,22 @@ GET  /api/v1/chatbot/patents/{patent_id}/input/latest
 GET  /api/v1/chatbot/patents/{patent_id}/report/latest
 GET  /api/v1/chatbot/patents/{patent_id}/chunks
 GET  /api/v1/chatbot/business/chunks
+GET  /api/v1/chatbot/vectorstore/status
+POST /api/v1/chatbot/vectorstore/refresh
 POST /api/v1/chatbot/search
 POST /api/v1/chatbot/query
 POST /api/v1/rag/query
 POST /api/v1/agent/query
 GET  /api/v1/chatbot/wiki-audit/report
+POST /api/v1/chatbot/wiki-audit/run
 GET  /api/v1/wiki/audit-report
+POST /api/v1/wiki/audit
 ```
+
+`POST /api/v1/wiki/audit` 또는 `POST /api/v1/chatbot/wiki-audit/run`을 실행하면
+전체 `data/mapped_patent_reports`와 `data/business`를 다시 스캔하고,
+신규/변경 input, report, wiki, chunk 데이터를 챗봇 vectorstore에 재생성합니다.
+생성 파일은 `index/vectorstore/` 아래에 저장되며 Git 커밋 대상에서는 제외됩니다.
 
 ## 중앙 데이터 저장 규칙
 
@@ -490,6 +501,8 @@ GET  /api/v1/chatbot/config
 GET  /api/v1/chatbot/patents
 GET  /api/v1/chatbot/patents/10-2886381
 GET  /api/v1/chatbot/patents/10-2886381/chunks
+GET  /api/v1/chatbot/vectorstore/status
+POST /api/v1/wiki/audit
 POST /api/v1/chatbot/query
 POST /api/v1/rag/query
 GET  /api/v1/wiki/audit-report
@@ -708,10 +721,13 @@ data/mapped_patent_reports/<patent_id>/original/input/
 4. `GET /api/v1/chatbot/config`로 `DATA_ROOT`, `PATENTS_ROOT` 연결 확인
 5. `GET /api/v1/chatbot/patents`로 특허 목록 확인
 6. `GET /api/v1/chatbot/patents/{patent_id}/chunks`로 원문/보고서 chunk 확인
-7. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/rag/query`로 질의 검색 확인
+7. `POST /api/v1/wiki/audit`로 감사와 전체 vectorstore 갱신 실행
+8. `GET /api/v1/chatbot/vectorstore/status`로 갱신된 문서 수 확인
+9. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/rag/query`로 질의 검색 확인
 
-현재 query API는 Swagger 검증용 keyword chunk search입니다. 운영형 LLM 답변 생성은
-같은 endpoint 뒤에 FAISS retrieval과 LLM generation을 붙여 확장할 수 있습니다.
+현재 query API는 감사 시 재생성된 로컬 vectorstore를 먼저 검색하고, vectorstore가
+없으면 기존 chunk keyword search로 fallback합니다. 운영형 LLM 답변 생성은 같은
+endpoint 뒤에 FAISS retrieval과 LLM generation을 붙여 확장할 수 있습니다.
 
 ## 기능별 검증 방법
 
@@ -883,6 +899,8 @@ GET  /api/v1/chatbot/data-links
 GET  /api/v1/chatbot/patents
 GET  /api/v1/chatbot/patents/10-2886381
 GET  /api/v1/chatbot/patents/10-2886381/chunks
+GET  /api/v1/chatbot/vectorstore/status
+POST /api/v1/wiki/audit
 POST /api/v1/chatbot/query
 POST /api/v1/rag/query
 POST /api/v1/agent/query
@@ -915,7 +933,9 @@ TOP_K=10
 ```text
 GET /api/v1/chatbot/patents에서 특허 목록 반환
 GET /api/v1/chatbot/patents/10-2886381/chunks에서 chunk 반환
-POST /api/v1/chatbot/query에서 검색 hit 반환
+POST /api/v1/wiki/audit에서 vectorstore_refresh.status가 refreshed
+GET /api/v1/chatbot/vectorstore/status에서 global document_count 증가
+POST /api/v1/chatbot/query에서 local_vectorstore_search hit 반환
 GET /api/v1/wiki/audit-report에서 wiki 감사 리포트 반환
 ```
 
