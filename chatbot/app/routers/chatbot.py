@@ -6,8 +6,9 @@ from fastapi import APIRouter, Query
 
 from ..agents.wiki_graph import run_wiki_audit_graph, wiki_audit_graph_mermaid
 from ..config import EMBEDDING_MODEL, GEN_MODEL, PUBLIC_FILE_BASE_URL, TOP_K
-from ..schemas import AuditApplyRequest, SearchRequest, SearchResponse, WikiAgentRunRequest
+from ..schemas import AnswerResponse, AuditApplyRequest, SearchRequest, SearchResponse, WikiAgentRunRequest
 from ..store import (
+    answer_query,
     business_chunks,
     data_overview,
     latest_json,
@@ -119,6 +120,16 @@ def post_query(request: SearchRequest) -> dict:
     return post_search(request)
 
 
+@router.post("/answer", response_model=AnswerResponse, summary="챗봇 답변 API")
+def post_answer(request: SearchRequest) -> dict:
+    return answer_query(
+        request.query,
+        patent_id=request.patent_id,
+        source_types=set(request.source_types or []) or None,
+        top_k=request.top_k,
+    )
+
+
 @rag_router.post("/query", response_model=SearchResponse, summary="RAG 질의 alias")
 def rag_query(request: SearchRequest) -> dict:
     return post_search(request)
@@ -127,6 +138,16 @@ def rag_query(request: SearchRequest) -> dict:
 @agent_router.post("/query", response_model=SearchResponse, summary="Agent 질의 alias")
 def agent_query(request: SearchRequest) -> dict:
     return post_search(request)
+
+
+@rag_router.post("/answer", response_model=AnswerResponse, summary="RAG 답변 alias")
+def rag_answer(request: SearchRequest) -> dict:
+    return post_answer(request)
+
+
+@agent_router.post("/answer", response_model=AnswerResponse, summary="Agent 답변 alias")
+def agent_answer(request: SearchRequest) -> dict:
+    return post_answer(request)
 
 
 @router.get("/wiki-audit/report", summary="wiki 감사 리포트")

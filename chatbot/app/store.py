@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
+from urllib.parse import quote
 
 from fastapi import HTTPException
 
@@ -342,6 +343,97 @@ def search_chunks(query: str, *, patent_id: str | None, source_types: set[str] |
         "top_k": top_k,
         "hit_count": len(hits),
         "hits": hits,
+    }
+
+
+def _source_url(metadata: dict[str, Any]) -> str | None:
+    source_path = metadata.get("source_path")
+    if not source_path:
+        return None
+    path = Path(str(source_path))
+    try:
+        rel = path.resolve().relative_to(DATA_ROOT.resolve())
+    except Exception:
+        return None
+    return "/files/data/" + quote(str(rel).replace("\\", "/"))
+
+
+def _clean_sentence(text: str, limit: int = 220) -> str:
+    value = " ".join(str(text or "").split())
+    if len(value) <= limit:
+        return value
+    return value[: limit - 3].rstrip() + "..."
+
+
+def _answer_line(hit: dict[str, Any], index: int) -> str:
+    metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+    source_type = str(metadata.get("source_type") or "unknown")
+    section = metadata.get("section_title") or metadata.get("file_name") or metadata.get("title") or "근거"
+    excerpt = _clean_sentence(str(hit.get("excerpt") or hit.get("page_content") or ""))
+    return f"{index}. {source_type} / {section}: {excerpt}"
+
+
+def answer_query(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int) -> dict[str, Any]:
+    search = search_chunks(query, patent_id=patent_id, source_types=source_types, top_k=top_k)
+    hits = search.get("hits") or []
+    if not hits:
+        answer = (
+            "관련 근거를 찾지 못했습니다.\n\n"
+            "- 다른 특허를 선택하거나 전체 특허 범위로 다시 질문해 주세요.\n"
+            "- 감사 적용 후 vectorstore가 비어 있으면 먼저 Audit Apply 또는 vectorstore refresh를 실행해 주세요."
+        )
+    else:
+        scoped = f"`{patent_id}` 특허" if patent_id else "전체 특허"
+        lines = [
+            f"{scoped}에서 질문과 관련된 근거 {len(hits)}개를 찾았습니다.",
+            "",
+            "## 답변 요약",
+            "검색된 근거 기준으로 보면 다음 항목들이 질문에 직접 연결됩니다.",
+            "",
+        ]
+        lines.extend(_answer_line(hit, index) for index, hit in enumerate(hits[:4], 1))
+        lines.extend(
+            [
+                "",
+                "## 확인 방법",
+                "아래 근거 카드를 클릭하면 원문 excerpt, source_type, source_path metadata를 확인할 수 있습니다.",
+            ]
+        )
+        answer = "\n".join(lines)
+
+    source_cards = []
+    for index, hit in enumerate(hits, 1):
+        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        source_type = str(metadata.get("source_type") or "unknown")
+        title = metadata.get("section_title") or metadata.get("file_name") or metadata.get("title")
+        page_no = metadata.get("page_no") or metadata.get("page")
+        try:
+            page_no = int(page_no) if page_no is not None else None
+        except (TypeError, ValueError):
+            page_no = None
+        source_cards.append(
+            {
+                "label": f"근거 {index}",
+                "title": str(title) if title else None,
+                "source_type": source_type,
+                "page_no": page_no,
+                "url": _source_url(metadata),
+                "snippet": str(hit.get("excerpt") or hit.get("page_content") or ""),
+                "metadata": metadata,
+            }
+        )
+
+    return {
+        "query": query,
+        "patent_id": patent_id,
+        "answer": answer,
+        "source_cards": source_cards,
+        "metrics": {
+            "mode": search.get("mode"),
+            "hit_count": search.get("hit_count", 0),
+            "top_k": top_k,
+            "source_types": sorted(source_types) if source_types else None,
+        },
     }
 
 

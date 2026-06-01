@@ -3,103 +3,114 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SKIPA Chatbot Test</title>
+    <title>SKIPA Patent Chat</title>
     <link rel="stylesheet" href="/ui/static/styles.css" />
   </head>
   <body>
-    <main class="page">
-      <header class="header">
-        <div>
-          <p>SKIPA Chatbot</p>
-          <h1>Simple Test UI</h1>
-        </div>
-        <div class="actions">
+    <div class="app">
+      <header>
+        <h1>SKIPA Patent Chat</h1>
+        <div class="header-tools">
+          <label for="patentSelect">검색 범위</label>
+          <select id="patentSelect">
+            <option value="__all__">전체 특허</option>
+          </select>
+          <button id="reloadButton" type="button">새로고침</button>
           <a href="/docs" target="_blank" rel="noreferrer">Swagger</a>
-          <button id="reloadButton" type="button">Reload</button>
         </div>
       </header>
 
-      <section class="status-grid" aria-label="status">
-        <article>
-          <span>Server</span>
-          <strong id="serverStatus">-</strong>
-        </article>
-        <article>
-          <span>Patents</span>
-          <strong id="patentCount">-</strong>
-        </article>
-        <article>
-          <span>Vector source</span>
-          <strong id="vectorSource">-</strong>
-        </article>
-        <article>
-          <span>Documents</span>
-          <strong id="globalDocCount">-</strong>
-        </article>
-      </section>
+      <details class="ops-panel" open>
+        <summary>
+          감사/워크플로우 테스트
+          <span id="statusLine">상태 확인 중</span>
+        </summary>
+        <div class="ops-grid">
+          <section class="tool-card">
+            <div class="tool-head">
+              <div>
+                <h2>데이터 감사</h2>
+                <p id="auditSummary">감사를 실행하면 후보 데이터가 표시됩니다.</p>
+              </div>
+              <div class="button-row">
+                <button id="runAuditButton" type="button">감사</button>
+                <button id="loadReviewButton" type="button">검토서</button>
+                <button id="applyAuditButton" type="button">적용</button>
+              </div>
+            </div>
+            <div class="audit-inputs">
+              <label>
+                Audit ID
+                <input id="auditIdInput" type="text" placeholder="latest" />
+              </label>
+              <label>
+                Reviewer
+                <input id="reviewerInput" type="text" value="demo-user" />
+              </label>
+            </div>
+            <div id="findingList" class="finding-list">
+              <div class="empty">아직 감사 결과가 없습니다.</div>
+            </div>
+            <details class="sub-details">
+              <summary>검토 Markdown 보기</summary>
+              <pre id="reviewMarkdown">검토서를 불러오면 여기에 표시됩니다.</pre>
+            </details>
+          </section>
 
-      <section class="card">
-        <div class="card-head">
-          <div>
-            <h2>Audit</h2>
-            <span id="auditSummary">No audit loaded</span>
-          </div>
-          <div class="actions">
-            <button id="runAuditButton" type="button">Run</button>
-            <button id="loadReviewButton" type="button">Review</button>
-            <button id="applyAuditButton" type="button">Apply</button>
-          </div>
+          <section class="tool-card">
+            <div class="tool-head">
+              <div>
+                <h2>워크플로우</h2>
+                <p>단계를 클릭하면 역할을 볼 수 있습니다.</p>
+              </div>
+              <button id="loadWorkflowButton" type="button">그래프</button>
+            </div>
+            <div class="flow" id="workflowFlow">
+              <button type="button" data-flow="audit">Audit</button>
+              <span>→</span>
+              <button type="button" data-flow="review">Human Review</button>
+              <span>→</span>
+              <button type="button" data-flow="apply">Apply</button>
+              <span>→</span>
+              <button type="button" data-flow="vectorstore">Vectorstore</button>
+              <span>→</span>
+              <button type="button" data-flow="query">Chat Query</button>
+            </div>
+            <div id="workflowDetail" class="workflow-detail">
+              감사가 후보 데이터를 찾고, 사람이 제외할 항목을 확인한 뒤 승인 데이터만 vectorstore에 반영합니다.
+            </div>
+            <details class="sub-details">
+              <summary>Mermaid 원본 보기</summary>
+              <pre id="workflowMermaid">그래프 버튼을 누르면 표시됩니다.</pre>
+            </details>
+          </section>
         </div>
+      </details>
 
-        <div class="form-row">
-          <label>
-            Audit ID
-            <input id="auditIdInput" type="text" placeholder="latest" />
-          </label>
-          <label>
-            Reviewer
-            <input id="reviewerInput" type="text" value="demo-user" />
-          </label>
+      <main id="messages" aria-live="polite">
+        <div class="message assistant">
+          <h2>테스트 방법</h2>
+          <p>특허를 선택하고 질문을 입력하세요. 답변 아래 근거 카드를 클릭하면 원문 metadata와 excerpt를 확인할 수 있습니다.</p>
+          <p>감사 패널에서는 감사 실행, finding 확인, 검토서 확인, 승인 데이터 적용까지 테스트할 수 있습니다.</p>
         </div>
+      </main>
 
-        <div id="findingList" class="findings">
-          <div class="empty">Run audit to load findings.</div>
-        </div>
-
-        <details class="review-box">
-          <summary>Review Markdown</summary>
-          <pre id="reviewMarkdown">No review loaded.</pre>
-        </details>
-      </section>
-
-      <section class="card">
-        <div class="card-head">
-          <div>
-            <h2>Query</h2>
-            <span id="querySummary">No query sent</span>
-          </div>
-          <button id="sendQueryButton" type="button">Send</button>
-        </div>
-
-        <div class="form-row query-row">
-          <label>
-            Patent
-            <select id="queryPatentSelect"></select>
-          </label>
-          <label class="query-input">
-            Question
-            <input id="queryInput" type="text" value="CMP Pad 물류 관리 시스템의 유지 판단 근거" />
-          </label>
-        </div>
-
-        <div id="queryResults" class="results"></div>
-      </section>
-
-      <footer class="footer">
-        <span id="message">Ready</span>
-        <code id="dataRoot">-</code>
+      <footer>
+        <textarea id="question" placeholder="질문을 입력하세요">CMP Pad 물류 관리 시스템의 유지 판단 근거를 알려줘</textarea>
+        <button id="sendButton" type="button">전송</button>
       </footer>
-    </main>
+    </div>
+
+    <div id="detailModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-content">
+        <div class="modal-head">
+          <h2 id="modalTitle">상세 정보</h2>
+          <button id="closeModalButton" type="button">닫기</button>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+      </div>
+    </div>
+
     <script src="/ui/static/app.js"></script>
   </body>
 </html>

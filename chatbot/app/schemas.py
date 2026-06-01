@@ -34,6 +34,24 @@ class SearchResponse(BaseModel):
     hits: list[SearchHit]
 
 
+class AnswerSourceCard(BaseModel):
+    label: str
+    title: str | None = None
+    source_type: str
+    page_no: int | None = None
+    url: str | None = None
+    snippet: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class AnswerResponse(BaseModel):
+    query: str
+    patent_id: str | None
+    answer: str
+    source_cards: list[AnswerSourceCard] = Field(default_factory=list)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+
+
 class AuditApplyRequest(BaseModel):
     audit_id: str | None = Field(None, description="대상 audit_id. 비우면 가장 최근 감사 결과 사용")
     exclude_finding_ids: list[str] | None = Field(

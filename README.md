@@ -659,9 +659,10 @@ http://127.0.0.1:8001/docs
 http://127.0.0.1:8001/ui
 ```
 
-테스트 UI에서는 특허 목록/상태 확인, wiki 감사 실행, finding 선택 적용,
-승인 Markdown 확인, vectorstore 상태 확인, 챗봇 질의를 한 화면에서 테스트할 수
-있습니다.
+테스트 UI는 채팅 중심 화면입니다. 특허를 선택해 질문하면 답변 요약과 클릭
+가능한 근거 카드가 표시되고, 감사 패널에서는 wiki 감사 실행, finding 상세
+확인, finding 선택 적용, 승인 Markdown 확인, 워크플로우 확인을 한 화면에서
+테스트할 수 있습니다.
 
 챗봇 Swagger에서 바로 눌러볼 대표 API:
 
@@ -677,7 +678,9 @@ GET  /api/v1/wiki/audit-review
 POST /api/v1/wiki/audit-apply
 POST /api/v1/wiki/agent/run
 GET  /api/v1/wiki/agent/mermaid
+POST /api/v1/chatbot/answer
 POST /api/v1/chatbot/query
+POST /api/v1/rag/answer
 POST /api/v1/rag/query
 GET  /api/v1/wiki/audit-report
 ```
@@ -899,13 +902,16 @@ data/mapped_patent_reports/<patent_id>/original/input/
 8. `GET /api/v1/wiki/audit-review`로 사람이 제외 후보와 근거 excerpt 확인
 9. `POST /api/v1/wiki/audit-apply`로 제외할 후보를 확정하고 승인 Markdown 저장
 10. `GET /api/v1/chatbot/vectorstore/status`로 갱신된 문서 수 확인
-11. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/rag/query`로 질의 검색 확인
+11. `POST /api/v1/chatbot/answer` 또는 `POST /api/v1/rag/answer`로 답변과 근거 카드 확인
+12. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/rag/query`로 원본 검색 hit 확인
 
 같은 기능은 Swagger에서도 `http://127.0.0.1:8001/docs`로 확인할 수 있습니다.
 
-현재 query API는 사람 검토 후 재생성된 로컬 vectorstore를 먼저 검색하고,
-vectorstore가 없으면 기존 chunk keyword search로 fallback합니다. 운영형 LLM 답변
-생성은 같은 endpoint 뒤에 FAISS retrieval과 LLM generation을 붙여 확장할 수 있습니다.
+현재 answer/query API는 사람 검토 후 재생성된 로컬 vectorstore를 먼저
+검색하고, vectorstore가 없으면 기존 chunk keyword search로 fallback합니다.
+`answer`는 검색 결과를 발표/테스트용 답변 요약과 클릭 가능한 근거 카드로
+가공해서 반환합니다. 운영형 LLM 답변 생성은 같은 endpoint 뒤에 FAISS retrieval과
+LLM generation을 붙여 확장할 수 있습니다.
 
 ## 기능별 검증 방법
 
@@ -1089,13 +1095,16 @@ GET  /api/v1/wiki/audit-review
 POST /api/v1/wiki/audit-apply
 POST /api/v1/wiki/agent/run
 GET  /api/v1/wiki/agent/mermaid
+POST /api/v1/chatbot/answer
 POST /api/v1/chatbot/query
+POST /api/v1/rag/answer
 POST /api/v1/rag/query
+POST /api/v1/agent/answer
 POST /api/v1/agent/query
 GET  /api/v1/wiki/audit-report
 ```
 
-`POST /api/v1/chatbot/query` request body 예시:
+`POST /api/v1/chatbot/answer` request body 예시:
 
 ```json
 {
