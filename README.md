@@ -70,15 +70,14 @@ skipa-ai-server/
 
   chatbot/
     .env.example          # 챗봇 실행 환경변수 예시
-    app/                  # 챗봇 FastAPI/RAG 애플리케이션 소스 위치
-      routers/            # rag, agent, wiki, page 라우터
-      rag/                # retrieval, answer generation, source handling
-      agents/             # patent/wiki/router/merge agent 흐름
-      ingestion/          # PDF/보고서/wiki chunk 생성 파이프라인
-      wiki/               # wiki archive/vectorstore 연동
-      search/             # web search provider 연동
-      core/               # chatbot pipeline orchestration
-      utils/              # path/config helper
+    requirements.txt      # 챗봇 Swagger API 실행 의존성
+    app/
+      main.py             # 챗봇 FastAPI entrypoint
+      config.py           # DATA_ROOT, PATENTS_ROOT 등 경로/환경변수 처리
+      store.py            # 중앙 data 폴더 read/search helper
+      schemas.py          # Swagger request/response schema
+      routers/
+        chatbot.py        # 챗봇, rag, agent, wiki API router
     data/
       mapped_patent_reports -> ../../data/mapped_patent_reports
       business -> ../../data/business
@@ -172,34 +171,52 @@ chatbot/
     wiki 문서 구조, 고아 페이지, 모순 여부를 점검한 결과를 보관합니다.
 ```
 
-챗봇 앱 소스가 포함된 환경에서는 `chatbot/app` 아래가 다음 역할을 담당합니다.
+현재 `chatbot/app`에는 Swagger에서 챗봇 API를 확인할 수 있는 FastAPI 앱이
+포함되어 있습니다.
 
 ```text
-app/routers
-  외부 API 라우터입니다. rag 질의, agent 질의, wiki 조회, page/file 제공을 담당합니다.
+app/main.py
+  챗봇 API 서버 entrypoint입니다. /docs, /openapi.json, /health를 제공합니다.
 
-app/rag
-  FAISS 검색, context 구성, 답변 생성, source 정리, report 기반 빠른 답변 로직을 담당합니다.
+app/config.py
+  chatbot/.env, DATA_ROOT, PATENTS_ROOT, PUBLIC_FILE_BASE_URL, embedding/model 설정을 읽습니다.
 
-app/agents
-  질문을 patent/wiki/web/search 경로로 분기하고, 여러 검색 결과를 병합하는 agent 흐름을 담당합니다.
+app/store.py
+  data/mapped_patent_reports, data/business, wiki_auditor 파일을 읽고
+  특허 목록, manifest, latest input/report, chunk, 간단 검색 결과를 반환합니다.
 
-app/ingestion
-  원문 PDF, 보고서, wiki 문서를 chunk로 만들고 vector index를 재생성하는 전처리 파이프라인입니다.
+app/schemas.py
+  Swagger에서 보이는 query/search request와 response schema를 정의합니다.
 
-app/wiki
-  특허별 wiki 문서와 wiki vectorstore를 관리합니다.
-
-app/search
-  웹 검색 fallback 또는 외부 evidence provider를 연결합니다.
+app/routers/chatbot.py
+  /api/v1/chatbot, /api/v1/rag, /api/v1/agent, /api/v1/wiki API를 제공합니다.
 ```
 
-현재 커밋에는 챗봇 데이터 연결 파일과 감사 결과는 포함되어 있지만,
-`chatbot/app/*.py` 소스 파일은 포함되어 있지 않습니다. 따라서 이 repository만
-clone한 상태에서는 챗봇 서버 실행까지는 검증할 수 없고, 데이터 경로와 RAG 산출물
-존재 여부를 확인할 수 있습니다. 챗봇 소스가 별도 배포물로 제공되는 경우에는
-`chatbot/.env.example`을 기준으로 `DATA_ROOT=../data`,
-`PATENTS_ROOT=../data/mapped_patent_reports`를 맞춘 뒤 실행합니다.
+현재 챗봇 Swagger API는 중앙 데이터 연결과 RAG 검색 흐름을 검증하기 위한
+read-only API입니다. 실제 운영형 LLM 답변 생성 서버가 별도로 붙더라도 같은
+`DATA_ROOT=../data`, `PATENTS_ROOT=../data/mapped_patent_reports` 구조를 사용하면
+보고서 생성 결과와 챗봇 데이터가 같은 특허 폴더에서 연결됩니다.
+
+Swagger에서 확인 가능한 챗봇 API:
+
+```text
+GET  /health
+GET  /api/v1/chatbot/config
+GET  /api/v1/chatbot/data-links
+GET  /api/v1/chatbot/patents
+GET  /api/v1/chatbot/patents/{patent_id}
+GET  /api/v1/chatbot/patents/{patent_id}/files
+GET  /api/v1/chatbot/patents/{patent_id}/input/latest
+GET  /api/v1/chatbot/patents/{patent_id}/report/latest
+GET  /api/v1/chatbot/patents/{patent_id}/chunks
+GET  /api/v1/chatbot/business/chunks
+POST /api/v1/chatbot/search
+POST /api/v1/chatbot/query
+POST /api/v1/rag/query
+POST /api/v1/agent/query
+GET  /api/v1/chatbot/wiki-audit/report
+GET  /api/v1/wiki/audit-report
+```
 
 ## 중앙 데이터 저장 규칙
 
@@ -426,6 +443,8 @@ KSIC_TABLE_PATH=resources/산업_KSIC_-특허_IPC__연계표.xlsx
 
 ## 서버 실행
 
+### 보고서 생성 API 서버
+
 `skipa-ai-server/eval_logic`에서 실행합니다.
 
 ```bash
@@ -442,6 +461,49 @@ Health check:
 
 ```text
 GET /health
+```
+
+### 챗봇 Swagger API 서버
+
+`skipa-ai-server/chatbot`에서 실행합니다.
+
+```bash
+cd chatbot
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+```
+
+Swagger UI:
+
+```text
+http://127.0.0.1:8001/docs
+```
+
+챗봇 Swagger에서 바로 눌러볼 대표 API:
+
+```text
+GET  /health
+GET  /api/v1/chatbot/config
+GET  /api/v1/chatbot/patents
+GET  /api/v1/chatbot/patents/10-2886381
+GET  /api/v1/chatbot/patents/10-2886381/chunks
+POST /api/v1/chatbot/query
+POST /api/v1/rag/query
+GET  /api/v1/wiki/audit-report
+```
+
+질의 API 예시:
+
+```json
+{
+  "query": "CMP Pad 물류 관리 시스템의 유지 판단 근거",
+  "patent_id": "10-2886381",
+  "source_types": ["ORIGINAL_PDF", "REPORT_PDF"],
+  "top_k": 5
+}
 ```
 
 ## API 엔드포인트
@@ -638,6 +700,19 @@ data/mapped_patent_reports/<patent_id>/original/input/
 3. 응답의 `input_path`, `output_path`, `result_url` 확인
 4. 생성된 보고서 결과는 `data/api_test/output/reports/`와 `data/mapped_patent_reports/<patent_id>/reports/json/` 아래 저장됨
 
+### 챗봇 Swagger API 테스트
+
+1. `cd chatbot`
+2. `uvicorn app.main:app --reload --host 127.0.0.1 --port 8001`
+3. `http://127.0.0.1:8001/docs` 접속
+4. `GET /api/v1/chatbot/config`로 `DATA_ROOT`, `PATENTS_ROOT` 연결 확인
+5. `GET /api/v1/chatbot/patents`로 특허 목록 확인
+6. `GET /api/v1/chatbot/patents/{patent_id}/chunks`로 원문/보고서 chunk 확인
+7. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/rag/query`로 질의 검색 확인
+
+현재 query API는 Swagger 검증용 keyword chunk search입니다. 운영형 LLM 답변 생성은
+같은 endpoint 뒤에 FAISS retrieval과 LLM generation을 붙여 확장할 수 있습니다.
+
 ## 기능별 검증 방법
 
 ### GitHub 반영 확인
@@ -689,7 +764,7 @@ find chatbot/app -name '*.py' -type f
 chatbot/data/mapped_patent_reports -> ../../data/mapped_patent_reports
 chatbot/data/business -> ../../data/business
 FAISS index.faiss, index.pkl 파일 존재
-챗봇 서버 실행 검증을 하려면 chatbot/app 아래 Python source 파일이 존재해야 함
+chatbot/app 아래 Python source 파일 존재
 ```
 
 ### Python import와 문법 확인
@@ -697,6 +772,7 @@ FAISS index.faiss, index.pkl 파일 존재
 ```bash
 cd /Users/kgw/skipers-ai
 python3 -m compileall eval_logic/src
+python3 -m compileall chatbot/app
 ```
 
 정상 기준:
@@ -781,18 +857,47 @@ Status: success
 결과 저장 경로 출력
 ```
 
-### 챗봇 서버 확인 시 주의
+### 챗봇 Swagger API 확인
 
-현재 이 repository에서는 챗봇 데이터 연결과 RAG 산출물 경로를 확인할 수 있습니다.
-챗봇 앱 소스가 별도 repository 또는 별도 배포물에 있을 경우, source를 `chatbot/app`
-아래에 둔 뒤 해당 앱의 실행 명령으로 서버를 띄웁니다.
-
-예상 실행 형태:
+서버 실행:
 
 ```bash
 cd /Users/kgw/skipers-ai/chatbot
-cp .env.example .env
+pip install -r requirements.txt
+test -f .env || cp .env.example .env
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+```
+
+Swagger 접속:
+
+```text
+http://127.0.0.1:8001/docs
+```
+
+Swagger에서 확인할 API:
+
+```text
+GET  /health
+GET  /api/v1/chatbot/config
+GET  /api/v1/chatbot/data-links
+GET  /api/v1/chatbot/patents
+GET  /api/v1/chatbot/patents/10-2886381
+GET  /api/v1/chatbot/patents/10-2886381/chunks
+POST /api/v1/chatbot/query
+POST /api/v1/rag/query
+POST /api/v1/agent/query
+GET  /api/v1/wiki/audit-report
+```
+
+`POST /api/v1/chatbot/query` request body 예시:
+
+```json
+{
+  "query": "CMP Pad 물류 관리 시스템의 유지 판단 근거",
+  "patent_id": "10-2886381",
+  "source_types": ["ORIGINAL_PDF", "REPORT_PDF"],
+  "top_k": 5
+}
 ```
 
 확인할 환경변수:
@@ -808,9 +913,10 @@ TOP_K=10
 정상 기준:
 
 ```text
-챗봇이 data/mapped_patent_reports/<patent_id>/index/faiss를 읽음
-특허 원문 chunk, 보고서 chunk, wiki chunk를 context로 사용함
-질문 로그는 chatbot/logs/rag_query_log.jsonl에 기록됨
+GET /api/v1/chatbot/patents에서 특허 목록 반환
+GET /api/v1/chatbot/patents/10-2886381/chunks에서 chunk 반환
+POST /api/v1/chatbot/query에서 검색 hit 반환
+GET /api/v1/wiki/audit-report에서 wiki 감사 리포트 반환
 ```
 
 ## 로컬 CLI
