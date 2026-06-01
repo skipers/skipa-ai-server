@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import DATA_ROOT, PATENTS_ROOT
 from .routers.chatbot import agent_router, rag_router, router as chatbot_router, wiki_router
 
+
+STATIC_ROOT = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(
     title="SKIPA Chatbot API",
@@ -39,6 +44,9 @@ app.include_router(rag_router)
 app.include_router(agent_router)
 app.include_router(wiki_router)
 
+if STATIC_ROOT.exists():
+    app.mount("/ui/static", StaticFiles(directory=str(STATIC_ROOT)), name="ui_static")
+
 if DATA_ROOT.exists():
     app.mount("/files/data", StaticFiles(directory=str(DATA_ROOT)), name="data_files")
 
@@ -47,9 +55,15 @@ if DATA_ROOT.exists():
 def root() -> dict[str, str]:
     return {
         "service": "skipa-chatbot-api",
+        "ui": "/ui",
         "docs": "/docs",
         "openapi": "/openapi.json",
     }
+
+
+@app.get("/ui", tags=["system"], summary="챗봇 테스트 UI")
+def ui() -> FileResponse:
+    return FileResponse(STATIC_ROOT / "index.html")
 
 
 @app.get("/health", tags=["system"], summary="챗봇 API 헬스체크")
@@ -60,4 +74,3 @@ def health() -> dict:
         "patents_root": str(PATENTS_ROOT),
         "patents_root_exists": PATENTS_ROOT.exists(),
     }
-

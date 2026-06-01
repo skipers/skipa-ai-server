@@ -653,6 +653,16 @@ Swagger UI:
 http://127.0.0.1:8001/docs
 ```
 
+브라우저 테스트 UI:
+
+```text
+http://127.0.0.1:8001/ui
+```
+
+테스트 UI에서는 특허 목록/상태 확인, wiki 감사 실행, finding 선택 적용,
+승인 Markdown 확인, vectorstore 상태 확인, 챗봇 질의를 한 화면에서 테스트할 수
+있습니다.
+
 챗봇 Swagger에서 바로 눌러볼 대표 API:
 
 ```text
@@ -877,11 +887,11 @@ data/mapped_patent_reports/<patent_id>/original/input/
 3. 응답의 `input_path`, `output_path`, `result_url` 확인
 4. 생성된 보고서 결과는 `data/api_test/output/reports/`와 `data/mapped_patent_reports/<patent_id>/reports/json/` 아래 저장됨
 
-### 챗봇 Swagger API 테스트
+### 챗봇 UI 및 Swagger API 테스트
 
 1. `cd chatbot`
 2. `uvicorn app.main:app --reload --host 127.0.0.1 --port 8001`
-3. `http://127.0.0.1:8001/docs` 접속
+3. `http://127.0.0.1:8001/ui` 접속
 4. `GET /api/v1/chatbot/config`로 `DATA_ROOT`, `PATENTS_ROOT` 연결 확인
 5. `GET /api/v1/chatbot/patents`로 특허 목록 확인
 6. `GET /api/v1/chatbot/patents/{patent_id}/chunks`로 원문/보고서 chunk 확인
@@ -890,6 +900,8 @@ data/mapped_patent_reports/<patent_id>/original/input/
 9. `POST /api/v1/wiki/audit-apply`로 제외할 후보를 확정하고 승인 Markdown 저장
 10. `GET /api/v1/chatbot/vectorstore/status`로 갱신된 문서 수 확인
 11. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/rag/query`로 질의 검색 확인
+
+같은 기능은 Swagger에서도 `http://127.0.0.1:8001/docs`로 확인할 수 있습니다.
 
 현재 query API는 사람 검토 후 재생성된 로컬 vectorstore를 먼저 검색하고,
 vectorstore가 없으면 기존 chunk keyword search로 fallback합니다. 운영형 LLM 답변
@@ -1054,6 +1066,12 @@ Swagger 접속:
 
 ```text
 http://127.0.0.1:8001/docs
+```
+
+브라우저 테스트 UI:
+
+```text
+http://127.0.0.1:8001/ui
 ```
 
 Swagger에서 확인할 API:
