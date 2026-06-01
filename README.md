@@ -220,14 +220,76 @@ POST /api/v1/rag/query
 POST /api/v1/agent/query
 GET  /api/v1/chatbot/wiki-audit/report
 POST /api/v1/chatbot/wiki-audit/run
+GET  /api/v1/chatbot/wiki-audit/review
+POST /api/v1/chatbot/wiki-audit/apply
 GET  /api/v1/wiki/audit-report
 POST /api/v1/wiki/audit
+GET  /api/v1/wiki/audit-review
+POST /api/v1/wiki/audit-apply
 ```
 
 `POST /api/v1/wiki/audit` 또는 `POST /api/v1/chatbot/wiki-audit/run`을 실행하면
-전체 `data/mapped_patent_reports`와 `data/business`를 다시 스캔하고,
-신규/변경 input, report, wiki, chunk 데이터를 챗봇 vectorstore에 재생성합니다.
-생성 파일은 `index/vectorstore/` 아래에 저장되며 Git 커밋 대상에서는 제외됩니다.
+전체 `data/mapped_patent_reports`와 `data/business`를 다시 스캔하고, 나쁜 데이터
+후보를 `review.md`로 만듭니다. 사람이 Swagger에서 후보를 확인한 뒤
+`POST /api/v1/wiki/audit-apply`를 실행하면 선택된 후보만 제외한
+`approved_context.md`가 특허별 `reviewed/` 폴더에 저장되고, 그 승인본 기준으로
+vectorstore가 갱신됩니다. 생성 파일은 Git 커밋 대상에서 제외됩니다.
+
+### 감사 프로세스와 평가 기준
+
+감사는 원본 chunk, 최신 input JSON, 최신 report JSON, wiki 문서, business chunk를
+문서 단위로 스캔합니다. 감사 결과는 자동 삭제가 아니라 사람 검토 후보입니다.
+
+```text
+1. Audit
+   원본 데이터를 스캔하고 finding_id가 붙은 나쁜 데이터 후보를 생성합니다.
+
+2. Human Review
+   GET /api/v1/wiki/audit-review 또는 review.md에서 후보의 사유와 원문 excerpt를 확인합니다.
+
+3. Apply
+   POST /api/v1/wiki/audit-apply로 제외할 finding_id를 확정합니다.
+   exclude_finding_ids를 null로 보내면 기본 exclude 후보만 제외합니다.
+   빈 배열 []로 보내면 제외 없이 전체를 승인합니다.
+
+4. Approved Markdown
+   각 특허별 data/mapped_patent_reports/<patent_id>/reviewed/approved_context.md에
+   제외된 부분을 뺀 승인본을 저장합니다.
+
+5. Vectorstore Refresh
+   approved_context.md와 approved_documents.jsonl 기준으로 vectorstore를 재생성합니다.
+```
+
+평가 기준:
+
+```text
+EMPTY_OR_TOO_SHORT
+  본문이 30자 미만이면 검색 근거로 가치가 낮아 high/exclude 후보로 표시합니다.
+
+OCR_NOISE
+  한글/영문/숫자 비율이 낮고 기호가 과도하면 OCR 또는 표 추출 잡음으로 보고 high/exclude 후보로 표시합니다.
+
+ERROR_TEXT
+  traceback, exception, undefined, NaN, internal server error 같은 시스템 오류 문자열이 있으면 high/exclude 후보로 표시합니다.
+
+SECRET_PATTERN
+  API key, access token, private key 패턴이 보이면 민감정보 위험으로 high/exclude 후보로 표시합니다.
+
+METADATA_MISMATCH
+  metadata patent_id와 실제 source path의 특허 폴더가 다르면 다른 특허 데이터가 섞인 것으로 보고 high/exclude 후보로 표시합니다.
+
+DUPLICATE_TEXT
+  동일 text hash가 이미 등장하면 중복 chunk로 보고 medium/exclude 후보로 표시합니다.
+
+REPEATED_PATTERN
+  같은 문자나 토큰이 과도하게 반복되면 OCR footer, 표 파싱 반복, 깨진 chunk 가능성으로 보고 medium/review 후보로 표시합니다.
+
+MISSING_METADATA
+  source_type, source_path 등 출처 추적 정보가 부족하면 low/review 후보로 표시합니다.
+
+OVERSIZED_DOCUMENT
+  문서가 너무 길어 vectorstore 저장 시 잘릴 가능성이 있으면 low/review 후보로 표시합니다.
+```
 
 ## 중앙 데이터 저장 규칙
 
@@ -721,13 +783,15 @@ data/mapped_patent_reports/<patent_id>/original/input/
 4. `GET /api/v1/chatbot/config`로 `DATA_ROOT`, `PATENTS_ROOT` 연결 확인
 5. `GET /api/v1/chatbot/patents`로 특허 목록 확인
 6. `GET /api/v1/chatbot/patents/{patent_id}/chunks`로 원문/보고서 chunk 확인
-7. `POST /api/v1/wiki/audit`로 감사와 전체 vectorstore 갱신 실행
-8. `GET /api/v1/chatbot/vectorstore/status`로 갱신된 문서 수 확인
-9. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/rag/query`로 질의 검색 확인
+7. `POST /api/v1/wiki/audit`로 나쁜 데이터 후보 감사 실행
+8. `GET /api/v1/wiki/audit-review`로 사람이 제외 후보와 근거 excerpt 확인
+9. `POST /api/v1/wiki/audit-apply`로 제외할 후보를 확정하고 승인 Markdown 저장
+10. `GET /api/v1/chatbot/vectorstore/status`로 갱신된 문서 수 확인
+11. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/rag/query`로 질의 검색 확인
 
-현재 query API는 감사 시 재생성된 로컬 vectorstore를 먼저 검색하고, vectorstore가
-없으면 기존 chunk keyword search로 fallback합니다. 운영형 LLM 답변 생성은 같은
-endpoint 뒤에 FAISS retrieval과 LLM generation을 붙여 확장할 수 있습니다.
+현재 query API는 사람 검토 후 재생성된 로컬 vectorstore를 먼저 검색하고,
+vectorstore가 없으면 기존 chunk keyword search로 fallback합니다. 운영형 LLM 답변
+생성은 같은 endpoint 뒤에 FAISS retrieval과 LLM generation을 붙여 확장할 수 있습니다.
 
 ## 기능별 검증 방법
 
@@ -901,6 +965,8 @@ GET  /api/v1/chatbot/patents/10-2886381
 GET  /api/v1/chatbot/patents/10-2886381/chunks
 GET  /api/v1/chatbot/vectorstore/status
 POST /api/v1/wiki/audit
+GET  /api/v1/wiki/audit-review
+POST /api/v1/wiki/audit-apply
 POST /api/v1/chatbot/query
 POST /api/v1/rag/query
 POST /api/v1/agent/query
@@ -933,8 +999,10 @@ TOP_K=10
 ```text
 GET /api/v1/chatbot/patents에서 특허 목록 반환
 GET /api/v1/chatbot/patents/10-2886381/chunks에서 chunk 반환
-POST /api/v1/wiki/audit에서 vectorstore_refresh.status가 refreshed
-GET /api/v1/chatbot/vectorstore/status에서 global document_count 증가
+POST /api/v1/wiki/audit에서 status가 human_review_required 또는 clean
+GET /api/v1/wiki/audit-review에서 review Markdown과 finding_id 확인
+POST /api/v1/wiki/audit-apply에서 approved_context.md 저장 및 vectorstore_refresh.status가 refreshed
+GET /api/v1/chatbot/vectorstore/status에서 human_reviewed_source와 document_count 확인
 POST /api/v1/chatbot/query에서 local_vectorstore_search hit 반환
 GET /api/v1/wiki/audit-report에서 wiki 감사 리포트 반환
 ```

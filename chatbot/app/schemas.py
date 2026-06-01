@@ -33,3 +33,13 @@ class SearchResponse(BaseModel):
     hit_count: int
     hits: list[SearchHit]
 
+
+class AuditApplyRequest(BaseModel):
+    audit_id: str | None = Field(None, description="대상 audit_id. 비우면 가장 최근 감사 결과 사용")
+    exclude_finding_ids: list[str] | None = Field(
+        None,
+        description="사람이 최종 제외하기로 확인한 finding_id 목록. null이면 기본 exclude 후보를 모두 제외",
+    )
+    reviewer: str | None = Field(None, description="검토자 이름 또는 식별자")
+    notes: str | None = Field(None, description="검토 메모")
+    refresh_vectorstore: bool = Field(True, description="승인 Markdown 저장 후 vectorstore 갱신 여부")

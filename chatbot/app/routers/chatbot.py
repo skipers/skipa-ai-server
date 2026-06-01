@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 
 from ..config import EMBEDDING_MODEL, GEN_MODEL, PUBLIC_FILE_BASE_URL, TOP_K
-from ..schemas import SearchRequest, SearchResponse
+from ..schemas import AuditApplyRequest, SearchRequest, SearchResponse
 from ..store import (
     business_chunks,
     data_overview,
@@ -18,7 +18,13 @@ from ..store import (
     search_chunks,
     wiki_audit_report,
 )
-from ..vectorstore import audit_and_refresh_vectorstores, refresh_vectorstores, vectorstore_status
+from ..vectorstore import (
+    apply_human_review,
+    audit_and_refresh_vectorstores,
+    audit_review_report,
+    refresh_vectorstores,
+    vectorstore_status,
+)
 
 
 router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
@@ -133,7 +139,25 @@ def get_wiki_audit_report() -> dict:
     return wiki_audit_report()
 
 
-@router.post("/wiki-audit/run", summary="wiki/챗봇 데이터 감사 실행 및 vectorstore 갱신")
-@wiki_router.post("/audit", summary="wiki/챗봇 데이터 감사 실행 및 vectorstore 갱신")
-def post_wiki_audit(refresh_vectorstore: bool = Query(True, description="감사 후 전체 vectorstore 재생성 여부")) -> dict:
+@router.post("/wiki-audit/run", summary="wiki/챗봇 데이터 감사 실행 및 나쁜 데이터 후보 추출")
+@wiki_router.post("/audit", summary="wiki/챗봇 데이터 감사 실행 및 나쁜 데이터 후보 추출")
+def post_wiki_audit(refresh_vectorstore: bool = Query(False, description="사람 검토 전 raw vectorstore 강제 갱신 여부")) -> dict:
     return audit_and_refresh_vectorstores(refresh_vectorstore=refresh_vectorstore)
+
+
+@router.get("/wiki-audit/review", summary="사람 검토용 감사 Markdown 조회")
+@wiki_router.get("/audit-review", summary="사람 검토용 감사 Markdown 조회")
+def get_wiki_audit_review(audit_id: str | None = Query(None, description="조회할 audit_id. 비우면 최신 감사")) -> dict:
+    return audit_review_report(audit_id=audit_id)
+
+
+@router.post("/wiki-audit/apply", summary="사람 검토 결과 적용, 승인 Markdown 저장, vectorstore 갱신")
+@wiki_router.post("/audit-apply", summary="사람 검토 결과 적용, 승인 Markdown 저장, vectorstore 갱신")
+def post_wiki_audit_apply(request: AuditApplyRequest) -> dict:
+    return apply_human_review(
+        audit_id=request.audit_id,
+        exclude_finding_ids=request.exclude_finding_ids,
+        reviewer=request.reviewer,
+        notes=request.notes,
+        refresh_vectorstore=request.refresh_vectorstore,
+    )

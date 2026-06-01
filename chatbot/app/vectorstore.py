@@ -1,14 +1,17 @@
-"""Local vectorstore refresh used by chatbot audit APIs.
+"""Audit, human review, and local vectorstore refresh for chatbot data.
 
-The production chatbot can replace this with an embedding/FAISS backend. This
-module keeps the same data contract in a dependency-light way: every audit run
-rescans the shared data folder, writes vectorized document JSONL files, and lets
-Swagger query APIs search the refreshed store immediately.
+The production chatbot can replace the local hashed vectors with an embedding
+and FAISS backend. The important contract is the workflow:
+
+1. Audit scans raw shared data and flags suspicious documents.
+2. A human reviews the findings in Swagger or the generated Markdown.
+3. Only human-approved content is saved as Markdown/JSONL.
+4. Vectorstores are rebuilt from the approved content.
 """
 
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime
 import hashlib
 import json
@@ -17,16 +20,87 @@ import re
 from pathlib import Path
 from typing import Any, Iterable
 
+from fastapi import HTTPException
+
 from .config import BUSINESS_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT
 
 
 VECTOR_DIMENSIONS = 256
 MAX_TEXT_CHARS = 20000
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
+SECRET_RE = re.compile(
+    r"(sk-[A-Za-z0-9_-]{16,}|BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY|AKIA[0-9A-Z]{16}|"
+    r"(?i:api[_-]?key|secret[_-]?key|access[_-]?token)\s*[:=]\s*[A-Za-z0-9_.-]{12,})"
+)
+ERROR_RE = re.compile(r"(?i)(traceback|exception|stack trace|nonetype|undefined|nan|jsondecodeerror|internal server error)")
+REPEATED_CHAR_RE = re.compile(r"(.)\1{12,}")
+AUDIT_SCHEMA_VERSION = "chatbot-audit/v1"
+
+
+AUDIT_CRITERIA = [
+    {
+        "rule_id": "EMPTY_OR_TOO_SHORT",
+        "severity": "high",
+        "default_action": "exclude",
+        "description": "공백 제거 후 본문이 30자 미만이면 RAG 근거로 가치가 낮아 제외 후보로 봅니다.",
+    },
+    {
+        "rule_id": "OCR_NOISE",
+        "severity": "high",
+        "default_action": "exclude",
+        "description": "한글/영문/숫자 비율이 낮고 기호가 과도하면 PDF OCR 또는 표 추출 잡음으로 봅니다.",
+    },
+    {
+        "rule_id": "ERROR_TEXT",
+        "severity": "high",
+        "default_action": "exclude",
+        "description": "traceback, exception, undefined, NaN 등 시스템 오류 문자열이 포함되면 제외 후보로 봅니다.",
+    },
+    {
+        "rule_id": "SECRET_PATTERN",
+        "severity": "high",
+        "default_action": "exclude",
+        "description": "API key, secret, private key 패턴이 보이면 민감정보 유출 위험으로 제외 후보로 봅니다.",
+    },
+    {
+        "rule_id": "METADATA_MISMATCH",
+        "severity": "high",
+        "default_action": "exclude",
+        "description": "문서 metadata의 patent_id가 현재 특허 폴더와 다르면 잘못 섞인 데이터로 봅니다.",
+    },
+    {
+        "rule_id": "DUPLICATE_TEXT",
+        "severity": "medium",
+        "default_action": "exclude",
+        "description": "동일 text hash가 이미 등장하면 중복 chunk로 보고 기본 제외 후보로 둡니다.",
+    },
+    {
+        "rule_id": "REPEATED_PATTERN",
+        "severity": "medium",
+        "default_action": "review",
+        "description": "동일 문자/토큰 반복이 과하면 OCR, table parsing, PDF footer 반복 가능성이 있어 검토 대상으로 둡니다.",
+    },
+    {
+        "rule_id": "MISSING_METADATA",
+        "severity": "low",
+        "default_action": "review",
+        "description": "source_type, source_path 등 출처 추적 metadata가 부족하면 사람이 확인할 수 있게 표시합니다.",
+    },
+    {
+        "rule_id": "OVERSIZED_DOCUMENT",
+        "severity": "low",
+        "default_action": "review",
+        "description": "본문이 매우 길어 vectorstore 저장 시 잘릴 수 있으면 검토 대상으로 표시합니다.",
+    },
+]
 
 
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+def _audit_id() -> str:
+    return datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
 
 def _safe_relative(path: Path, base: Path = PROJECT_ROOT) -> str:
@@ -84,6 +158,11 @@ def _read_json(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+def _write_json(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def _read_jsonl(path: Path) -> Iterable[tuple[int, dict[str, Any]]]:
     if not path.exists():
         return
@@ -102,6 +181,11 @@ def _read_jsonl(path: Path) -> Iterable[tuple[int, dict[str, Any]]]:
 def _truncate(text: str) -> str:
     text = " ".join(str(text or "").split())
     return text[:MAX_TEXT_CHARS]
+
+
+def _source_type(doc: dict[str, Any]) -> str:
+    metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+    return str(metadata.get("source_type") or "")
 
 
 def _document(
@@ -238,7 +322,35 @@ def _patent_ids() -> list[str]:
     ]
 
 
-def collect_patent_documents(patent_id: str) -> list[dict[str, Any]]:
+def _reviewed_docs_path(patent_id: str) -> Path:
+    return PATENTS_ROOT / patent_id / "reviewed" / "approved_documents.jsonl"
+
+
+def _reviewed_md_path(patent_id: str) -> Path:
+    return PATENTS_ROOT / patent_id / "reviewed" / "approved_context.md"
+
+
+def _load_reviewed_documents(patent_id: str) -> list[dict[str, Any]]:
+    path = _reviewed_docs_path(patent_id)
+    docs = []
+    for _, doc in _read_jsonl(path) or []:
+        if not isinstance(doc, dict):
+            continue
+        text = str(doc.get("page_content") or "")
+        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        if text and not doc.get("vector"):
+            doc["vector"] = _vectorize(text)
+        metadata.setdefault("patent_id", patent_id)
+        metadata["human_review_status"] = "approved"
+        doc["metadata"] = metadata
+        docs.append(doc)
+    return docs
+
+
+def collect_patent_documents(patent_id: str, *, use_reviewed: bool = True) -> list[dict[str, Any]]:
+    if use_reviewed and _reviewed_docs_path(patent_id).exists():
+        return _load_reviewed_documents(patent_id)
+
     patent_dir = PATENTS_ROOT / patent_id
     docs: list[dict[str, Any]] = []
     chunk_path = patent_dir / "extracted" / "all_chunks.jsonl"
@@ -257,13 +369,15 @@ def collect_patent_documents(patent_id: str) -> list[dict[str, Any]]:
     return docs
 
 
-def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: str) -> dict[str, Any]:
+def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: str, source: str = "unknown") -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     docs_path = output_dir / "documents.jsonl"
     manifest_path = output_dir / "manifest.json"
     source_paths: set[Path] = set()
     with docs_path.open("w", encoding="utf-8") as file:
         for doc in docs:
+            if doc.get("page_content") and not doc.get("vector"):
+                doc["vector"] = _vectorize(str(doc.get("page_content") or ""))
             file.write(json.dumps(doc, ensure_ascii=False, sort_keys=True) + "\n")
             source_path = Path(str(doc.get("metadata", {}).get("source_path", "")))
             if source_path.exists():
@@ -281,6 +395,7 @@ def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: s
         "refreshed_at": _now(),
         "vector_dimensions": VECTOR_DIMENSIONS,
         "backend": "local_hashed_bow",
+        "source": source,
         "document_count": len(docs),
         "documents_path": str(docs_path),
         "source_fingerprints": source_fingerprints,
@@ -294,29 +409,31 @@ def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: s
     }
 
 
-def refresh_vectorstores() -> dict[str, Any]:
+def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
     patent_results = []
     global_docs: list[dict[str, Any]] = []
     wiki_docs: list[dict[str, Any]] = []
+    source = "human_reviewed" if use_reviewed else "raw"
 
     for patent_id in _patent_ids():
         patent_dir = PATENTS_ROOT / patent_id
-        docs = collect_patent_documents(patent_id)
+        docs = collect_patent_documents(patent_id, use_reviewed=use_reviewed)
         global_docs.extend(docs)
-        patent_results.append(_write_vectorstore(patent_dir / "index" / "vectorstore", docs, scope=f"patent:{patent_id}"))
-        patent_wiki_docs = [doc for doc in docs if doc.get("metadata", {}).get("source_type") == "WIKI"]
+        patent_results.append(_write_vectorstore(patent_dir / "index" / "vectorstore", docs, scope=f"patent:{patent_id}", source=source))
+        patent_wiki_docs = [doc for doc in docs if _source_type(doc) == "WIKI"]
         wiki_docs.extend(patent_wiki_docs)
-        _write_vectorstore(patent_dir / "wiki" / "vectorstore" / "local", patent_wiki_docs, scope=f"wiki:{patent_id}")
+        _write_vectorstore(patent_dir / "wiki" / "vectorstore" / "local", patent_wiki_docs, scope=f"wiki:{patent_id}", source=source)
 
     business_docs = _business_documents()
     global_docs.extend(business_docs)
-    business_result = _write_vectorstore(BUSINESS_ROOT / "index" / "vectorstore", business_docs, scope="business")
-    global_result = _write_vectorstore(PATENTS_ROOT / "_global" / "index" / "vectorstore", global_docs, scope="global")
-    wiki_result = _write_vectorstore(PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local", wiki_docs, scope="wiki:global")
+    business_result = _write_vectorstore(BUSINESS_ROOT / "index" / "vectorstore", business_docs, scope="business", source="raw")
+    global_result = _write_vectorstore(PATENTS_ROOT / "_global" / "index" / "vectorstore", global_docs, scope="global", source=source)
+    wiki_result = _write_vectorstore(PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local", wiki_docs, scope="wiki:global", source=source)
 
     return {
         "status": "refreshed",
         "refreshed_at": _now(),
+        "source": source,
         "patent_count": len(patent_results),
         "patent_vectorstores": patent_results,
         "business_vectorstore": business_result,
@@ -331,6 +448,7 @@ def vectorstore_status() -> dict[str, Any]:
         patent_dir = PATENTS_ROOT / patent_id
         manifest_path = patent_dir / "index" / "vectorstore" / "manifest.json"
         manifest = _read_json(manifest_path)
+        reviewed_path = _reviewed_docs_path(patent_id)
         patent_status.append(
             {
                 "patent_id": patent_id,
@@ -338,6 +456,8 @@ def vectorstore_status() -> dict[str, Any]:
                 "document_count": manifest.get("document_count", 0),
                 "refreshed_at": manifest.get("refreshed_at"),
                 "manifest_path": str(manifest_path),
+                "has_human_reviewed_source": reviewed_path.exists(),
+                "approved_markdown_path": str(_reviewed_md_path(patent_id)) if _reviewed_md_path(patent_id).exists() else None,
             }
         )
     global_manifest = _read_json(PATENTS_ROOT / "_global" / "index" / "vectorstore" / "manifest.json")
@@ -347,6 +467,7 @@ def vectorstore_status() -> dict[str, Any]:
             "exists": bool(global_manifest),
             "document_count": global_manifest.get("document_count", 0),
             "refreshed_at": global_manifest.get("refreshed_at"),
+            "source": global_manifest.get("source"),
             "manifest_path": str(PATENTS_ROOT / "_global" / "index" / "vectorstore" / "manifest.json"),
         },
         "patents": patent_status,
@@ -422,67 +543,437 @@ def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[s
     }
 
 
-def audit_and_refresh_vectorstores(*, refresh_vectorstore: bool = True) -> dict[str, Any]:
-    findings = []
-    for patent_id in _patent_ids():
-        patent_dir = PATENTS_ROOT / patent_id
-        if not (patent_dir / "manifest.json").exists():
-            findings.append({"severity": "medium", "patent_id": patent_id, "message": "manifest.json 없음"})
-        if not (patent_dir / "extracted" / "all_chunks.jsonl").exists() and not (
-            patent_dir / "original" / "input" / "latest.json"
-        ).exists():
-            findings.append({"severity": "high", "patent_id": patent_id, "message": "검색 가능한 원문/input 데이터 없음"})
-        if not (patent_dir / "reports" / "json" / "latest.json").exists():
-            findings.append({"severity": "low", "patent_id": patent_id, "message": "latest report JSON 없음"})
-
-    refresh_result = refresh_vectorstores() if refresh_vectorstore else None
-    status = "ok" if not findings else "needs_review"
-    report = {
-        "status": status,
-        "audited_at": _now(),
-        "patent_count": len(_patent_ids()),
-        "finding_count": len(findings),
-        "findings": findings,
-        "vectorstore_refresh": refresh_result,
+def _text_quality(text: str) -> dict[str, Any]:
+    compact = "".join(str(text or "").split())
+    signal = sum(1 for char in compact if char.isalnum() or ("가" <= char <= "힣"))
+    signal_ratio = signal / max(len(compact), 1)
+    tokens = _tokens(text)
+    token_counts = Counter(tokens)
+    most_common_ratio = token_counts.most_common(1)[0][1] / max(len(tokens), 1) if tokens else 0.0
+    return {
+        "char_count": len(text or ""),
+        "compact_char_count": len(compact),
+        "signal_ratio": round(signal_ratio, 4),
+        "token_count": len(tokens),
+        "most_common_token_ratio": round(most_common_ratio, 4),
     }
-    _write_audit_report(report)
-    return report
+
+
+def _finding(
+    *,
+    rule_id: str,
+    doc: dict[str, Any],
+    message: str,
+    quality: dict[str, Any],
+    related_doc_id: str | None = None,
+) -> dict[str, Any]:
+    criteria = next(item for item in AUDIT_CRITERIA if item["rule_id"] == rule_id)
+    metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+    text = str(doc.get("page_content") or "")
+    seed = f"{doc.get('doc_id')}:{rule_id}:{related_doc_id or ''}"
+    return {
+        "finding_id": hashlib.sha1(seed.encode("utf-8")).hexdigest()[:16],
+        "rule_id": rule_id,
+        "severity": criteria["severity"],
+        "default_action": criteria["default_action"],
+        "doc_id": doc.get("doc_id"),
+        "related_doc_id": related_doc_id,
+        "patent_id": metadata.get("patent_id"),
+        "source_type": metadata.get("source_type"),
+        "source_path": metadata.get("source_path"),
+        "relative_source_path": metadata.get("relative_source_path"),
+        "line_no": metadata.get("line_no"),
+        "title": metadata.get("title"),
+        "section_title": metadata.get("section_title"),
+        "message": message,
+        "quality": quality,
+        "excerpt": text[:500],
+    }
+
+
+def _audit_documents() -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    docs: list[dict[str, Any]] = []
+    for patent_id in _patent_ids():
+        docs.extend(collect_patent_documents(patent_id, use_reviewed=False))
+    docs.extend(_business_documents())
+
+    findings: list[dict[str, Any]] = []
+    seen_hashes: dict[str, str] = {}
+    by_severity: dict[str, int] = defaultdict(int)
+    by_rule: dict[str, int] = defaultdict(int)
+
+    for doc in docs:
+        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        patent_id = str(metadata.get("patent_id") or "")
+        text = str(doc.get("page_content") or "")
+        quality = _text_quality(text)
+
+        def add(rule_id: str, message: str, related_doc_id: str | None = None) -> None:
+            finding = _finding(rule_id=rule_id, doc=doc, message=message, quality=quality, related_doc_id=related_doc_id)
+            findings.append(finding)
+            by_severity[finding["severity"]] += 1
+            by_rule[rule_id] += 1
+
+        if quality["compact_char_count"] < 30:
+            add("EMPTY_OR_TOO_SHORT", "본문이 너무 짧아 검색 근거로 사용하기 어렵습니다.")
+        if quality["compact_char_count"] >= 80 and quality["signal_ratio"] < 0.45:
+            add("OCR_NOISE", "문자 대비 기호/잡음 비율이 높아 OCR 또는 표 추출 잡음일 가능성이 큽니다.")
+        if ERROR_RE.search(text):
+            add("ERROR_TEXT", "오류/traceback 계열 문자열이 포함되어 있습니다.")
+        if SECRET_RE.search(text):
+            add("SECRET_PATTERN", "API key 또는 private key로 보이는 민감정보 패턴이 포함되어 있습니다.")
+        if patent_id not in {"", "_business"}:
+            source_path = str(metadata.get("source_path") or "")
+            if "/mapped_patent_reports/" in source_path and f"/{patent_id}/" not in source_path:
+                add("METADATA_MISMATCH", "metadata patent_id와 실제 source path의 특허 폴더가 다릅니다.")
+        if quality["most_common_token_ratio"] > 0.35 or REPEATED_CHAR_RE.search(text):
+            add("REPEATED_PATTERN", "동일 토큰 또는 문자가 과도하게 반복됩니다.")
+        if not metadata.get("source_type") or not metadata.get("source_path"):
+            add("MISSING_METADATA", "출처 추적에 필요한 metadata가 부족합니다.")
+        if len(text) >= MAX_TEXT_CHARS:
+            add("OVERSIZED_DOCUMENT", f"본문이 {MAX_TEXT_CHARS}자 이상이라 vectorstore 저장 시 잘릴 수 있습니다.")
+
+        text_hash = str(metadata.get("text_hash") or _hash_text(text))
+        if text_hash in seen_hashes:
+            add("DUPLICATE_TEXT", "동일 text hash가 이미 존재합니다.", related_doc_id=seen_hashes[text_hash])
+        else:
+            seen_hashes[text_hash] = str(doc.get("doc_id"))
+
+    summary = {
+        "documents_scanned": len(docs),
+        "finding_count": len(findings),
+        "by_severity": dict(sorted(by_severity.items())),
+        "by_rule": dict(sorted(by_rule.items())),
+        "default_exclude_count": sum(1 for finding in findings if finding["default_action"] == "exclude"),
+        "review_count": sum(1 for finding in findings if finding["default_action"] == "review"),
+    }
+    return docs, findings, summary
+
+
+def _audit_dir(audit_id: str) -> Path:
+    return WIKI_AUDITOR_ROOT / "audits" / audit_id
+
+
+def _current_audit_path() -> Path:
+    return WIKI_AUDITOR_ROOT / "current_audit.json"
+
+
+def _load_audit(audit_id: str | None = None) -> dict[str, Any]:
+    if not audit_id:
+        current = _read_json(_current_audit_path())
+        audit_id = current.get("audit_id")
+    if not audit_id:
+        raise HTTPException(status_code=404, detail="실행된 감사가 없습니다.")
+    path = _audit_dir(str(audit_id)) / "audit.json"
+    audit = _read_json(path)
+    if not audit:
+        raise HTTPException(status_code=404, detail=f"감사 결과를 찾을 수 없습니다: {audit_id}")
+    return audit
+
+
+def _write_review_markdown(audit: dict[str, Any]) -> str:
+    audit_id = str(audit["audit_id"])
+    path = _audit_dir(audit_id) / "review.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# 챗봇 데이터 감사 검토서",
+        "",
+        f"- Audit ID: `{audit_id}`",
+        f"- 감사 일시: {audit['audited_at']}",
+        f"- 스캔 문서 수: {audit['summary']['documents_scanned']}",
+        f"- 발견 후보 수: {audit['summary']['finding_count']}",
+        f"- 기본 제외 후보 수: {audit['summary']['default_exclude_count']}",
+        "",
+        "## 평가 기준",
+    ]
+    for criteria in AUDIT_CRITERIA:
+        lines.append(
+            f"- `{criteria['rule_id']}` / {criteria['severity']} / 기본 `{criteria['default_action']}`: "
+            f"{criteria['description']}"
+        )
+    lines.extend(["", "## 사람 검토가 필요한 후보"])
+    if not audit["findings"]:
+        lines.append("- 발견된 후보 없음")
+    for finding in audit["findings"]:
+        lines.extend(
+            [
+                "",
+                f"### {finding['finding_id']} - {finding['rule_id']}",
+                "",
+                f"- severity: `{finding['severity']}`",
+                f"- default_action: `{finding['default_action']}`",
+                f"- patent_id: `{finding.get('patent_id')}`",
+                f"- source_type: `{finding.get('source_type')}`",
+                f"- source: `{finding.get('relative_source_path')}`",
+                f"- line: `{finding.get('line_no')}`",
+                f"- message: {finding['message']}",
+                "",
+                "```text",
+                str(finding.get("excerpt") or "")[:1200],
+                "```",
+            ]
+        )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return str(path)
+
+
+def run_audit() -> dict[str, Any]:
+    _, findings, summary = _audit_documents()
+    audit_id = _audit_id()
+    audit = {
+        "schema_version": AUDIT_SCHEMA_VERSION,
+        "audit_id": audit_id,
+        "audited_at": _now(),
+        "status": "human_review_required" if findings else "clean",
+        "criteria": AUDIT_CRITERIA,
+        "summary": summary,
+        "findings": findings,
+    }
+    audit_path = _audit_dir(audit_id) / "audit.json"
+    _write_json(audit_path, audit)
+    review_path = _write_review_markdown(audit)
+    audit["audit_path"] = str(audit_path)
+    audit["review_markdown_path"] = review_path
+    _write_json(audit_path, audit)
+    _write_json(_current_audit_path(), {"audit_id": audit_id, "audit_path": str(audit_path), "review_markdown_path": review_path})
+    _write_audit_report(audit)
+    return audit
+
+
+def audit_review_report(audit_id: str | None = None) -> dict[str, Any]:
+    audit = _load_audit(audit_id)
+    review_path = Path(str(audit.get("review_markdown_path") or _audit_dir(str(audit["audit_id"])) / "review.md"))
+    if not review_path.exists():
+        review_path = Path(_write_review_markdown(audit))
+    return {"audit": audit, "path": str(review_path), "markdown": review_path.read_text(encoding="utf-8")}
+
+
+def _finding_doc_ids(audit: dict[str, Any], exclude_finding_ids: set[str]) -> set[str]:
+    excluded = set()
+    for finding in audit.get("findings") or []:
+        if finding.get("finding_id") in exclude_finding_ids and finding.get("doc_id"):
+            excluded.add(str(finding["doc_id"]))
+    return excluded
+
+
+def _default_exclude_ids(audit: dict[str, Any]) -> set[str]:
+    return {
+        str(finding["finding_id"])
+        for finding in audit.get("findings") or []
+        if finding.get("default_action") == "exclude" and finding.get("finding_id")
+    }
+
+
+def _write_approved_files(
+    *,
+    audit: dict[str, Any],
+    excluded_finding_ids: set[str],
+    reviewer: str | None,
+    notes: str | None,
+) -> dict[str, Any]:
+    excluded_doc_ids = _finding_doc_ids(audit, excluded_finding_ids)
+    written = []
+    total_approved = 0
+    total_excluded = 0
+    approved_at = _now()
+
+    for patent_id in _patent_ids():
+        raw_docs = collect_patent_documents(patent_id, use_reviewed=False)
+        approved_docs = []
+        excluded_docs = []
+        for doc in raw_docs:
+            metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+            metadata.update(
+                {
+                    "human_review_status": "approved",
+                    "human_review_audit_id": audit["audit_id"],
+                    "human_reviewed_at": approved_at,
+                }
+            )
+            if reviewer:
+                metadata["human_reviewer"] = reviewer
+            doc["metadata"] = metadata
+            if str(doc.get("doc_id")) in excluded_doc_ids:
+                excluded_docs.append(doc)
+            else:
+                approved_docs.append(doc)
+
+        reviewed_dir = PATENTS_ROOT / patent_id / "reviewed"
+        reviewed_dir.mkdir(parents=True, exist_ok=True)
+        docs_path = reviewed_dir / "approved_documents.jsonl"
+        md_path = reviewed_dir / "approved_context.md"
+        manifest_path = reviewed_dir / "manifest.json"
+
+        with docs_path.open("w", encoding="utf-8") as file:
+            for doc in approved_docs:
+                file.write(json.dumps(doc, ensure_ascii=False, sort_keys=True) + "\n")
+
+        lines = [
+            "# Human Approved Chatbot Context",
+            "",
+            f"- Patent ID: `{patent_id}`",
+            f"- Audit ID: `{audit['audit_id']}`",
+            f"- Approved at: {approved_at}",
+            f"- Reviewer: {reviewer or 'unspecified'}",
+            f"- Approved documents: {len(approved_docs)}",
+            f"- Excluded documents: {len(excluded_docs)}",
+        ]
+        if notes:
+            lines.extend(["", "## Review Notes", "", notes])
+        lines.extend(["", "## Approved Content"])
+        for index, doc in enumerate(approved_docs, 1):
+            metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+            lines.extend(
+                [
+                    "",
+                    f"### {index}. {metadata.get('source_type')} / {metadata.get('section_title') or metadata.get('file_name') or doc.get('doc_id')}",
+                    "",
+                    f"- doc_id: `{doc.get('doc_id')}`",
+                    f"- source: `{metadata.get('relative_source_path')}`",
+                    f"- line: `{metadata.get('line_no')}`",
+                    "",
+                    str(doc.get("page_content") or ""),
+                ]
+            )
+        manifest = {
+            "audit_id": audit["audit_id"],
+            "approved_at": approved_at,
+            "reviewer": reviewer,
+            "notes": notes,
+            "excluded_finding_ids": sorted(excluded_finding_ids),
+            "excluded_doc_ids": sorted(excluded_doc_ids),
+            "approved_document_count": len(approved_docs),
+            "excluded_document_count": len(excluded_docs),
+            "approved_markdown_path": str(md_path),
+            "approved_documents_path": str(docs_path),
+        }
+        md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        _write_json(manifest_path, manifest)
+
+        total_approved += len(approved_docs)
+        total_excluded += len(excluded_docs)
+        written.append(
+            {
+                "patent_id": patent_id,
+                "approved_document_count": len(approved_docs),
+                "excluded_document_count": len(excluded_docs),
+                "approved_markdown_path": str(md_path),
+                "approved_documents_path": str(docs_path),
+                "manifest_path": str(manifest_path),
+            }
+        )
+
+    return {
+        "approved_at": approved_at,
+        "reviewer": reviewer,
+        "approved_document_count": total_approved,
+        "excluded_document_count": total_excluded,
+        "patents": written,
+    }
+
+
+def apply_human_review(
+    *,
+    audit_id: str | None = None,
+    exclude_finding_ids: list[str] | None = None,
+    reviewer: str | None = None,
+    notes: str | None = None,
+    refresh_vectorstore: bool = True,
+) -> dict[str, Any]:
+    audit = _load_audit(audit_id)
+    selected_ids = set(exclude_finding_ids) if exclude_finding_ids is not None else _default_exclude_ids(audit)
+    known_ids = {str(finding.get("finding_id")) for finding in audit.get("findings") or []}
+    unknown = sorted(item for item in selected_ids if item not in known_ids)
+    if unknown:
+        raise HTTPException(status_code=400, detail={"message": "알 수 없는 finding_id가 있습니다.", "unknown": unknown})
+
+    approved = _write_approved_files(audit=audit, excluded_finding_ids=selected_ids, reviewer=reviewer, notes=notes)
+    vectorstore_refresh = refresh_vectorstores(use_reviewed=True) if refresh_vectorstore else None
+    result = {
+        "status": "applied",
+        "audit_id": audit["audit_id"],
+        "excluded_finding_ids": sorted(selected_ids),
+        "approved": approved,
+        "vectorstore_refresh": vectorstore_refresh,
+    }
+    result_path = _audit_dir(str(audit["audit_id"])) / "apply_result.json"
+    _write_json(result_path, result)
+    _write_audit_report({**audit, "status": "applied", "apply_result": result, "vectorstore_refresh": vectorstore_refresh})
+    return result
+
+
+def audit_and_refresh_vectorstores(*, refresh_vectorstore: bool = False) -> dict[str, Any]:
+    audit = run_audit()
+    if refresh_vectorstore:
+        audit["vectorstore_refresh"] = refresh_vectorstores(use_reviewed=False)
+        audit["status"] = "raw_vectorstore_refreshed"
+        _write_json(_audit_dir(str(audit["audit_id"])) / "audit.json", audit)
+        _write_audit_report(audit)
+    return audit
 
 
 def _write_audit_report(report: dict[str, Any]) -> None:
     WIKI_AUDITOR_ROOT.mkdir(parents=True, exist_ok=True)
     markdown_path = WIKI_AUDITOR_ROOT / "audit_report.md"
+    summary = report.get("summary") or {}
     lines = [
         "# 위키/챗봇 데이터 감사 리포트",
         "",
-        f"**감사 일시**: {report['audited_at']}",
-        f"**상태**: {report['status']}",
-        f"**특허 수**: {report['patent_count']}",
-        f"**발견 이슈**: {report['finding_count']}개",
+        f"**감사 일시**: {report.get('audited_at')}",
+        f"**상태**: {report.get('status')}",
+        f"**Audit ID**: `{report.get('audit_id')}`",
+        f"**스캔 문서 수**: {summary.get('documents_scanned')}",
+        f"**발견 후보**: {summary.get('finding_count')}개",
+        f"**기본 제외 후보**: {summary.get('default_exclude_count')}개",
         "",
-        "## Vectorstore 갱신",
+        "## 평가 기준",
     ]
+    for criteria in AUDIT_CRITERIA:
+        lines.append(f"- `{criteria['rule_id']}`: {criteria['description']}")
+
+    apply_result = report.get("apply_result") or {}
+    if apply_result:
+        approved = apply_result.get("approved") or {}
+        lines.extend(
+            [
+                "",
+                "## 사람 검토 적용 결과",
+                "",
+                f"- 승인 문서 수: {approved.get('approved_document_count')}",
+                f"- 제외 문서 수: {approved.get('excluded_document_count')}",
+                f"- 제외 finding 수: {len(apply_result.get('excluded_finding_ids') or [])}",
+            ]
+        )
+
     refresh = report.get("vectorstore_refresh") or {}
+    lines.extend(["", "## Vectorstore 갱신"])
     if refresh:
         lines.extend(
             [
                 "",
                 f"- 상태: {refresh.get('status')}",
                 f"- 갱신 시각: {refresh.get('refreshed_at')}",
+                f"- source: {refresh.get('source')}",
                 f"- 특허별 vectorstore 수: {refresh.get('patent_count')}",
                 f"- global 문서 수: {refresh.get('global_vectorstore', {}).get('document_count')}",
             ]
         )
     else:
-        lines.append("")
-        lines.append("- 이번 감사에서는 vectorstore 갱신을 수행하지 않았습니다.")
-    lines.extend(["", "## 발견 이슈"])
+        lines.extend(["", "- 아직 vectorstore 갱신 전입니다. 사람 검토 적용 후 갱신하세요."])
+
+    lines.extend(["", "## 발견 후보"])
     findings = report.get("findings") or []
     if findings:
-        for finding in findings:
-            lines.append(f"- [{finding['severity']}] {finding['patent_id']}: {finding['message']}")
+        for finding in findings[:100]:
+            lines.append(
+                f"- [{finding['severity']}] `{finding['finding_id']}` {finding['patent_id']} "
+                f"{finding['rule_id']}: {finding['message']}"
+            )
+        if len(findings) > 100:
+            lines.append(f"- ... {len(findings) - 100}개 추가 후보 생략")
     else:
-        lines.append("- 발견된 이슈 없음")
+        lines.append("- 발견된 후보 없음")
+
     markdown_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     log_path = WIKI_AUDITOR_ROOT / "audit.log"
     with log_path.open("a", encoding="utf-8") as file:
