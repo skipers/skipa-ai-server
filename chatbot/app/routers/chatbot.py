@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
+from ..agents.graph import run_chat_agent
 from ..agents.wiki_graph import run_wiki_audit_graph, wiki_audit_graph_mermaid
 from ..config import EMBEDDING_MODEL, GEN_MODEL, PUBLIC_FILE_BASE_URL, TOP_K
 from ..schemas import AnswerResponse, AuditApplyRequest, SearchRequest, SearchResponse, WikiAgentRunRequest
 from ..store import (
-    answer_query,
     business_chunks,
     data_overview,
     latest_json,
@@ -122,7 +122,7 @@ def post_query(request: SearchRequest) -> dict:
 
 @router.post("/answer", response_model=AnswerResponse, summary="챗봇 답변 API")
 def post_answer(request: SearchRequest) -> dict:
-    return answer_query(
+    return run_chat_agent(
         request.query,
         patent_id=request.patent_id,
         source_types=set(request.source_types or []) or None,
