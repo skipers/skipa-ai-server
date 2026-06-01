@@ -22,6 +22,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from agent.patent_decision_graph import PatentDecisionWorkflow, PatentDecisionWorkflowOptions
+from core.patent_data_store import save_patent_input, save_report_result
 from core.paths import ARTIFACT_OUTPUT_DIR, SAMPLE_INPUT_DIR
 
 OUTPUT_DIR = ARTIFACT_OUTPUT_DIR / "reports"
@@ -116,7 +117,17 @@ def main() -> None:
         print(f"[{idx}/{len(input_files)}] {source_path.name}")
         print(f"{'-' * 72}")
 
-        result = workflow.run(load_json(source_path))
+        patent_payload = load_json(source_path)
+        input_paths = save_patent_input(patent_payload, source_name=source_path.name, kind="cli")
+        result = workflow.run(patent_payload)
+        report_paths = save_report_result(source_path.stem, result)
+        result.setdefault("artifacts", {})
+        result["artifacts"]["patent_input_path"] = input_paths["input_path"]
+        result["artifacts"]["latest_patent_input_path"] = input_paths["latest_input_path"]
+        result["artifacts"]["patent_report_output_path"] = report_paths["report_json_path"]
+        result["artifacts"]["latest_patent_report_output_path"] = report_paths["latest_report_json_path"]
+        result["artifacts"]["patent_data_dir"] = report_paths["patent_dir"]
+        result["artifacts"]["patent_manifest_path"] = report_paths["manifest_path"]
         print_result_summary(result)
 
         out_path = OUTPUT_DIR / f"{source_path.stem}_agent_workflow.json"

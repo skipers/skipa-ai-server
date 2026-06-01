@@ -23,6 +23,27 @@ skipa-ai-server/
   README.md
   .gitignore
 
+  data/                   # 챗봇과 보고서 로직이 공유하는 중앙 데이터 루트
+    mapped_patent_reports/
+      <patent_id>/        # 특허별 원문, 보고서 JSON, 위키, chunk/index 관리
+        original/
+          pdf/
+          input/
+        reports/
+          json/
+        wiki/
+        extracted/
+        index/
+    api_test/             # Swagger/API 테스트용 입력·출력 저장소
+      input/
+        pdf/
+        extracted/
+        uploads/
+      output/
+        reports/
+    artifacts/            # 로컬 생성 산출물/cache/report
+    business_rag/         # 제품/사업화 RAG 데이터
+
   eval_logic/
     requirements.txt
     .env                  # 로컬 환경변수 파일, git에 올리면 안 됨
@@ -43,15 +64,6 @@ skipa-ai-server/
       data/               # 샘플 보조 데이터
       patent_documents/   # Swagger/API 테스트용 샘플 PDF
 
-    api_test/             # Swagger/API 테스트용 공유 fixture와 예시 산출물
-      input/
-        pdf/              # 업로드된 PDF
-        extracted/        # PDF에서 추출된 표준 input JSON
-        uploads/          # 업로드된 JSON 원본
-      output/
-        reports/          # 보고서 workflow 결과 JSON
-
-    artifacts/            # 로컬 생성 산출물/cache/report, git ignore
     resources/            # 매핑표, RAG 리소스
     legacy/               # 현재 API와 직접 무관한 프로토타입/레거시 코드
 ```
@@ -233,7 +245,7 @@ GET  /api/v1/reports/{job_id}/result
 }
 ```
 
-`from-json-file`은 Swagger에서 JSON 파일을 업로드합니다. `samples/input/*.json` 또는 `api_test/input/extracted/*.json` 파일을 그대로 사용할 수 있습니다.
+`from-json-file`은 Swagger에서 JSON 파일을 업로드합니다. `samples/input/*.json` 또는 `data/api_test/input/extracted/*.json` 파일을 그대로 사용할 수 있습니다.
 
 `from-pdf`는 Swagger에서 특허 PDF 파일을 업로드합니다. PDF에서 input JSON을 추출한 뒤 보고서 workflow까지 실행합니다.
 
@@ -299,8 +311,10 @@ POST /api/v1/tools/similar-patents
 결과:
 
 ```text
-api_test/input/pdf/        업로드된 PDF
-api_test/input/extracted/  PDF에서 추출된 표준 input JSON
+data/api_test/input/pdf/        업로드된 PDF
+data/api_test/input/extracted/  PDF에서 추출된 표준 input JSON
+data/mapped_patent_reports/<patent_id>/original/pdf/
+data/mapped_patent_reports/<patent_id>/original/input/
 ```
 
 나머지 tool API는 대체로 다음 형태를 사용합니다.
@@ -332,7 +346,7 @@ api_test/input/extracted/  PDF에서 추출된 표준 input JSON
 1. 서버 실행
 2. Swagger 접속
 3. `POST /api/v1/reports/patent-maintenance/from-json-file`
-4. `samples/input/*.json` 또는 `api_test/input/extracted/*.json` 선택
+4. `samples/input/*.json` 또는 `data/api_test/input/extracted/*.json` 선택
 5. 응답의 `job_id`, `status_url`, `result_url` 확인
 6. `GET /api/v1/reports/{job_id}/result` 호출
 
@@ -341,14 +355,14 @@ api_test/input/extracted/  PDF에서 추출된 표준 input JSON
 1. `POST /api/v1/tools/patent-metadata`
 2. PDF 파일 업로드
 3. 응답의 `normalized_patent`, `extracted_input_path` 확인
-4. 생성된 JSON은 `api_test/input/extracted/` 아래 저장됨
+4. 생성된 JSON은 `data/api_test/input/extracted/`와 `data/mapped_patent_reports/<patent_id>/original/input/` 아래 저장됨
 
 ### PDF 기반 보고서 생성
 
 1. `POST /api/v1/reports/patent-maintenance/from-pdf`
 2. PDF 파일 업로드
 3. 응답의 `input_path`, `output_path`, `result_url` 확인
-4. 생성된 보고서 결과는 `api_test/output/reports/` 아래 저장됨
+4. 생성된 보고서 결과는 `data/api_test/output/reports/`와 `data/mapped_patent_reports/<patent_id>/reports/json/` 아래 저장됨
 
 ## 로컬 CLI
 
@@ -372,18 +386,18 @@ python src/cli/visualize_agent_graph.py --skip-png
 ```text
 eval_logic/.env
 eval_logic/.env.*
-eval_logic/artifacts/
-eval_logic/resources/business_rag/index/
-eval_logic/resources/business_rag/raw/
-eval_logic/resources/business_rag/processed/
+data/artifacts/
+data/business_rag/index/
+data/business_rag/raw/
+data/business_rag/processed/
 ```
 
 특히 `.env`에는 API 키가 들어가므로 절대 커밋하면 안 됩니다.
 
-`eval_logic/api_test`와 `eval_logic/samples/patent_documents`는 다른 사람이
-Swagger/API 테스트를 바로 재현할 수 있도록 커밋 대상에 포함합니다. 다만 실제
-기업 내부 PDF, API 키, 비공개 원문, 고객명 등 민감정보가 포함된 JSON/PDF는 넣지
-말고 공개 가능한 테스트 fixture만 유지합니다.
+`data/api_test`와 `eval_logic/samples/patent_documents`는 다른 사람이 Swagger/API
+테스트를 바로 재현할 수 있도록 커밋 대상에 포함합니다. 다만 실제 기업 내부 PDF,
+API 키, 비공개 원문, 고객명 등 민감정보가 포함된 JSON/PDF는 넣지 말고 공개 가능한
+테스트 fixture만 유지합니다.
 
 커밋 전 확인:
 

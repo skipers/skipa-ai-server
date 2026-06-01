@@ -34,9 +34,9 @@ from core.paths import (
     API_TEST_INPUT_UPLOAD_DIR,
     API_TEST_PDF_UPLOAD_DIR,
     API_TEST_REPORT_OUTPUT_DIR,
-    ARTIFACT_UPLOAD_DIR,
     SAMPLE_INPUT_DIR,
 )
+from core.patent_data_store import save_original_pdf, save_patent_input, save_report_result
 from core.schemas import normalize_patent_input
 from evaluation.auto_score import calc_auto_scores
 from evaluation.kosis_growth_fetcher import get_growth_score_from_json
@@ -87,10 +87,12 @@ def _patent_id_from_payload(patent: dict[str, Any]) -> str:
     )
 
 
-def _save_api_test_input_payload(filename: str, payload: dict[str, Any]) -> str:
+def _save_api_test_input_payload(filename: str, payload: dict[str, Any]) -> dict[str, str]:
     stem = _safe_name(Path(filename).stem)
     path = API_TEST_INPUT_UPLOAD_DIR / f"{_timestamp()}_{stem}.json"
-    return _write_json_file(path, payload)
+    api_path = _write_json_file(path, payload)
+    patent_paths = save_patent_input(normalize_patent_input(payload), source_name=filename, kind="upload")
+    return {"api_input_path": api_path, **patent_paths}
 
 
 def _save_uploaded_pdf(file: UploadFile, directory: Path) -> Path:
@@ -117,14 +119,16 @@ def _save_uploaded_pdf(file: UploadFile, directory: Path) -> Path:
     return dest
 
 
-def _save_extracted_patent_input(source_pdf: str, patent: dict[str, Any]) -> str:
+def _save_extracted_patent_input(source_pdf: str, patent: dict[str, Any]) -> dict[str, str]:
     patent_id = _safe_name(_patent_id_from_payload(patent))
     pdf_stem = _safe_name(Path(source_pdf).stem)
     path = API_TEST_EXTRACTED_INPUT_DIR / f"{_timestamp()}_{patent_id}_{pdf_stem}.json"
-    return _write_json_file(path, patent)
+    api_path = _write_json_file(path, patent)
+    patent_paths = save_patent_input(patent, source_name=path.name, kind="extracted")
+    return {"api_input_path": api_path, **patent_paths}
 
 
-def _save_api_test_report_result(job_id: str, result: dict[str, Any]) -> str:
+def _save_api_test_report_result(job_id: str, result: dict[str, Any]) -> dict[str, str]:
     validation = result.get("validation") if isinstance(result.get("validation"), dict) else {}
     patent_id = _safe_name(str(validation.get("patent_id") or "patent"))
     path = API_TEST_REPORT_OUTPUT_DIR / f"{_timestamp()}_{patent_id}_{job_id}.json"
@@ -133,7 +137,9 @@ def _save_api_test_report_result(job_id: str, result: dict[str, Any]) -> str:
         "saved_at": datetime.now().isoformat(),
         "result": result,
     }
-    return _write_json_file(path, saved)
+    api_path = _write_json_file(path, saved)
+    patent_paths = save_report_result(job_id, result)
+    return {"api_report_output_path": api_path, **patent_paths}
 
 
 def _extract_normalized_patent_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
@@ -220,20 +226,43 @@ def _run_workflow_for_pdf(source_pdf: str) -> dict[str, Any]:
     result = PatentDecisionWorkflow(options).run({"source_pdf": source_pdf})
     normalized = _extract_normalized_patent_from_result(result)
     if normalized:
-        extracted_path = _save_extracted_patent_input(source_pdf, normalized)
+        extracted_paths = _save_extracted_patent_input(source_pdf, normalized)
+        pdf_paths = save_original_pdf(source_pdf, normalized)
         result.setdefault("artifacts", {})
-        result["artifacts"]["extracted_input_path"] = extracted_path
+        result["artifacts"]["extracted_input_path"] = extracted_paths["api_input_path"]
+        result["artifacts"]["patent_input_path"] = extracted_paths["input_path"]
+        result["artifacts"]["latest_patent_input_path"] = extracted_paths["latest_input_path"]
+        result["artifacts"]["original_pdf_path"] = pdf_paths["original_pdf_path"]
+        result["artifacts"]["latest_original_pdf_path"] = pdf_paths["latest_original_pdf_path"]
+        result["artifacts"]["patent_data_dir"] = extracted_paths["patent_dir"]
+        result["artifacts"]["patent_manifest_path"] = extracted_paths["manifest_path"]
     return result
 
 
-def _execute_and_store(job_id: str, runner: Any, save_report_output: bool = True) -> None:
+def _execute_and_store(
+    job_id: str,
+    runner: Any,
+    save_report_output: bool = True,
+    input_paths: dict[str, str] | None = None,
+) -> None:
     set_running(job_id)
     try:
         result = runner()
-        if save_report_output:
-            output_path = _save_api_test_report_result(job_id, result)
+        if input_paths:
             result.setdefault("artifacts", {})
-            result["artifacts"]["report_output_path"] = output_path
+            result["artifacts"]["input_path"] = input_paths["api_input_path"]
+            result["artifacts"]["patent_input_path"] = input_paths["input_path"]
+            result["artifacts"]["latest_patent_input_path"] = input_paths["latest_input_path"]
+            result["artifacts"]["patent_data_dir"] = input_paths["patent_dir"]
+            result["artifacts"]["patent_manifest_path"] = input_paths["manifest_path"]
+        if save_report_output:
+            output_paths = _save_api_test_report_result(job_id, result)
+            result.setdefault("artifacts", {})
+            result["artifacts"]["report_output_path"] = output_paths["api_report_output_path"]
+            result["artifacts"]["patent_report_output_path"] = output_paths["report_json_path"]
+            result["artifacts"]["latest_patent_report_output_path"] = output_paths["latest_report_json_path"]
+            result["artifacts"]["patent_data_dir"] = output_paths["patent_dir"]
+            result["artifacts"]["patent_manifest_path"] = output_paths["manifest_path"]
         set_completed(job_id, result)
     except Exception as exc:
         set_failed(job_id, str(exc))
@@ -265,9 +294,9 @@ def create_patent_report_from_json(request: PatentReportRequest) -> dict[str, An
     Job을 저장합니다. API 모양은 비동기 Job API 형태를 유지합니다.
     """
     payload = _model_to_dict(request)
-    input_path = _save_api_test_input_payload("request_body.json", payload)
-    job_id = create_job("patent-maintenance-json", payload)
-    _execute_and_store(job_id, lambda: _run_workflow_for_json(request.patent))
+    input_paths = _save_api_test_input_payload("request_body.json", payload)
+    job_id = create_job("patent-maintenance-json", {**payload, "input_paths": input_paths})
+    _execute_and_store(job_id, lambda: _run_workflow_for_json(request.patent), input_paths=input_paths)
     job = get_job(job_id) or {}
     result = job.get("result") or {}
     status_url, result_url = _job_urls(job_id)
@@ -277,7 +306,7 @@ def create_patent_report_from_json(request: PatentReportRequest) -> dict[str, An
         "message": "특허 유지/포기 보고서 생성 Job이 처리되었습니다.",
         "status_url": status_url,
         "result_url": result_url,
-        "input_path": input_path,
+        "input_path": input_paths["api_input_path"],
         "output_path": (result.get("artifacts") or {}).get("report_output_path"),
     }
 
@@ -294,17 +323,18 @@ def create_patent_report_from_json_file(file: UploadFile = File(...)) -> dict[st
     ``{"patent": {...}}`` 또는 ``{"patent_data": {...}}`` 형태도 허용합니다.
     """
     payload = _read_uploaded_json(file)
-    input_path = _save_api_test_input_payload(file.filename or "patent.json", payload)
+    input_paths = _save_api_test_input_payload(file.filename or "patent.json", payload)
     patent = _extract_patent_payload(payload)
     job_id = create_job(
         "patent-maintenance-json-file",
         {
             "filename": Path(file.filename or "patent.json").name,
-            "input_path": input_path,
+            "input_path": input_paths["api_input_path"],
+            "input_paths": input_paths,
             "patent": patent,
         },
     )
-    _execute_and_store(job_id, lambda: _run_workflow_for_json(patent))
+    _execute_and_store(job_id, lambda: _run_workflow_for_json(patent), input_paths=input_paths)
     job = get_job(job_id) or {}
     result = job.get("result") or {}
     status_url, result_url = _job_urls(job_id)
@@ -314,7 +344,7 @@ def create_patent_report_from_json_file(file: UploadFile = File(...)) -> dict[st
         "message": "JSON 파일 기반 특허 유지/포기 보고서 생성 Job이 처리되었습니다.",
         "status_url": status_url,
         "result_url": result_url,
-        "input_path": input_path,
+        "input_path": input_paths["api_input_path"],
         "output_path": (result.get("artifacts") or {}).get("report_output_path"),
     }
 
@@ -326,7 +356,7 @@ def create_patent_report_from_json_file(file: UploadFile = File(...)) -> dict[st
 )
 def create_patent_report_from_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
     """특허 PDF 파일 업로드로 유지/포기 의사결정 보고서 Job을 생성합니다."""
-    dest = _save_uploaded_pdf(file, ARTIFACT_UPLOAD_DIR)
+    dest = _save_uploaded_pdf(file, API_TEST_PDF_UPLOAD_DIR)
 
     job_id = create_job("patent-maintenance-pdf", {"source_pdf": str(dest)})
     _execute_and_store(job_id, lambda: _run_workflow_for_pdf(str(dest)))
@@ -470,7 +500,15 @@ def tool_extract_patent_metadata(file: UploadFile = File(...)) -> dict[str, Any]
         result["uploaded_pdf_path"] = str(pdf_path)
         normalized = result.get("normalized_patent")
         if isinstance(normalized, dict):
-            result["extracted_input_path"] = _save_extracted_patent_input(str(pdf_path), normalized)
+            extracted_paths = _save_extracted_patent_input(str(pdf_path), normalized)
+            pdf_paths = save_original_pdf(pdf_path, normalized)
+            result["extracted_input_path"] = extracted_paths["api_input_path"]
+            result["patent_input_path"] = extracted_paths["input_path"]
+            result["latest_patent_input_path"] = extracted_paths["latest_input_path"]
+            result["original_pdf_path"] = pdf_paths["original_pdf_path"]
+            result["latest_original_pdf_path"] = pdf_paths["latest_original_pdf_path"]
+            result["patent_data_dir"] = extracted_paths["patent_dir"]
+            result["patent_manifest_path"] = extracted_paths["manifest_path"]
         return result
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

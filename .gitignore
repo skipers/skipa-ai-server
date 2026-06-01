@@ -52,6 +52,10 @@ tempCodeRunnerFile.py
 # Do not put secrets in api_test JSON files.
 
 # Generated artifacts, caches, crawled pages, vector indexes, and reports
+data/artifacts/
+data/business_rag/index/
+data/business_rag/processed/
+data/business_rag/raw/
 eval_logic/artifacts/
 eval_logic/src/artifacts/
 eval_logic/resources/business_rag/index/
