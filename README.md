@@ -13,6 +13,7 @@
 - KOSIS/KSIC/IPC 기반 시장 성장성 보조 평가
 - RAG 기반 제품/사업화 현황 추정
 - 유사 특허 분석 결과 통합
+- 챗봇 RAG용 특허별 원문/보고서/wiki/index 데이터 관리
 - Swagger UI를 통한 API 테스트
 - API 테스트용 입력/출력 산출물 분리 저장
 
@@ -66,6 +67,24 @@ skipa-ai-server/
 
     resources/            # 매핑표, RAG 리소스
     legacy/               # 현재 API와 직접 무관한 프로토타입/레거시 코드
+
+  chatbot/
+    .env.example          # 챗봇 실행 환경변수 예시
+    app/                  # 챗봇 FastAPI/RAG 애플리케이션 소스 위치
+      routers/            # rag, agent, wiki, page 라우터
+      rag/                # retrieval, answer generation, source handling
+      agents/             # patent/wiki/router/merge agent 흐름
+      ingestion/          # PDF/보고서/wiki chunk 생성 파이프라인
+      wiki/               # wiki archive/vectorstore 연동
+      search/             # web search provider 연동
+      core/               # chatbot pipeline orchestration
+      utils/              # path/config helper
+    data/
+      mapped_patent_reports -> ../../data/mapped_patent_reports
+      business -> ../../data/business
+    wiki_auditor/         # wiki 감사 결과와 대화 이력
+    logs/                 # 로컬 실행 로그, git 제외
+    patents_backup_*/     # 이전 특허 데이터 backup, git 제외
 ```
 
 ## 전체 아키텍처
@@ -128,6 +147,59 @@ data
 기존 경로와의 호환성을 위해 `chatbot/data/mapped_patent_reports`,
 `chatbot/data/business`, `eval_logic/api_test`는 중앙 `data/` 아래의 실제 폴더를
 가리키도록 연결되어 있습니다.
+
+## Chatbot 디렉토리
+
+`chatbot`은 보고서 생성 결과와 특허 원문 데이터를 RAG로 검색해 사용자의 질문에
+답하는 영역입니다. 이 repository에서 커밋으로 관리되는 핵심은 실행 환경 예시,
+중앙 데이터 폴더 연결, wiki 감사 결과입니다.
+
+```text
+chatbot/
+  .env.example
+    DATA_ROOT, PATENTS_ROOT, embedding model, LLM model, web search, API key
+    변수 예시를 제공합니다. 실제 키는 chatbot/.env에만 둡니다.
+
+  data/mapped_patent_reports
+    ../../data/mapped_patent_reports를 가리키는 연결입니다.
+    챗봇은 여기서 특허별 original, reports, wiki, extracted, index를 읽습니다.
+
+  data/business
+    ../../data/business를 가리키는 연결입니다.
+    제품/사업화 RAG에 필요한 공통 business index를 읽습니다.
+
+  wiki_auditor/
+    wiki 문서 구조, 고아 페이지, 모순 여부를 점검한 결과를 보관합니다.
+```
+
+챗봇 앱 소스가 포함된 환경에서는 `chatbot/app` 아래가 다음 역할을 담당합니다.
+
+```text
+app/routers
+  외부 API 라우터입니다. rag 질의, agent 질의, wiki 조회, page/file 제공을 담당합니다.
+
+app/rag
+  FAISS 검색, context 구성, 답변 생성, source 정리, report 기반 빠른 답변 로직을 담당합니다.
+
+app/agents
+  질문을 patent/wiki/web/search 경로로 분기하고, 여러 검색 결과를 병합하는 agent 흐름을 담당합니다.
+
+app/ingestion
+  원문 PDF, 보고서, wiki 문서를 chunk로 만들고 vector index를 재생성하는 전처리 파이프라인입니다.
+
+app/wiki
+  특허별 wiki 문서와 wiki vectorstore를 관리합니다.
+
+app/search
+  웹 검색 fallback 또는 외부 evidence provider를 연결합니다.
+```
+
+현재 커밋에는 챗봇 데이터 연결 파일과 감사 결과는 포함되어 있지만,
+`chatbot/app/*.py` 소스 파일은 포함되어 있지 않습니다. 따라서 이 repository만
+clone한 상태에서는 챗봇 서버 실행까지는 검증할 수 없고, 데이터 경로와 RAG 산출물
+존재 여부를 확인할 수 있습니다. 챗봇 소스가 별도 배포물로 제공되는 경우에는
+`chatbot/.env.example`을 기준으로 `DATA_ROOT=../data`,
+`PATENTS_ROOT=../data/mapped_patent_reports`를 맞춘 뒤 실행합니다.
 
 ## 중앙 데이터 저장 규칙
 
@@ -608,6 +680,7 @@ readlink chatbot/data/mapped_patent_reports
 readlink chatbot/data/business
 find data/mapped_patent_reports -path '*index/faiss/*' -type f
 find data/mapped_patent_reports -path '*wiki/vectorstore/faiss/*' -type f
+find chatbot/app -name '*.py' -type f
 ```
 
 정상 기준:
@@ -616,6 +689,7 @@ find data/mapped_patent_reports -path '*wiki/vectorstore/faiss/*' -type f
 chatbot/data/mapped_patent_reports -> ../../data/mapped_patent_reports
 chatbot/data/business -> ../../data/business
 FAISS index.faiss, index.pkl 파일 존재
+챗봇 서버 실행 검증을 하려면 chatbot/app 아래 Python source 파일이 존재해야 함
 ```
 
 ### Python import와 문법 확인
@@ -710,9 +784,34 @@ Status: success
 ### 챗봇 서버 확인 시 주의
 
 현재 이 repository에서는 챗봇 데이터 연결과 RAG 산출물 경로를 확인할 수 있습니다.
-챗봇 앱 소스가 별도 repository 또는 별도 배포물에 있을 경우, 해당 앱의 실행 명령으로
-서버를 띄운 뒤 `DATA_ROOT=../data`, `PATENTS_ROOT=../data/mapped_patent_reports`를
-사용하는지 확인해야 합니다.
+챗봇 앱 소스가 별도 repository 또는 별도 배포물에 있을 경우, source를 `chatbot/app`
+아래에 둔 뒤 해당 앱의 실행 명령으로 서버를 띄웁니다.
+
+예상 실행 형태:
+
+```bash
+cd /Users/kgw/skipers-ai/chatbot
+cp .env.example .env
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+```
+
+확인할 환경변수:
+
+```text
+DATA_ROOT=../data
+PATENTS_ROOT=../data/mapped_patent_reports
+PUBLIC_FILE_BASE_URL=http://localhost:8000/files
+EMBEDDING_MODEL=BAAI/bge-m3
+TOP_K=10
+```
+
+정상 기준:
+
+```text
+챗봇이 data/mapped_patent_reports/<patent_id>/index/faiss를 읽음
+특허 원문 chunk, 보고서 chunk, wiki chunk를 context로 사용함
+질문 로그는 chatbot/logs/rag_query_log.jsonl에 기록됨
+```
 
 ## 로컬 CLI
 
