@@ -51,6 +51,42 @@ def _card_value(card: dict[str, Any], *keys: str) -> Any:
     return None
 
 
+def _resolve_source_url(url: str | None, metadata: dict[str, Any]) -> str | None:
+    if not url:
+        return None
+    normalized = url.replace("http://localhost:8000/files/patents", "/files/patents")
+    normalized = normalized.replace("http://localhost:8000/files/business", "/files/business")
+    normalized = normalized.replace("http://localhost:8000/files/data", "/files/data")
+    if not normalized.startswith("/files/patents/"):
+        return normalized
+
+    suffix = normalized.removeprefix("/files/patents/")
+    patent_id, _, rel = suffix.partition("/")
+    if not patent_id:
+        return normalized
+    rel_no_fragment = rel.split("#", 1)[0]
+    patent_dir = PATENTS_ROOT / patent_id
+    candidates = []
+    if rel_no_fragment:
+        candidates.append(patent_dir / rel_no_fragment)
+    if rel_no_fragment == "original.pdf":
+        candidates.append(patent_dir / "original" / "pdf" / "latest.pdf")
+    if rel_no_fragment in {"report.html", "report.pdf"}:
+        candidates.append(patent_dir / "reports" / "json" / "latest.json")
+    for candidate in candidates:
+        if candidate.exists():
+            try:
+                current_rel = candidate.relative_to(PATENTS_ROOT).as_posix()
+            except ValueError:
+                return normalized
+            fragment = f"#{normalized.split('#', 1)[1]}" if "#" in normalized else ""
+            return f"/files/patents/{current_rel}{fragment}"
+    source_type = str(metadata.get("source_type") or "")
+    if source_type:
+        return f"/api/v1/chatbot/patents/{patent_id}/chunks?source_type={source_type}&limit=20"
+    return f"/api/v1/chatbot/patents/{patent_id}/chunks?limit=20"
+
+
 def _normalize_source_card(card: dict[str, Any], index: int) -> dict[str, Any]:
     metadata = dict(card.get("metadata") or {})
     for key, value in card.items():
@@ -61,11 +97,8 @@ def _normalize_source_card(card: dict[str, Any], index: int) -> dict[str, Any]:
         page_no = int(page_no) if page_no is not None else None
     except (TypeError, ValueError):
         page_no = None
-    url = _card_value(card, "url", "source_url")
-    if isinstance(url, str):
-        url = url.replace("http://localhost:8000/files/patents", "/files/patents")
-        url = url.replace("http://localhost:8000/files/business", "/files/business")
-        url = url.replace("http://localhost:8000/files/data", "/files/data")
+    raw_url = _card_value(card, "url", "source_url")
+    url = _resolve_source_url(raw_url if isinstance(raw_url, str) else None, metadata)
     return {
         "label": str(card.get("label") or f"자료{index}"),
         "title": _card_value(card, "title", "section_title", "file_name"),

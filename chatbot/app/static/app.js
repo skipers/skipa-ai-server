@@ -169,7 +169,7 @@ function renderDataCards() {
       <div class="data-actions">
         <button type="button" data-action="detail">상세</button>
         <button type="button" data-action="chunks">Chunk</button>
-        <a href="/files/patents/${encodeURIComponent(patent.patent_id)}/" target="_blank" rel="noreferrer">파일</a>
+        <button type="button" data-action="files">파일</button>
       </div>
     `;
     article.querySelector('[data-action="detail"]').addEventListener("click", async () => {
@@ -179,6 +179,10 @@ function renderDataCards() {
     article.querySelector('[data-action="chunks"]').addEventListener("click", async () => {
       const chunks = await api(`/api/v1/chatbot/patents/${encodeURIComponent(patent.patent_id)}/chunks?limit=5`);
       showModal(`${patent.patent_id} chunks`, jsonBlock(chunks));
+    });
+    article.querySelector('[data-action="files"]').addEventListener("click", async () => {
+      const files = await api(`/api/v1/chatbot/patents/${encodeURIComponent(patent.patent_id)}/files?limit=80`);
+      showModal(`${patent.patent_id} files`, jsonBlock(files));
     });
     grid.appendChild(article);
   });
