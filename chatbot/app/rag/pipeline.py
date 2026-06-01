@@ -31,6 +31,16 @@ def answer_question(
     source_types: set[str] | None = None,
     top_k: int = 5,
 ) -> dict[str, Any]:
+    legacy_error: str | None = None
+    if not source_types:
+        from .legacy_adapter import try_answer_with_legacy
+
+        legacy_result = try_answer_with_legacy(query, patent_id=patent_id, top_k=top_k)
+        if legacy_result and not legacy_result.get("metrics", {}).get("fallback_required"):
+            return legacy_result
+        if legacy_result:
+            legacy_error = legacy_result.get("metrics", {}).get("legacy_error")
+
     intent = classify_intent(query)
     local_result = retrieve_local(query, patent_id=patent_id, source_types=source_types, top_k=top_k)
     local_hits = list(local_result.get("hits") or [])
@@ -52,10 +62,15 @@ def answer_question(
     )
     source_cards = [*cards_from_hits(local_hits), *cards_from_web(web_results, start_index=len(local_hits) + 1)]
 
+    metrics = build_metrics(intent=intent, local_result=local_result, web_result=web_result, llm_result=llm_result)
+    metrics["engine"] = "lightweight_fallback"
+    if legacy_error:
+        metrics["legacy_error"] = legacy_error
+
     return {
         "query": query,
         "patent_id": patent_id,
         "answer": answer,
         "source_cards": source_cards,
-        "metrics": build_metrics(intent=intent, local_result=local_result, web_result=web_result, llm_result=llm_result),
+        "metrics": metrics,
     }

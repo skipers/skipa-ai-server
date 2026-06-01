@@ -14,6 +14,8 @@
 - RAG 기반 제품/사업화 현황 추정
 - 유사 특허 분석 결과 통합
 - 챗봇 RAG용 특허별 원문/보고서/wiki/index 데이터 관리
+- `rag.zip` 기준 FAISS + BM25 + RRF + 의도 분류 + 웹 검색 챗봇 RAG 엔진 복구
+- LangGraph 기반 챗봇 답변, wiki 감사, 전처리/재색인 workflow
 - Swagger UI를 통한 API 테스트
 - API 테스트용 입력/출력 산출물 분리 저장
 
@@ -78,6 +80,16 @@ skipa-ai-server/
       schemas.py          # Swagger request/response schema
       routers/
         chatbot.py        # 챗봇, rag, agent, wiki API router
+      legacy/             # rag.zip에서 복구한 전처리/RAG 엔진
+        ingest.py         # PDF/HTML/JSON chunk, visual asset 추출
+        rag_pipeline.py   # FAISS + BM25 + RRF + intent/web 답변 엔진
+      rag/
+        legacy_adapter.py # 현재 중앙 data 구조와 legacy 엔진 연결
+      agents/
+        graph.py          # 챗봇 LangGraph 답변 workflow
+        ingestion_graph.py # 전처리/FAISS 재색인 LangGraph workflow
+        wiki_graph.py     # 감사/사람검토/vectorstore 갱신 workflow
+      static/             # /ui, /chat 브라우저 테스트 화면
     data/
       mapped_patent_reports -> ../../data/mapped_patent_reports
       business -> ../../data/business
@@ -194,10 +206,11 @@ app/routers/chatbot.py
   /api/v1/chatbot, /api/v1/rag, /api/v1/agent, /api/v1/wiki API를 제공합니다.
 ```
 
-현재 챗봇 Swagger API는 중앙 데이터 연결과 RAG 검색 흐름을 검증하기 위한
-read-only API입니다. 실제 운영형 LLM 답변 생성 서버가 별도로 붙더라도 같은
-`DATA_ROOT=../data`, `PATENTS_ROOT=../data/mapped_patent_reports` 구조를 사용하면
-보고서 생성 결과와 챗봇 데이터가 같은 특허 폴더에서 연결됩니다.
+현재 챗봇 Swagger API는 중앙 데이터 연결 확인, RAG 검색, 실제 답변 생성,
+전처리/FAISS 재색인, wiki 감사와 사람 승인 vectorstore 갱신까지 확인할 수 있습니다.
+`rag.zip`의 원래 RAG 성능을 유지하기 위해 `chatbot/app/legacy`에 복구한 엔진을
+우선 사용하고, 현재 프로젝트에서 발전한 중앙 `data/`, 감사, UI, LangGraph 구조는
+그대로 유지합니다.
 
 Swagger에서 확인 가능한 챗봇 API:
 
@@ -216,8 +229,22 @@ GET  /api/v1/chatbot/vectorstore/status
 POST /api/v1/chatbot/vectorstore/refresh
 POST /api/v1/chatbot/search
 POST /api/v1/chatbot/query
+POST /api/v1/chatbot/answer
 POST /api/v1/rag/query
+POST /api/v1/rag/answer
+GET  /api/v1/rag/engine/status
+GET  /api/v1/rag/patents
+GET  /api/v1/rag/patent-summary-cards
+POST /api/v1/rag/chat
+POST /api/v1/rag/global/chat
+POST /api/v1/rag/reindex
+POST /api/v1/rag/global/reindex
+POST /api/v1/rag/business/reindex
+GET  /api/v1/rag/ingestion/mermaid
+GET  /api/v1/rag/page-image
+POST /api/v1/rag/feedback
 POST /api/v1/agent/query
+POST /api/v1/agent/answer
 GET  /api/v1/chatbot/wiki-audit/report
 POST /api/v1/chatbot/wiki-audit/run
 GET  /api/v1/chatbot/wiki-audit/review
@@ -365,6 +392,13 @@ flowchart LR
     C8[POST /api/v1/chatbot/query]
     C9[local_vectorstore_search]
     C10[chunk keyword fallback]
+    C11[POST /api/v1/rag/chat]
+    C12[ChatGraph route_question]
+    C13[Legacy rag.zip RAG]
+    C14[FAISS + BM25 + RRF]
+    C15[Intent/Web/Search Agent]
+    C16[POST /api/v1/rag/reindex]
+    C17[IngestionGraph]
   end
 
   U --> E0
@@ -387,6 +421,9 @@ flowchart LR
   C6 --> D7 --> C7 --> D8
   U --> C8 --> C9 --> D8
   C9 -->|no hit| C10 --> D5
+  U --> C11 --> C12 --> C13 --> C14 --> D5
+  C13 --> C15
+  U --> C16 --> C17 --> C14
 ```
 
 ## 중앙 데이터 저장 규칙
@@ -539,6 +576,12 @@ PDF 추출 결과 JSON
 `data/mapped_patent_reports/<patent_id>/extracted`, `index`, `wiki` 아래에
 저장됩니다.
 
+현재 전처리는 `rag.zip`에서 복구한 `chatbot/app/legacy/ingest.py`와
+`chatbot/app/legacy/rag_pipeline.py`를 LangGraph 전처리 agent로 감싼 구조입니다.
+예전 zip은 `meta.json`과 `original.pdf` 같은 flat layout을 기대했지만, 현재 코드는
+`manifest.json`, `original/pdf/latest.pdf`, `reports/json/latest.json`을 읽는
+compat layer를 추가해 중앙 데이터 구조를 그대로 사용합니다.
+
 전처리 대상:
 
 ```text
@@ -589,6 +632,23 @@ wiki/vectorstore/faiss/
 보고서 생성 API가 새 input/output을 만들면 `patent_data_store.py`가 같은 특허 폴더의
 `original/input`과 `reports/json`에 최신 파일을 저장합니다. 이후 챗봇 전처리 또는
 index 재생성 단계에서 이 파일들을 읽으면 새 보고서가 RAG에 반영됩니다.
+
+전처리/재색인 LangGraph:
+
+```mermaid
+flowchart TD
+  A[POST /api/v1/rag/reindex] --> B[inspect_request]
+  B --> C{scope}
+  C -->|patent| D[build_or_load_patent_index]
+  C -->|global| E[build_or_load_global_index]
+  C -->|business| F[build_or_load_business_index]
+  D --> G[PDF/JSON/HTML chunk 생성]
+  G --> H[FAISS index 저장]
+  E --> H
+  F --> H
+  H --> I[optional reviewed vectorstore refresh]
+  I --> J[agent_trace 반환]
+```
 
 ## 환경 설정
 

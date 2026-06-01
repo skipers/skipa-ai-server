@@ -1,5 +1,6 @@
 const state = {
   patents: [],
+  cards: [],
   audit: null,
   mermaid: "",
 };
@@ -7,11 +8,11 @@ const state = {
 const $ = (id) => document.getElementById(id);
 
 const workflowText = {
-  audit: "특허 원문, 보고서 JSON, chunk, wiki 데이터를 스캔해서 EMPTY/OCR_NOISE/SECRET/DUPLICATE 같은 나쁜 데이터 후보를 찾습니다.",
+  audit: "LangGraph wiki audit agent가 특허 원문, 보고서 JSON, chunk, wiki 데이터를 스캔해서 EMPTY/OCR_NOISE/SECRET/DUPLICATE 같은 나쁜 데이터 후보를 찾습니다.",
   review: "감사 결과는 audit.json과 review.md로 저장됩니다. 사람은 finding별 excerpt와 metadata를 보고 제외할 항목을 확정합니다.",
   apply: "선택한 finding_id에 연결된 문서만 제외하고 나머지를 approved_context.md와 approved_documents.jsonl로 저장합니다.",
-  vectorstore: "승인된 approved_documents.jsonl을 기준으로 특허별/global vectorstore를 다시 만듭니다. 이후 챗봇 검색은 human_reviewed 데이터를 우선 사용합니다.",
-  query: "질문이 들어오면 vectorstore를 먼저 검색하고, 근거 카드와 함께 답변 요약을 반환합니다.",
+  vectorstore: "승인된 approved_documents.jsonl을 기준으로 local vectorstore를 다시 만들고, 필요하면 rag.zip FAISS/BM25 인덱스도 전처리 agent로 재생성합니다.",
+  query: "질문이 들어오면 가벼운 의도 판단 뒤 복구된 FAISS+BM25+RRF RAG, 특허 원문, 보고서, wiki/승인 데이터, 웹 근거를 조합해 답변합니다.",
 };
 
 function escapeHtml(value) {
@@ -134,6 +135,55 @@ function renderPatentOptions() {
   if (state.patents[0]) select.value = state.patents[0].patent_id;
 }
 
+function showTab(tabId) {
+  document.querySelectorAll(".tab-button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tab === tabId);
+  });
+  document.querySelectorAll(".tab-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === tabId);
+  });
+}
+
+function renderDataCards() {
+  const grid = $("dataGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  if (!state.patents.length) {
+    grid.innerHTML = `<div class="empty">표시할 특허 데이터가 없습니다.</div>`;
+    return;
+  }
+  $("dataSummary").textContent = `특허 ${state.patents.length}개 · 요약 카드 ${state.cards.length}개`;
+  state.patents.forEach((patent) => {
+    const card = state.cards.find((item) => item.patent_id === patent.patent_id) || {};
+    const article = document.createElement("article");
+    article.className = "data-card";
+    article.innerHTML = `
+      <h3>${escapeHtml(patent.patent_id)} · ${escapeHtml(patent.title || patent.patent_id)}</h3>
+      <p>chunk ${escapeHtml(patent.chunk_count ?? 0)}개 · asset ${escapeHtml(patent.asset_count ?? 0)}개 · score ${escapeHtml(card.total || card.score_level || "-")}</p>
+      <div class="chip-row">
+        ${chip(patent.has_latest_input ? "원문 JSON" : "원문 없음", patent.has_latest_input ? "approved" : "review")}
+        ${chip(patent.has_latest_report ? "보고서 JSON" : "보고서 없음", patent.has_latest_report ? "approved" : "review")}
+        ${chip(patent.has_patent_index ? "FAISS" : "FAISS 없음", patent.has_patent_index ? "approved" : "review")}
+        ${chip(patent.has_local_vectorstore ? "승인 vectorstore" : "local 없음", patent.has_local_vectorstore ? "approved" : "review")}
+      </div>
+      <div class="data-actions">
+        <button type="button" data-action="detail">상세</button>
+        <button type="button" data-action="chunks">Chunk</button>
+        <a href="/files/patents/${encodeURIComponent(patent.patent_id)}/" target="_blank" rel="noreferrer">파일</a>
+      </div>
+    `;
+    article.querySelector('[data-action="detail"]').addEventListener("click", async () => {
+      const detail = await api(`/api/v1/chatbot/patents/${encodeURIComponent(patent.patent_id)}`);
+      showModal(`${patent.patent_id} 데이터`, jsonBlock(detail));
+    });
+    article.querySelector('[data-action="chunks"]').addEventListener("click", async () => {
+      const chunks = await api(`/api/v1/chatbot/patents/${encodeURIComponent(patent.patent_id)}/chunks?limit=5`);
+      showModal(`${patent.patent_id} chunks`, jsonBlock(chunks));
+    });
+    grid.appendChild(article);
+  });
+}
+
 function renderAudit(audit) {
   state.audit = audit;
   $("auditIdInput").value = audit?.audit_id || "";
@@ -192,9 +242,11 @@ function appendAnswerMeta(metrics, sourceCards) {
   const meta = document.createElement("div");
   meta.className = "answer-meta";
   meta.innerHTML = [
-    `mode ${metrics?.mode || "-"}`,
+    `engine ${metrics?.engine || metrics?.mode || "-"}`,
+    `scope ${metrics?.scope || "-"}`,
+    `mode ${metrics?.answer_mode || metrics?.mode || "-"}`,
     `근거 ${(sourceCards || []).length}개`,
-    `hit ${metrics?.hit_count ?? 0}`,
+    `confidence ${metrics?.confidence_score ?? metrics?.hit_count ?? "-"}`,
   ].map((item) => `<span>${escapeHtml(item)}</span>`).join("");
   $("messages").appendChild(meta);
 }
@@ -249,8 +301,18 @@ async function loadBaseData() {
   ]);
   state.patents = patents.items || [];
   renderPatentOptions();
+  renderDataCards();
   const vector = status.vectorstore_status || config.vectorstore || {};
-  setStatus(`특허 ${config.patent_count ?? state.patents.length}개 · 문서 ${vector.global?.document_count ?? "-"}개 · ${vector.global?.source || "unknown"}`);
+  const engine = config.legacy_rag_engine?.available ? "legacy RAG" : "fallback";
+  setStatus(`특허 ${config.patent_count ?? state.patents.length}개 · 문서 ${vector.global?.document_count ?? "-"}개 · ${engine}`);
+  api("/api/v1/rag/patent-summary-cards")
+    .then((cards) => {
+      state.cards = cards.items || [];
+      renderDataCards();
+    })
+    .catch(() => {
+      state.cards = [];
+    });
 }
 
 async function runAudit() {
@@ -305,6 +367,48 @@ async function loadWorkflow() {
   setStatus("워크플로우 그래프 로드 완료");
 }
 
+async function loadIngestionWorkflow() {
+  const graph = await api("/api/v1/rag/ingestion/mermaid");
+  state.mermaid = graph.diagram || "";
+  $("workflowMermaid").textContent = state.mermaid || "그래프가 없습니다.";
+  setStatus("전처리 그래프 로드 완료");
+}
+
+async function reindexSelected() {
+  const selected = $("patentSelect").value;
+  if (selected === "__all__") {
+    setStatus("특허를 하나 선택해 주세요");
+    return;
+  }
+  const button = $("reindexButton");
+  setBusy(button, true, "재색인 중");
+  try {
+    const result = await api("/api/v1/rag/reindex", {
+      method: "POST",
+      body: JSON.stringify({ patent_id: selected, force_rebuild: false, refresh_reviewed_vectorstore: false }),
+    });
+    setStatus(`재색인 완료 · ${result.scope || "PATENT"} · ${result.engine || "-"}`);
+    showModal("재색인 결과", jsonBlock(result));
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function checkGlobalIndex() {
+  const button = $("globalReindexButton");
+  setBusy(button, true, "확인 중");
+  try {
+    const result = await api("/api/v1/rag/global/reindex", {
+      method: "POST",
+      body: JSON.stringify({ force_rebuild: false, refresh_reviewed_vectorstore: false }),
+    });
+    setStatus(`전체 인덱스 확인 완료 · ${result.engine || "-"}`);
+    showModal("전체 인덱스 결과", jsonBlock(result));
+  } finally {
+    setBusy(button, false);
+  }
+}
+
 async function ask() {
   const text = $("question").value.trim();
   if (!text) return;
@@ -315,13 +419,14 @@ async function ask() {
   const pending = appendMessage("검색 중입니다. 승인된 vectorstore에서 근거를 찾고 답변을 구성합니다.", "assistant");
   try {
     const selected = $("patentSelect").value;
-    const data = await api("/api/v1/chatbot/answer", {
+    const path = selected === "__all__" ? "/api/v1/rag/global/chat" : "/api/v1/rag/chat";
+    const data = await api(path, {
       method: "POST",
       body: JSON.stringify({
-        query: text,
+        question: text,
         patent_id: selected === "__all__" ? null : selected,
-        source_types: null,
-        top_k: 5,
+        user_id: "browser-ui",
+        chat_history: [],
       }),
     });
     pending.innerHTML = renderAnswerHtml(data.answer || "");
@@ -337,11 +442,18 @@ async function ask() {
 }
 
 function bindEvents() {
+  document.querySelectorAll(".tab-button").forEach((button) => {
+    button.addEventListener("click", () => showTab(button.dataset.tab));
+  });
   $("reloadButton").addEventListener("click", () => loadBaseData().catch((error) => setStatus(error.message)));
+  $("loadDataButton").addEventListener("click", () => loadBaseData().catch((error) => setStatus(error.message)));
+  $("reindexButton").addEventListener("click", () => reindexSelected().catch((error) => setStatus(error.message)));
+  $("globalReindexButton").addEventListener("click", () => checkGlobalIndex().catch((error) => setStatus(error.message)));
   $("runAuditButton").addEventListener("click", () => runAudit().catch((error) => setStatus(error.message)));
   $("loadReviewButton").addEventListener("click", () => loadReview().catch((error) => setStatus(error.message)));
   $("applyAuditButton").addEventListener("click", () => applyAudit().catch((error) => setStatus(error.message)));
   $("loadWorkflowButton").addEventListener("click", () => loadWorkflow().catch((error) => setStatus(error.message)));
+  $("loadIngestionWorkflowButton").addEventListener("click", () => loadIngestionWorkflow().catch((error) => setStatus(error.message)));
   $("sendButton").addEventListener("click", ask);
   $("question").addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;

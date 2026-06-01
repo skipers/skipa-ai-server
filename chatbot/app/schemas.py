@@ -17,6 +17,41 @@ class SearchRequest(BaseModel):
     top_k: int = Field(5, ge=1, le=50, description="반환할 검색 결과 수")
 
 
+class ChatRequest(BaseModel):
+    patent_id: str | None = Field(None, description="특허 상세 화면에서 전달되는 현재 특허 ID")
+    question: str = Field(..., min_length=1, description="사용자 질문")
+    user_id: str | None = Field(None, description="질문자 식별자")
+    chat_history: list[dict[str, Any]] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
+    context_patent_id: str | None = Field(None, description="프론트엔드가 기억한 현재 대화 기준 특허 ID")
+
+
+class FeedbackRequest(BaseModel):
+    question: str
+    answer: str | None = None
+    rating: str
+    reason: str | None = None
+    user_id: str | None = None
+    patent_id: str | None = None
+    metrics: dict[str, Any] = Field(default_factory=dict)
+
+
+class ReindexRequest(BaseModel):
+    patent_id: str
+    force_rebuild: bool = Field(True, description="기존 FAISS가 있어도 전처리/인덱스를 다시 생성")
+    refresh_reviewed_vectorstore: bool = Field(
+        False,
+        description="레거시 FAISS 재생성 후 사람 승인 데이터 기반 local vectorstore도 함께 갱신",
+    )
+
+
+class BusinessReindexRequest(BaseModel):
+    force_rebuild: bool = Field(True, description="기존 FAISS가 있어도 다시 생성")
+    refresh_reviewed_vectorstore: bool = Field(
+        False,
+        description="레거시 FAISS 재생성 후 사람 승인 데이터 기반 local vectorstore도 함께 갱신",
+    )
+
+
 class SearchHit(BaseModel):
     patent_id: str
     score: float

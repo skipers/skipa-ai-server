@@ -52,3 +52,17 @@ input, report, and original PDF. Timestamped files are kept for reproducibility.
 
 `data/api_test` is kept for Swagger/API reproducibility. Production features
 should use the patent-specific folders as the long-term source of truth.
+
+## Chatbot RAG Compatibility
+
+The chatbot now supports both the restored `rag.zip` layout and this unified
+layout. The legacy engine is kept in `chatbot/app/legacy`, while
+`chatbot/app/legacy/compat.py` maps:
+
+- `manifest.json` -> legacy patent metadata
+- `original/pdf/latest.pdf` -> legacy `original_pdf`
+- `reports/json/latest.json` -> legacy `source_report_json`
+- `extracted/all_chunks.jsonl` -> reusable chunks when raw PDFs are absent
+
+This keeps newer shared-data improvements intact while preserving the original
+FAISS + BM25 + RRF RAG behavior.

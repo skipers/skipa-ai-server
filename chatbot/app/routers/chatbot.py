@@ -5,9 +5,27 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 
 from ..agents.graph import run_chat_agent
+from ..agents.ingestion_graph import ingestion_graph_mermaid, run_ingestion_graph
 from ..agents.wiki_graph import run_wiki_audit_graph, wiki_audit_graph_mermaid
 from ..config import EMBEDDING_MODEL, GEN_MODEL, PUBLIC_FILE_BASE_URL, TOP_K
-from ..schemas import AnswerResponse, AuditApplyRequest, SearchRequest, SearchResponse, WikiAgentRunRequest
+from ..rag.legacy_adapter import (
+    legacy_engine_status,
+    patent_summary_cards,
+    render_page_image,
+    try_answer_with_legacy,
+    write_feedback,
+)
+from ..schemas import (
+    AnswerResponse,
+    AuditApplyRequest,
+    BusinessReindexRequest,
+    ChatRequest,
+    FeedbackRequest,
+    ReindexRequest,
+    SearchRequest,
+    SearchResponse,
+    WikiAgentRunRequest,
+)
 from ..store import (
     business_chunks,
     data_overview,
@@ -25,6 +43,7 @@ from ..vectorstore import vectorstore_status
 
 router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
 rag_router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
+legacy_rag_router = APIRouter(prefix="/rag", tags=["legacy-rag"])
 agent_router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
 wiki_router = APIRouter(prefix="/api/v1/wiki", tags=["wiki"])
 
@@ -37,6 +56,7 @@ def get_config() -> dict:
         "embedding_model": EMBEDDING_MODEL,
         "generation_model": GEN_MODEL,
         "default_top_k": TOP_K,
+        "legacy_rag_engine": legacy_engine_status(),
     }
 
 
@@ -148,6 +168,110 @@ def rag_answer(request: SearchRequest) -> dict:
 @agent_router.post("/answer", response_model=AnswerResponse, summary="Agent 답변 alias")
 def agent_answer(request: SearchRequest) -> dict:
     return post_answer(request)
+
+
+@rag_router.get("/engine/status", summary="복구된 rag.zip 엔진 사용 가능 여부")
+@legacy_rag_router.get("/engine/status", summary="복구된 rag.zip 엔진 사용 가능 여부")
+def get_rag_engine_status() -> dict:
+    return legacy_engine_status()
+
+
+@rag_router.get("/patents", summary="레거시 RAG 호환 특허 목록")
+@legacy_rag_router.get("/patents", summary="레거시 RAG 호환 특허 목록")
+def rag_patents() -> dict:
+    patents = list_patents()
+    return {"items": patents, "count": len(patents), "engine": legacy_engine_status()}
+
+
+@rag_router.get("/patent-summary-cards", summary="레거시 RAG 특허 요약 카드")
+@legacy_rag_router.get("/patent-summary-cards", summary="레거시 RAG 특허 요약 카드")
+def rag_patent_summary_cards() -> dict:
+    return patent_summary_cards()
+
+
+@rag_router.post("/chat", response_model=AnswerResponse, summary="rag.zip 호환 특허별 챗봇 답변")
+@legacy_rag_router.post("/chat", response_model=AnswerResponse, summary="rag.zip 호환 특허별 챗봇 답변")
+def rag_chat(request: ChatRequest) -> dict:
+    result = try_answer_with_legacy(
+        request.question,
+        patent_id=request.patent_id,
+        user_id=request.user_id,
+        chat_history=request.chat_history,
+        context_patent_id=request.context_patent_id,
+    )
+    if result and not result.get("metrics", {}).get("fallback_required"):
+        return result
+    fallback = run_chat_agent(request.question, patent_id=request.patent_id)
+    if result:
+        fallback.setdefault("metrics", {})["legacy_error"] = result.get("metrics", {}).get("legacy_error")
+    return fallback
+
+
+@rag_router.post("/global/chat", response_model=AnswerResponse, summary="rag.zip 호환 전체 특허 챗봇 답변")
+@legacy_rag_router.post("/global/chat", response_model=AnswerResponse, summary="rag.zip 호환 전체 특허 챗봇 답변")
+def rag_global_chat(request: ChatRequest) -> dict:
+    result = try_answer_with_legacy(
+        request.question,
+        patent_id=None,
+        user_id=request.user_id,
+        chat_history=request.chat_history,
+        context_patent_id=request.context_patent_id,
+    )
+    if result and not result.get("metrics", {}).get("fallback_required"):
+        return result
+    fallback = run_chat_agent(request.question, patent_id=None)
+    if result:
+        fallback.setdefault("metrics", {})["legacy_error"] = result.get("metrics", {}).get("legacy_error")
+    return fallback
+
+
+@rag_router.post("/reindex", summary="특허별 전처리/RAG FAISS 재생성")
+@legacy_rag_router.post("/reindex", summary="특허별 전처리/RAG FAISS 재생성")
+def rag_reindex(request: ReindexRequest) -> dict:
+    return run_ingestion_graph(
+        scope="patent",
+        patent_id=request.patent_id,
+        force_rebuild=request.force_rebuild,
+        refresh_reviewed_vectorstore=request.refresh_reviewed_vectorstore,
+    )
+
+
+@rag_router.post("/global/reindex", summary="전체 특허 global FAISS 재생성")
+@legacy_rag_router.post("/global/reindex", summary="전체 특허 global FAISS 재생성")
+def rag_global_reindex(request: BusinessReindexRequest) -> dict:
+    return run_ingestion_graph(
+        scope="global",
+        force_rebuild=request.force_rebuild,
+        refresh_reviewed_vectorstore=request.refresh_reviewed_vectorstore,
+    )
+
+
+@rag_router.post("/business/reindex", summary="업무/공통 business FAISS 재생성")
+@legacy_rag_router.post("/business/reindex", summary="업무/공통 business FAISS 재생성")
+def rag_business_reindex(request: BusinessReindexRequest) -> dict:
+    return run_ingestion_graph(
+        scope="business",
+        force_rebuild=request.force_rebuild,
+        refresh_reviewed_vectorstore=request.refresh_reviewed_vectorstore,
+    )
+
+
+@rag_router.get("/ingestion/mermaid", summary="전처리/RAG 재색인 LangGraph Mermaid")
+@legacy_rag_router.get("/ingestion/mermaid", summary="전처리/RAG 재색인 LangGraph Mermaid")
+def get_ingestion_mermaid() -> dict:
+    return {"format": "mermaid", "diagram": ingestion_graph_mermaid()}
+
+
+@rag_router.post("/feedback", summary="챗봇 답변 피드백 저장")
+@legacy_rag_router.post("/feedback", summary="챗봇 답변 피드백 저장")
+def rag_feedback(request: FeedbackRequest) -> dict:
+    return write_feedback(request.model_dump())
+
+
+@rag_router.get("/page-image", summary="특허 PDF page image 렌더링")
+@legacy_rag_router.get("/page-image", summary="특허 PDF page image 렌더링")
+def rag_page_image(patent_id: str, file_name: str = Query("original.pdf"), page_no: int = Query(1, ge=1)):
+    return render_page_image(patent_id, file_name=file_name, page_no=page_no)
 
 
 @router.get("/wiki-audit/report", summary="wiki 감사 리포트")
