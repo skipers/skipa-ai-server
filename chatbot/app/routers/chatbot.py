@@ -354,7 +354,12 @@ def get_application_status() -> dict:
 
 @application_router.post("/sources/download", summary="특허 출원 공식 자료 다운로드/크롤링")
 def post_application_sources_download(request: PatentApplicationDownloadRequest) -> dict:
-    return download_application_sources(force=request.force, timeout=request.timeout, limit=request.limit)
+    return download_application_sources(
+        force=request.force,
+        timeout=request.timeout,
+        limit=request.limit,
+        include_embedded=request.include_embedded,
+    )
 
 
 @application_router.get("/sources/download-report", summary="특허 출원 공식 자료 다운로드/크롤링 리포트")

@@ -1,9 +1,11 @@
 # 특허 출원 공식 자료 다운로드/크롤링 리포트
 
-- 생성 시각: 2026-06-01T20:00:57
-- 시도: 34건
-- 성공: 31건
+- 생성 시각: 2026-06-01T20:07:50
+- 시도: 84건
+- 성공: 81건
 - 실패: 3건
+- 원본 URL: 34건
+- 페이지 내부 문서 URL: 50건
 
 ## 성공
 - `SRC-001` 특허로 특허출원가이드 / cached / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do
@@ -37,6 +39,56 @@
 - `SRC-023` 지식재산처 KIPRISPlus 의견제출통지서 REST API / cached / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-023_c146cb6519.do
 - `SRC-024` 지식재산처 KIPRISPlus 거절결정서 REST API / cached / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-024_338653b73e.do
 - `patent_rejection_notice_original_links` patent_rejection_notice_original_links.html / cached / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/patent_rejection_notice_original_3cc6ee04fb.jsp
+- `SRC-001-DOC-001` 특허로 특허출원가이드 / [특허출원서] / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-001_7f3ae84a90.do
+- `SRC-001-DOC-002` 특허로 특허출원가이드 / [실용신안등록출원서] / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-002_41c17479b2.do
+- `SRC-001-DOC-003` 특허로 특허출원가이드 / [보정서] / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-003_14b59479b4.do
+- `SRC-001-DOC-004` 특허로 특허출원가이드 / [심사청구서] / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-004_b33482b587.do
+- `SRC-001-DOC-005` 특허로 특허출원가이드 / [조기공개신청서] / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-005_6c23fffa24.do
+- `SRC-001-DOC-006` 특허로 특허출원가이드 / [대리인(대표자)에 관한 신고서] / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-006_23e313002e.do
+- `SRC-001-DOC-007` 특허로 특허출원가이드 / 기간연장신청서 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-007_aa4293e083.do
+- `SRC-001-DOC-008` 특허로 특허출원가이드 / 취하서 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-008_79b865ddc9.do
+- `SRC-001-DOC-009` 특허로 특허출원가이드 / 권리관계변경신고서 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-009_7a836feec4.do
+- `SRC-001-DOC-010` 특허로 특허출원가이드 / 서류제출서 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-010_5d2778b0f4.do
+- `SRC-001-DOC-011` 특허로 특허출원가이드 / 의견서 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-011_94338f9d03.do
+- `SRC-001-DOC-012` 특허로 특허출원가이드 / 정보제출서 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-012_d23c405205.do
+- `SRC-001-DOC-013` 특허로 특허출원가이드 / 출원절차안내 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-013_cf53db25dd.do
+- `SRC-002-DOC-014` 특허고객번호부여신청 / 크롬 다운로드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-014_9312abe02d.html
+- `SRC-002-DOC-015` 특허고객번호부여신청 / 파이어폭스 다운로드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-015_789a911233.html
+- `SRC-002-DOC-016` 특허고객번호부여신청 / 다운로드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-016_a43a5d7ab6.exe
+- `SRC-002-DOC-017` 특허고객번호부여신청 / 다운로드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-017_fa70a7d3a6.exe
+- `SRC-002-DOC-018` 특허고객번호부여신청 / 다운로드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-018_1522237ed7.exe
+- `SRC-002-DOC-019` 특허고객번호부여신청 / 다운로드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-019_3d876e4b65.exe
+- `SRC-005-DOC-020` 특허의 이해 / 첨부서류 양식 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-005-DOC-020_bc86a1a882.do
+- `SRC-006-DOC-021` 특허·실용신안 심사기준 2026.03.12 / PDF 다운로드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-006-DOC-021_cb7d026584.do
+- `SRC-007-DOC-022` 기술분야별 심사실무가이드 2026.03 / PDF 다운로드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-007-DOC-022_e6761b5fe0.do
+- `SRC-008-DOC-023` 출원방식심사기준 / 특허ㆍ실용신안 심사기준 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-023_4d266c4ad8.do
+- `SRC-008-DOC-024` 출원방식심사기준 / 기술분야별 심사실무가이드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-024_c9fd7dd978.do
+- `SRC-008-DOC-025` 출원방식심사기준 / PCT 국제조사 및 국제예비심사 가이드라인 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-025_eb81d2a44c.do
+- `SRC-008-DOC-026` 출원방식심사기준 / 상표심사기준 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-026_f72199f945.do
+- `SRC-008-DOC-027` 출원방식심사기준 / 디자인 심사기준 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-027_a0987e0b70.do
+- `SRC-008-DOC-028` 출원방식심사기준 / 심사자료, 니스 제9판 기준 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-028_729b4ea5d9.do
+- `SRC-008-DOC-029` 출원방식심사기준 / 유사상품 심사기준(니스 제13판 기준) / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-029_448d9372bb.do
+- `SRC-008-DOC-030` 출원방식심사기준 / 유사상품 심사기준(니스 제12판 기준) / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-030_1f5819e6f0.do
+- `SRC-008-DOC-031` 출원방식심사기준 / 유사상품 심사기준(니스 제11판 기준) / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-031_c2f76acfd2.do
+- `SRC-008-DOC-032` 출원방식심사기준 / 유사상품·서비스업 심사기준(니스 제10판 기준) / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-032_bd4e24b20e.do
+- `SRC-008-DOC-033` 출원방식심사기준 / 유사상품·서비스업 심사기준(니스 제9판 기준) / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-033_676650b77b.do
+- `SRC-008-DOC-034` 출원방식심사기준 / 유사상품·서비스업 심사기준(니스 제8판 기준) / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-034_91dd3c0e6d.do
+- `SRC-008-DOC-035` 출원방식심사기준 / 출원방식심사기준 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-035_b4ccebd928.do
+- `SRC-008-DOC-036` 출원방식심사기준 / 등록업무 편람 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-036_f28dbf3406.do
+- `SRC-008-DOC-037` 출원방식심사기준 / NICE 국제상품분류 Class Heading 해설서 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-037_a03e4b0673.do
+- `SRC-008-DOC-038` 출원방식심사기준 / 디자인 물품류별 물품목록 (2026년) / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-038_6c670cfdef.do
+- `SRC-008-DOC-039` 출원방식심사기준 / 디자인 물품류별 물품목록 (2025년) / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-039_2ee132c806.do
+- `SRC-008-DOC-040` 출원방식심사기준 / 디자인 물품류별 물품목록 (2024년) / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-040_c5fa3a9bcc.do
+- `SRC-008-DOC-041` 출원방식심사기준 / 디자인 물품류별 물품목록 (2021년) / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-041_dc8363b3fe.do
+- `SRC-008-DOC-042` 출원방식심사기준 / 디자이너를 위한 디자인출원도면 작성 가이드북 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-042_ac5c060eab.do
+- `SRC-008-DOC-043` 출원방식심사기준 / 지식재산권 권리회복 심사 가이드라인 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-043_3be2e666f5.do
+- `SRC-008-DOC-044` 출원방식심사기준 / 뷰어 프로그램 다운로드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-044_22f48c5bdb.do
+- `SRC-009-DOC-045` 보정안 리뷰 / 다운로드 / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-009-DOC-045_2b3beee5be.do
+- `SRC-016-DOC-046` 2026 지식재산권의 손쉬운 이용 / 13.2026 지식재산권의 손쉬운 이용.pdf / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-016-DOC-046_94af7dac4c.do
+- `SRC-017-DOC-047` CEO·연구자를 위한 특허출원 전략 / 014 [지식재산처] 지식재산처, 「CEO·연구자를 위한 특허출원 전략」 발간.hwpx / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017-DOC-047_e75b9d1c35.do
+- `SRC-017-DOC-048` CEO·연구자를 위한 특허출원 전략 / 014 [지식재산처] 지식재산처, 「CEO·연구자를 위한 특허출원 전략」 발간.pdf / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017-DOC-048_55610739cc.do
+- `SRC-019-DOC-049` BM 특허 길라잡이 / 5.BM 길라잡이.pdf.pdf / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-019-DOC-049_d9429c4e00.do
+- `SRC-020-DOC-050` 통지서 표준 문안집 / 통지서표준문안집.pdf / downloaded / /Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-020-DOC-050_61442a4b90.do
 
 ## 다운로드/크롤링 불가
 - `SRC-019` BM 특허 길라잡이: ValueError: empty response body (https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000048&ntatcAtflSeq=1&ntatcSeq=16423&sysCd=SCD02)

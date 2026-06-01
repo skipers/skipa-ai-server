@@ -37,6 +37,7 @@ class PatentApplicationDownloadRequest(BaseModel):
     force: bool = Field(False, description="이미 다운로드한 파일도 다시 다운로드")
     timeout: int = Field(20, ge=3, le=60, description="URL별 다운로드 timeout 초")
     limit: int | None = Field(None, ge=1, le=80, description="이번 실행에서 시도할 URL 개수 제한")
+    include_embedded: bool = Field(True, description="웹 페이지 안의 PDF/HWP/DOC/XLS 등 첨부 문서 링크도 따라가서 다운로드")
 
 
 class FeedbackRequest(BaseModel):

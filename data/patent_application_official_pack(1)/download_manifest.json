@@ -1,9 +1,11 @@
 {
-  "generated_at": "2026-06-01T20:00:57",
+  "generated_at": "2026-06-01T20:07:50",
   "root": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)",
-  "attempted_count": 34,
-  "success_count": 31,
+  "attempted_count": 84,
+  "success_count": 81,
   "failure_count": 3,
+  "base_url_count": 34,
+  "embedded_url_count": 50,
   "results": [
     {
       "url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
@@ -16,8 +18,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 121799,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
-      "started_at": "2026-06-01T20:00:50",
-      "finished_at": "2026-06-01T20:00:50"
+      "started_at": "2026-06-01T20:05:56",
+      "finished_at": "2026-06-01T20:05:58"
     },
     {
       "url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
@@ -30,8 +32,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 198711,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
-      "started_at": "2026-06-01T20:00:50",
-      "finished_at": "2026-06-01T20:00:50"
+      "started_at": "2026-06-01T20:05:58",
+      "finished_at": "2026-06-01T20:05:58"
     },
     {
       "url": "https://patent.go.kr/smart/jsp/ka/pki/kipocertmgr/KCertMgrView.do",
@@ -44,8 +46,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 107461,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-003_4c6db459ee.do",
-      "started_at": "2026-06-01T20:00:50",
-      "finished_at": "2026-06-01T20:00:50"
+      "started_at": "2026-06-01T20:05:58",
+      "finished_at": "2026-06-01T20:05:59"
     },
     {
       "url": "https://www.patent.go.kr/smart/jsp/ka/menu/fee/main/FeeMain01.do",
@@ -58,8 +60,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 233369,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-004_894134253b.do",
-      "started_at": "2026-06-01T20:00:50",
-      "finished_at": "2026-06-01T20:00:50"
+      "started_at": "2026-06-01T20:05:59",
+      "finished_at": "2026-06-01T20:05:59"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200111",
@@ -72,8 +74,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 291941,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-005_72934bb860.do",
-      "started_at": "2026-06-01T20:00:50",
-      "finished_at": "2026-06-01T20:00:51"
+      "started_at": "2026-06-01T20:05:59",
+      "finished_at": "2026-06-01T20:05:59"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=1&seq=30",
@@ -86,8 +88,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 12266980,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-006_6548c9fa75.do",
-      "started_at": "2026-06-01T20:00:51",
-      "finished_at": "2026-06-01T20:00:51"
+      "started_at": "2026-06-01T20:05:59",
+      "finished_at": "2026-06-01T20:05:59"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200146",
@@ -100,8 +102,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 224054,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-006_82b2227d3c.do",
-      "started_at": "2026-06-01T20:00:51",
-      "finished_at": "2026-06-01T20:00:51"
+      "started_at": "2026-06-01T20:05:59",
+      "finished_at": "2026-06-01T20:06:00"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=2&seq=30",
@@ -114,8 +116,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 24213255,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-007_21b972afb1.do",
-      "started_at": "2026-06-01T20:00:51",
-      "finished_at": "2026-06-01T20:00:51"
+      "started_at": "2026-06-01T20:06:00",
+      "finished_at": "2026-06-01T20:06:00"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200147",
@@ -128,8 +130,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 224415,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-007_1942117df5.do",
-      "started_at": "2026-06-01T20:00:51",
-      "finished_at": "2026-06-01T20:00:51"
+      "started_at": "2026-06-01T20:06:00",
+      "finished_at": "2026-06-01T20:06:00"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=12&seq=30",
@@ -142,8 +144,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 49923025,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_a10f1904f9.do",
-      "started_at": "2026-06-01T20:00:51",
-      "finished_at": "2026-06-01T20:00:51"
+      "started_at": "2026-06-01T20:06:00",
+      "finished_at": "2026-06-01T20:06:00"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
@@ -156,8 +158,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 164833,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
-      "started_at": "2026-06-01T20:00:51",
-      "finished_at": "2026-06-01T20:00:52"
+      "started_at": "2026-06-01T20:06:00",
+      "finished_at": "2026-06-01T20:06:00"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200117",
@@ -170,8 +172,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 228146,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-009_38d57c9864.do",
-      "started_at": "2026-06-01T20:00:52",
-      "finished_at": "2026-06-01T20:00:52"
+      "started_at": "2026-06-01T20:06:00",
+      "finished_at": "2026-06-01T20:06:01"
     },
     {
       "url": "https://www.kipo.go.kr/ipt/iptContentView.do?menuCd=SCD0400083",
@@ -184,8 +186,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 87836,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-010_cae3cec926.do",
-      "started_at": "2026-06-01T20:00:52",
-      "finished_at": "2026-06-01T20:00:52"
+      "started_at": "2026-06-01T20:06:01",
+      "finished_at": "2026-06-01T20:06:01"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=20&seq=30",
@@ -198,8 +200,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 376836,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-011_d6cd171293.do",
-      "started_at": "2026-06-01T20:00:52",
-      "finished_at": "2026-06-01T20:00:52"
+      "started_at": "2026-06-01T20:06:01",
+      "finished_at": "2026-06-01T20:06:01"
     },
     {
       "url": "https://www.kipris.or.kr/kportal/search/total_search.do",
@@ -212,8 +214,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 307184,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-012_81be85e5c9.do",
-      "started_at": "2026-06-01T20:00:52",
-      "finished_at": "2026-06-01T20:00:52"
+      "started_at": "2026-06-01T20:06:01",
+      "finished_at": "2026-06-01T20:06:01"
     },
     {
       "url": "https://www.kipris.or.kr/khome/board/help/basic.do",
@@ -226,8 +228,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 122720,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-013_39f78cee06.do",
-      "started_at": "2026-06-01T20:00:52",
-      "finished_at": "2026-06-01T20:00:53"
+      "started_at": "2026-06-01T20:06:01",
+      "finished_at": "2026-06-01T20:06:01"
     },
     {
       "url": "https://file.kipris.or.kr/abpat_manual/%EB%A7%A4%EB%89%B4%EC%96%BC%28%EA%B5%AD%EB%AC%B8%29.pdf",
@@ -240,8 +242,8 @@
       "content_type": "application/pdf",
       "size_bytes": 5035724,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-014_9224c3258f.pdf",
-      "started_at": "2026-06-01T20:00:53",
-      "finished_at": "2026-06-01T20:00:53"
+      "started_at": "2026-06-01T20:06:01",
+      "finished_at": "2026-06-01T20:06:01"
     },
     {
       "url": "https://plus.kipris.or.kr/sampledata/KIPRISPlus%20IP%20Information%20Guide.pdf",
@@ -254,8 +256,8 @@
       "content_type": "application/pdf",
       "size_bytes": 15614567,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-015_0de73052d0.pdf",
-      "started_at": "2026-06-01T20:00:53",
-      "finished_at": "2026-06-01T20:00:53"
+      "started_at": "2026-06-01T20:06:01",
+      "finished_at": "2026-06-01T20:06:01"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000048&ntatcAtflSeq=1&ntatcSeq=17056&sysCd=SCD02",
@@ -268,8 +270,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 31198191,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-016_8a197ba32c.do",
-      "started_at": "2026-06-01T20:00:53",
-      "finished_at": "2026-06-01T20:00:53"
+      "started_at": "2026-06-01T20:06:01",
+      "finished_at": "2026-06-01T20:06:02"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&keyword=&menuCd=SCD0200640&ntatcSeq=17056&pageIndex=&searchCondition=&sysCd=SCD02",
@@ -282,8 +284,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 168153,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-016_a89e1cfcd2.do",
-      "started_at": "2026-06-01T20:00:53",
-      "finished_at": "2026-06-01T20:00:54"
+      "started_at": "2026-06-01T20:06:02",
+      "finished_at": "2026-06-01T20:06:02"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000029&ntatcAtflSeq=2&ntatcSeq=20755&sysCd=SCD02",
@@ -296,8 +298,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 188746,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017_1b7e0d218e.do",
-      "started_at": "2026-06-01T20:00:54",
-      "finished_at": "2026-06-01T20:00:54"
+      "started_at": "2026-06-01T20:06:02",
+      "finished_at": "2026-06-01T20:06:02"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000029&menuCd=SCD0200618&ntatcSeq=20755&sysCd=SCD02",
@@ -310,8 +312,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 154310,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017_0657e7db59.do",
-      "started_at": "2026-06-01T20:00:54",
-      "finished_at": "2026-06-01T20:00:54"
+      "started_at": "2026-06-01T20:06:02",
+      "finished_at": "2026-06-01T20:06:03"
     },
     {
       "url": "https://www.kipo.go.kr/ko/issue/kpoIssuePgmMgmt.do?menuCd=SCD0200658&parntMenuCd2=SCD0200281",
@@ -324,8 +326,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 162829,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-018_37258b8647.do",
-      "started_at": "2026-06-01T20:00:54",
-      "finished_at": "2026-06-01T20:00:55"
+      "started_at": "2026-06-01T20:06:03",
+      "finished_at": "2026-06-01T20:06:03"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000048&ntatcAtflSeq=1&ntatcSeq=16423&sysCd=SCD02",
@@ -335,8 +337,8 @@
       "ok": false,
       "status": "failed",
       "error": "ValueError: empty response body",
-      "started_at": "2026-06-01T20:00:55",
-      "finished_at": "2026-06-01T20:00:55"
+      "started_at": "2026-06-01T20:06:03",
+      "finished_at": "2026-06-01T20:06:03"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&menuCd=SCD0200640&ntatcSeq=16423&sysCd=SCD02",
@@ -349,8 +351,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 159379,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-019_7c87796d38.do",
-      "started_at": "2026-06-01T20:00:55",
-      "finished_at": "2026-06-01T20:00:55"
+      "started_at": "2026-06-01T20:06:03",
+      "finished_at": "2026-06-01T20:06:04"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000048&ntatcAtflSeq=1&ntatcSeq=10148&sysCd=",
@@ -363,8 +365,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 2325467,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-020_3a869c0620.do",
-      "started_at": "2026-06-01T20:00:55",
-      "finished_at": "2026-06-01T20:00:55"
+      "started_at": "2026-06-01T20:06:04",
+      "finished_at": "2026-06-01T20:06:04"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&menuCd=SCD0200640&ntatcSeq=10148&sysCd=",
@@ -377,8 +379,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 158229,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-020_1d8708628f.do",
-      "started_at": "2026-06-01T20:00:55",
-      "finished_at": "2026-06-01T20:00:56"
+      "started_at": "2026-06-01T20:06:04",
+      "finished_at": "2026-06-01T20:06:04"
     },
     {
       "url": "https://www.law.go.kr/flDownload.do?flNm=%5B%EB%B3%84%EC%A7%80+%EC%A0%9C24%ED%98%B8%EC%84%9C%EC%8B%9D%5D+%EC%9D%98%EA%B2%AC%28%EB%8B%B5%EB%B3%80%2C+%EC%86%8C%EB%AA%85%29%EC%84%9C%0A&flSeq=71598639",
@@ -391,8 +393,8 @@
       "content_type": "application/pdf;;charset=UTF-8",
       "size_bytes": 136645,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-021_f028f66dda.do",
-      "started_at": "2026-06-01T20:00:56",
-      "finished_at": "2026-06-01T20:00:56"
+      "started_at": "2026-06-01T20:06:04",
+      "finished_at": "2026-06-01T20:06:06"
     },
     {
       "url": "https://www.law.go.kr/LSW//lsSideInfoP.do?docCls=jo&joBrNo=00&joNo=0063&lsiSeq=279827&urlMode=lsScJoRltInfoR",
@@ -405,8 +407,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 71819,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-022_fe91cb6d0a.do",
-      "started_at": "2026-06-01T20:00:56",
-      "finished_at": "2026-06-01T20:00:56"
+      "started_at": "2026-06-01T20:06:06",
+      "finished_at": "2026-06-01T20:06:07"
     },
     {
       "url": "https://www.data.go.kr/data/15059446/openapi.do?recommendDataYn=Y",
@@ -419,8 +421,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 155329,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-023_c146cb6519.do",
-      "started_at": "2026-06-01T20:00:56",
-      "finished_at": "2026-06-01T20:00:57"
+      "started_at": "2026-06-01T20:06:07",
+      "finished_at": "2026-06-01T20:06:08"
     },
     {
       "url": "https://www.data.go.kr/data/15056951/openapi.do",
@@ -433,8 +435,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 155189,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-024_338653b73e.do",
-      "started_at": "2026-06-01T20:00:57",
-      "finished_at": "2026-06-01T20:00:57"
+      "started_at": "2026-06-01T20:06:08",
+      "finished_at": "2026-06-01T20:06:09"
     },
     {
       "url": "https://kipo.go.kr/kcall/faqRead.do%3Bjsessionid%3DE911KedmrtQaxRt7CoZ3639QlMT6Gx3PmAglR8a2.kpowww-481-qm52j?curMenuCd=SCD0300095&keyword=&pageIndex=&pgmId=PGM0000014&pgmSeq=111&searchCondition=&searchDateEnd=&searchDateStart=&sysCd=SCD03&urlDo=cFaqEAList.do",
@@ -444,8 +446,8 @@
       "ok": false,
       "status": "failed",
       "error": "HTTPError: HTTP Error 404: Not Found",
-      "started_at": "2026-06-01T20:00:57",
-      "finished_at": "2026-06-01T20:00:57"
+      "started_at": "2026-06-01T20:06:09",
+      "finished_at": "2026-06-01T20:06:09"
     },
     {
       "url": "https://www.moip.go.kr/kcall/faqRead.do%3Bjsessionid%3DpWtQSHOW-BraQqeP-qQYsgECUOUzPQuFeCf0u5Th.kpowww-597-v682l?curMenuCd=SCD0300095&keyword=&pageIndex=&pgmId=PGM0000014&pgmSeq=94&searchCondition=&searchDateEnd=&searchDateStart=&sysCd=SCD03&urlDo=cFaqEAList.do",
@@ -455,8 +457,8 @@
       "ok": false,
       "status": "failed",
       "error": "HTTPError: HTTP Error 404: Not Found",
-      "started_at": "2026-06-01T20:00:57",
-      "finished_at": "2026-06-01T20:00:57"
+      "started_at": "2026-06-01T20:06:09",
+      "finished_at": "2026-06-01T20:06:09"
     },
     {
       "url": "https://plus.kipris.or.kr/openapi/fileToss.jsp?arg=348aaf18c46825cf15bf684c56c5907b523bceb566974ce00c913d0e1193363cb22971157ae8d0219bdf17f7f0d61bc57746d305fa8de6549f68b1e3e969f734cacb05a867ec689baef5963a884373f243778abbe8707cf2d1fbdc37d5df05958811f12ddb8538b0",
@@ -469,8 +471,808 @@
       "content_type": "application/octet-stream;charset=UTF-8",
       "size_bytes": 87196,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/patent_rejection_notice_original_3cc6ee04fb.jsp",
-      "started_at": "2026-06-01T20:00:57",
-      "finished_at": "2026-06-01T20:00:57"
+      "started_at": "2026-06-01T20:06:09",
+      "finished_at": "2026-06-01T20:06:09"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?fileNm=p-14_s.hwp&path=/upload/kipo/new/form/file/p-14_s.hwp",
+      "title": "특허로 특허출원가이드 / [특허출원서]",
+      "source_id": "SRC-001-DOC-001",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 545280,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-001_7f3ae84a90.do",
+      "started_at": "2026-06-01T20:06:10",
+      "finished_at": "2026-06-01T20:06:10"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/u-1_s.hwp&fileNm=u-1_s.hwp",
+      "title": "특허로 특허출원가이드 / [실용신안등록출원서]",
+      "source_id": "SRC-001-DOC-002",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 6322176,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-002_41c17479b2.do",
+      "started_at": "2026-06-01T20:06:10",
+      "finished_at": "2026-06-01T20:06:12"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-9_s.hwp&fileNm=p-9_s.hwp",
+      "title": "특허로 특허출원가이드 / [보정서]",
+      "source_id": "SRC-001-DOC-003",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 30720,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-003_14b59479b4.do",
+      "started_at": "2026-06-01T20:06:12",
+      "finished_at": "2026-06-01T20:06:12"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-22_s.hwp&fileNm=p-22_s.hwp",
+      "title": "특허로 특허출원가이드 / [심사청구서]",
+      "source_id": "SRC-001-DOC-004",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 404480,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-004_b33482b587.do",
+      "started_at": "2026-06-01T20:06:12",
+      "finished_at": "2026-06-01T20:06:13"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-25_s.hwp&fileNm=p-25_s.hwp",
+      "title": "특허로 특허출원가이드 / [조기공개신청서]",
+      "source_id": "SRC-001-DOC-005",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 18944,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-005_6c23fffa24.do",
+      "started_at": "2026-06-01T20:06:13",
+      "finished_at": "2026-06-01T20:06:13"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-2_s.hwp&fileNm=p-2_s.hwp",
+      "title": "특허로 특허출원가이드 / [대리인(대표자)에 관한 신고서]",
+      "source_id": "SRC-001-DOC-006",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 32256,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-006_23e313002e.do",
+      "started_at": "2026-06-01T20:06:13",
+      "finished_at": "2026-06-01T20:06:13"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-10_d.hwp&fileNm=p-10_d.hwp",
+      "title": "특허로 특허출원가이드 / 기간연장신청서",
+      "source_id": "SRC-001-DOC-007",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 29184,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-007_aa4293e083.do",
+      "started_at": "2026-06-01T20:06:13",
+      "finished_at": "2026-06-01T20:06:13"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-12_s.hwp&fileNm=p-12_s.hwp",
+      "title": "특허로 특허출원가이드 / 취하서",
+      "source_id": "SRC-001-DOC-008",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 33792,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-008_79b865ddc9.do",
+      "started_at": "2026-06-01T20:06:13",
+      "finished_at": "2026-06-01T20:06:13"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-20_s.hwp&fileNm=p-20_s.hwp",
+      "title": "특허로 특허출원가이드 / 권리관계변경신고서",
+      "source_id": "SRC-001-DOC-009",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 37376,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-009_7a836feec4.do",
+      "started_at": "2026-06-01T20:06:13",
+      "finished_at": "2026-06-01T20:06:14"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-13_s.hwp&fileNm=p-13_s.hwp",
+      "title": "특허로 특허출원가이드 / 서류제출서",
+      "source_id": "SRC-001-DOC-010",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 26624,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-010_5d2778b0f4.do",
+      "started_at": "2026-06-01T20:06:14",
+      "finished_at": "2026-06-01T20:06:14"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-24_s.hwp&fileNm=p-24_s.hwp",
+      "title": "특허로 특허출원가이드 / 의견서",
+      "source_id": "SRC-001-DOC-011",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 42496,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-011_94338f9d03.do",
+      "started_at": "2026-06-01T20:06:14",
+      "finished_at": "2026-06-01T20:06:14"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-23_s.hwp&fileNm=p-23_s.hwp",
+      "title": "특허로 특허출원가이드 / 정보제출서",
+      "source_id": "SRC-001-DOC-012",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 66048,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-012_d23c405205.do",
+      "started_at": "2026-06-01T20:06:14",
+      "finished_at": "2026-06-01T20:06:14"
+    },
+    {
+      "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/patent.hwp&fileNm=patent.hwp",
+      "title": "특허로 특허출원가이드 / 출원절차안내",
+      "source_id": "SRC-001-DOC-013",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 1946624,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-013_cf53db25dd.do",
+      "started_at": "2026-06-01T20:06:14",
+      "finished_at": "2026-06-01T20:06:15"
+    },
+    {
+      "url": "https://www.google.com/chrome/index.html#eula",
+      "title": "특허고객번호부여신청 / 크롬 다운로드",
+      "source_id": "SRC-002-DOC-014",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "text/html; charset=UTF-8",
+      "size_bytes": 455725,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-014_9312abe02d.html",
+      "started_at": "2026-06-01T20:06:15",
+      "finished_at": "2026-06-01T20:06:15"
+    },
+    {
+      "url": "https://www.mozilla.org/ko/firefox/new/?scene=2",
+      "title": "특허고객번호부여신청 / 파이어폭스 다운로드",
+      "source_id": "SRC-002-DOC-015",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "size_bytes": 63618,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-015_789a911233.html",
+      "started_at": "2026-06-01T20:06:15",
+      "finished_at": "2026-06-01T20:06:17"
+    },
+    {
+      "url": "https://patent.go.kr/smart/raonkupload/agent/Patent.exe",
+      "title": "특허고객번호부여신청 / 다운로드",
+      "source_id": "SRC-002-DOC-016",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/x-msdownload",
+      "size_bytes": 24306856,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-016_a43a5d7ab6.exe",
+      "started_at": "2026-06-01T20:06:17",
+      "finished_at": "2026-06-01T20:06:20"
+    },
+    {
+      "url": "https://supdate.nprotect.net/nprotect/nos_service/windows/install/nos_setup.exe",
+      "title": "특허고객번호부여신청 / 다운로드",
+      "source_id": "SRC-002-DOC-017",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/octet-stream",
+      "size_bytes": 30669048,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-017_fa70a7d3a6.exe",
+      "started_at": "2026-06-01T20:06:20",
+      "finished_at": "2026-06-01T20:06:23"
+    },
+    {
+      "url": "https://patent.go.kr/smart/MagicLine4Web/ML4Web/install_bin/magicline4nx_setup.exe",
+      "title": "특허고객번호부여신청 / 다운로드",
+      "source_id": "SRC-002-DOC-018",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/x-msdownload",
+      "size_bytes": 10648904,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-018_1522237ed7.exe",
+      "started_at": "2026-06-01T20:06:23",
+      "finished_at": "2026-06-01T20:06:24"
+    },
+    {
+      "url": "https://patent.go.kr/smart/raonkupload/agent/raonkSetup.exe",
+      "title": "특허고객번호부여신청 / 다운로드",
+      "source_id": "SRC-002-DOC-019",
+      "url_type": "embedded_document",
+      "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/x-msdownload",
+      "size_bytes": 4826152,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-019_3d876e4b65.exe",
+      "started_at": "2026-06-01T20:06:24",
+      "finished_at": "2026-06-01T20:06:25"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoBultnMgmt.do?menuCd=SCD0200636&parntMenuCd2=SCD0200198",
+      "title": "특허의 이해 / 첨부서류 양식",
+      "source_id": "SRC-005-DOC-020",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200111",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-005_72934bb860.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "text/html;charset=UTF-8",
+      "size_bytes": 282381,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-005-DOC-020_bc86a1a882.do",
+      "started_at": "2026-06-01T20:06:25",
+      "finished_at": "2026-06-01T20:06:26"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=4&fileNum=1",
+      "title": "특허·실용신안 심사기준 2026.03.12 / PDF 다운로드",
+      "source_id": "SRC-006-DOC-021",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200146",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-006_82b2227d3c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 12266980,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-006-DOC-021_cb7d026584.do",
+      "started_at": "2026-06-01T20:06:26",
+      "finished_at": "2026-06-01T20:06:29"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=5&fileNum=1",
+      "title": "기술분야별 심사실무가이드 2026.03 / PDF 다운로드",
+      "source_id": "SRC-007-DOC-022",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200147",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-007_1942117df5.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 24213255,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-007-DOC-022_e6761b5fe0.do",
+      "started_at": "2026-06-01T20:06:29",
+      "finished_at": "2026-06-01T20:06:33"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=1",
+      "title": "출원방식심사기준 / 특허ㆍ실용신안 심사기준",
+      "source_id": "SRC-008-DOC-023",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 12266980,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-023_4d266c4ad8.do",
+      "started_at": "2026-06-01T20:06:33",
+      "finished_at": "2026-06-01T20:06:36"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=2",
+      "title": "출원방식심사기준 / 기술분야별 심사실무가이드",
+      "source_id": "SRC-008-DOC-024",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 24213255,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-024_c9fd7dd978.do",
+      "started_at": "2026-06-01T20:06:36",
+      "finished_at": "2026-06-01T20:06:40"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=3",
+      "title": "출원방식심사기준 / PCT 국제조사 및 국제예비심사 가이드라인",
+      "source_id": "SRC-008-DOC-025",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 3101309,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-025_eb81d2a44c.do",
+      "started_at": "2026-06-01T20:06:40",
+      "finished_at": "2026-06-01T20:06:41"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=4",
+      "title": "출원방식심사기준 / 상표심사기준",
+      "source_id": "SRC-008-DOC-026",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 5745767,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-026_f72199f945.do",
+      "started_at": "2026-06-01T20:06:41",
+      "finished_at": "2026-06-01T20:06:43"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=5",
+      "title": "출원방식심사기준 / 디자인 심사기준",
+      "source_id": "SRC-008-DOC-027",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 9234793,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-027_a0987e0b70.do",
+      "started_at": "2026-06-01T20:06:43",
+      "finished_at": "2026-06-01T20:06:45"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=6",
+      "title": "출원방식심사기준 / 심사자료, 니스 제9판 기준",
+      "source_id": "SRC-008-DOC-028",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 5821779,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-028_729b4ea5d9.do",
+      "started_at": "2026-06-01T20:06:45",
+      "finished_at": "2026-06-01T20:06:47"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=25",
+      "title": "출원방식심사기준 / 유사상품 심사기준(니스 제13판 기준)",
+      "source_id": "SRC-008-DOC-029",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 21884540,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-029_448d9372bb.do",
+      "started_at": "2026-06-01T20:06:47",
+      "finished_at": "2026-06-01T20:06:51"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=7",
+      "title": "출원방식심사기준 / 유사상품 심사기준(니스 제12판 기준)",
+      "source_id": "SRC-008-DOC-030",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 21859723,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-030_1f5819e6f0.do",
+      "started_at": "2026-06-01T20:06:51",
+      "finished_at": "2026-06-01T20:06:55"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=8",
+      "title": "출원방식심사기준 / 유사상품 심사기준(니스 제11판 기준)",
+      "source_id": "SRC-008-DOC-031",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 23524586,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-031_c2f76acfd2.do",
+      "started_at": "2026-06-01T20:06:55",
+      "finished_at": "2026-06-01T20:07:00"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=9",
+      "title": "출원방식심사기준 / 유사상품·서비스업 심사기준(니스 제10판 기준)",
+      "source_id": "SRC-008-DOC-032",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 104020993,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-032_bd4e24b20e.do",
+      "started_at": "2026-06-01T20:07:00",
+      "finished_at": "2026-06-01T20:07:11"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=10",
+      "title": "출원방식심사기준 / 유사상품·서비스업 심사기준(니스 제9판 기준)",
+      "source_id": "SRC-008-DOC-033",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 32300462,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-033_676650b77b.do",
+      "started_at": "2026-06-01T20:07:11",
+      "finished_at": "2026-06-01T20:07:16"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=11",
+      "title": "출원방식심사기준 / 유사상품·서비스업 심사기준(니스 제8판 기준)",
+      "source_id": "SRC-008-DOC-034",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 3847135,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-034_91dd3c0e6d.do",
+      "started_at": "2026-06-01T20:07:16",
+      "finished_at": "2026-06-01T20:07:17"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=12",
+      "title": "출원방식심사기준 / 출원방식심사기준",
+      "source_id": "SRC-008-DOC-035",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 49923025,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-035_b4ccebd928.do",
+      "started_at": "2026-06-01T20:07:17",
+      "finished_at": "2026-06-01T20:07:24"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=13",
+      "title": "출원방식심사기준 / 등록업무 편람",
+      "source_id": "SRC-008-DOC-036",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 6126099,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-036_f28dbf3406.do",
+      "started_at": "2026-06-01T20:07:24",
+      "finished_at": "2026-06-01T20:07:26"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=14",
+      "title": "출원방식심사기준 / NICE 국제상품분류 Class Heading 해설서",
+      "source_id": "SRC-008-DOC-037",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 2983355,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-037_a03e4b0673.do",
+      "started_at": "2026-06-01T20:07:26",
+      "finished_at": "2026-06-01T20:07:28"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=24",
+      "title": "출원방식심사기준 / 디자인 물품류별 물품목록 (2026년)",
+      "source_id": "SRC-008-DOC-038",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 2138730,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-038_6c670cfdef.do",
+      "started_at": "2026-06-01T20:07:28",
+      "finished_at": "2026-06-01T20:07:29"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=23",
+      "title": "출원방식심사기준 / 디자인 물품류별 물품목록 (2025년)",
+      "source_id": "SRC-008-DOC-039",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 3138149,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-039_2ee132c806.do",
+      "started_at": "2026-06-01T20:07:29",
+      "finished_at": "2026-06-01T20:07:30"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=22",
+      "title": "출원방식심사기준 / 디자인 물품류별 물품목록 (2024년)",
+      "source_id": "SRC-008-DOC-040",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 3316611,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-040_c5fa3a9bcc.do",
+      "started_at": "2026-06-01T20:07:30",
+      "finished_at": "2026-06-01T20:07:31"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=15",
+      "title": "출원방식심사기준 / 디자인 물품류별 물품목록 (2021년)",
+      "source_id": "SRC-008-DOC-041",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 3247551,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-041_dc8363b3fe.do",
+      "started_at": "2026-06-01T20:07:31",
+      "finished_at": "2026-06-01T20:07:33"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=19",
+      "title": "출원방식심사기준 / 디자이너를 위한 디자인출원도면 작성 가이드북",
+      "source_id": "SRC-008-DOC-042",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 17552717,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-042_ac5c060eab.do",
+      "started_at": "2026-06-01T20:07:33",
+      "finished_at": "2026-06-01T20:07:36"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=20",
+      "title": "출원방식심사기준 / 지식재산권 권리회복 심사 가이드라인",
+      "source_id": "SRC-008-DOC-043",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 376836,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-043_3be2e666f5.do",
+      "started_at": "2026-06-01T20:07:36",
+      "finished_at": "2026-06-01T20:07:36"
+    },
+    {
+      "url": "https://www.kipo.go.kr/kipo/kipoContentView.do?menuCd=SCD0201127",
+      "title": "출원방식심사기준 / 뷰어 프로그램 다운로드",
+      "source_id": "SRC-008-DOC-044",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "text/html;charset=utf-8",
+      "size_bytes": 4868,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-044_22f48c5bdb.do",
+      "started_at": "2026-06-01T20:07:36",
+      "finished_at": "2026-06-01T20:07:37"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=3&fileNum=1",
+      "title": "보정안 리뷰 / 다운로드",
+      "source_id": "SRC-009-DOC-045",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200117",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-009_38d57c9864.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 443978,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-009-DOC-045_2b3beee5be.do",
+      "started_at": "2026-06-01T20:07:37",
+      "finished_at": "2026-06-01T20:07:37"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=17056&ntatcAtflSeq=1&sysCd=SCD02&aprchId=BUT0000048",
+      "title": "2026 지식재산권의 손쉬운 이용 / 13.2026 지식재산권의 손쉬운 이용.pdf",
+      "source_id": "SRC-016-DOC-046",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&keyword=&menuCd=SCD0200640&ntatcSeq=17056&pageIndex=&searchCondition=&sysCd=SCD02",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-016_a89e1cfcd2.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 31198191,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-016-DOC-046_94af7dac4c.do",
+      "started_at": "2026-06-01T20:07:37",
+      "finished_at": "2026-06-01T20:07:42"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=20755&ntatcAtflSeq=1&sysCd=SCD02&aprchId=BUT0000029",
+      "title": "CEO·연구자를 위한 특허출원 전략 / 014 [지식재산처] 지식재산처, 「CEO·연구자를 위한 특허출원 전략」 발간.hwpx",
+      "source_id": "SRC-017-DOC-047",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000029&menuCd=SCD0200618&ntatcSeq=20755&sysCd=SCD02",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017_0657e7db59.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 129045,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017-DOC-047_e75b9d1c35.do",
+      "started_at": "2026-06-01T20:07:42",
+      "finished_at": "2026-06-01T20:07:42"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=20755&ntatcAtflSeq=2&sysCd=SCD02&aprchId=BUT0000029",
+      "title": "CEO·연구자를 위한 특허출원 전략 / 014 [지식재산처] 지식재산처, 「CEO·연구자를 위한 특허출원 전략」 발간.pdf",
+      "source_id": "SRC-017-DOC-048",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000029&menuCd=SCD0200618&ntatcSeq=20755&sysCd=SCD02",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017_0657e7db59.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 188746,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017-DOC-048_55610739cc.do",
+      "started_at": "2026-06-01T20:07:42",
+      "finished_at": "2026-06-01T20:07:43"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=16423&ntatcAtflSeq=2&sysCd=SCD02&aprchId=BUT0000048",
+      "title": "BM 특허 길라잡이 / 5.BM 길라잡이.pdf.pdf",
+      "source_id": "SRC-019-DOC-049",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&menuCd=SCD0200640&ntatcSeq=16423&sysCd=SCD02",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-019_7c87796d38.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 38861323,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-019-DOC-049_d9429c4e00.do",
+      "started_at": "2026-06-01T20:07:43",
+      "finished_at": "2026-06-01T20:07:48"
+    },
+    {
+      "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=10148&ntatcAtflSeq=1&sysCd=&aprchId=BUT0000048",
+      "title": "통지서 표준 문안집 / 통지서표준문안집.pdf",
+      "source_id": "SRC-020-DOC-050",
+      "url_type": "embedded_document",
+      "parent_url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&menuCd=SCD0200640&ntatcSeq=10148&sysCd=",
+      "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-020_1d8708628f.do",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "application/download; utf-8",
+      "size_bytes": 2325467,
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-020-DOC-050_61442a4b90.do",
+      "started_at": "2026-06-01T20:07:48",
+      "finished_at": "2026-06-01T20:07:50"
     }
   ]
 }

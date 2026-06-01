@@ -433,9 +433,9 @@ async function downloadApplicationSources() {
   try {
     const result = await api("/api/v1/application/sources/download", {
       method: "POST",
-      body: JSON.stringify({ force: false, timeout: 20, limit: null }),
+      body: JSON.stringify({ force: false, timeout: 20, limit: null, include_embedded: true }),
     });
-    setStatus(`공식자료 다운로드 · 성공 ${result.success_count ?? 0}건 · 실패 ${result.failure_count ?? 0}건`);
+    setStatus(`공식자료 다운로드 · 성공 ${result.success_count ?? 0}건 · 내부문서 ${result.embedded_url_count ?? 0}건 · 실패 ${result.failure_count ?? 0}건`);
     showModal("출원 공식자료 다운로드", jsonBlock(result));
   } finally {
     setBusy(button, false);

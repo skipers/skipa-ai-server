@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime
 from html import unescape
+from html.parser import HTMLParser
 import csv
 import hashlib
 import json
@@ -14,7 +15,7 @@ import re
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlparse, urlsplit, urlunsplit
+from urllib.parse import quote, urljoin, urlparse, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 import zipfile
 import xml.etree.ElementTree as ET
@@ -28,7 +29,19 @@ TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
 URL_RE = re.compile(r"https?://[^\s\"'<>),]+")
 VECTOR_DIMENSIONS = 256
 MAX_DOWNLOADS_PER_RUN = 80
+MAX_EMBEDDED_DOWNLOADS_PER_RUN = 120
 USER_AGENT = "Mozilla/5.0 SKIPA-Patent-Application-Assistant/1.0"
+DOCUMENT_EXTENSIONS = {".pdf", ".hwp", ".hwpx", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip"}
+DOCUMENT_ENDPOINT_TERMS = (
+    "filedown",
+    "filedownload",
+    "bultnfiledown",
+    "contfiledown",
+    "fldownload",
+    "download",
+    "filetoss",
+    "atchfile",
+)
 
 
 def _now() -> str:
@@ -215,13 +228,16 @@ def _iter_source_files() -> Iterable[Path]:
     if not PATENT_APPLICATION_ROOT.exists():
         return
     allowed = {".md", ".txt", ".csv", ".json", ".html", ".htm", ".pdf", ".xlsx", ".do", ".jsp", ".bin"}
-    skip_parts = {"index", "__pycache__"}
+    skip_parts = {"index", "__pycache__", "readable"}
+    generated_names = {"download_manifest.json", "download_report.md", "file_index.csv", "file_index.json", "README.md"}
     for path in sorted(PATENT_APPLICATION_ROOT.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in allowed:
             continue
         if any(part in skip_parts for part in path.relative_to(PATENT_APPLICATION_ROOT).parts):
             continue
-        if path.name in {"download_manifest.json", "download_report.md"}:
+        if path.parent.name == "downloads" and path.name in generated_names:
+            continue
+        if path.parent == PATENT_APPLICATION_ROOT and path.name in {"download_manifest.json", "download_report.md"}:
             continue
         yield path
 
@@ -487,6 +503,96 @@ def extract_application_urls() -> list[dict[str, str]]:
     return urls
 
 
+class _LinkExtractor(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[dict[str, str]] = []
+        self._current_href: str | None = None
+        self._current_text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attrs_dict = {key.lower(): value for key, value in attrs if value}
+        if tag.lower() == "a" and attrs_dict.get("href"):
+            self._current_href = attrs_dict["href"]
+            self._current_text = []
+        elif tag.lower() in {"iframe", "embed", "source"} and attrs_dict.get("src"):
+            self.links.append({"url": attrs_dict["src"], "label": tag})
+
+    def handle_data(self, data: str) -> None:
+        if self._current_href:
+            self._current_text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() == "a" and self._current_href:
+            label = " ".join(" ".join(self._current_text).split())
+            self.links.append({"url": self._current_href, "label": label})
+            self._current_href = None
+            self._current_text = []
+
+
+def _extract_page_links(html: str, base_url: str) -> list[dict[str, str]]:
+    parser = _LinkExtractor()
+    try:
+        parser.feed(html)
+    except Exception:
+        return []
+    links = []
+    for item in parser.links:
+        url = urljoin(base_url, item["url"])
+        if url.startswith("http://") or url.startswith("https://"):
+            links.append({"url": url, "label": item.get("label", "")})
+    return links
+
+
+def _looks_like_document_link(url: str, label: str = "") -> bool:
+    parsed = urlparse(url)
+    path = parsed.path.lower()
+    query = parsed.query.lower()
+    suffix = Path(path).suffix.lower()
+    if suffix in DOCUMENT_EXTENSIONS:
+        return True
+    haystack = f"{path} {query} {label.lower()}"
+    if any(term in haystack for term in DOCUMENT_ENDPOINT_TERMS):
+        return True
+    return any(term in label.lower() for term in ("pdf", "hwp", "hwpx", "doc", "xls", "ppt", "zip", "다운로드", "첨부", "원문"))
+
+
+def _embedded_document_items(results: list[dict[str, Any]]) -> list[dict[str, str]]:
+    seen: set[str] = set()
+    items: list[dict[str, str]] = []
+    for result in results:
+        if not result.get("ok") or not result.get("path"):
+            continue
+        content_type = str(result.get("content_type") or "").lower()
+        path = Path(str(result["path"]))
+        if not path.exists():
+            continue
+        if "html" not in content_type and path.suffix.lower() not in {".html", ".htm", ".do", ".jsp"}:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for link in _extract_page_links(text, str(result.get("url") or "")):
+            url = link["url"].strip()
+            label = link.get("label", "")
+            if url in seen or not _looks_like_document_link(url, label):
+                continue
+            seen.add(url)
+            parent_id = str(result.get("source_id") or "embedded")
+            source_id = f"{parent_id}-DOC-{len(items) + 1:03d}"
+            items.append(
+                {
+                    "url": url,
+                    "title": f"{result.get('title') or parent_id} / {label or 'embedded document'}",
+                    "source_id": source_id,
+                    "url_type": "embedded_document",
+                    "parent_url": str(result.get("url") or ""),
+                    "parent_path": str(path),
+                }
+            )
+            if len(items) >= MAX_EMBEDDED_DOWNLOADS_PER_RUN:
+                return items
+    return items
+
+
 def _extension_for_download(url: str, content_type: str) -> str:
     parsed = urlparse(url)
     suffix = Path(parsed.path).suffix.lower()
@@ -516,7 +622,13 @@ def _safe_download_name(item: dict[str, str], extension: str) -> str:
     return f"{source_id}_{seed}{extension}"
 
 
-def download_application_sources(*, force: bool = False, timeout: int = 20, limit: int | None = None) -> dict[str, Any]:
+def download_application_sources(
+    *,
+    force: bool = False,
+    timeout: int = 20,
+    limit: int | None = None,
+    include_embedded: bool = True,
+) -> dict[str, Any]:
     if not PATENT_APPLICATION_ROOT.exists():
         raise HTTPException(status_code=404, detail=f"출원 공식팩을 찾을 수 없습니다: {PATENT_APPLICATION_ROOT}")
     items = extract_application_urls()
@@ -527,8 +639,10 @@ def download_application_sources(*, force: bool = False, timeout: int = 20, limi
 
     raw_dir = _download_dir()
     raw_dir.mkdir(parents=True, exist_ok=True)
-    results = []
-    for item in items:
+    results: list[dict[str, Any]] = []
+    seen_urls = {item["url"] for item in items}
+
+    def download_item(item: dict[str, str]) -> dict[str, Any]:
         url = item["url"]
         request_url = _iri_to_uri(url)
         request = Request(request_url, headers={"User-Agent": USER_AGENT})
@@ -549,30 +663,39 @@ def download_application_sources(*, force: bool = False, timeout: int = 20, limi
                 if size <= 0:
                     target.unlink(missing_ok=True)
                     raise ValueError("empty response body")
-                results.append(
-                    {
-                        **item,
-                        "ok": True,
-                        "status": status,
-                        "http_status": getattr(response, "status", None),
-                        "content_type": content_type,
-                        "size_bytes": size,
-                        "path": str(target),
-                        "started_at": started_at,
-                        "finished_at": _now(),
-                    }
-                )
-        except (HTTPError, URLError, TimeoutError, OSError, UnicodeError, ValueError) as exc:
-            results.append(
-                {
+                return {
                     **item,
-                    "ok": False,
-                    "status": "failed",
-                    "error": f"{type(exc).__name__}: {exc}",
+                    "ok": True,
+                    "status": status,
+                    "http_status": getattr(response, "status", None),
+                    "content_type": content_type,
+                    "size_bytes": size,
+                    "path": str(target),
                     "started_at": started_at,
                     "finished_at": _now(),
                 }
-            )
+        except (HTTPError, URLError, TimeoutError, OSError, UnicodeError, ValueError) as exc:
+            return {
+                **item,
+                "ok": False,
+                "status": "failed",
+                "error": f"{type(exc).__name__}: {exc}",
+                "started_at": started_at,
+                "finished_at": _now(),
+            }
+
+    for item in items:
+        results.append(download_item(item))
+
+    embedded_items: list[dict[str, str]] = []
+    if include_embedded:
+        for item in _embedded_document_items(results):
+            if item["url"] in seen_urls:
+                continue
+            seen_urls.add(item["url"])
+            embedded_items.append(item)
+        for item in embedded_items:
+            results.append(download_item(item))
 
     success = [item for item in results if item.get("ok")]
     failures = [item for item in results if not item.get("ok")]
@@ -582,6 +705,8 @@ def download_application_sources(*, force: bool = False, timeout: int = 20, limi
         "attempted_count": len(results),
         "success_count": len(success),
         "failure_count": len(failures),
+        "base_url_count": len(items),
+        "embedded_url_count": len(embedded_items),
         "results": results,
     }
     manifest_path = PATENT_APPLICATION_ROOT / "download_manifest.json"
@@ -593,6 +718,8 @@ def download_application_sources(*, force: bool = False, timeout: int = 20, limi
         "attempted_count": len(results),
         "success_count": len(success),
         "failure_count": len(failures),
+        "base_url_count": len(items),
+        "embedded_url_count": len(embedded_items),
         "manifest_path": str(manifest_path),
         "report_path": str(report_path),
         "failures": failures,
@@ -607,6 +734,8 @@ def _write_download_report(path: Path, manifest: dict[str, Any]) -> None:
         f"- 시도: {manifest.get('attempted_count')}건",
         f"- 성공: {manifest.get('success_count')}건",
         f"- 실패: {manifest.get('failure_count')}건",
+        f"- 원본 URL: {manifest.get('base_url_count')}건",
+        f"- 페이지 내부 문서 URL: {manifest.get('embedded_url_count')}건",
         "",
         "## 성공",
     ]
