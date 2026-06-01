@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
-from ..agents.graph import run_chat_agent
+from ..agents.graph import chat_graph_mermaid, run_chat_agent
 from ..agents.ingestion_graph import ingestion_graph_mermaid, run_ingestion_graph
 from ..agents.wiki_graph import run_wiki_audit_graph, wiki_audit_graph_mermaid
 from ..config import EMBEDDING_MODEL, GEN_MODEL, PUBLIC_FILE_BASE_URL, TOP_K
@@ -12,7 +12,6 @@ from ..rag.legacy_adapter import (
     legacy_engine_status,
     patent_summary_cards,
     render_page_image,
-    try_answer_with_legacy,
     write_feedback,
 )
 from ..schemas import (
@@ -170,6 +169,12 @@ def agent_answer(request: SearchRequest) -> dict:
     return post_answer(request)
 
 
+@rag_router.get("/chat/mermaid", summary="챗봇 LangGraph 답변 workflow Mermaid")
+@agent_router.get("/chat/mermaid", summary="챗봇 LangGraph 답변 workflow Mermaid")
+def get_chat_graph_mermaid() -> dict:
+    return {"format": "mermaid", "diagram": chat_graph_mermaid()}
+
+
 @rag_router.get("/engine/status", summary="복구된 rag.zip 엔진 사용 가능 여부")
 @legacy_rag_router.get("/engine/status", summary="복구된 rag.zip 엔진 사용 가능 여부")
 def get_rag_engine_status() -> dict:
@@ -192,37 +197,25 @@ def rag_patent_summary_cards() -> dict:
 @rag_router.post("/chat", response_model=AnswerResponse, summary="rag.zip 호환 특허별 챗봇 답변")
 @legacy_rag_router.post("/chat", response_model=AnswerResponse, summary="rag.zip 호환 특허별 챗봇 답변")
 def rag_chat(request: ChatRequest) -> dict:
-    result = try_answer_with_legacy(
+    return run_chat_agent(
         request.question,
         patent_id=request.patent_id,
         user_id=request.user_id,
         chat_history=request.chat_history,
         context_patent_id=request.context_patent_id,
     )
-    if result and not result.get("metrics", {}).get("fallback_required"):
-        return result
-    fallback = run_chat_agent(request.question, patent_id=request.patent_id)
-    if result:
-        fallback.setdefault("metrics", {})["legacy_error"] = result.get("metrics", {}).get("legacy_error")
-    return fallback
 
 
 @rag_router.post("/global/chat", response_model=AnswerResponse, summary="rag.zip 호환 전체 특허 챗봇 답변")
 @legacy_rag_router.post("/global/chat", response_model=AnswerResponse, summary="rag.zip 호환 전체 특허 챗봇 답변")
 def rag_global_chat(request: ChatRequest) -> dict:
-    result = try_answer_with_legacy(
+    return run_chat_agent(
         request.question,
         patent_id=None,
         user_id=request.user_id,
         chat_history=request.chat_history,
         context_patent_id=request.context_patent_id,
     )
-    if result and not result.get("metrics", {}).get("fallback_required"):
-        return result
-    fallback = run_chat_agent(request.question, patent_id=None)
-    if result:
-        fallback.setdefault("metrics", {})["legacy_error"] = result.get("metrics", {}).get("legacy_error")
-    return fallback
 
 
 @rag_router.post("/reindex", summary="특허별 전처리/RAG FAISS 재생성")

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 
-INTENT_PROMPT = """You classify Korean patent-chat questions.
-Return only compact JSON with keys: intent, needs_web, focus.
+INTENT_PROMPT = """You are a lightweight router model for a Korean patent chatbot.
+Return only compact JSON with keys:
+intent, needs_web, focus, source_plan, answer_format, needs_diagram, needs_table, use_history.
 
 Intent choices:
 - patent_original: asks about patent claims, abstract, invention details, original PDF
@@ -12,6 +13,12 @@ Intent choices:
 - wiki: asks about wiki/context material
 - comparison: asks to compare evidence or patents
 - general: broad question
+
+source_plan is an array using any of:
+original, report, wiki, reviewed_vectorstore, web, business, global_patents.
+
+answer_format choices:
+text, bullets, table, diagram, table_and_diagram.
 
 Question:
 {query}

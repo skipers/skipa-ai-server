@@ -241,6 +241,7 @@ POST /api/v1/rag/reindex
 POST /api/v1/rag/global/reindex
 POST /api/v1/rag/business/reindex
 GET  /api/v1/rag/ingestion/mermaid
+GET  /api/v1/rag/chat/mermaid
 GET  /api/v1/rag/page-image
 POST /api/v1/rag/feedback
 POST /api/v1/agent/query
@@ -918,11 +919,33 @@ data/mapped_patent_reports/<patent_id>/original/input/
 ### 챗봇 조회 흐름
 
 ```text
-1. 사용자가 특정 특허에 대해 질문
-2. 챗봇이 data/mapped_patent_reports/<patent_id>를 찾음
-3. index/faiss, wiki/vectorstore/faiss, extracted/*.jsonl에서 관련 chunk 검색
-4. 원문 chunk, 보고서 chunk, wiki chunk를 context로 구성
-5. 답변과 함께 근거가 되는 원문/보고서/wiki 정보를 반환
+1. 사용자가 특정 특허 또는 전체 특허에 대해 질문
+2. ChatGraph가 chat_history와 context_patent_id로 이어지는 질문인지 판단
+3. lightweight LLM intent agent가 질문 의도, source_plan, 답변 형식, 웹검색 필요 여부를 분류
+4. 감사 승인본 기반 wiki/reviewed vectorstore에서 보조 context를 검색
+5. 필요한 경우 웹 검색을 실행하고 결과를 wiki/web_search_drafts/*.md에 Markdown으로 저장
+6. rag.zip에서 복구한 FAISS + BM25 + RRF RAG 엔진이 원문/보고서/wiki/웹 근거로 답변 생성
+7. 질문이 표/다이어그램을 요구하면 Markdown 표 또는 Mermaid 다이어그램을 포함
+8. 답변, source_cards, agent_trace, confidence/latency/answer_mode metrics를 반환
+```
+
+챗봇 LangGraph:
+
+```mermaid
+flowchart TD
+  Q[POST /api/v1/rag/chat] --> H[resolve_history_context]
+  H --> I[route_question lightweight LLM intent]
+  I --> W[retrieve_wiki_context]
+  W --> WEB[retrieve_web_context]
+  WEB --> R[answer_from_patent_context]
+  R --> F[finish_answer]
+  F --> O[answer + source_cards + metrics]
+
+  I -. decides .-> SP[source_plan: original/report/wiki/web/global]
+  I -. decides .-> AF[answer_format: text/table/diagram]
+  W -. reads .-> VS[index/vectorstore human_reviewed]
+  WEB -. writes .-> WD[wiki/web_search_drafts/*.md]
+  R -. uses .-> LG[legacy FAISS + BM25 + RRF RAG]
 ```
 
 ## API 테스트 흐름

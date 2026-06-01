@@ -371,6 +371,13 @@ async function loadWorkflow() {
   setStatus("워크플로우 그래프 로드 완료");
 }
 
+async function loadChatWorkflow() {
+  const graph = await api("/api/v1/rag/chat/mermaid");
+  state.mermaid = graph.diagram || "";
+  $("workflowMermaid").textContent = state.mermaid || "그래프가 없습니다.";
+  setStatus("챗봇 그래프 로드 완료");
+}
+
 async function loadIngestionWorkflow() {
   const graph = await api("/api/v1/rag/ingestion/mermaid");
   state.mermaid = graph.diagram || "";
@@ -456,6 +463,7 @@ function bindEvents() {
   $("runAuditButton").addEventListener("click", () => runAudit().catch((error) => setStatus(error.message)));
   $("loadReviewButton").addEventListener("click", () => loadReview().catch((error) => setStatus(error.message)));
   $("applyAuditButton").addEventListener("click", () => applyAudit().catch((error) => setStatus(error.message)));
+  $("loadChatWorkflowButton").addEventListener("click", () => loadChatWorkflow().catch((error) => setStatus(error.message)));
   $("loadWorkflowButton").addEventListener("click", () => loadWorkflow().catch((error) => setStatus(error.message)));
   $("loadIngestionWorkflowButton").addEventListener("click", () => loadIngestionWorkflow().catch((error) => setStatus(error.message)));
   $("sendButton").addEventListener("click", ask);

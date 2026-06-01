@@ -764,6 +764,33 @@ def _default_exclude_ids(audit: dict[str, Any]) -> set[str]:
     }
 
 
+def _wiki_markdown_from_approved_docs(patent_id: str, approved_docs: list[dict[str, Any]], *, audit_id: str) -> str:
+    by_type: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for doc in approved_docs:
+        source_type = _source_type(doc) or "UNKNOWN"
+        if source_type == "WIKI":
+            continue
+        by_type[source_type].append(doc)
+
+    lines = [
+        f"# {patent_id} 감사 승인 Wiki Context",
+        "",
+        f"이 문서는 audit `{audit_id}` 이후 사람이 승인한 특허 원문, 보고서, 시각자료, 웹/wiki 보조 자료를 챗봇이 자연어로 검색할 수 있도록 정리한 Markdown입니다.",
+        "원문 데이터에서 제외된 finding은 반영하지 않습니다.",
+        "",
+        "## 검색용 요약",
+    ]
+    for source_type in sorted(by_type):
+        docs = by_type[source_type][:6]
+        lines.extend(["", f"### {source_type}"])
+        for index, doc in enumerate(docs, 1):
+            metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+            title = metadata.get("section_title") or metadata.get("file_name") or metadata.get("title") or doc.get("doc_id")
+            text = " ".join(str(doc.get("page_content") or "").split())
+            lines.append(f"- {index}. {title}: {text[:650]}")
+    return "\n".join(lines).strip() + "\n"
+
+
 def _write_approved_files(
     *,
     audit: dict[str, Any],
@@ -799,10 +826,40 @@ def _write_approved_files(
                 approved_docs.append(doc)
 
         reviewed_dir = PATENTS_ROOT / patent_id / "reviewed"
+        wiki_dir = PATENTS_ROOT / patent_id / "wiki"
         reviewed_dir.mkdir(parents=True, exist_ok=True)
+        wiki_dir.mkdir(parents=True, exist_ok=True)
         docs_path = reviewed_dir / "approved_documents.jsonl"
         md_path = reviewed_dir / "approved_context.md"
+        wiki_md_path = wiki_dir / "approved_context.md"
         manifest_path = reviewed_dir / "manifest.json"
+
+        wiki_markdown = _wiki_markdown_from_approved_docs(patent_id, approved_docs, audit_id=str(audit["audit_id"]))
+        wiki_md_path.write_text(wiki_markdown, encoding="utf-8")
+        wiki_doc = _document(
+            patent_id=patent_id,
+            text=wiki_markdown,
+            source_path=wiki_md_path,
+            source_type="WIKI",
+            metadata={
+                "title": f"{patent_id} 감사 승인 Wiki Context",
+                "file_name": wiki_md_path.name,
+                "human_review_source": "approved_context",
+            },
+        )
+        if wiki_doc:
+            wiki_doc_metadata = wiki_doc.get("metadata") if isinstance(wiki_doc.get("metadata"), dict) else {}
+            wiki_doc_metadata.update(
+                {
+                    "human_review_status": "approved",
+                    "human_review_audit_id": audit["audit_id"],
+                    "human_reviewed_at": approved_at,
+                }
+            )
+            if reviewer:
+                wiki_doc_metadata["human_reviewer"] = reviewer
+            wiki_doc["metadata"] = wiki_doc_metadata
+            approved_docs.append(wiki_doc)
 
         with docs_path.open("w", encoding="utf-8") as file:
             for doc in approved_docs:
@@ -845,6 +902,7 @@ def _write_approved_files(
             "approved_document_count": len(approved_docs),
             "excluded_document_count": len(excluded_docs),
             "approved_markdown_path": str(md_path),
+            "wiki_markdown_path": str(wiki_md_path),
             "approved_documents_path": str(docs_path),
         }
         md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -858,6 +916,7 @@ def _write_approved_files(
                 "approved_document_count": len(approved_docs),
                 "excluded_document_count": len(excluded_docs),
                 "approved_markdown_path": str(md_path),
+                "wiki_markdown_path": str(wiki_md_path),
                 "approved_documents_path": str(docs_path),
                 "manifest_path": str(manifest_path),
             }

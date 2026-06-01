@@ -58,6 +58,8 @@ data/business_rag/processed/
 data/business_rag/raw/
 data/business/index/vectorstore/
 data/mapped_patent_reports/**/index/vectorstore/
+data/mapped_patent_reports/**/wiki/approved_context.md
+data/mapped_patent_reports/**/wiki/web_search_drafts/
 data/mapped_patent_reports/**/wiki/vectorstore/local/
 data/mapped_patent_reports/**/reviewed/
 eval_logic/artifacts/
