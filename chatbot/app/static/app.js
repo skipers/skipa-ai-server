@@ -96,7 +96,7 @@ function renderAnswerHtml(text) {
   return html.join("");
 }
 
-function appendMessage(text, className, rich = false) {
+function appendMessage(text, className, rich = false, containerId = "messages") {
   const message = document.createElement("div");
   message.className = `message ${className}`;
   if (rich) {
@@ -104,8 +104,8 @@ function appendMessage(text, className, rich = false) {
   } else {
     message.textContent = text;
   }
-  $("messages").appendChild(message);
-  $("messages").scrollTop = $("messages").scrollHeight;
+  $(containerId).appendChild(message);
+  $(containerId).scrollTop = $(containerId).scrollHeight;
   return message;
 }
 
@@ -242,7 +242,7 @@ function selectedFindingIds() {
   return [...document.querySelectorAll(".finding-check:checked")].map((input) => input.value);
 }
 
-function appendAnswerMeta(metrics, sourceCards) {
+function appendAnswerMeta(metrics, sourceCards, containerId = "messages") {
   const meta = document.createElement("div");
   meta.className = "answer-meta";
   meta.innerHTML = [
@@ -252,10 +252,10 @@ function appendAnswerMeta(metrics, sourceCards) {
     `근거 ${(sourceCards || []).length}개`,
     `confidence ${metrics?.confidence_score ?? metrics?.hit_count ?? "-"}`,
   ].map((item) => `<span>${escapeHtml(item)}</span>`).join("");
-  $("messages").appendChild(meta);
+  $(containerId).appendChild(meta);
 }
 
-function appendSources(sourceCards) {
+function appendSources(sourceCards, containerId = "messages") {
   if (!sourceCards || sourceCards.length === 0) return;
   const details = document.createElement("details");
   details.className = "source-details";
@@ -292,8 +292,8 @@ function appendSources(sourceCards) {
     list.appendChild(card);
   });
   details.appendChild(list);
-  $("messages").appendChild(details);
-  $("messages").scrollTop = $("messages").scrollHeight;
+  $(containerId).appendChild(details);
+  $(containerId).scrollTop = $(containerId).scrollHeight;
 }
 
 async function loadBaseData() {
@@ -378,6 +378,13 @@ async function loadChatWorkflow() {
   setStatus("챗봇 그래프 로드 완료");
 }
 
+async function loadApplicationWorkflow() {
+  const graph = await api("/api/v1/application/chat/mermaid");
+  state.mermaid = graph.diagram || "";
+  $("workflowMermaid").textContent = state.mermaid || "그래프가 없습니다.";
+  setStatus("출원 도우미 그래프 로드 완료");
+}
+
 async function loadIngestionWorkflow() {
   const graph = await api("/api/v1/rag/ingestion/mermaid");
   state.mermaid = graph.diagram || "";
@@ -420,6 +427,39 @@ async function checkGlobalIndex() {
   }
 }
 
+async function downloadApplicationSources() {
+  const button = $("downloadApplicationButton");
+  setBusy(button, true, "다운로드 중");
+  try {
+    const result = await api("/api/v1/application/sources/download", {
+      method: "POST",
+      body: JSON.stringify({ force: false, timeout: 20, limit: null }),
+    });
+    setStatus(`공식자료 다운로드 · 성공 ${result.success_count ?? 0}건 · 실패 ${result.failure_count ?? 0}건`);
+    showModal("출원 공식자료 다운로드", jsonBlock(result));
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function refreshApplicationIndex() {
+  const button = $("refreshApplicationIndexButton");
+  setBusy(button, true, "갱신 중");
+  try {
+    const result = await api("/api/v1/application/index/refresh", { method: "POST" });
+    setStatus(`출원 인덱스 갱신 · 문서 ${result.document_count ?? 0}개`);
+    showModal("출원 인덱스", jsonBlock(result));
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function showApplicationStatus() {
+  const status = await api("/api/v1/application/status");
+  setStatus(`출원 도우미 · index ${status.index_exists ? "있음" : "없음"} · 다운로드 실패 ${status.download_report?.failure_count ?? 0}건`);
+  showModal("출원 도우미 상태", jsonBlock(status));
+}
+
 async function ask() {
   const text = $("question").value.trim();
   if (!text) return;
@@ -452,6 +492,37 @@ async function ask() {
   }
 }
 
+async function askApplication() {
+  const text = $("applicationQuestion").value.trim();
+  if (!text) return;
+  appendMessage(text, "user", false, "applicationMessages");
+  $("applicationQuestion").value = "";
+  const button = $("sendApplicationButton");
+  setBusy(button, true, "생성 중");
+  const pending = appendMessage("공식팩에서 근거를 찾고 출원 도우미 답변을 구성합니다.", "assistant", false, "applicationMessages");
+  try {
+    const data = await api("/api/v1/application/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        question: text,
+        user_id: "browser-ui",
+        chat_history: [],
+        top_k: 6,
+        refresh_index: false,
+      }),
+    });
+    pending.innerHTML = renderAnswerHtml(data.answer || "");
+    appendAnswerMeta(data.metrics || {}, data.source_cards || [], "applicationMessages");
+    appendSources(data.source_cards || [], "applicationMessages");
+    setStatus(`출원 답변 완료 · 근거 ${(data.source_cards || []).length}개`);
+  } catch (error) {
+    pending.textContent = `요청 실패: ${error.message}`;
+  } finally {
+    setBusy(button, false);
+    $("applicationQuestion").focus();
+  }
+}
+
 function bindEvents() {
   document.querySelectorAll(".tab-button").forEach((button) => {
     button.addEventListener("click", () => showTab(button.dataset.tab));
@@ -464,13 +535,23 @@ function bindEvents() {
   $("loadReviewButton").addEventListener("click", () => loadReview().catch((error) => setStatus(error.message)));
   $("applyAuditButton").addEventListener("click", () => applyAudit().catch((error) => setStatus(error.message)));
   $("loadChatWorkflowButton").addEventListener("click", () => loadChatWorkflow().catch((error) => setStatus(error.message)));
+  $("loadApplicationWorkflowButton").addEventListener("click", () => loadApplicationWorkflow().catch((error) => setStatus(error.message)));
   $("loadWorkflowButton").addEventListener("click", () => loadWorkflow().catch((error) => setStatus(error.message)));
   $("loadIngestionWorkflowButton").addEventListener("click", () => loadIngestionWorkflow().catch((error) => setStatus(error.message)));
+  $("downloadApplicationButton").addEventListener("click", () => downloadApplicationSources().catch((error) => setStatus(error.message)));
+  $("refreshApplicationIndexButton").addEventListener("click", () => refreshApplicationIndex().catch((error) => setStatus(error.message)));
+  $("applicationStatusButton").addEventListener("click", () => showApplicationStatus().catch((error) => setStatus(error.message)));
   $("sendButton").addEventListener("click", ask);
+  $("sendApplicationButton").addEventListener("click", askApplication);
   $("question").addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
     event.preventDefault();
     ask();
+  });
+  $("applicationQuestion").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    askApplication();
   });
   document.querySelectorAll("[data-flow]").forEach((button) => {
     button.addEventListener("click", () => {

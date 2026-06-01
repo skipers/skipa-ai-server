@@ -36,6 +36,7 @@ eval_logic/.env.*
 *.pid
 *.tmp
 *.temp
+logs/
 .DS_Store
 
 # IDE/editor local files
@@ -57,6 +58,7 @@ data/business_rag/index/
 data/business_rag/processed/
 data/business_rag/raw/
 data/business/index/vectorstore/
+data/patent_application_official_pack(1)/index/
 data/mapped_patent_reports/**/index/vectorstore/
 data/mapped_patent_reports/**/wiki/approved_context.md
 data/mapped_patent_reports/**/wiki/web_search_drafts/

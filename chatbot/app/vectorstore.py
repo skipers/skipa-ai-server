@@ -373,8 +373,10 @@ def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: s
     output_dir.mkdir(parents=True, exist_ok=True)
     docs_path = output_dir / "documents.jsonl"
     manifest_path = output_dir / "manifest.json"
+    tmp_docs_path = output_dir / "documents.jsonl.tmp"
+    tmp_manifest_path = output_dir / "manifest.json.tmp"
     source_paths: set[Path] = set()
-    with docs_path.open("w", encoding="utf-8") as file:
+    with tmp_docs_path.open("w", encoding="utf-8") as file:
         for doc in docs:
             if doc.get("page_content") and not doc.get("vector"):
                 doc["vector"] = _vectorize(str(doc.get("page_content") or ""))
@@ -400,7 +402,9 @@ def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: s
         "documents_path": str(docs_path),
         "source_fingerprints": source_fingerprints,
     }
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_docs_path.replace(docs_path)
+    tmp_manifest_path.replace(manifest_path)
     return {
         "scope": scope,
         "document_count": len(docs),
@@ -764,6 +768,22 @@ def _default_exclude_ids(audit: dict[str, Any]) -> set[str]:
     }
 
 
+def _auto_caution_exclude_ids(audit: dict[str, Any]) -> set[str]:
+    """Exclude bad/high-risk findings and medium caution findings automatically.
+
+    Low-severity review findings still stay in the approved corpus unless a
+    human excludes them explicitly, because they are usually metadata or length
+    notices rather than evidence corruption.
+    """
+    selected = _default_exclude_ids(audit)
+    for finding in audit.get("findings") or []:
+        if not finding.get("finding_id"):
+            continue
+        if finding.get("default_action") == "review" and finding.get("severity") in {"high", "medium"}:
+            selected.add(str(finding["finding_id"]))
+    return selected
+
+
 def _wiki_markdown_from_approved_docs(patent_id: str, approved_docs: list[dict[str, Any]], *, audit_id: str) -> str:
     by_type: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for doc in approved_docs:
@@ -959,6 +979,44 @@ def apply_human_review(
     _write_json(result_path, result)
     _write_audit_report({**audit, "status": "applied", "apply_result": result, "vectorstore_refresh": vectorstore_refresh})
     return result
+
+
+def auto_audit_apply_and_refresh(*, refresh_vectorstore: bool = True) -> dict[str, Any]:
+    audit = run_audit()
+    selected_ids = _auto_caution_exclude_ids(audit)
+    approved = _write_approved_files(
+        audit=audit,
+        excluded_finding_ids=selected_ids,
+        reviewer="auto-auditor",
+        notes=(
+            "자동 감사 정책: default_action=exclude 후보와 severity=medium 이상 review 후보를 "
+            "주의/나쁜 데이터로 보고 승인 corpus에서 제외했습니다. low review 후보는 보존합니다."
+        ),
+    )
+    vectorstore_refresh = refresh_vectorstores(use_reviewed=True) if refresh_vectorstore else None
+    result = {
+        "status": "auto_applied",
+        "audit_id": audit["audit_id"],
+        "auto_policy": {
+            "excluded": "default_action=exclude OR (default_action=review AND severity in high,medium)",
+            "kept_for_human_only": "low severity review findings",
+            "atomic_refresh": True,
+        },
+        "excluded_finding_ids": sorted(selected_ids),
+        "approved": approved,
+        "vectorstore_refresh": vectorstore_refresh,
+    }
+    result_path = _audit_dir(str(audit["audit_id"])) / "auto_apply_result.json"
+    _write_json(result_path, result)
+    _write_audit_report(
+        {
+            **audit,
+            "status": "auto_applied",
+            "apply_result": result,
+            "vectorstore_refresh": vectorstore_refresh,
+        }
+    )
+    return {"audit": audit, "apply_result": result}
 
 
 def audit_and_refresh_vectorstores(*, refresh_vectorstore: bool = False) -> dict[str, Any]:

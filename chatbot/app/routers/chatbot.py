@@ -4,9 +4,16 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
+from ..agents.application_graph import application_graph_mermaid, run_application_agent
 from ..agents.graph import chat_graph_mermaid, run_chat_agent
 from ..agents.ingestion_graph import ingestion_graph_mermaid, run_ingestion_graph
 from ..agents.wiki_graph import run_wiki_audit_graph, wiki_audit_graph_mermaid
+from ..application_data import (
+    application_download_report,
+    application_index_status,
+    download_application_sources,
+    refresh_application_index,
+)
 from ..config import EMBEDDING_MODEL, GEN_MODEL, PUBLIC_FILE_BASE_URL, TOP_K
 from ..rag.legacy_adapter import (
     legacy_engine_status,
@@ -20,6 +27,8 @@ from ..schemas import (
     BusinessReindexRequest,
     ChatRequest,
     FeedbackRequest,
+    PatentApplicationChatRequest,
+    PatentApplicationDownloadRequest,
     ReindexRequest,
     SearchRequest,
     SearchResponse,
@@ -45,6 +54,7 @@ rag_router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
 legacy_rag_router = APIRouter(prefix="/rag", tags=["legacy-rag"])
 agent_router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
 wiki_router = APIRouter(prefix="/api/v1/wiki", tags=["wiki"])
+application_router = APIRouter(prefix="/api/v1/application", tags=["application"])
 
 
 @router.get("/config", summary="챗봇 설정과 데이터 루트 확인")
@@ -118,10 +128,10 @@ def get_vectorstore_status() -> dict:
     return vectorstore_status()
 
 
-@router.post("/vectorstore/refresh", summary="전체 특허/사업 데이터 vectorstore 재생성")
-def post_vectorstore_refresh() -> dict:
-    result = run_wiki_audit_graph(mode="refresh")
-    return result.get("refresh_result", result)
+@router.post("/vectorstore/refresh", summary="감사 자동 적용 후 전체 vectorstore 재생성")
+def post_vectorstore_refresh(auto_audit: bool = Query(True, description="true면 주의/나쁜 데이터 자동 제외 후 승인본으로 refresh")) -> dict:
+    result = run_wiki_audit_graph(mode="auto_refresh" if auto_audit else "refresh")
+    return result.get("apply_result") or result.get("refresh_result", result)
 
 
 @router.post("/search", response_model=SearchResponse, summary="챗봇 RAG 검색 확인")
@@ -310,6 +320,16 @@ def post_wiki_audit_apply(request: AuditApplyRequest) -> dict:
     return apply_result
 
 
+@router.post("/wiki-audit/auto-refresh", summary="자동 감사로 주의/나쁜 데이터 제외 후 승인 vectorstore 갱신")
+@wiki_router.post("/audit-auto-refresh", summary="자동 감사로 주의/나쁜 데이터 제외 후 승인 vectorstore 갱신")
+def post_wiki_audit_auto_refresh() -> dict:
+    result = run_wiki_audit_graph(mode="auto_refresh", refresh_vectorstore=True)
+    apply_result = result.get("apply_result", result)
+    if isinstance(apply_result, dict):
+        apply_result["agent_trace"] = result.get("trace", [])
+    return apply_result
+
+
 @wiki_router.post("/agent/run", summary="Wiki LangGraph agent 직접 실행")
 def post_wiki_agent_run(request: WikiAgentRunRequest) -> dict:
     return run_wiki_audit_graph(
@@ -325,3 +345,39 @@ def post_wiki_agent_run(request: WikiAgentRunRequest) -> dict:
 @wiki_router.get("/agent/mermaid", summary="Wiki LangGraph agent Mermaid")
 def get_wiki_agent_mermaid() -> dict:
     return {"format": "mermaid", "diagram": wiki_audit_graph_mermaid()}
+
+
+@application_router.get("/status", summary="특허 출원 도우미 공식팩/index 상태")
+def get_application_status() -> dict:
+    return application_index_status()
+
+
+@application_router.post("/sources/download", summary="특허 출원 공식 자료 다운로드/크롤링")
+def post_application_sources_download(request: PatentApplicationDownloadRequest) -> dict:
+    return download_application_sources(force=request.force, timeout=request.timeout, limit=request.limit)
+
+
+@application_router.get("/sources/download-report", summary="특허 출원 공식 자료 다운로드/크롤링 리포트")
+def get_application_download_report() -> dict:
+    return application_download_report()
+
+
+@application_router.post("/index/refresh", summary="특허 출원 공식팩 vectorstore 갱신")
+def post_application_index_refresh() -> dict:
+    return refresh_application_index(force=True)
+
+
+@application_router.post("/chat", response_model=AnswerResponse, summary="특허 출원 도우미 챗봇")
+def post_application_chat(request: PatentApplicationChatRequest) -> dict:
+    return run_application_agent(
+        request.question,
+        user_id=request.user_id,
+        chat_history=request.chat_history,
+        top_k=request.top_k,
+        refresh_index=request.refresh_index,
+    )
+
+
+@application_router.get("/chat/mermaid", summary="특허 출원 도우미 LangGraph Mermaid")
+def get_application_chat_mermaid() -> dict:
+    return {"format": "mermaid", "diagram": application_graph_mermaid()}

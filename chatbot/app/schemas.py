@@ -25,6 +25,20 @@ class ChatRequest(BaseModel):
     context_patent_id: str | None = Field(None, description="프론트엔드가 기억한 현재 대화 기준 특허 ID")
 
 
+class PatentApplicationChatRequest(BaseModel):
+    question: str = Field(..., min_length=1, description="특허 출원 도우미 질문")
+    user_id: str | None = Field(None, description="질문자 식별자")
+    chat_history: list[dict[str, Any]] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
+    top_k: int = Field(6, ge=1, le=20, description="공식팩 근거 검색 개수")
+    refresh_index: bool = Field(False, description="질문 전 출원 공식팩 인덱스를 다시 생성")
+
+
+class PatentApplicationDownloadRequest(BaseModel):
+    force: bool = Field(False, description="이미 다운로드한 파일도 다시 다운로드")
+    timeout: int = Field(20, ge=3, le=60, description="URL별 다운로드 timeout 초")
+    limit: int | None = Field(None, ge=1, le=80, description="이번 실행에서 시도할 URL 개수 제한")
+
+
 class FeedbackRequest(BaseModel):
     question: str
     answer: str | None = None
@@ -99,7 +113,7 @@ class AuditApplyRequest(BaseModel):
 
 
 class WikiAgentRunRequest(BaseModel):
-    mode: Literal["audit", "review", "apply", "refresh", "status"] = Field(
+    mode: Literal["audit", "review", "apply", "auto_refresh", "refresh", "status"] = Field(
         "audit",
         description="실행할 Wiki LangGraph agent mode",
     )

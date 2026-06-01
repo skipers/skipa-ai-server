@@ -16,6 +16,8 @@
 - 챗봇 RAG용 특허별 원문/보고서/wiki/index 데이터 관리
 - `rag.zip` 기준 FAISS + BM25 + RRF + 의도 분류 + 웹 검색 챗봇 RAG 엔진 복구
 - LangGraph 기반 챗봇 답변, wiki 감사, 전처리/재색인 workflow
+- 감사 자동 적용 후 승인 데이터만 반영하는 안전한 vectorstore refresh
+- 공식 출원 자료팩 기반 특허 출원 도우미 챗봇
 - Swagger UI를 통한 API 테스트
 - API 테스트용 입력/출력 산출물 분리 저장
 
@@ -46,6 +48,10 @@ skipa-ai-server/
         reports/
     artifacts/            # 로컬 생성 산출물/cache/report
     business_rag/         # 제품/사업화 RAG 데이터
+    patent_application_official_pack(1)/
+      downloads/          # 공식 출원 자료 다운로드/크롤링 결과
+      download_report.md  # 다운로드 불가 URL 리포트
+      *.md, *.csv, *.json # 출원 절차/거절대응/선행기술 공식 자료팩
 
   eval_logic/
     requirements.txt
@@ -76,6 +82,7 @@ skipa-ai-server/
     app/
       main.py             # 챗봇 FastAPI entrypoint
       config.py           # DATA_ROOT, PATENTS_ROOT 등 경로/환경변수 처리
+      application_data.py # 특허 출원 공식팩 다운로드, 인덱싱, 검색 helper
       store.py            # 중앙 data 폴더 read/search helper
       schemas.py          # Swagger request/response schema
       routers/
@@ -87,6 +94,7 @@ skipa-ai-server/
         legacy_adapter.py # 현재 중앙 data 구조와 legacy 엔진 연결
       agents/
         graph.py          # 챗봇 LangGraph 답변 workflow
+        application_graph.py # 특허 출원 도우미 LangGraph workflow
         ingestion_graph.py # 전처리/FAISS 재색인 LangGraph workflow
         wiki_graph.py     # 감사/사람검토/vectorstore 갱신 workflow
       static/             # /ui, /chat 브라우저 테스트 화면
@@ -254,8 +262,15 @@ GET  /api/v1/wiki/audit-report
 POST /api/v1/wiki/audit
 GET  /api/v1/wiki/audit-review
 POST /api/v1/wiki/audit-apply
+POST /api/v1/wiki/audit-auto-refresh
 POST /api/v1/wiki/agent/run
 GET  /api/v1/wiki/agent/mermaid
+GET  /api/v1/application/status
+POST /api/v1/application/sources/download
+GET  /api/v1/application/sources/download-report
+POST /api/v1/application/index/refresh
+POST /api/v1/application/chat
+GET  /api/v1/application/chat/mermaid
 ```
 
 `POST /api/v1/wiki/audit` 또는 `POST /api/v1/chatbot/wiki-audit/run`을 실행하면
@@ -265,6 +280,12 @@ GET  /api/v1/wiki/agent/mermaid
 `approved_context.md`가 특허별 `reviewed/` 폴더에 저장되고, 그 승인본 기준으로
 vectorstore가 갱신됩니다. 생성 파일은 Git 커밋 대상에서 제외됩니다.
 
+자동 refresh가 필요할 때는 `POST /api/v1/wiki/audit-auto-refresh` 또는
+`POST /api/v1/chatbot/vectorstore/refresh?auto_audit=true`를 사용합니다. 이 모드는
+`exclude` 후보와 `medium` 이상 `review` 후보를 주의/나쁜 데이터로 보고 자동 제외한 뒤
+승인본만 vectorstore에 반영합니다. vectorstore 파일은 임시 파일을 완성한 뒤 교체하므로
+refresh 중에도 기존 `documents.jsonl`은 계속 읽을 수 있습니다.
+
 ### 감사 프로세스와 평가 기준
 
 Wiki 감사, 사람 검토, 승인본 저장, vectorstore 갱신은 `chatbot/app/agents/wiki_graph.py`
@@ -272,7 +293,8 @@ Wiki 감사, 사람 검토, 승인본 저장, vectorstore 갱신은 `chatbot/app
 `/api/v1/wiki/audit-apply`는 모두 이 graph의 mode별 실행 wrapper입니다.
 
 감사는 원본 chunk, 최신 input JSON, 최신 report JSON, wiki 문서, business chunk를
-문서 단위로 스캔합니다. 감사 결과는 자동 삭제가 아니라 사람 검토 후보입니다.
+문서 단위로 스캔합니다. 기본 흐름은 사람 검토 후보를 만들고, 자동 refresh 흐름에서는
+주의 이상 후보만 자동 제외합니다.
 
 ```text
 1. Audit
@@ -286,11 +308,15 @@ Wiki 감사, 사람 검토, 승인본 저장, vectorstore 갱신은 `chatbot/app
    exclude_finding_ids를 null로 보내면 기본 exclude 후보만 제외합니다.
    빈 배열 []로 보내면 제외 없이 전체를 승인합니다.
 
-4. Approved Markdown
+4. Auto Refresh
+   POST /api/v1/wiki/audit-auto-refresh는 default exclude와 medium/high review 후보를
+   자동 제외한 뒤 승인본을 저장합니다.
+
+5. Approved Markdown
    각 특허별 data/mapped_patent_reports/<patent_id>/reviewed/approved_context.md에
    제외된 부분을 뺀 승인본을 저장합니다.
 
-5. Vectorstore Refresh
+6. Vectorstore Refresh
    approved_context.md와 approved_documents.jsonl 기준으로 vectorstore를 재생성합니다.
 ```
 
@@ -333,12 +359,14 @@ flowchart TD
   W1 -->|mode=audit| W2[run_audit]
   W1 -->|mode=review| W3[load_review]
   W1 -->|mode=apply| W4[apply_review]
+  W1 -->|mode=auto_refresh| W9[auto_refresh]
   W1 -->|mode=refresh| W5[refresh_vectorstore]
   W1 -->|mode=status| W6[collect_status]
 
   W2 --> W6
   W3 --> W6
   W4 --> W6
+  W9 --> W6
   W5 --> W6
   W6 --> W7[finish]
   W7 --> W8([END])
@@ -348,7 +376,9 @@ flowchart TD
   W2 -. writes .-> A2[logs/wiki_auditor/audits/review.md]
   W4 -. writes .-> R1[reviewed/approved_context.md]
   W4 -. writes .-> R2[reviewed/approved_documents.jsonl]
+  W9 -. auto excludes .-> R2
   W4 -. refreshes .-> V1[index/vectorstore]
+  W9 -. atomic refresh .-> V1
 ```
 
 전체 시스템 Mermaid:
@@ -948,6 +978,30 @@ flowchart TD
   R -. uses .-> LG[legacy FAISS + BM25 + RRF RAG]
 ```
 
+특허 출원 도우미 LangGraph:
+
+```mermaid
+flowchart TD
+  A[POST /api/v1/application/chat] --> H[resolve_application_history]
+  H --> I[route_application_question lightweight LLM intent]
+  I --> R[retrieve_application_context]
+  R --> G[answer_application_question]
+  G --> F[finish_application_answer]
+  F --> O[answer + official source_cards + metrics]
+
+  D[data/patent_application_official_pack(1)] --> IX[index/vectorstore]
+  DL[POST /api/v1/application/sources/download] --> D
+  RF[POST /api/v1/application/index/refresh] --> IX
+  R -. searches .-> IX
+  I -. routes .-> P[procedure/forms/claims/prior-art/rejection/fees/strategy]
+```
+
+출원 도우미는 기존 특허별 가치평가 챗봇과 분리된 라우팅을 사용합니다. 질문이
+거절이유 대응이면 의견제출통지서/보정/심판 근거를 우선하고, 선행기술 질문이면
+KIPRIS/CPC/IPC 검색 자료를 우선하며, 처음 출원 절차 질문이면 특허로 출원가이드와
+절차 체크리스트를 우선 검색합니다. 다운로드 또는 크롤링에 실패한 URL은
+`data/patent_application_official_pack(1)/download_report.md`에 남습니다.
+
 ## API 테스트 흐름
 
 ### JSON 파일 기반 보고서 생성
@@ -1203,6 +1257,7 @@ GET  /api/v1/wiki/audit-report
 ```text
 DATA_ROOT=../data
 PATENTS_ROOT=../data/mapped_patent_reports
+PATENT_APPLICATION_ROOT=../data/patent_application_official_pack(1)
 PUBLIC_FILE_BASE_URL=http://localhost:8000/files
 EMBEDDING_MODEL=BAAI/bge-m3
 TOP_K=10
@@ -1216,9 +1271,12 @@ GET /api/v1/chatbot/patents/10-2886381/chunks에서 chunk 반환
 POST /api/v1/wiki/audit에서 status가 human_review_required 또는 clean
 GET /api/v1/wiki/audit-review에서 review Markdown과 finding_id 확인
 POST /api/v1/wiki/audit-apply에서 approved_context.md 저장 및 vectorstore_refresh.status가 refreshed
+POST /api/v1/wiki/audit-auto-refresh에서 status가 auto_applied
 GET /api/v1/chatbot/vectorstore/status에서 human_reviewed_source와 document_count 확인
 POST /api/v1/chatbot/query에서 local_vectorstore_search hit 반환
 GET /api/v1/wiki/audit-report에서 wiki 감사 리포트 반환
+GET /api/v1/application/status에서 patent_application index 상태 반환
+POST /api/v1/application/chat에서 공식 출원 자료 근거 카드 포함 답변 반환
 ```
 
 ## 로컬 CLI

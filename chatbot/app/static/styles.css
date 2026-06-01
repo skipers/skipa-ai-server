@@ -510,6 +510,18 @@ footer button {
   height: 58px;
 }
 
+.application-footer {
+  grid-template-columns: minmax(190px, 260px) 1fr auto;
+  align-items: start;
+}
+
+.application-footer .button-row button {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
 .data-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -638,5 +650,9 @@ footer button {
 
   footer button {
     width: 100%;
+  }
+
+  .application-footer {
+    grid-template-columns: 1fr;
   }
 }

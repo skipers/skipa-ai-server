@@ -9,8 +9,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import BUSINESS_ROOT, DATA_ROOT, PATENTS_ROOT
-from .routers.chatbot import agent_router, legacy_rag_router, rag_router, router as chatbot_router, wiki_router
+from .config import BUSINESS_ROOT, DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT
+from .routers.chatbot import (
+    agent_router,
+    application_router,
+    legacy_rag_router,
+    rag_router,
+    router as chatbot_router,
+    wiki_router,
+)
 
 
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
@@ -29,6 +36,7 @@ app = FastAPI(
         {"name": "legacy-rag", "description": "rag.zip 호환 RAG API"},
         {"name": "agent", "description": "Agent query alias"},
         {"name": "wiki", "description": "Wiki audit API"},
+        {"name": "application", "description": "특허 출원 도우미 API"},
     ],
 )
 
@@ -45,6 +53,7 @@ app.include_router(rag_router)
 app.include_router(legacy_rag_router)
 app.include_router(agent_router)
 app.include_router(wiki_router)
+app.include_router(application_router)
 
 if STATIC_ROOT.exists():
     app.mount("/ui/static", StaticFiles(directory=str(STATIC_ROOT)), name="ui_static")
@@ -57,6 +66,9 @@ if PATENTS_ROOT.exists():
 
 if BUSINESS_ROOT.exists():
     app.mount("/files/business", StaticFiles(directory=str(BUSINESS_ROOT)), name="business_files")
+
+if PATENT_APPLICATION_ROOT.exists():
+    app.mount("/files/application", StaticFiles(directory=str(PATENT_APPLICATION_ROOT)), name="application_files")
 
 
 @app.get("/", tags=["system"], summary="챗봇 API 루트")
@@ -87,4 +99,6 @@ def health() -> dict:
         "data_root": str(DATA_ROOT),
         "patents_root": str(PATENTS_ROOT),
         "patents_root_exists": PATENTS_ROOT.exists(),
+        "patent_application_root": str(PATENT_APPLICATION_ROOT),
+        "patent_application_root_exists": PATENT_APPLICATION_ROOT.exists(),
     }

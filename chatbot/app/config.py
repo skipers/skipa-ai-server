@@ -36,6 +36,10 @@ _load_env_file(CHATBOT_ROOT / ".env")
 DATA_ROOT = _resolve_path(os.getenv("DATA_ROOT") or os.getenv("SKIPA_DATA_ROOT"), PROJECT_ROOT / "data")
 PATENTS_ROOT = _resolve_path(os.getenv("PATENTS_ROOT"), DATA_ROOT / "mapped_patent_reports")
 BUSINESS_ROOT = _resolve_path(os.getenv("BUSINESS_ROOT"), DATA_ROOT / "business")
+PATENT_APPLICATION_ROOT = _resolve_path(
+    os.getenv("PATENT_APPLICATION_ROOT"),
+    DATA_ROOT / "patent_application_official_pack(1)",
+)
 LOG_ROOT = _resolve_path(os.getenv("LOG_ROOT"), CHATBOT_ROOT / "logs")
 WIKI_AUDITOR_ROOT = _resolve_path(os.getenv("WIKI_AUDITOR_ROOT"), CHATBOT_ROOT / "logs" / "wiki_auditor")
 
@@ -48,7 +52,7 @@ ANSWER_MODEL = os.getenv("ANSWER_MODEL", GEN_MODEL or "qwen2.5:1.5b")
 OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.0"))
 INTENT_NUM_PREDICT = int(os.getenv("INTENT_NUM_PREDICT", "180"))
 ANSWER_NUM_PREDICT = int(os.getenv("ANSWER_NUM_PREDICT", "520"))
-LLM_TIMEOUT = min(int(os.getenv("CHATBOT_LLM_TIMEOUT", os.getenv("DYNAMIC_ANSWER_TIMEOUT", "30"))), 30)
+LLM_TIMEOUT = min(int(os.getenv("CHATBOT_LLM_TIMEOUT", "6")), 30)
 TOP_K = int(os.getenv("TOP_K", "10"))
 
 ENABLE_WEB_SEARCH = os.getenv("ENABLE_WEB_SEARCH", "true").lower() == "true"

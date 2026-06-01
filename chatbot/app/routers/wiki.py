@@ -48,3 +48,8 @@ def apply_review(request: AuditApplyRequest) -> dict:
         notes=request.notes,
         refresh_vectorstore=request.refresh_vectorstore,
     ).get("apply_result", {})
+
+
+@router.post("/audit-auto-refresh")
+def auto_refresh() -> dict:
+    return run_wiki_audit_graph(mode="auto_refresh", refresh_vectorstore=True).get("apply_result", {})

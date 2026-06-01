@@ -11,12 +11,13 @@ from ..vectorstore import (
     apply_human_review,
     audit_and_refresh_vectorstores,
     audit_review_report,
+    auto_audit_apply_and_refresh,
     refresh_vectorstores,
     vectorstore_status,
 )
 
 
-WikiAgentMode = Literal["audit", "review", "apply", "refresh", "status"]
+WikiAgentMode = Literal["audit", "review", "apply", "auto_refresh", "refresh", "status"]
 
 
 class WikiAgentState(TypedDict, total=False):
@@ -29,6 +30,7 @@ class WikiAgentState(TypedDict, total=False):
     audit: dict[str, Any]
     review: dict[str, Any]
     apply_result: dict[str, Any]
+    auto_refresh_result: dict[str, Any]
     refresh_result: dict[str, Any]
     vectorstore_status: dict[str, Any]
     route: str
@@ -51,7 +53,7 @@ def _trace(state: WikiAgentState, node: str, status: str, detail: str | None = N
 
 def route_request(state: WikiAgentState) -> WikiAgentState:
     mode = state.get("mode", "audit")
-    if mode not in {"audit", "review", "apply", "refresh", "status"}:
+    if mode not in {"audit", "review", "apply", "auto_refresh", "refresh", "status"}:
         mode = "audit"
     return {**state, "route": mode, "trace": _trace(state, "route_request", "success", f"mode={mode}")}
 
@@ -83,6 +85,20 @@ def apply_review_node(state: WikiAgentState) -> WikiAgentState:
     }
 
 
+def auto_refresh_node(state: WikiAgentState) -> WikiAgentState:
+    result = auto_audit_apply_and_refresh(refresh_vectorstore=bool(state.get("refresh_vectorstore", True)))
+    apply_result = result.get("apply_result", {})
+    audit = result.get("audit", {})
+    return {
+        **state,
+        "audit": audit,
+        "audit_id": apply_result.get("audit_id", audit.get("audit_id", state.get("audit_id"))),
+        "apply_result": apply_result,
+        "auto_refresh_result": result,
+        "trace": _trace(state, "auto_refresh", "success"),
+    }
+
+
 def refresh_vectorstore_node(state: WikiAgentState) -> WikiAgentState:
     refresh_result = refresh_vectorstores(use_reviewed=True)
     return {**state, "refresh_result": refresh_result, "trace": _trace(state, "refresh_vectorstore", "success")}
@@ -107,6 +123,8 @@ def finish_node(state: WikiAgentState) -> WikiAgentState:
         result["review"] = state["review"]
     if "apply_result" in state:
         result["apply_result"] = state["apply_result"]
+    if "auto_refresh_result" in state:
+        result["auto_refresh_result"] = state["auto_refresh_result"]
     if "refresh_result" in state:
         result["refresh_result"] = state["refresh_result"]
     return {**state, "result": result, "trace": _trace(state, "finish", "success")}
@@ -122,6 +140,7 @@ def build_wiki_audit_graph():
     graph.add_node("run_audit", run_audit_node)
     graph.add_node("load_review", load_review_node)
     graph.add_node("apply_review", apply_review_node)
+    graph.add_node("auto_refresh", auto_refresh_node)
     graph.add_node("refresh_vectorstore", refresh_vectorstore_node)
     graph.add_node("collect_status", collect_status_node)
     graph.add_node("finish", finish_node)
@@ -134,6 +153,7 @@ def build_wiki_audit_graph():
             "audit": "run_audit",
             "review": "load_review",
             "apply": "apply_review",
+            "auto_refresh": "auto_refresh",
             "refresh": "refresh_vectorstore",
             "status": "collect_status",
         },
@@ -141,6 +161,7 @@ def build_wiki_audit_graph():
     graph.add_edge("run_audit", "collect_status")
     graph.add_edge("load_review", "collect_status")
     graph.add_edge("apply_review", "collect_status")
+    graph.add_edge("auto_refresh", "collect_status")
     graph.add_edge("refresh_vectorstore", "collect_status")
     graph.add_edge("collect_status", "finish")
     graph.add_edge("finish", END)
@@ -165,7 +186,7 @@ def run_wiki_audit_graph(
         "exclude_finding_ids": exclude_finding_ids,
         "reviewer": reviewer,
         "notes": notes,
-        "refresh_vectorstore": bool(refresh_vectorstore) if refresh_vectorstore is not None else mode == "apply",
+        "refresh_vectorstore": bool(refresh_vectorstore) if refresh_vectorstore is not None else mode in {"apply", "auto_refresh"},
         "trace": [],
     }
     state = WIKI_AUDIT_GRAPH.invoke(initial_state)
@@ -176,4 +197,3 @@ def run_wiki_audit_graph(
 
 def wiki_audit_graph_mermaid() -> str:
     return WIKI_AUDIT_GRAPH.get_graph().draw_mermaid()
-
