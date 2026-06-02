@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 import json
 import re
+import unicodedata
 from typing import Any, TypedDict
 
 from ..application_data import (
@@ -18,11 +19,25 @@ from ..application_data import (
 from ..rag.evaluation import answer_quality_metrics
 from ..rag.sources import cards_from_web
 from ..rag.web_answers import search_web
-from ..rag.config import ANSWER_MODEL, ANSWER_NUM_PREDICT, INTENT_MODEL, INTENT_NUM_PREDICT
+from ..rag.config import (
+    ANSWER_LLM_TIMEOUT,
+    ANSWER_MODEL,
+    ANSWER_NUM_PREDICT,
+    INTENT_LLM_TIMEOUT,
+    INTENT_MODEL,
+    INTENT_NUM_PREDICT,
+)
 from ..rag.llm import call_ollama
 
 
-FOLLOWUP_TERMS = ("이거", "이것", "그거", "앞에서", "방금", "이전", "계속", "그 다음")
+FOLLOWUP_TERMS = ("이거", "이것", "그거", "앞에서", "방금", "이전", "계속", "그 다음", "그럼", "그러면", "이어서", "다음")
+REJECTION_TERMS = ("거절", "의견제출", "보정", "통지서", "불복", "심판", "실패", "리스크", "위험", "대응")
+INITIAL_PROCEDURE_TERMS = ("처음", "최초", "첫", "순서", "절차", "준비", "시작", "출원할 때", "어떻게")
+STRATEGY_TERMS = ("전략", "사업화", "해외", "우선심사", "심사유예", "투자", "라이선스", "시장", "동향")
+FORM_TERMS = ("서식", "서류", "준비물", "특허고객번호", "인증서", "전자출원", "제출", "위임장")
+EXTERNAL_TERMS = ("kipris", "kosis", "타빌리", "시장", "동향", "유사", "사업화", "최신", "경쟁사", "통계")
+NON_PATENT_PACK_TERMS = ("상표", "유사상품", "니스", "nice", "국제상품분류", "디자인")
+GUIDED_TEMPLATE_INTENTS = {"application_procedure", "forms_and_filing", "fees"}
 SOURCE_PLAN_BY_INTENT = {
     "application_procedure": ["application_guide", "process_checklist", "official_pack"],
     "forms_and_filing": ["patent_customer_number", "certificate", "filing_forms"],
@@ -32,6 +47,20 @@ SOURCE_PLAN_BY_INTENT = {
     "fees": ["fee_guide", "official_forms"],
     "application_strategy": ["strategy", "examination_timing", "publication", "kosis", "tavily"],
 }
+
+
+def _is_initial_application_question(text: str) -> bool:
+    if "출원" not in text:
+        return False
+    if any(term in text for term in REJECTION_TERMS):
+        return False
+    if any(term in text for term in STRATEGY_TERMS):
+        return False
+    return any(term in text for term in INITIAL_PROCEDURE_TERMS)
+
+
+def _norm(value: Any) -> str:
+    return unicodedata.normalize("NFC", str(value or ""))
 
 
 class ApplicationAgentState(TypedDict, total=False):
@@ -69,7 +98,7 @@ def resolve_application_history(state: ApplicationAgentState) -> ApplicationAgen
             parts.append(f"A: {str(answer)[:500]}")
     history_summary = "\n".join(parts)
     query = state.get("query", "")
-    retrieval_query = f"{history_summary}\n현재 질문: {query}" if history_summary and any(term in query for term in FOLLOWUP_TERMS) else query
+    retrieval_query = f"{history_summary}\n현재 질문: {query}" if history_summary else query
     return {
         **state,
         "history_summary": history_summary,
@@ -80,8 +109,14 @@ def resolve_application_history(state: ApplicationAgentState) -> ApplicationAgen
 
 def _rule_application_intent(query: str) -> dict[str, Any]:
     text = query.lower()
-    if any(term in text for term in ["거절", "의견제출", "보정", "통지서", "불복", "심판", "실패", "리스크", "위험", "대응"]):
+    if any(term in text for term in REJECTION_TERMS):
         intent = "rejection_response"
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
+    elif any(term in text for term in FORM_TERMS):
+        intent = "forms_and_filing"
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
+    elif _is_initial_application_question(text):
+        intent = "application_procedure"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in ["선행기술", "kipris", "검색", "cpc", "ipc", "유사"]):
         intent = "prior_art_search"
@@ -92,9 +127,6 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
     elif any(term in text for term in ["수수료", "비용", "감면", "등록료", "심사청구료"]):
         intent = "fees"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
-    elif any(term in text for term in ["서식", "특허고객번호", "인증서", "전자출원", "제출"]):
-        intent = "forms_and_filing"
-        source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in ["전략", "사업화", "해외", "우선심사", "심사유예"]):
         intent = "application_strategy"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
@@ -102,8 +134,8 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
         intent = "application_procedure"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
 
-    needs_table = any(term in text for term in ["표", "비교", "체크리스트", "단계", "정리"])
-    needs_diagram = any(term in text for term in ["다이어그램", "흐름", "프로세스", "순서"])
+    needs_table = any(term in text for term in ["표", "비교", "체크리스트", "단계", "정리", "순서"])
+    needs_diagram = any(term in text for term in ["다이어그램", "흐름", "프로세스", "그림"])
     if needs_table and needs_diagram:
         answer_format = "table_and_diagram"
     elif needs_table:
@@ -118,7 +150,7 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
         "answer_format": answer_format,
         "needs_table": needs_table,
         "needs_diagram": needs_diagram,
-        "needs_external": any(term in text for term in ["kipris", "kosis", "타빌리", "시장", "동향", "유사", "거절", "실패", "사업화", "최신"]),
+        "needs_external": any(term in text for term in [*EXTERNAL_TERMS, *REJECTION_TERMS]),
         "method": "rule",
     }
 
@@ -129,13 +161,30 @@ def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, 
     if intent_name not in SOURCE_PLAN_BY_INTENT:
         intent_name = _rule_application_intent(query)["intent"]
         repaired["intent"] = intent_name
-    repaired["source_plan"] = SOURCE_PLAN_BY_INTENT[intent_name]
     text = query.lower()
+    if any(term in text for term in FORM_TERMS):
+        intent_name = "forms_and_filing"
+        repaired["intent"] = intent_name
+        repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
+    elif _is_initial_application_question(text):
+        intent_name = "application_procedure"
+        repaired["intent"] = intent_name
+        repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
+    repaired["source_plan"] = SOURCE_PLAN_BY_INTENT[intent_name]
+    explicit_external = any(term in text for term in EXTERNAL_TERMS)
+    explicit_rejection = any(term in text for term in REJECTION_TERMS)
+    source_plan_needs_external = bool({"kipris", "kosis", "tavily"} & set(repaired.get("source_plan") or []))
+    llm_external_allowed = intent_name in {"prior_art_search", "rejection_response", "application_strategy"}
     repaired["needs_external"] = bool(
-        repaired.get("needs_external")
-        or {"kipris", "kosis", "tavily"} & set(repaired.get("source_plan") or [])
-        or any(term in text for term in ["kipris", "kosis", "타빌리", "시장", "동향", "유사", "거절", "실패", "사업화", "최신"])
+        explicit_external
+        or explicit_rejection
+        or source_plan_needs_external
+        or (bool(repaired.get("needs_external")) and llm_external_allowed)
     )
+    if intent_name in {"application_procedure", "forms_and_filing", "fees", "drafting_claims"} and not (
+        explicit_external or explicit_rejection
+    ):
+        repaired["needs_external"] = False
     return repaired
 
 
@@ -145,12 +194,13 @@ def route_application_question(state: ApplicationAgentState) -> ApplicationAgent
 Return JSON only with keys: intent, source_plan, answer_format, needs_table, needs_diagram, needs_external.
 Allowed intents: application_procedure, forms_and_filing, drafting_claims, prior_art_search, rejection_response, fees, application_strategy.
 Rules:
+- If the user asks "처음/최초/순서/절차/준비" around patent filing, use application_procedure unless rejection/failure is explicit.
 - If the user asks about failure factors, rejection, office-action response, risk or feedback, use rejection_response.
 - If the user asks about prior art, novelty, inventive step, KIPRIS, CPC/IPC or similar patents, use prior_art_search.
 - If the user asks about market, commercialization, timing, external trends or statistics, set needs_external=true and include tavily/kosis.
 Question: {state.get("query", "")}
 """
-    llm = call_ollama(prompt, model=INTENT_MODEL, num_predict=INTENT_NUM_PREDICT)
+    llm = call_ollama(prompt, model=INTENT_MODEL, num_predict=INTENT_NUM_PREDICT, timeout=INTENT_LLM_TIMEOUT)
     intent = dict(fallback)
     if llm.get("ok"):
         match = re.search(r"\{.*\}", str(llm.get("text") or ""), flags=re.S)
@@ -231,7 +281,8 @@ def retrieve_application_context(state: ApplicationAgentState) -> ApplicationAge
     merged_hits = _dedupe_hits(
         [*preferred_application_hits(preferred_terms, top_k=top_k * 2), *list(retrieval.get("hits") or [])]
     )
-    hits = _rerank_hits_for_intent(merged_hits, intent)[:top_k]
+    ranked_hits = _rerank_hits_for_intent(_filter_hits_for_intent(merged_hits, intent), intent)
+    hits = _limit_repeated_sources(ranked_hits, intent, top_k=top_k)
     retrieval["hits"] = hits
     retrieval["hit_count"] = len(hits)
     retrieval["reranked_for_intent"] = (state.get("intent") or {}).get("intent")
@@ -250,8 +301,8 @@ def retrieve_application_context(state: ApplicationAgentState) -> ApplicationAge
 
 def _intent_preference_terms(intent: str) -> list[str]:
     preferences = {
-        "application_procedure": ["patent_application_process_guide", "official_sources", "SRC-001", "SRC-016", "출원가이드", "출원 절차"],
-        "forms_and_filing": ["SRC-002", "SRC-003", "SRC-021", "특허고객번호", "인증서", "서식"],
+        "application_procedure": ["patent_application_process_guide", "SRC-001", "SRC-016", "출원가이드", "출원 절차", "손쉬운 이용"],
+        "forms_and_filing": ["SRC-002", "SRC-003", "SRC-021", "특허고객번호", "인증서", "서식", "서류", "위임장"],
         "drafting_claims": ["SRC-006", "SRC-017", "명세서", "청구항", "청구범위", "심사기준"],
         "prior_art_search": ["prior_art_search_workflow", "SRC-012", "SRC-013", "SRC-014", "KIPRIS", "CPC", "IPC"],
         "rejection_response": ["feedback", "patent_rejection", "SRC-020", "SRC-021", "거절", "의견제출", "보정", "심판", "피드백"],
@@ -274,15 +325,106 @@ def _dedupe_hits(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
-def _rerank_hits_for_intent(hits: list[dict[str, Any]], intent: dict[str, Any]) -> list[dict[str, Any]]:
-    terms = _intent_preference_terms(str(intent.get("intent") or "application_procedure"))
+def _hit_role(hit: dict[str, Any]) -> str:
+    metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+    return str(metadata.get("application_role") or metadata.get("source_role") or "")
 
-    def score(hit: dict[str, Any]) -> float:
-        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
-        haystack = " ".join(
+
+def _hit_path_text(hit: dict[str, Any]) -> str:
+    metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+    return _norm(
+        " ".join(
             [
                 str(metadata.get("file_name") or ""),
                 str(metadata.get("relative_source_path") or ""),
+                str(metadata.get("source_path") or ""),
+            ]
+        )
+    ).lower()
+
+
+def _is_structured_metadata_hit(hit: dict[str, Any]) -> bool:
+    path_text = _hit_path_text(hit)
+    return any(
+        marker in path_text
+        for marker in [
+            "official_sources.csv",
+            "official_sources.json",
+            "patent_sources.xlsx",
+            "readme.md",
+        ]
+    ) or path_text.endswith((".csv", ".json", ".xlsx"))
+
+
+def _display_source_name(name: Any) -> str | None:
+    source_name = _norm(name).strip()
+    if not source_name:
+        return None
+    lower = source_name.lower()
+    if lower in {"official_sources.csv", "official_sources.json", "patent_sources.xlsx", "readme.md"}:
+        return None
+    if any(term in source_name for term in NON_PATENT_PACK_TERMS):
+        return None
+    return source_name
+
+
+def _filter_hits_for_intent(hits: list[dict[str, Any]], intent: dict[str, Any]) -> list[dict[str, Any]]:
+    intent_name = str(intent.get("intent") or "application_procedure")
+    filtered = []
+    for hit in hits:
+        role = _hit_role(hit)
+        path_text = _hit_path_text(hit)
+        if any(term in path_text for term in NON_PATENT_PACK_TERMS):
+            continue
+        if intent_name in {"application_procedure", "forms_and_filing", "fees"} and any(
+            term in path_text for term in ["pct", "국제예비심사", "국제조사"]
+        ):
+            continue
+        is_feedback = role == "rejection_failure_feedback" or "feedback/" in path_text
+        is_rejection_doc = is_feedback or any(term in path_text for term in ["거절", "의견", "통지서", "rejection"])
+        if intent_name != "rejection_response" and is_rejection_doc:
+            continue
+        filtered.append(hit)
+    return filtered or hits
+
+
+def _limit_repeated_sources(hits: list[dict[str, Any]], intent: dict[str, Any], *, top_k: int) -> list[dict[str, Any]]:
+    intent_name = str(intent.get("intent") or "application_procedure")
+    max_per_file = 2 if intent_name == "rejection_response" else 1
+    if intent_name in {"application_procedure", "forms_and_filing", "fees", "drafting_claims"}:
+        ordered_hits = [hit for hit in hits if not _is_structured_metadata_hit(hit)]
+        ordered_hits.extend(hit for hit in hits if _is_structured_metadata_hit(hit))
+    else:
+        ordered_hits = hits
+    counts: dict[str, int] = {}
+    selected = []
+    overflow = []
+    for hit in ordered_hits:
+        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        key = str(metadata.get("source_path") or metadata.get("file_name") or "unknown")
+        if counts.get(key, 0) < max_per_file:
+            selected.append(hit)
+            counts[key] = counts.get(key, 0) + 1
+        else:
+            overflow.append(hit)
+        if len(selected) >= top_k:
+            return selected
+    return (selected + overflow)[:top_k]
+
+
+def _rerank_hits_for_intent(hits: list[dict[str, Any]], intent: dict[str, Any]) -> list[dict[str, Any]]:
+    terms = _intent_preference_terms(str(intent.get("intent") or "application_procedure"))
+    intent_name = str(intent.get("intent") or "application_procedure")
+
+    def score(hit: dict[str, Any]) -> float:
+        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        role = str(metadata.get("application_role") or "")
+        file_name = str(metadata.get("file_name") or "").lower()
+        rel_path = str(metadata.get("relative_source_path") or "").lower()
+        haystack = " ".join(
+            [
+                file_name,
+                rel_path,
                 str(hit.get("page_content") or "")[:1200],
             ]
         ).lower()
@@ -290,7 +432,25 @@ def _rerank_hits_for_intent(hits: list[dict[str, Any]], intent: dict[str, Any]) 
         for term in terms:
             if term.lower() in haystack:
                 boost += 0.16
-        if "download" not in str(metadata.get("relative_source_path") or "").lower():
+        if intent_name == "application_procedure":
+            if role == "application_procedure":
+                boost += 0.35
+            if any(term in file_name for term in ["process_guide", "손쉬운"]):
+                boost += 0.28
+            if file_name.endswith((".json", ".csv", ".xlsx")):
+                boost -= 0.85
+        elif intent_name == "forms_and_filing":
+            if role == "application_procedure":
+                boost += 0.18
+            if any(term in haystack for term in ["특허고객번호", "인증서", "서식", "위임장", "전자출원"]):
+                boost += 0.28
+            if file_name.endswith((".json", ".csv", ".xlsx")):
+                boost -= 0.65
+        elif intent_name == "rejection_response" and role == "rejection_failure_feedback":
+            boost += 0.45
+        elif intent_name == "prior_art_search" and role == "prior_art_search":
+            boost += 0.35
+        if "download" not in rel_path:
             boost += 0.08
         return float(hit.get("score") or 0.0) + boost
 
@@ -325,19 +485,39 @@ def _external_context_for_prompt(external: dict[str, Any]) -> str:
     return "\n\n".join(lines)
 
 
+def _clean_evidence_snippet(value: Any, *, limit: int = 260) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    text = re.sub(r'["{}\[\]]+', " ", text)
+    text = re.sub(r"\s+", " ", text).strip(" |,")
+    if len(text) > limit:
+        return text[:limit].rstrip() + "..."
+    return text
+
+
 def _fallback_application_answer(query: str, intent: dict[str, Any], hits: list[dict[str, Any]]) -> str:
     intent_name = str(intent.get("intent") or "application_procedure")
     source_names = []
+    display_source_names = []
     evidence_rows: list[tuple[str, str]] = []
     for hit in hits:
         metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
         name = metadata.get("file_name")
         if name and name not in source_names:
             source_names.append(str(name))
-        snippet = re.sub(r"\s+", " ", str(hit.get("page_content") or "")).strip()
-        if name and snippet and len(evidence_rows) < 4:
-            evidence_rows.append((str(name), snippet[:260]))
-    source_line = ", ".join(source_names[:5]) or "공식 출원 자료팩"
+        display_name = _display_source_name(name)
+        if display_name and display_name not in display_source_names:
+            display_source_names.append(display_name)
+        snippet = _clean_evidence_snippet(hit.get("page_content"))
+        role = str(metadata.get("application_role") or "")
+        if (
+            intent_name == "rejection_response"
+            and name
+            and snippet
+            and len(evidence_rows) < 4
+            and role == "rejection_failure_feedback"
+        ):
+            evidence_rows.append((str(name), snippet))
+    source_line = ", ".join(display_source_names[:5] or source_names[:3]) or "공식 출원 자료팩"
 
     templates = {
         "application_procedure": [
@@ -387,17 +567,32 @@ def _fallback_application_answer(query: str, intent: dict[str, Any], hits: list[
         ],
     }
     steps = templates.get(intent_name, templates["application_procedure"])
-    lines = [
-        f"## 답변 방향: {intent_name}",
-        "",
-        "공식팩과 생성된 피드백 리포트에서 찾은 근거를 기준으로 실행 순서와 판단 포인트를 정리했습니다.",
-        "",
-    ]
-    if evidence_rows:
+    intro = {
+        "application_procedure": "처음 특허 출원 준비 절차로 분류했습니다. 공식 출원 자료를 기준으로 실제 준비 순서를 먼저 정리합니다.",
+        "rejection_response": "거절/실패 대응 질문으로 분류했습니다. 의견서와 피드백 리포트를 기준으로 문제 원인과 보정 방향을 나눠 봅니다.",
+        "prior_art_search": "선행기술 조사 질문으로 분류했습니다. 검색식, 분류, 유사문헌 선별, 차별점 정리 순서로 답합니다.",
+        "drafting_claims": "명세서/청구항 작성 질문으로 분류했습니다. 권리범위 설계와 기재요건을 중심으로 답합니다.",
+        "forms_and_filing": "서식/전자출원 준비 질문으로 분류했습니다. 계정, 인증서, 제출서류 순서로 답합니다.",
+        "fees": "수수료/비용 질문으로 분류했습니다. 출원료, 심사청구료, 감면, 등록료를 나눠 답합니다.",
+        "application_strategy": "출원 전략 질문으로 분류했습니다. 권리화 목적, 청구범위, 심사전략, 사업 일정을 함께 봅니다.",
+    }.get(intent_name, "공식 출원 자료를 기준으로 답변합니다.")
+    headings = {
+        "application_procedure": "## 처음 특허 출원 준비 순서",
+        "forms_and_filing": "## 특허 출원 준비 서류와 제출 준비",
+        "fees": "## 특허 출원 비용 확인 순서",
+        "rejection_response": "## 거절/실패 대응 방향",
+        "prior_art_search": "## 선행기술 조사 순서",
+        "drafting_claims": "## 명세서와 청구항 작성 방향",
+        "application_strategy": "## 특허 출원 전략",
+    }
+    lines = [headings.get(intent_name, "## 특허 출원 도우미 답변"), "", intro, ""]
+    if evidence_rows and intent_name == "rejection_response":
         lines.extend(["### 근거에서 바로 확인한 내용"])
         for name, snippet in evidence_rows:
             lines.append(f"- **{name}**: {snippet}")
         lines.append("")
+    else:
+        lines.extend(["### 참조 공식 자료", f"- {source_line}", ""])
     if intent.get("answer_format") in {"checklist_table", "table_and_diagram"}:
         if intent_name == "rejection_response":
             lines.extend(["| 진단 축 | 확인할 근거 | 대응 전략 | 참조 자료 |", "| --- | --- | --- | --- |"])
@@ -417,17 +612,40 @@ def _fallback_application_answer(query: str, intent: dict[str, Any], hits: list[
     else:
         for index, (title, action) in enumerate(steps, 1):
             lines.append(f"{index}. **{title}**: {action}")
-    lines.extend(
+    next_actions = {
+        "application_procedure": [
+            "발명 요약 1페이지를 먼저 만듭니다: 문제, 핵심 구성, 효과, 적용 제품을 한 줄씩 적습니다.",
+            "KIPRIS/CPC/IPC 키워드로 선행기술을 찾고, 유사문헌과 다른 점을 표로 정리합니다.",
+            "독립항/종속항 초안을 만든 뒤 명세서, 요약서, 도면, 출원인 정보를 준비합니다.",
+            "특허고객번호와 인증서, 수수료, 심사청구 여부를 확인한 뒤 전자출원합니다.",
+        ],
+        "rejection_response": [
+            "거절의견서 원문에서 거절 청구항, 인용문헌, 제출기한을 먼저 체크합니다.",
+            "기존 특허 원본/보고서가 연결되어 있으면 청구항별 차별점과 평가 리스크를 같이 대조합니다.",
+            "보정안은 신규사항 추가 금지와 권리범위 축소 위험을 확인한 뒤 의견서 주장과 함께 제출합니다.",
+        ],
+        "prior_art_search": [
+            "발명의 핵심 키워드, 동의어, 영문 표현, IPC/CPC 후보를 먼저 만듭니다.",
+            "유사문헌별 청구항 대응표를 만들고 신규성/진보성 위험을 표시합니다.",
+            "가장 가까운 문헌 3~5개를 기준으로 청구항 차별점을 다시 설계합니다.",
+        ],
+        "forms_and_filing": [
+            "특허고객번호를 먼저 발급하고 전자출원용 공동인증서 사용등록을 확인합니다.",
+            "출원서, 명세서, 청구범위, 요약서, 도면, 위임장 여부를 체크리스트로 모읍니다.",
+            "출원인/발명자 정보, 우선권 주장 여부, 대리인 위임 여부를 제출 전에 대조합니다.",
+            "특허로 전자출원 후 접수번호와 수수료 납부 상태를 확인합니다.",
+        ],
+    }.get(
+        intent_name,
         [
-            "",
-            "### 다음 액션",
-            "1. 거절의견서 원문에서 거절 청구항, 인용문헌, 제출기한을 먼저 체크합니다.",
-            "2. 기존 특허 원본/보고서가 연결되어 있으면 청구항별 차별점과 평가 리스크를 같이 대조합니다.",
-            "3. 보정안은 신규사항 추가 금지와 권리범위 축소 위험을 확인한 뒤 의견서 주장과 함께 제출합니다.",
-            "",
-            f"확인한 공식 자료: {source_line}",
-        ]
+            "현재 질문의 목적을 한 문장으로 정리합니다.",
+            "공식자료 근거와 부족한 자료를 분리합니다.",
+            "후속 질문에서 필요한 파일이나 의견서, 기존 보고서를 연결해 더 구체화합니다.",
+        ],
     )
+    lines.extend(["", "### 다음 액션"])
+    lines.extend(f"{index}. {action}" for index, action in enumerate(next_actions, 1))
+    lines.extend(["", f"확인한 공식 자료: {source_line}"])
     if intent.get("needs_diagram") or intent.get("answer_format") == "table_and_diagram":
         lines.extend(
             [
@@ -444,10 +662,35 @@ def _fallback_application_answer(query: str, intent: dict[str, Any], hits: list[
     return "\n".join(lines)
 
 
+def _answer_needs_guided_repair(query: str, intent: dict[str, Any], answer: Any) -> bool:
+    intent_name = str(intent.get("intent") or "application_procedure")
+    if intent_name not in {"application_procedure", "forms_and_filing", "fees", "drafting_claims"}:
+        return False
+    query_text = _norm(query).lower()
+    answer_text = _norm(answer).lower()
+    if any(term in query_text for term in ["디자인", "상표", "pct", "국제출원", "국제예비심사"]):
+        return False
+    off_topic_terms = [
+        "디자인",
+        "디자인보호법",
+        "물품류",
+        "상표",
+        "니스",
+        "국제예비심사",
+        "pct",
+    ]
+    if any(term.lower() in answer_text for term in off_topic_terms):
+        return True
+    if intent_name != "rejection_response" and all(term in answer_text for term in ["거절", "불복", "실패 요인"]):
+        return True
+    return False
+
+
 def answer_application_question(state: ApplicationAgentState) -> ApplicationAgentState:
     retrieval = state.get("retrieval") or {}
     hits = list(retrieval.get("hits") or [])
     intent = state.get("intent") or {}
+    intent_name = str(intent.get("intent") or "application_procedure")
     prompt = f"""당신은 한국 특허 출원을 도와주는 챗봇입니다.
 반드시 제공된 공식팩/피드백 리포트 근거 안에서 답하고, 부족한 부분은 추가 확인이 필요하다고 말하세요.
 질문 의도: {intent}
@@ -464,16 +707,25 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
 답변 요구:
 - 한국어로 구체적인 실행 순서를 제시합니다.
 - 출원 절차, 거절 대응, 선행기술 검색, 실패 요인 분석, 피드백, 다음 액션 중 의도에 맞는 항목을 우선합니다.
+- application_procedure는 처음 출원 준비 순서에만 집중하고, 거절의견서/보정/불복 문장은 중간사건 설명이 필요할 때만 짧게 언급합니다.
 - 실패 요인 질문이면 신규성/진보성/기재불비/청구범위/절차 기한/보정 리스크를 나눠 진단합니다.
-- feedback 폴더 근거가 있으면 실제 의견서/기존 평가 보고서와 연결된 후속 조치로 우선 사용합니다.
+- feedback 폴더 근거는 rejection_response 또는 실패/거절 질문일 때만 우선 사용합니다.
 - 외부 근거는 공식팩 근거를 보강할 때만 사용하고, KIPRIS/KOSIS/Tavily 중 어떤 경로인지 표시합니다.
 - 부족한 데이터와 추가하면 좋은 데이터도 마지막에 제안합니다.
 - 표가 필요하면 Markdown 표를 포함합니다.
 - 다이어그램이 필요하면 Mermaid flowchart를 포함합니다.
 - 마지막에는 확인해야 할 공식 자료명을 짧게 적습니다.
 """
-    llm = call_ollama(prompt, model=ANSWER_MODEL, num_predict=ANSWER_NUM_PREDICT)
+    use_guided_template = intent_name in GUIDED_TEMPLATE_INTENTS
+    if use_guided_template:
+        llm = {"ok": False, "text": "", "error": "guided_template_intent"}
+    else:
+        llm = call_ollama(prompt, model=ANSWER_MODEL, num_predict=ANSWER_NUM_PREDICT, timeout=ANSWER_LLM_TIMEOUT)
     answer = llm.get("text") if llm.get("ok") else _fallback_application_answer(state.get("query", ""), intent, hits)
+    repaired_answer = use_guided_template
+    if _answer_needs_guided_repair(state.get("query", ""), intent, answer):
+        answer = _fallback_application_answer(state.get("query", ""), intent, hits)
+        repaired_answer = True
     source_cards = cards_from_application_hits(hits, query=state.get("query", ""))
     external_results = (((state.get("external_context") or {}).get("web") or {}).get("results") or [])
     if external_results:
@@ -495,6 +747,8 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
             },
             "llm_ok": bool(llm.get("ok")),
             "llm_error": llm.get("error"),
+            "answer_repaired": repaired_answer,
+            "answer_strategy": "guided_template" if use_guided_template else "llm_then_guardrail",
             "answer_format_plan": intent.get("answer_format"),
             "source_plan": intent.get("source_plan"),
         },

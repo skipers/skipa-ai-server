@@ -18,8 +18,15 @@
 - LangGraph 기반 챗봇 답변, wiki 감사, 전처리/재색인 workflow
 - 감사 자동 적용 후 승인 데이터만 반영하는 안전한 vectorstore refresh
 - 공식 출원 자료팩 기반 특허 출원 도우미 챗봇
+- 출원 예정/실패 특허 분석 피드백 리포트 생성 및 출원 vectorstore 반영
 - Swagger UI를 통한 API 테스트
 - API 테스트용 입력/출력 산출물 분리 저장
+
+## 발표/사용 설명서
+
+챗봇, 출원 도우미, wiki 감사, 보고서 생성, 중앙 데이터 폴더의 전체 연결 구조와
+API별 사용법은 [docs/CHATBOT_ARCHITECTURE_AND_USAGE.md](docs/CHATBOT_ARCHITECTURE_AND_USAGE.md)에
+정리되어 있습니다.
 
 ## 디렉토리 구조
 
@@ -274,6 +281,7 @@ POST /api/v1/application/feedback/create
 POST /api/v1/application/feedback/upload
 POST /api/v1/application/sources/download
 GET  /api/v1/application/sources/download-report
+POST /api/v1/application/report/generate
 POST /api/v1/application/index/refresh
 POST /api/v1/application/chat
 GET  /api/v1/application/chat/mermaid
@@ -1048,9 +1056,12 @@ flowchart TD
   FB --> HTML[feedback_report.html]
   MD --> IX
   HTML --> UI[UI에서 HTML 보고서 열기]
-  DL[POST /api/v1/application/sources/download] --> D
-  PP[POST /api/v1/application/preprocess] --> IX
-  RF[POST /api/v1/application/index/refresh] --> IX
+  BTN[UI 출원 데이터 준비 버튼] --> PP[POST /api/v1/application/preprocess]
+  BTN --> FB
+  BTN --> RF[POST /api/v1/application/index/refresh]
+  RP[POST /api/v1/application/report/generate] --> FB
+  PP --> IX
+  RF --> IX
   R -. searches .-> IX
   I -. routes .-> P[procedure/forms/claims/prior-art/rejection/fees/strategy]
   E -. uses .-> EXT[KIPRIS/KOSIS/Tavily status + web evidence]
@@ -1059,16 +1070,18 @@ flowchart TD
 출원 도우미는 기존 특허별 가치평가 챗봇과 분리된 라우팅을 사용합니다. 질문이
 거절이유 대응이면 의견제출통지서/보정/심판 근거를 우선하고, 선행기술 질문이면
 KIPRIS/CPC/IPC 검색 자료를 우선하며, 처음 출원 절차 질문이면 특허로 출원가이드와
-절차 체크리스트를 우선 검색합니다. 다운로드 또는 크롤링에 실패한 URL은
-`data/patent_application_official_pack(1)/download_report.md`에 남습니다.
+절차 체크리스트를 우선 검색합니다. UI의 `출원 데이터 준비` 버튼은 공식팩 전처리,
+거절의견서 피드백 생성, 출원 index refresh를 한 번에 실행합니다. 다운로드 또는
+크롤링에 실패한 URL은 `data/patent_application_official_pack(1)/download_report.md`에 남습니다.
 실패 요인 분석/거절 대응/사업화/최신 동향처럼 내부 공식팩만으로 부족한 질문은
 `KIPRIS_API_KEY`, `KOSIS_API_KEY`, `TAVILY_API_KEY` 설정 상태를 metrics에 표시하고,
 사용 가능한 외부 근거를 답변의 근거 카드에 함께 붙입니다.
 
 거절의견서 피드백 흐름은 출원 도우미 index에 연결됩니다. 기본 테스트 파일은
 `data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf`이고,
-Swagger에서는 `POST /api/v1/application/feedback/create`, 파일 업로드 UI에서는
-`POST /api/v1/application/feedback/upload`를 사용합니다. 생성 결과는
+Swagger에서는 `POST /api/v1/application/feedback/create`,
+출원 예정/실패 특허 분석 보고서 연결은 `POST /api/v1/application/report/generate`,
+파일 업로드 UI에서는 `POST /api/v1/application/feedback/upload`를 사용합니다. 생성 결과는
 `data/patent_application_official_pack(1)/feedback/<timestamp>_<title>/feedback.md`,
 `feedback_report.html`, `metadata.json`에 저장되고, `refresh_index=true`이면 바로
 출원 도우미 vectorstore에 반영됩니다. 이후 `/api/v1/application/chat`에서

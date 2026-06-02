@@ -13,6 +13,7 @@ import math
 import mimetypes
 import os
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.error import HTTPError, URLError
@@ -62,6 +63,11 @@ RECOMMENDED_APPLICATION_ADDITIONS = [
         "preferred_source": "KOSIS, KIPRIS 통계, Tavily 보강 검색",
     },
 ]
+NON_PATENT_APPLICATION_TERMS = ("상표", "유사상품", "니스", "nice", "국제상품분류", "디자인")
+
+
+def _norm(value: Any) -> str:
+    return unicodedata.normalize("NFC", str(value or ""))
 
 
 def _now() -> str:
@@ -261,22 +267,31 @@ def _iter_source_files() -> Iterable[Path]:
         "file_names.md",
         "open_index.html",
         "README.md",
+        "official_download_links.html",
+        "official_sources.csv",
+        "official_sources.json",
+        "patent_rejection_notice_original_links.html",
+        "patent_rejection_notice_sources.csv",
+        "patent_rejection_notice_sources.json",
+        "patent_sources.xlsx",
     }
     for path in sorted(PATENT_APPLICATION_ROOT.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in allowed:
             continue
+        normalized_name = _norm(path.name)
+        normalized_path = _norm(str(path))
+        if any(term in normalized_name or term in normalized_path for term in NON_PATENT_APPLICATION_TERMS):
+            continue
         if any(part in skip_parts for part in path.relative_to(PATENT_APPLICATION_ROOT).parts):
             continue
-        if path.parent.name == "downloads" and path.name in generated_names:
-            continue
-        if path.parent == PATENT_APPLICATION_ROOT and path.name in {"download_manifest.json", "download_report.md"}:
+        if path.name in generated_names:
             continue
         yield path
 
 
 def _application_file_role(path: Path) -> str:
-    name = path.name.lower()
-    text = str(path).lower()
+    name = _norm(path.name).lower()
+    text = _norm(str(path)).lower()
     if "feedback" in text or "피드백" in name:
         return "rejection_failure_feedback"
     if "rejection" in text or "거절" in name or "의견" in name or "통지서" in name:
@@ -677,6 +692,9 @@ def application_index_status() -> dict[str, Any]:
         "root": str(PATENT_APPLICATION_ROOT),
         "root_exists": PATENT_APPLICATION_ROOT.exists(),
         "index_exists": _documents_path().exists(),
+        "document_count": manifest.get("document_count"),
+        "source_file_count": manifest.get("source_file_count"),
+        "source_roles": manifest.get("source_roles"),
         "manifest": manifest,
         "feedback": {
             "root": str(_feedback_root()),

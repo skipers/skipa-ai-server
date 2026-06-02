@@ -436,6 +436,14 @@ def post_application_feedback_create(request: PatentApplicationFeedbackRequest) 
     return create_application_feedback_report(**request.model_dump())
 
 
+@application_router.post("/report/generate", summary="출원 예정/실패 특허 분석 보고서 생성 및 vectorstore 반영")
+def post_application_report_generate(request: PatentApplicationFeedbackRequest) -> dict:
+    payload = request.model_dump()
+    if payload.get("title") == "특허 출원 실패/거절 대응 피드백":
+        payload["title"] = "특허 출원/실패 분석 보고서"
+    return create_application_feedback_report(**payload)
+
+
 @application_router.post("/feedback/upload", summary="의견서 PDF/문서 업로드 후 출원 피드백 HTML 생성 및 vectorstore 갱신")
 def post_application_feedback_upload(
     file: UploadFile = File(..., description="의견서, 거절이유 통지서, 출원 실패 분석 문서 PDF/HWP/HTML/TXT"),

@@ -3,6 +3,8 @@ const state = {
   cards: [],
   audit: null,
   mermaid: "",
+  chatHistory: [],
+  applicationHistory: [],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -317,6 +319,39 @@ function appendMessage(text, className, rich = false, containerId = "messages") 
   return message;
 }
 
+function rememberHistory(kind, question, answer, extra = {}) {
+  const key = kind === "application" ? "applicationHistory" : "chatHistory";
+  state[key].push({ question, answer: String(answer || "").slice(0, 3000), ...extra });
+  state[key] = state[key].slice(-6);
+}
+
+function focusAnswerStart(message) {
+  window.requestAnimationFrame(() => {
+    message.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+function delay(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function renderAnswerProgressively(message, answer) {
+  const text = String(answer || "");
+  if (!text) {
+    message.textContent = "";
+    return;
+  }
+  const step = text.length > 2500 ? 180 : 90;
+  message.textContent = "";
+  for (let index = step; index < text.length; index += step) {
+    message.textContent = text.slice(0, index);
+    focusAnswerStart(message);
+    await delay(10);
+  }
+  message.innerHTML = renderAnswerHtml(text);
+  focusAnswerStart(message);
+}
+
 function showModal(title, bodyHtml) {
   $("modalTitle").textContent = title;
   $("modalBody").innerHTML = bodyHtml;
@@ -571,7 +606,6 @@ function appendSources(sourceCards, containerId = "messages") {
   });
   details.appendChild(list);
   $(containerId).appendChild(details);
-  $(containerId).scrollTop = $(containerId).scrollHeight;
 }
 
 async function loadBaseData() {
@@ -733,66 +767,29 @@ async function checkGlobalIndex() {
   }
 }
 
-async function downloadApplicationSources() {
-  const button = $("downloadApplicationButton");
-  setBusy(button, true, "다운로드 중");
+async function prepareApplicationData() {
+  const button = $("prepareApplicationButton");
+  setBusy(button, true, "준비 중");
   try {
-    const result = await api("/api/v1/application/sources/download", {
-      method: "POST",
-      body: JSON.stringify({ force: false, timeout: 20, limit: null, include_embedded: true }),
-    });
-    setStatus(`공식자료 다운로드 · 성공 ${result.success_count ?? 0}건 · 내부문서 ${result.embedded_url_count ?? 0}건 · 실패 ${result.failure_count ?? 0}건`);
-    showModal("출원 공식자료 다운로드", jsonBlock(result));
-  } finally {
-    setBusy(button, false);
-  }
-}
-
-async function refreshApplicationIndex() {
-  const button = $("refreshApplicationIndexButton");
-  setBusy(button, true, "갱신 중");
-  try {
-    const result = await api("/api/v1/application/index/refresh", { method: "POST" });
-    setStatus(`출원 인덱스 갱신 · 문서 ${result.document_count ?? 0}개`);
-    showModal("출원 인덱스", jsonBlock(result));
-  } finally {
-    setBusy(button, false);
-  }
-}
-
-async function preprocessApplicationPack() {
-  const button = $("preprocessApplicationButton");
-  setBusy(button, true, "전처리 중");
-  try {
-    const result = await api("/api/v1/application/preprocess", {
+    const preprocess = await api("/api/v1/application/preprocess", {
       method: "POST",
       body: JSON.stringify({ refresh_index: true }),
     });
-    setStatus(`출원팩 전처리 · 파일 ${result.active_file_count ?? 0}개 · index ${result.index?.document_count ?? 0}개`);
-    showModal("출원팩 전처리", jsonBlock(result));
-  } finally {
-    setBusy(button, false);
-  }
-}
-
-async function createApplicationFeedback() {
-  const button = $("feedbackApplicationButton");
-  setBusy(button, true, "생성 중");
-  try {
-    const result = await api("/api/v1/application/feedback/create", {
+    const feedback = await api("/api/v1/application/feedback/create", {
       method: "POST",
       body: JSON.stringify({
         title: "특허거절의견서 기반 출원 피드백",
         opinion_file_path: "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf",
         reviewer: "browser-ui",
-        notes: "UI default rejection opinion feedback",
+        notes: "UI combined prepare flow",
         refresh_index: true,
       }),
     });
-    setStatus(`피드백 생성 · index ${result.index?.document_count ?? 0}개`);
+    const refresh = await api("/api/v1/application/index/refresh", { method: "POST" });
+    setStatus(`출원 데이터 준비 완료 · 파일 ${preprocess.active_file_count ?? 0}개 · index ${refresh.document_count ?? 0}개`);
     showModal(
-      "출원 피드백 리포트",
-      `${result.html_url ? `<p><a href="${escapeHtml(result.html_url)}" target="_blank" rel="noreferrer">HTML 리포트 열기</a></p>` : ""}${jsonBlock(result)}`,
+      "출원 데이터 준비",
+      `${feedback.html_url ? `<p><a href="${escapeHtml(feedback.html_url)}" target="_blank" rel="noreferrer">피드백 HTML 리포트 열기</a></p>` : ""}${jsonBlock({ preprocess, feedback, refresh })}`,
     );
   } finally {
     setBusy(button, false);
@@ -801,7 +798,7 @@ async function createApplicationFeedback() {
 
 async function showApplicationStatus() {
   const status = await api("/api/v1/application/status");
-  setStatus(`출원 도우미 · index ${status.index_exists ? "있음" : "없음"} · 다운로드 실패 ${status.download_report?.failure_count ?? 0}건`);
+  setStatus(`출원 도우미 · index ${status.index_exists ? "있음" : "없음"} · 문서 ${status.document_count ?? 0}개 · 다운로드 실패 ${status.download_report?.failure_count ?? 0}건`);
   showModal("출원 도우미 상태", jsonBlock(status));
 }
 
@@ -838,12 +835,15 @@ async function ask() {
         question: text,
         patent_id: selected === "__all__" ? null : selected,
         user_id: "browser-ui",
-        chat_history: [],
+        chat_history: state.chatHistory,
+        context_patent_id: selected === "__all__" ? null : selected,
       }),
     });
-    pending.innerHTML = renderAnswerHtml(data.answer || "");
+    await renderAnswerProgressively(pending, data.answer || "");
     appendAnswerMeta(data.metrics || {}, data.source_cards || []);
     appendSources(data.source_cards || []);
+    focusAnswerStart(pending);
+    rememberHistory("chat", text, data.answer, { patent_id: selected === "__all__" ? null : selected });
     setStatus(`답변 완료 · 근거 ${(data.source_cards || []).length}개`);
   } catch (error) {
     pending.textContent = `요청 실패: ${error.message}`;
@@ -867,14 +867,16 @@ async function askApplication() {
       body: JSON.stringify({
         question: text,
         user_id: "browser-ui",
-        chat_history: [],
+        chat_history: state.applicationHistory,
         top_k: 6,
         refresh_index: false,
       }),
     });
-    pending.innerHTML = renderAnswerHtml(data.answer || "");
+    await renderAnswerProgressively(pending, data.answer || "");
     appendAnswerMeta(data.metrics || {}, data.source_cards || [], "applicationMessages");
     appendSources(data.source_cards || [], "applicationMessages");
+    focusAnswerStart(pending);
+    rememberHistory("application", text, data.answer, { patent_id: "patent_application" });
     setStatus(`출원 답변 완료 · 근거 ${(data.source_cards || []).length}개`);
   } catch (error) {
     pending.textContent = `요청 실패: ${error.message}`;
@@ -900,10 +902,7 @@ function bindEvents() {
   $("loadApplicationWorkflowButton").addEventListener("click", () => loadApplicationWorkflow().catch((error) => setStatus(error.message)));
   $("loadWorkflowButton").addEventListener("click", () => loadWorkflow().catch((error) => setStatus(error.message)));
   $("loadIngestionWorkflowButton").addEventListener("click", () => loadIngestionWorkflow().catch((error) => setStatus(error.message)));
-  $("downloadApplicationButton").addEventListener("click", () => downloadApplicationSources().catch((error) => setStatus(error.message)));
-  $("preprocessApplicationButton").addEventListener("click", () => preprocessApplicationPack().catch((error) => setStatus(error.message)));
-  $("feedbackApplicationButton").addEventListener("click", () => createApplicationFeedback().catch((error) => setStatus(error.message)));
-  $("refreshApplicationIndexButton").addEventListener("click", () => refreshApplicationIndex().catch((error) => setStatus(error.message)));
+  $("prepareApplicationButton").addEventListener("click", () => prepareApplicationData().catch((error) => setStatus(error.message)));
   $("applicationStatusButton").addEventListener("click", () => showApplicationStatus().catch((error) => setStatus(error.message)));
   $("sendButton").addEventListener("click", ask);
   $("sendApplicationButton").addEventListener("click", askApplication);
