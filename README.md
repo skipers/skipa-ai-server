@@ -87,11 +87,11 @@ skipa-ai-server/
       schemas.py          # Swagger request/response schema
       routers/
         chatbot.py        # 챗봇, rag, agent, wiki API router
-      legacy/             # rag.zip에서 복구한 전처리/RAG 엔진
+      legacy/             # Hybrid Retrieval로 통합한 전처리/RAG 엔진
         ingest.py         # PDF/HTML/JSON chunk, visual asset 추출
         rag_pipeline.py   # FAISS + BM25 + RRF + intent/web 답변 엔진
       rag/
-        legacy_adapter.py # 현재 중앙 data 구조와 legacy 엔진 연결
+        legacy_adapter.py # 현재 중앙 data 구조와 Hybrid Retrieval 엔진 연결
       agents/
         graph.py          # 챗봇 LangGraph 답변 workflow
         application_graph.py # 특허 출원 도우미 LangGraph workflow
@@ -211,7 +211,7 @@ app/schemas.py
   Swagger에서 보이는 query/search request와 response schema를 정의합니다.
 
 app/routers/chatbot.py
-  /api/v1/chatbot, /api/v1/rag, /api/v1/agent, /api/v1/wiki API를 제공합니다.
+  /api/v1/chatbot, /api/v1/patent-chat, /api/v1/agent, /api/v1/wiki API를 제공합니다.
 ```
 
 현재 챗봇 Swagger API는 중앙 데이터 연결 확인, RAG 검색, 실제 답변 생성,
@@ -240,20 +240,20 @@ POST /api/v1/chatbot/vectorstore/refresh
 POST /api/v1/chatbot/search
 POST /api/v1/chatbot/query
 POST /api/v1/chatbot/answer
-POST /api/v1/rag/query
-POST /api/v1/rag/answer
-GET  /api/v1/rag/engine/status
-GET  /api/v1/rag/patents
-GET  /api/v1/rag/patent-summary-cards
-POST /api/v1/rag/chat
-POST /api/v1/rag/global/chat
-POST /api/v1/rag/reindex
-POST /api/v1/rag/global/reindex
-POST /api/v1/rag/business/reindex
-GET  /api/v1/rag/ingestion/mermaid
-GET  /api/v1/rag/chat/mermaid
-GET  /api/v1/rag/page-image
-POST /api/v1/rag/feedback
+POST /api/v1/patent-chat/query
+POST /api/v1/patent-chat/answer
+GET  /api/v1/patent-chat/engine/status
+GET  /api/v1/patent-chat/patents
+GET  /api/v1/patent-chat/patent-summary-cards
+POST /api/v1/patent-chat/chat
+POST /api/v1/patent-chat/global/chat
+POST /api/v1/patent-chat/reindex
+POST /api/v1/patent-chat/global/reindex
+POST /api/v1/patent-chat/business/reindex
+GET  /api/v1/patent-chat/ingestion/mermaid
+GET  /api/v1/patent-chat/chat/mermaid
+GET  /api/v1/patent-chat/page-image
+POST /api/v1/patent-chat/feedback
 POST /api/v1/agent/query
 POST /api/v1/agent/answer
 GET  /api/v1/chatbot/wiki-audit/report
@@ -451,12 +451,12 @@ flowchart LR
     C8[POST /api/v1/chatbot/query]
     C9[local_vectorstore_search]
     C10[chunk keyword fallback]
-    C11[POST /api/v1/rag/chat]
+    C11[POST /api/v1/patent-chat/chat]
     C12[ChatGraph route_question]
     C13[Legacy rag.zip RAG]
     C14[FAISS + BM25 + RRF]
     C15[Intent/Web/Search Agent]
-    C16[POST /api/v1/rag/reindex]
+    C16[POST /api/v1/patent-chat/reindex]
     C17[IngestionGraph]
   end
 
@@ -698,7 +698,7 @@ index 재생성 단계에서 이 파일들을 읽으면 새 보고서가 RAG에 
 
 ```mermaid
 flowchart TD
-  A[POST /api/v1/rag/reindex] --> B[inspect_request]
+  A[POST /api/v1/patent-chat/reindex] --> B[inspect_request]
   B --> C{scope}
   C -->|patent| D[build_or_load_patent_index]
   C -->|global| E[build_or_load_global_index]
@@ -801,8 +801,8 @@ POST /api/v1/wiki/agent/run
 GET  /api/v1/wiki/agent/mermaid
 POST /api/v1/chatbot/answer
 POST /api/v1/chatbot/query
-POST /api/v1/rag/answer
-POST /api/v1/rag/query
+POST /api/v1/patent-chat/answer
+POST /api/v1/patent-chat/query
 GET  /api/v1/wiki/audit-report
 ```
 
@@ -985,7 +985,7 @@ data/mapped_patent_reports/<patent_id>/original/input/
 4. 특허 원문/보고서 질문이면 원본 PDF와 보고서 core vectorstore만 검색
 5. 최신 시장, 경쟁사, 외부 제도처럼 웹검색 의도가 있으면 해당 특허의 wiki vectorstore를 gate로 먼저 확인
 6. wiki 유사도가 충분하면 wiki를 웹검색 대체 근거로 사용하고, 부족하면 Tavily 웹검색 실행
-7. rag.zip에서 복구한 FAISS + BM25 + RRF RAG 엔진과 LangGraph 답변 agent가 원문/보고서/core 근거와 wiki/web 보강 근거로 답변 생성
+7. Hybrid Retrieval(FAISS + BM25 + RRF) 엔진과 LangGraph 답변 agent가 원문/보고서/core 근거와 wiki/web 보강 근거로 답변 생성
 8. 질문이 표/다이어그램을 요구하면 Markdown 표 또는 Mermaid 다이어그램을 포함
 9. 답변, source_cards, agent_trace, confidence/latency/answer_mode metrics를 반환
 ```
@@ -994,7 +994,7 @@ data/mapped_patent_reports/<patent_id>/original/input/
 
 ```mermaid
 flowchart TD
-  Q[POST /api/v1/rag/chat] --> H[resolve_history_context]
+  Q[POST /api/v1/patent-chat/chat] --> H[resolve_history_context]
   H --> I[route_question lightweight LLM intent]
   I --> X{web needed?}
   X -->|no| C[core original/report vectorstore]
@@ -1002,9 +1002,13 @@ flowchart TD
   W --> Y{wiki similarity >= threshold?}
   Y -->|yes| WG[use wiki as web replacement]
   Y -->|no| WEB[Tavily web search]
-  C --> R[answer_from_patent_context]
-  WG --> R
-  WEB --> R
+  C --> HR[Hybrid Retrieval 먼저 시도]
+  WG --> HR
+  WEB --> HR
+  HR --> SG{source guard 통과?}
+  SG -->|yes| R[FAISS+BM25+RRF 답변 사용]
+  SG -->|no| FB[core vectorstore fallback]
+  FB --> R
   R --> F[finish_answer]
   F --> O[answer + source_cards + metrics]
 
@@ -1012,7 +1016,7 @@ flowchart TD
   I -. decides .-> AF[answer_format: text/table/diagram]
   W -. reads .-> VS[wiki/vectorstore per patent only]
   WEB -. temporary evidence .-> WD[web result cards]
-  R -. uses .-> LG[legacy FAISS + BM25 + RRF RAG]
+  HR -. uses .-> LG[Hybrid Retrieval: FAISS + BM25 + RRF]
 ```
 
 중요 정책:
@@ -1155,7 +1159,7 @@ flowchart TD
 9. `POST /api/v1/wiki/audit-apply`로 제외할 후보를 확정하고 승인 Markdown 저장
 10. `POST /api/v1/chatbot/preprocess/run`에서 `mode=refresh_vectorstore`로 승인 vectorstore 갱신
 11. `GET /api/v1/chatbot/vectorstore/status`로 core/wiki 문서 수 확인
-12. `POST /api/v1/rag/chat`으로 질문 답변, 근거 카드, 품질 지표 확인
+12. `POST /api/v1/patent-chat/chat`으로 질문 답변, 근거 카드, 품질 지표 확인
 
 출원 도우미 테스트:
 
@@ -1163,8 +1167,8 @@ flowchart TD
 2. `GET /api/v1/application/status`로 `document_count`, `source_roles` 확인
 3. `GET /api/v1/application/external/status`로 KIPRIS/KOSIS/Tavily 연결 상태 확인
 4. `POST /api/v1/application/chat`으로 출원 절차, 실패 요인, 선행기술, 거절 대응 질문 확인
-11. `POST /api/v1/chatbot/answer` 또는 `POST /api/v1/rag/answer`로 답변과 근거 카드 확인
-12. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/rag/query`로 원본 검색 hit 확인
+11. `POST /api/v1/chatbot/answer` 또는 `POST /api/v1/patent-chat/answer`로 답변과 근거 카드 확인
+12. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/patent-chat/query`로 원본 검색 hit 확인
 
 같은 기능은 Swagger에서도 `http://127.0.0.1:8001/docs`로 확인할 수 있습니다.
 
@@ -1358,8 +1362,8 @@ POST /api/v1/wiki/agent/run
 GET  /api/v1/wiki/agent/mermaid
 POST /api/v1/chatbot/answer
 POST /api/v1/chatbot/query
-POST /api/v1/rag/answer
-POST /api/v1/rag/query
+POST /api/v1/patent-chat/answer
+POST /api/v1/patent-chat/query
 POST /api/v1/agent/answer
 POST /api/v1/agent/query
 GET  /api/v1/wiki/audit-report

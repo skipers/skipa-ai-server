@@ -94,9 +94,13 @@ def chat_graph_mermaid() -> str:
   G -- 예 --> H[wiki를 web 대체 근거로 사용]
   G -- 아니오 --> I[Tavily 웹검색]
 
-  E --> J[답변 생성]
+  E --> J[Hybrid Retrieval 먼저 시도]
+  J --> M{source guard 통과?}
+  M -- 예 --> N[FAISS+BM25+RRF 답변 사용]
+  M -- 아니오 --> O[core vectorstore fallback]
   H --> J
   I --> J
-  J --> K[근거 카드 + 품질 지표]
+  N --> K[근거 카드 + 품질 지표]
+  O --> K
   K --> L[UI/Swagger 응답]
 """

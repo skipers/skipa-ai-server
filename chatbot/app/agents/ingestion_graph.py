@@ -40,7 +40,7 @@ def inspect_request(state: IngestionState) -> IngestionState:
         **state,
         "scope": scope,
         "errors": errors,
-        "trace": _trace(state, "inspect_request", scope=scope, legacy_available=status["available"]),
+        "trace": _trace(state, "inspect_request", scope=scope, hybrid_retrieval_available=status["available"]),
     }
 
 
@@ -52,7 +52,7 @@ def run_reindex(state: IngestionState) -> IngestionState:
     force_rebuild = bool(state.get("force_rebuild", True))
     refresh_reviewed = bool(state.get("refresh_reviewed_vectorstore", False))
     if scope == "status":
-        result = {"status": "OK", "legacy_engine": legacy_engine_status(), "vectorstore": vectorstore_status()}
+        result = {"status": "OK", "hybrid_retrieval_engine": legacy_engine_status(), "vectorstore": vectorstore_status()}
     elif scope == "patent":
         result = reindex_patent(
             str(state.get("patent_id")),

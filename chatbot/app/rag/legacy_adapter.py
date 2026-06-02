@@ -1,4 +1,4 @@
-"""Adapter that lets the current LangGraph app use the restored rag.zip engine."""
+"""Hybrid retrieval adapter for the current LangGraph patent chatbot."""
 
 from __future__ import annotations
 
@@ -39,7 +39,8 @@ def legacy_engine_status() -> dict[str, Any]:
     error = _legacy_import_error()
     return {
         "available": error is None,
-        "engine": "rag.zip FAISS+BM25+RRF+intent+web" if error is None else "lightweight-fallback",
+        "engine": "hybrid_retrieval" if error is None else "lightweight_fallback",
+        "display_name": "Hybrid Retrieval: FAISS + BM25 + RRF + intent routing + web gate" if error is None else "Lightweight fallback retrieval",
         "error": error,
     }
 
@@ -127,8 +128,9 @@ def _normalize_source_card(card: dict[str, Any], index: int) -> dict[str, Any]:
 
 def normalize_legacy_answer(result: dict[str, Any], *, query: str, patent_id: str | None) -> dict[str, Any]:
     metrics = dict(result.get("metrics") or {})
-    metrics.setdefault("engine", "legacy_faiss_bm25_rrf")
-    metrics.setdefault("legacy_available", True)
+    metrics["engine"] = "hybrid_retrieval"
+    metrics["retrieval_stack"] = "FAISS+BM25+RRF+intent+web_gate"
+    metrics["hybrid_retrieval_available"] = True
     cards = [
         _normalize_source_card(card, index)
         for index, card in enumerate(list(result.get("source_cards") or []), 1)
@@ -182,9 +184,9 @@ def try_answer_with_legacy(
             "answer": "",
             "source_cards": [],
             "metrics": {
-                "engine": "legacy_faiss_bm25_rrf",
-                "legacy_available": True,
-                "legacy_error": f"{type(exc).__name__}: {exc}",
+                "engine": "hybrid_retrieval",
+                "hybrid_retrieval_available": True,
+                "hybrid_retrieval_error": f"{type(exc).__name__}: {exc}",
                 "fallback_required": True,
             },
         }
@@ -193,10 +195,10 @@ def try_answer_with_legacy(
 def patent_summary_cards() -> dict[str, Any]:
     if not _legacy_import_error():
         try:
-            return {"engine": "legacy_faiss_bm25_rrf", "items": _pipeline().build_patent_summary_cards()}
+            return {"engine": "hybrid_retrieval", "items": _pipeline().build_patent_summary_cards()}
         except Exception as exc:
             fallback = _summary_card_fallback()
-            fallback["legacy_error"] = f"{type(exc).__name__}: {exc}"
+            fallback["hybrid_retrieval_error"] = f"{type(exc).__name__}: {exc}"
             return fallback
     return _summary_card_fallback()
 
@@ -222,7 +224,7 @@ def _summary_card_fallback() -> dict[str, Any]:
 
 def reindex_patent(patent_id: str, *, force_rebuild: bool = True, refresh_reviewed_vectorstore: bool = False) -> dict[str, Any]:
     if _legacy_import_error():
-        raise HTTPException(status_code=503, detail=f"레거시 RAG 의존성이 없습니다: {_legacy_import_error()}")
+        raise HTTPException(status_code=503, detail=f"Hybrid Retrieval 의존성이 없습니다: {_legacy_import_error()}")
     try:
         _pipeline().build_or_load_patent_index(patent_id=patent_id, force_rebuild=force_rebuild)
     except FileNotFoundError as exc:
@@ -233,7 +235,7 @@ def reindex_patent(patent_id: str, *, force_rebuild: bool = True, refresh_review
         "status": "OK",
         "scope": "PATENT",
         "patent_id": patent_id,
-        "engine": "legacy_faiss_bm25_rrf",
+        "engine": "hybrid_retrieval",
         "force_rebuild": force_rebuild,
     }
     if refresh_reviewed_vectorstore:
@@ -243,7 +245,7 @@ def reindex_patent(patent_id: str, *, force_rebuild: bool = True, refresh_review
 
 def reindex_global(*, force_rebuild: bool = True, refresh_reviewed_vectorstore: bool = False) -> dict[str, Any]:
     if _legacy_import_error():
-        raise HTTPException(status_code=503, detail=f"레거시 RAG 의존성이 없습니다: {_legacy_import_error()}")
+        raise HTTPException(status_code=503, detail=f"Hybrid Retrieval 의존성이 없습니다: {_legacy_import_error()}")
     try:
         _pipeline().build_or_load_global_index(force_rebuild=force_rebuild)
     except FileNotFoundError as exc:
@@ -253,7 +255,7 @@ def reindex_global(*, force_rebuild: bool = True, refresh_reviewed_vectorstore: 
     result: dict[str, Any] = {
         "status": "OK",
         "scope": "GLOBAL",
-        "engine": "legacy_faiss_bm25_rrf",
+        "engine": "hybrid_retrieval",
         "force_rebuild": force_rebuild,
     }
     if refresh_reviewed_vectorstore:
@@ -263,7 +265,7 @@ def reindex_global(*, force_rebuild: bool = True, refresh_reviewed_vectorstore: 
 
 def reindex_business(*, force_rebuild: bool = True, refresh_reviewed_vectorstore: bool = False) -> dict[str, Any]:
     if _legacy_import_error():
-        raise HTTPException(status_code=503, detail=f"레거시 RAG 의존성이 없습니다: {_legacy_import_error()}")
+        raise HTTPException(status_code=503, detail=f"Hybrid Retrieval 의존성이 없습니다: {_legacy_import_error()}")
     try:
         _pipeline().build_or_load_business_index(force_rebuild=force_rebuild)
     except FileNotFoundError as exc:
@@ -273,7 +275,7 @@ def reindex_business(*, force_rebuild: bool = True, refresh_reviewed_vectorstore
     result: dict[str, Any] = {
         "status": "OK",
         "scope": "BUSINESS",
-        "engine": "legacy_faiss_bm25_rrf",
+        "engine": "hybrid_retrieval",
         "force_rebuild": force_rebuild,
     }
     if refresh_reviewed_vectorstore:

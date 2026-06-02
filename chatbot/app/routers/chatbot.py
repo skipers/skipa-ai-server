@@ -68,8 +68,9 @@ from ..vectorstore import normalize_wiki_context_files, refresh_vectorstores, ru
 
 
 router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
-rag_router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
-legacy_rag_router = APIRouter(prefix="/rag", tags=["legacy-rag"])
+patent_chat_router = APIRouter(prefix="/api/v1/patent-chat", tags=["patent-chat"])
+rag_router = APIRouter(prefix="/api/v1/rag", tags=["patent-chat"], include_in_schema=False)
+legacy_rag_router = APIRouter(prefix="/rag", tags=["patent-chat"], include_in_schema=False)
 agent_router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
 wiki_router = APIRouter(prefix="/api/v1/wiki", tags=["wiki"])
 application_router = APIRouter(prefix="/api/v1/application", tags=["application"])
@@ -77,6 +78,7 @@ application_router = APIRouter(prefix="/api/v1/application", tags=["application"
 
 @router.get("/config", summary="챗봇 설정과 데이터 루트 확인")
 def get_config() -> dict:
+    rag_engine = legacy_engine_status()
     return {
         **data_overview(),
         "public_file_base_url": PUBLIC_FILE_BASE_URL,
@@ -87,7 +89,7 @@ def get_config() -> dict:
         "intent_llm_timeout": INTENT_LLM_TIMEOUT,
         "answer_llm_timeout": ANSWER_LLM_TIMEOUT,
         "default_top_k": TOP_K,
-        "legacy_rag_engine": legacy_engine_status(),
+        "rag_engine": rag_engine,
     }
 
 
@@ -212,6 +214,7 @@ def post_answer(request: SearchRequest) -> dict:
     )
 
 
+@patent_chat_router.post("/query", response_model=SearchResponse, summary="특허 챗봇 근거 검색")
 @rag_router.post("/query", response_model=SearchResponse, summary="RAG 질의 alias")
 def rag_query(request: SearchRequest) -> dict:
     return post_search(request)
@@ -222,6 +225,7 @@ def agent_query(request: SearchRequest) -> dict:
     return post_search(request)
 
 
+@patent_chat_router.post("/answer", response_model=AnswerResponse, summary="특허 챗봇 답변 생성")
 @rag_router.post("/answer", response_model=AnswerResponse, summary="RAG 답변 alias")
 def rag_answer(request: SearchRequest) -> dict:
     return post_answer(request)
@@ -232,33 +236,38 @@ def agent_answer(request: SearchRequest) -> dict:
     return post_answer(request)
 
 
+@patent_chat_router.get("/chat/mermaid", summary="특허 챗봇 LangGraph 답변 workflow Mermaid")
 @rag_router.get("/chat/mermaid", summary="챗봇 LangGraph 답변 workflow Mermaid")
 @agent_router.get("/chat/mermaid", summary="챗봇 LangGraph 답변 workflow Mermaid")
 def get_chat_graph_mermaid() -> dict:
     return {"format": "mermaid", "diagram": chat_graph_mermaid()}
 
 
+@patent_chat_router.get("/engine/status", summary="Hybrid Retrieval 엔진 상태")
 @rag_router.get("/engine/status", summary="복구된 rag.zip 엔진 사용 가능 여부")
 @legacy_rag_router.get("/engine/status", summary="복구된 rag.zip 엔진 사용 가능 여부")
 def get_rag_engine_status() -> dict:
     return legacy_engine_status()
 
 
-@rag_router.get("/patents", summary="레거시 RAG 호환 특허 목록")
-@legacy_rag_router.get("/patents", summary="레거시 RAG 호환 특허 목록")
+@patent_chat_router.get("/patents", summary="특허 챗봇 특허 목록")
+@rag_router.get("/patents", summary="통합 RAG 특허 목록")
+@legacy_rag_router.get("/patents", summary="특허 챗봇 호환 특허 목록")
 def rag_patents() -> dict:
     patents = list_patents()
     return {"items": patents, "count": len(patents), "engine": legacy_engine_status()}
 
 
-@rag_router.get("/patent-summary-cards", summary="레거시 RAG 특허 요약 카드")
-@legacy_rag_router.get("/patent-summary-cards", summary="레거시 RAG 특허 요약 카드")
+@patent_chat_router.get("/patent-summary-cards", summary="특허 요약 카드")
+@rag_router.get("/patent-summary-cards", summary="통합 RAG 특허 요약 카드")
+@legacy_rag_router.get("/patent-summary-cards", summary="특허 챗봇 호환 특허 요약 카드")
 def rag_patent_summary_cards() -> dict:
     return patent_summary_cards()
 
 
-@rag_router.post("/chat", response_model=AnswerResponse, summary="rag.zip 호환 특허별 챗봇 답변")
-@legacy_rag_router.post("/chat", response_model=AnswerResponse, summary="rag.zip 호환 특허별 챗봇 답변")
+@patent_chat_router.post("/chat", response_model=AnswerResponse, summary="특허별 챗봇 답변")
+@rag_router.post("/chat", response_model=AnswerResponse, summary="통합 RAG 특허별 챗봇 답변")
+@legacy_rag_router.post("/chat", response_model=AnswerResponse, summary="특허 챗봇 호환 답변")
 def rag_chat(request: ChatRequest) -> dict:
     return run_chat_agent(
         request.question,
@@ -269,8 +278,9 @@ def rag_chat(request: ChatRequest) -> dict:
     )
 
 
-@rag_router.post("/global/chat", response_model=AnswerResponse, summary="rag.zip 호환 전체 특허 챗봇 답변")
-@legacy_rag_router.post("/global/chat", response_model=AnswerResponse, summary="rag.zip 호환 전체 특허 챗봇 답변")
+@patent_chat_router.post("/global/chat", response_model=AnswerResponse, summary="전체 특허 챗봇 답변")
+@rag_router.post("/global/chat", response_model=AnswerResponse, summary="통합 RAG 전체 특허 챗봇 답변")
+@legacy_rag_router.post("/global/chat", response_model=AnswerResponse, summary="전체 특허 챗봇 호환 답변")
 def rag_global_chat(request: ChatRequest) -> dict:
     return run_chat_agent(
         request.question,
@@ -281,6 +291,7 @@ def rag_global_chat(request: ChatRequest) -> dict:
     )
 
 
+@patent_chat_router.post("/reindex", summary="특허별 검색 인덱스 재생성")
 @rag_router.post("/reindex", summary="특허별 전처리/RAG FAISS 재생성")
 @legacy_rag_router.post("/reindex", summary="특허별 전처리/RAG FAISS 재생성")
 def rag_reindex(request: ReindexRequest) -> dict:
@@ -292,6 +303,7 @@ def rag_reindex(request: ReindexRequest) -> dict:
     )
 
 
+@patent_chat_router.post("/global/reindex", summary="전체 특허 검색 인덱스 재생성")
 @rag_router.post("/global/reindex", summary="전체 특허 global FAISS 재생성")
 @legacy_rag_router.post("/global/reindex", summary="전체 특허 global FAISS 재생성")
 def rag_global_reindex(request: BusinessReindexRequest) -> dict:
@@ -302,6 +314,7 @@ def rag_global_reindex(request: BusinessReindexRequest) -> dict:
     )
 
 
+@patent_chat_router.post("/business/reindex", summary="업무/공통 검색 인덱스 재생성")
 @rag_router.post("/business/reindex", summary="업무/공통 business FAISS 재생성")
 @legacy_rag_router.post("/business/reindex", summary="업무/공통 business FAISS 재생성")
 def rag_business_reindex(request: BusinessReindexRequest) -> dict:
@@ -312,18 +325,21 @@ def rag_business_reindex(request: BusinessReindexRequest) -> dict:
     )
 
 
+@patent_chat_router.get("/ingestion/mermaid", summary="전처리/재색인 LangGraph Mermaid")
 @rag_router.get("/ingestion/mermaid", summary="전처리/RAG 재색인 LangGraph Mermaid")
 @legacy_rag_router.get("/ingestion/mermaid", summary="전처리/RAG 재색인 LangGraph Mermaid")
 def get_ingestion_mermaid() -> dict:
     return {"format": "mermaid", "diagram": ingestion_graph_mermaid()}
 
 
+@patent_chat_router.post("/feedback", summary="챗봇 답변 피드백 저장")
 @rag_router.post("/feedback", summary="챗봇 답변 피드백 저장")
 @legacy_rag_router.post("/feedback", summary="챗봇 답변 피드백 저장")
 def rag_feedback(request: FeedbackRequest) -> dict:
     return write_feedback(request.model_dump())
 
 
+@patent_chat_router.get("/page-image", summary="특허 PDF page image 렌더링")
 @rag_router.get("/page-image", summary="특허 PDF page image 렌더링")
 @legacy_rag_router.get("/page-image", summary="특허 PDF page image 렌더링")
 def rag_page_image(patent_id: str, file_name: str = Query("original.pdf"), page_no: int = Query(1, ge=1)):

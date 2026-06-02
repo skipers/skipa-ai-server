@@ -3,7 +3,7 @@
 The original chatbot expected each patent folder to contain flat files such as
 ``meta.json`` and ``original.pdf``. The current project stores the same logical
 data in the unified ``data/mapped_patent_reports`` layout. These helpers let the
-legacy RAG engine read the new layout without rewriting or duplicating data.
+Hybrid Retrieval engine read the new layout without rewriting or duplicating data.
 """
 
 from __future__ import annotations

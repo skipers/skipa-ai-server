@@ -109,7 +109,7 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
         allow_web=not wiki_available,
         intent_override=state.get("intent") or None,
     )
-    result.setdefault("metrics", {})["legacy_agent_skipped_reason"] = "strict_core_source_policy"
+    result.setdefault("metrics", {})["hybrid_retrieval_scope_policy"] = "try_hybrid_then_guard_source_types"
     web_context = dict(state.get("web_context") or {})
     intent = state.get("intent") or {}
     if _is_low_evidence_answer(result) and not web_context.get("results") and not wiki_available:

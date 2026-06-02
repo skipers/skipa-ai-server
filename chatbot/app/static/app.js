@@ -18,7 +18,7 @@ const workflowText = {
 const workflowGraphInfo = {
   chat: {
     title: "챗봇 답변 워크플로우",
-    endpoint: "/api/v1/rag/chat/mermaid",
+    endpoint: "/api/v1/patent-chat/chat/mermaid",
     summary: "질문 맥락을 정리한 뒤 가벼운 LLM/룰 기반 의도 라우터가 검색 위치와 답변 형식을 정합니다. 원문/보고서 질문은 core 근거만 쓰고, web 필요 질문만 특허별 wiki gate와 Tavily 경로로 넘어갑니다.",
     steps: [
       ["resolve_history_context", "이전 대화와 선택 특허를 현재 질문 맥락으로 정리"],
@@ -57,10 +57,10 @@ const workflowGraphInfo = {
   },
   ingestion: {
     title: "전처리/RAG 재색인 워크플로우",
-    endpoint: "/api/v1/rag/ingestion/mermaid",
+    endpoint: "/api/v1/patent-chat/ingestion/mermaid",
     summary: "특허별/전체 인덱스를 재생성하고 승인 vectorstore 갱신 시 원문/보고서 core와 특허별 wiki를 분리합니다.",
     steps: [
-      ["inspect_request", "요청 scope와 특허 ID, 레거시 RAG 엔진 상태 확인"],
+      ["inspect_request", "요청 scope와 특허 ID, Hybrid Retrieval 엔진 상태 확인"],
       ["run_reindex", "scope에 따라 특허별/global/business 인덱스 생성"],
       ["reviewed vectorstore refresh", "옵션이 켜지면 승인 데이터 기반 vectorstore 갱신"],
       ["finish_ingestion", "Swagger/UI에서 확인할 결과와 trace 반환"],
@@ -585,9 +585,9 @@ async function loadBaseData() {
   renderPatentOptions();
   renderDataCards();
   const vector = status.vectorstore_status || config.vectorstore || {};
-  const engine = config.legacy_rag_engine?.available ? "legacy RAG" : "fallback";
+  const engine = config.rag_engine?.available ? "Hybrid Retrieval" : "fallback";
   setStatus(`특허 ${config.patent_count ?? state.patents.length}개 · 문서 ${vector.global?.document_count ?? "-"}개 · ${engine}`);
-  api("/api/v1/rag/patent-summary-cards")
+  api("/api/v1/patent-chat/patent-summary-cards")
     .then((cards) => {
       state.cards = cards.items || [];
       renderDataCards();
@@ -707,7 +707,7 @@ async function reindexSelected() {
   const button = $("reindexButton");
   setBusy(button, true, "재색인 중");
   try {
-    const result = await api("/api/v1/rag/reindex", {
+    const result = await api("/api/v1/patent-chat/reindex", {
       method: "POST",
       body: JSON.stringify({ patent_id: selected, force_rebuild: false, refresh_reviewed_vectorstore: false }),
     });
@@ -722,7 +722,7 @@ async function checkGlobalIndex() {
   const button = $("globalReindexButton");
   setBusy(button, true, "확인 중");
   try {
-    const result = await api("/api/v1/rag/global/reindex", {
+    const result = await api("/api/v1/patent-chat/global/reindex", {
       method: "POST",
       body: JSON.stringify({ force_rebuild: false, refresh_reviewed_vectorstore: false }),
     });
@@ -831,7 +831,7 @@ async function ask() {
   const pending = appendMessage("검색 중입니다. 승인된 vectorstore에서 근거를 찾고 답변을 구성합니다.", "assistant");
   try {
     const selected = $("patentSelect").value;
-    const path = selected === "__all__" ? "/api/v1/rag/global/chat" : "/api/v1/rag/chat";
+    const path = selected === "__all__" ? "/api/v1/patent-chat/global/chat" : "/api/v1/patent-chat/chat";
     const data = await api(path, {
       method: "POST",
       body: JSON.stringify({

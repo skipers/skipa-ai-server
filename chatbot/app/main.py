@@ -14,6 +14,7 @@ from .routers.chatbot import (
     agent_router,
     application_router,
     legacy_rag_router,
+    patent_chat_router,
     rag_router,
     router as chatbot_router,
     wiki_router,
@@ -32,8 +33,10 @@ app = FastAPI(
     openapi_tags=[
         {"name": "system", "description": "헬스체크"},
         {"name": "chatbot", "description": "챗봇 데이터/검색 API"},
-        {"name": "rag", "description": "RAG query alias"},
-        {"name": "legacy-rag", "description": "rag.zip 호환 RAG API"},
+        {
+            "name": "patent-chat",
+            "description": "최고 성능 통합 특허 챗봇. LangGraph 의도 라우팅, Hybrid Retrieval, 특허별 wiki gate, 웹검색 보강을 한 경로로 제공합니다.",
+        },
         {"name": "agent", "description": "Agent query alias"},
         {"name": "wiki", "description": "Wiki audit API"},
         {"name": "application", "description": "특허 출원 도우미 API"},
@@ -49,6 +52,7 @@ app.add_middleware(
 )
 
 app.include_router(chatbot_router)
+app.include_router(patent_chat_router)
 app.include_router(rag_router)
 app.include_router(legacy_rag_router)
 app.include_router(agent_router)
@@ -87,7 +91,7 @@ def ui() -> FileResponse:
     return FileResponse(STATIC_ROOT / "index.html")
 
 
-@app.get("/chat", tags=["system"], summary="rag.zip 호환 챗봇 테스트 UI")
+@app.get("/chat", tags=["system"], summary="특허 챗봇 테스트 UI")
 def chat() -> FileResponse:
     return FileResponse(STATIC_ROOT / "index.html")
 
