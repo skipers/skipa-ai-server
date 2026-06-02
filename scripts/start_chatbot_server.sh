@@ -4,9 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-if [ -f "chatbot/.venv/bin/activate" ]; then
-  # shellcheck disable=SC1091
-  source "chatbot/.venv/bin/activate"
+PYTHON_BIN="${ROOT_DIR}/chatbot/.venv/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then
+  PYTHON_BIN="$(command -v python3)"
 fi
 
 export HOST="${HOST:-127.0.0.1}"
@@ -18,4 +18,4 @@ export ANSWER_NUM_PREDICT="${ANSWER_NUM_PREDICT:-900}"
 echo "Starting SKIPA chatbot API/UI at http://${HOST}:${PORT}/ui"
 echo "Intent timeout: ${INTENT_LLM_TIMEOUT}s, answer timeout: ${ANSWER_LLM_TIMEOUT}s"
 
-exec uvicorn chatbot.app.main:app --host "$HOST" --port "$PORT"
+exec "$PYTHON_BIN" -m uvicorn chatbot.app.main:app --host "$HOST" --port "$PORT"

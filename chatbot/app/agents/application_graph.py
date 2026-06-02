@@ -254,7 +254,7 @@ def _intent_preference_terms(intent: str) -> list[str]:
         "forms_and_filing": ["SRC-002", "SRC-003", "SRC-021", "특허고객번호", "인증서", "서식"],
         "drafting_claims": ["SRC-006", "SRC-017", "명세서", "청구항", "청구범위", "심사기준"],
         "prior_art_search": ["prior_art_search_workflow", "SRC-012", "SRC-013", "SRC-014", "KIPRIS", "CPC", "IPC"],
-        "rejection_response": ["patent_rejection", "SRC-020", "SRC-021", "거절", "의견제출", "보정", "심판"],
+        "rejection_response": ["feedback", "patent_rejection", "SRC-020", "SRC-021", "거절", "의견제출", "보정", "심판", "피드백"],
         "fees": ["SRC-004", "SRC-010", "수수료", "등록료", "심사청구료", "감면"],
         "application_strategy": ["SRC-017", "SRC-019", "전략", "우선심사", "해외", "사업화"],
     }
@@ -328,11 +328,15 @@ def _external_context_for_prompt(external: dict[str, Any]) -> str:
 def _fallback_application_answer(query: str, intent: dict[str, Any], hits: list[dict[str, Any]]) -> str:
     intent_name = str(intent.get("intent") or "application_procedure")
     source_names = []
+    evidence_rows: list[tuple[str, str]] = []
     for hit in hits:
         metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
         name = metadata.get("file_name")
         if name and name not in source_names:
             source_names.append(str(name))
+        snippet = re.sub(r"\s+", " ", str(hit.get("page_content") or "")).strip()
+        if name and snippet and len(evidence_rows) < 4:
+            evidence_rows.append((str(name), snippet[:260]))
     source_line = ", ".join(source_names[:5]) or "공식 출원 자료팩"
 
     templates = {
@@ -386,17 +390,44 @@ def _fallback_application_answer(query: str, intent: dict[str, Any], hits: list[
     lines = [
         f"## 답변 방향: {intent_name}",
         "",
-        "공식팩에서 찾은 근거를 기준으로 실행 순서 중심으로 정리했습니다.",
+        "공식팩과 생성된 피드백 리포트에서 찾은 근거를 기준으로 실행 순서와 판단 포인트를 정리했습니다.",
         "",
     ]
+    if evidence_rows:
+        lines.extend(["### 근거에서 바로 확인한 내용"])
+        for name, snippet in evidence_rows:
+            lines.append(f"- **{name}**: {snippet}")
+        lines.append("")
     if intent.get("answer_format") in {"checklist_table", "table_and_diagram"}:
-        lines.extend(["| 확인 항목 | 해야 할 일 | 근거 |", "| --- | --- | --- |"])
-        for title, action in steps:
-            lines.append(f"| {title} | {action} | {source_line} |")
+        if intent_name == "rejection_response":
+            lines.extend(["| 진단 축 | 확인할 근거 | 대응 전략 | 참조 자료 |", "| --- | --- | --- | --- |"])
+            rows = [
+                ("거절유형", "거절되는 청구항, 인용문헌, 법조문, 제출기한", "통지서 문구를 신규성/진보성/기재불비/절차 흠결로 분류", source_line),
+                ("신규성/진보성", "인용문헌과 청구항 구성요소의 일치/차이", "차이점, 작용효과, 결합 곤란성을 의견서에 구조화", source_line),
+                ("기재불비", "명세서 지원 여부, 용어 명확성, 실시가능성", "명세서 근거가 있는 범위 안에서 청구항과 설명을 보정", source_line),
+                ("보정 리스크", "신규사항 추가 여부, 권리범위 축소 폭", "보정 전후 대비표를 만들고 핵심 권리범위가 살아있는지 확인", source_line),
+                ("후속 절차", "의견서/보정서 제출기한, 최종거절 가능성", "기한 내 제출 후 불복심판/분할출원/재출원 전략을 비교", source_line),
+            ]
+            for row in rows:
+                lines.append("| " + " | ".join(row) + " |")
+        else:
+            lines.extend(["| 확인 항목 | 해야 할 일 | 근거 |", "| --- | --- | --- |"])
+            for title, action in steps:
+                lines.append(f"| {title} | {action} | {source_line} |")
     else:
         for index, (title, action) in enumerate(steps, 1):
             lines.append(f"{index}. **{title}**: {action}")
-    lines.extend(["", f"확인한 공식 자료: {source_line}"])
+    lines.extend(
+        [
+            "",
+            "### 다음 액션",
+            "1. 거절의견서 원문에서 거절 청구항, 인용문헌, 제출기한을 먼저 체크합니다.",
+            "2. 기존 특허 원본/보고서가 연결되어 있으면 청구항별 차별점과 평가 리스크를 같이 대조합니다.",
+            "3. 보정안은 신규사항 추가 금지와 권리범위 축소 위험을 확인한 뒤 의견서 주장과 함께 제출합니다.",
+            "",
+            f"확인한 공식 자료: {source_line}",
+        ]
+    )
     if intent.get("needs_diagram") or intent.get("answer_format") == "table_and_diagram":
         lines.extend(
             [
@@ -418,13 +449,13 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
     hits = list(retrieval.get("hits") or [])
     intent = state.get("intent") or {}
     prompt = f"""당신은 한국 특허 출원을 도와주는 챗봇입니다.
-반드시 제공된 공식팩 근거 안에서 답하고, 부족한 부분은 추가 확인이 필요하다고 말하세요.
+반드시 제공된 공식팩/피드백 리포트 근거 안에서 답하고, 부족한 부분은 추가 확인이 필요하다고 말하세요.
 질문 의도: {intent}
 사용자 질문: {state.get("query", "")}
 최근 대화:
 {state.get("history_summary") or "-"}
 
-공식팩 근거:
+공식팩/피드백 근거:
 {_context_for_prompt(hits)}
 
 외부 보강 근거(KIPRIS/KOSIS/Tavily 연결 상태와 검색 결과):
@@ -434,6 +465,7 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
 - 한국어로 구체적인 실행 순서를 제시합니다.
 - 출원 절차, 거절 대응, 선행기술 검색, 실패 요인 분석, 피드백, 다음 액션 중 의도에 맞는 항목을 우선합니다.
 - 실패 요인 질문이면 신규성/진보성/기재불비/청구범위/절차 기한/보정 리스크를 나눠 진단합니다.
+- feedback 폴더 근거가 있으면 실제 의견서/기존 평가 보고서와 연결된 후속 조치로 우선 사용합니다.
 - 외부 근거는 공식팩 근거를 보강할 때만 사용하고, KIPRIS/KOSIS/Tavily 중 어떤 경로인지 표시합니다.
 - 부족한 데이터와 추가하면 좋은 데이터도 마지막에 제안합니다.
 - 표가 필요하면 Markdown 표를 포함합니다.
@@ -553,15 +585,16 @@ def application_graph_mermaid() -> str:
   C --> D{질문 유형}
   D -- 출원 절차/서식/수수료 --> E[공식팩 문서 검색]
   D -- 청구항/명세서 작성 --> E
-  D -- 거절/실패 요인/피드백 --> E
+  D -- 거절/실패 요인/피드백 --> F[피드백/의견서 리포트 검색]
   D -- 선행기술/시장/최신 동향 --> E
 
-  E --> F{외부 보강 필요?}
-  F -- KIPRIS/KOSIS/Tavily 필요 --> G[외부 근거 보강]
-  F -- 공식팩 충분 --> H[외부 검색 생략]
+  E --> G{외부 보강 필요?}
+  F --> G
+  G -- KIPRIS/KOSIS/Tavily 필요 --> H[외부 근거 보강]
+  G -- 공식팩/피드백 충분 --> I[외부 검색 생략]
 
-  G --> I[상용 서비스형 답변 생성]
-  H --> I
-  I --> J[표/다이어그램/체크리스트 형식화]
-  J --> K[근거 카드 + 품질 지표 반환]
+  H --> J[상용 서비스형 답변 생성]
+  I --> J
+  J --> K[표/다이어그램/체크리스트 형식화]
+  K --> L[근거 카드 + 품질 지표 + HTML 리포트 링크]
 """

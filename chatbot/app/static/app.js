@@ -12,18 +12,18 @@ const workflowText = {
   review: "감사 결과는 audit.json과 review.md로 저장됩니다. 사람은 finding별 excerpt와 metadata를 보고 제외할 항목을 확정합니다.",
   apply: "선택한 finding_id에 연결된 문서만 제외하고 나머지를 approved_context.md와 approved_documents.jsonl로 저장합니다.",
   vectorstore: "승인된 approved_documents.jsonl을 기준으로 원문/보고서 core vectorstore와 특허별 wiki vectorstore를 분리해서 다시 만듭니다.",
-  query: "질문이 들어오면 가벼운 의도 판단 뒤 특허 원문/보고서를 core로 검색하고, web 필요 질문은 특허별 wiki를 먼저 본 뒤 없을 때만 웹 근거를 붙입니다.",
+  query: "질문이 들어오면 가벼운 의도 판단 뒤 특허 원문/보고서를 core로 검색합니다. 최신/시장/경쟁사처럼 web 필요 질문일 때만 특허별 wiki gate를 먼저 확인하고, 없으면 웹 근거를 붙입니다.",
 };
 
 const workflowGraphInfo = {
   chat: {
     title: "챗봇 답변 워크플로우",
     endpoint: "/api/v1/rag/chat/mermaid",
-    summary: "질문 맥락을 정리한 뒤 가벼운 LLM/룰 기반 의도 라우터가 검색 위치와 답변 형식을 정하고, 특허별 wiki가 있으면 web보다 먼저 사용한 뒤 특허 원문/보고서 core 근거로 답변합니다.",
+    summary: "질문 맥락을 정리한 뒤 가벼운 LLM/룰 기반 의도 라우터가 검색 위치와 답변 형식을 정합니다. 원문/보고서 질문은 core 근거만 쓰고, web 필요 질문만 특허별 wiki gate와 Tavily 경로로 넘어갑니다.",
     steps: [
       ["resolve_history_context", "이전 대화와 선택 특허를 현재 질문 맥락으로 정리"],
       ["route_question", "의도, 웹검색 필요 여부, 표/다이어그램 필요 여부 판단"],
-      ["retrieve_wiki_context", "감사 후 승인된 특허별 wiki vectorstore 근거 검색"],
+      ["retrieve_wiki_context", "web 필요 질문일 때만 감사 후 승인된 특허별 wiki vectorstore 근거 검색"],
       ["retrieve_web_context", "wiki 근거가 없고 최신성/외부 정보가 필요할 때만 웹 근거 수집"],
       ["answer_from_patent_context", "특허 원문/보고서 core vectorstore와 wiki/web 보강 근거로 답변 생성"],
       ["finish_answer", "근거 카드, 성능 지표, 워크플로우 trace 반환"],
@@ -172,22 +172,21 @@ function renderMermaidDiagram(code) {
   if (!parsed.nodes.size && !parsed.edges.length) {
     return `<pre>${escapeHtml(stripMermaidFence(code))}</pre>`;
   }
-  const nodes = [...parsed.nodes.entries()]
-    .map(([id, label]) => `<span class="diagram-node" title="${escapeHtml(id)}">${escapeHtml(label)}</span>`)
-    .join("");
   const edges = parsed.edges.length
-    ? parsed.edges.map((edge) => `
+    ? parsed.edges.map((edge, index) => `
         <div class="diagram-edge">
-          <span>${escapeHtml(nodeLabel(edge.from))}</span>
+          <strong>${index + 1}</strong>
+          <span class="diagram-from">${escapeHtml(nodeLabel(edge.from))}</span>
           <b>→</b>
-          <em class="${edge.label ? "" : "empty"}">${edge.label ? escapeHtml(edge.label) : ""}</em>
-          <span>${escapeHtml(nodeLabel(edge.to))}</span>
+          <span class="diagram-to">${escapeHtml(nodeLabel(edge.to))}</span>
+          ${edge.label ? `<em>${escapeHtml(edge.label)}</em>` : ""}
         </div>`).join("")
-    : "";
+    : [...parsed.nodes.entries()]
+        .map(([id, label], index) => `<span class="diagram-node" title="${escapeHtml(id)}">${index + 1}. ${escapeHtml(label)}</span>`)
+        .join("");
   return `
     <div class="mermaid-render">
-      <div class="diagram-node-row">${nodes}</div>
-      ${edges ? `<div class="diagram-edge-list">${edges}</div>` : ""}
+      <div class="${parsed.edges.length ? "diagram-edge-list" : "diagram-node-row"}">${edges}</div>
     </div>
   `;
 }
@@ -776,6 +775,30 @@ async function preprocessApplicationPack() {
   }
 }
 
+async function createApplicationFeedback() {
+  const button = $("feedbackApplicationButton");
+  setBusy(button, true, "생성 중");
+  try {
+    const result = await api("/api/v1/application/feedback/create", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "특허거절의견서 기반 출원 피드백",
+        opinion_file_path: "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf",
+        reviewer: "browser-ui",
+        notes: "UI default rejection opinion feedback",
+        refresh_index: true,
+      }),
+    });
+    setStatus(`피드백 생성 · index ${result.index?.document_count ?? 0}개`);
+    showModal(
+      "출원 피드백 리포트",
+      `${result.html_url ? `<p><a href="${escapeHtml(result.html_url)}" target="_blank" rel="noreferrer">HTML 리포트 열기</a></p>` : ""}${jsonBlock(result)}`,
+    );
+  } finally {
+    setBusy(button, false);
+  }
+}
+
 async function showApplicationStatus() {
   const status = await api("/api/v1/application/status");
   setStatus(`출원 도우미 · index ${status.index_exists ? "있음" : "없음"} · 다운로드 실패 ${status.download_report?.failure_count ?? 0}건`);
@@ -879,6 +902,7 @@ function bindEvents() {
   $("loadIngestionWorkflowButton").addEventListener("click", () => loadIngestionWorkflow().catch((error) => setStatus(error.message)));
   $("downloadApplicationButton").addEventListener("click", () => downloadApplicationSources().catch((error) => setStatus(error.message)));
   $("preprocessApplicationButton").addEventListener("click", () => preprocessApplicationPack().catch((error) => setStatus(error.message)));
+  $("feedbackApplicationButton").addEventListener("click", () => createApplicationFeedback().catch((error) => setStatus(error.message)));
   $("refreshApplicationIndexButton").addEventListener("click", () => refreshApplicationIndex().catch((error) => setStatus(error.message)));
   $("applicationStatusButton").addEventListener("click", () => showApplicationStatus().catch((error) => setStatus(error.message)));
   $("sendButton").addEventListener("click", ask);

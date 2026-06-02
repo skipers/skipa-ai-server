@@ -23,7 +23,8 @@ import xml.etree.ElementTree as ET
 
 from fastapi import HTTPException
 
-from .config import DATA_ROOT, PATENT_APPLICATION_ROOT
+from .config import DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT
+from .rag.quality import compact_text
 from .rag.source_card_utils import enrich_source_card
 
 
@@ -117,6 +118,10 @@ def _documents_path() -> Path:
 
 def _manifest_path() -> Path:
     return _index_dir() / "manifest.json"
+
+
+def _feedback_root() -> Path:
+    return PATENT_APPLICATION_ROOT / "feedback"
 
 
 def _download_dir() -> Path:
@@ -272,6 +277,8 @@ def _iter_source_files() -> Iterable[Path]:
 def _application_file_role(path: Path) -> str:
     name = path.name.lower()
     text = str(path).lower()
+    if "feedback" in text or "피드백" in name:
+        return "rejection_failure_feedback"
     if "rejection" in text or "거절" in name or "의견" in name or "통지서" in name:
         return "rejection_failure_feedback"
     if "kipris" in text or "cpc" in name or "선행" in name or "prior_art" in text:
@@ -359,6 +366,196 @@ def application_external_status() -> dict[str, Any]:
         "tavily": {"configured": bool(os.getenv("TAVILY_API_KEY")), "usage": "external web evidence and official-source discovery"},
         "kipris": {"configured": bool(os.getenv("KIPRIS_API_KEY")), "usage": "prior-art, legal status, rejection/family/citation checks"},
         "kosis": {"configured": bool(os.getenv("KOSIS_API_KEY")), "usage": "market/industry statistics for filing and commercialization strategy"},
+    }
+
+
+def _slug(value: str) -> str:
+    cleaned = re.sub(r"[^0-9A-Za-z가-힣._-]+", "_", value or "").strip("._-")
+    return cleaned[:80] or "feedback"
+
+
+def _safe_pack_path(path_value: str | None) -> Path | None:
+    if not path_value:
+        return None
+    raw_path = Path(path_value).expanduser()
+    if raw_path.is_absolute():
+        path = raw_path.resolve()
+    else:
+        project_root = DATA_ROOT.resolve().parent
+        candidates = [
+            (project_root / raw_path).resolve(),
+            (PATENT_APPLICATION_ROOT / raw_path).resolve(),
+            raw_path.resolve(),
+        ]
+        path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
+    allowed_roots = [PATENT_APPLICATION_ROOT.resolve(), PATENTS_ROOT.resolve(), DATA_ROOT.resolve()]
+    if not any(str(path).startswith(str(root)) for root in allowed_roots):
+        raise HTTPException(status_code=400, detail=f"허용되지 않은 경로입니다: {path}")
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail=f"파일을 찾을 수 없습니다: {path}")
+    return path
+
+
+def _latest_patent_files(patent_id: str | None) -> dict[str, Path | None]:
+    if not patent_id:
+        return {"input": None, "report": None}
+    patent_dir = PATENTS_ROOT / patent_id
+    return {
+        "input": patent_dir / "original" / "input" / "latest.json",
+        "report": patent_dir / "reports" / "json" / "latest.json",
+    }
+
+
+def _html_page(title: str, markdown: str) -> str:
+    escaped = html_escape(markdown)
+    return f"""<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{html_escape(title)}</title>
+  <style>
+    body {{ margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; background: #f6f8fb; }}
+    main {{ max-width: 980px; margin: 0 auto; padding: 32px 20px 56px; }}
+    article {{ background: #fff; border: 1px solid #dbe3ee; border-radius: 8px; padding: 24px; box-shadow: 0 8px 24px rgba(23,32,51,.08); }}
+    pre {{ white-space: pre-wrap; line-height: 1.65; font-size: 15px; }}
+  </style>
+</head>
+<body><main><article><pre>{escaped}</pre></article></main></body>
+</html>
+"""
+
+
+def create_application_feedback_report(
+    *,
+    title: str,
+    patent_id: str | None = None,
+    opinion_text: str | None = None,
+    opinion_file_path: str | None = None,
+    source_report_path: str | None = None,
+    reviewer: str | None = None,
+    notes: str | None = None,
+    refresh_index: bool = True,
+) -> dict[str, Any]:
+    if not title.strip():
+        title = "특허 출원 실패/거절 대응 피드백"
+    opinion_path = _safe_pack_path(opinion_file_path)
+    source_report = _safe_pack_path(source_report_path)
+    latest = _latest_patent_files(patent_id)
+    source_input = latest.get("input") if latest.get("input") and latest["input"].exists() else None
+    if source_report is None and latest.get("report") and latest["report"].exists():
+        source_report = latest["report"]
+
+    extracted_opinion = ""
+    opinion_error = None
+    if opinion_path:
+        extracted_opinion, opinion_error = _read_source_text(opinion_path)
+    source_report_text = ""
+    source_report_error = None
+    if source_report:
+        source_report_text, source_report_error = _read_source_text(source_report)
+    source_input_text = ""
+    source_input_error = None
+    if source_input:
+        source_input_text, source_input_error = _read_source_text(source_input)
+
+    feedback_dir = _feedback_root() / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{_slug(title)}"
+    feedback_dir.mkdir(parents=True, exist_ok=True)
+    if opinion_path:
+        copied = feedback_dir / opinion_path.name
+        if opinion_path.resolve() != copied.resolve():
+            copied.write_bytes(opinion_path.read_bytes())
+    else:
+        copied = None
+
+    combined_opinion = "\n\n".join(part for part in [opinion_text, extracted_opinion] if part and part.strip())
+    if not combined_opinion.strip():
+        combined_opinion = "의견서/거절사유 원문이 아직 입력되지 않았습니다. 의견서 PDF 또는 텍스트를 추가하면 더 구체적인 피드백이 가능합니다."
+    report_summary = compact_text(source_report_text, 3500) if source_report_text else "연결된 특허 평가 보고서가 없습니다."
+    input_summary = compact_text(source_input_text, 2500) if source_input_text else "연결된 특허 원본 input이 없습니다."
+    opinion_summary = compact_text(combined_opinion, 3500)
+
+    markdown = "\n".join(
+        [
+            f"# {title}",
+            "",
+            "## 질문/목적",
+            "",
+            "거절의견서, 출원 실패 사유, 기존 특허 원본/평가 보고서를 한 곳에 모아 출원 재시도 전략과 보정 피드백을 만들기 위한 자료입니다.",
+            "",
+            "## 의견서/거절 사유",
+            "",
+            opinion_summary,
+            "",
+            "## 연결된 특허 원본 요약",
+            "",
+            input_summary,
+            "",
+            "## 연결된 특허 평가 보고서 요약",
+            "",
+            report_summary,
+            "",
+            "## 피드백 관점",
+            "",
+            "- 신규성: 선행기술과 동일하거나 실질적으로 같은 구성이 있는지 확인합니다.",
+            "- 진보성: 차이점이 단순 설계변경인지, 예측 곤란한 효과가 있는지 확인합니다.",
+            "- 기재불비: 명세서가 청구항 구성과 효과를 충분히 뒷받침하는지 확인합니다.",
+            "- 청구범위: 독립항이 너무 넓거나 핵심 차별점이 빠져 있는지 확인합니다.",
+            "- 절차/기한: 의견서, 보정서, 심사청구, 불복 기한을 확인합니다.",
+            "- 사업성/전략: 기존 평가 보고서의 유지/포기 판단 근거와 출원 전략을 연결합니다.",
+            "",
+            "## 다음 액션",
+            "",
+            "1. 의견서의 거절 조항과 인용문헌을 항목별로 분리합니다.",
+            "2. 각 인용문헌과 청구항 구성요소를 대응표로 만듭니다.",
+            "3. 차이점이 있는 구성은 보정안과 의견서 주장 포인트로 분리합니다.",
+            "4. 기존 평가 보고서의 리스크 항목과 겹치는 부분을 우선 보강합니다.",
+            "5. 이 피드백 리포트를 출원 도우미 vectorstore에 반영해 후속 질문에서 계속 사용합니다.",
+            "",
+            "## 메타정보",
+            "",
+            f"- Patent ID: {patent_id or '-'}",
+            f"- Reviewer: {reviewer or '-'}",
+            f"- Created at: {_now()}",
+            f"- Opinion file: {str(opinion_path) if opinion_path else '-'}",
+            f"- Copied opinion file: {str(copied) if copied else '-'}",
+            f"- Source input: {str(source_input) if source_input else '-'}",
+            f"- Source report: {str(source_report) if source_report else '-'}",
+            f"- Opinion error: {opinion_error or '-'}",
+            f"- Input error: {source_input_error or '-'}",
+            f"- Report error: {source_report_error or '-'}",
+            f"- Notes: {notes or '-'}",
+        ]
+    )
+    markdown_path = feedback_dir / "feedback.md"
+    html_path = feedback_dir / "feedback_report.html"
+    meta_path = feedback_dir / "metadata.json"
+    markdown_path.write_text(markdown + "\n", encoding="utf-8")
+    html_path.write_text(_html_page(title, markdown), encoding="utf-8")
+    metadata = {
+        "title": title,
+        "patent_id": patent_id,
+        "created_at": _now(),
+        "reviewer": reviewer,
+        "opinion_file_path": str(opinion_path) if opinion_path else None,
+        "copied_opinion_file_path": str(copied) if copied else None,
+        "source_input_path": str(source_input) if source_input else None,
+        "source_report_path": str(source_report) if source_report else None,
+        "markdown_path": str(markdown_path),
+        "html_path": str(html_path),
+        "notes": notes,
+    }
+    _write_json(meta_path, metadata)
+    index_result = refresh_application_index(force=True) if refresh_index else application_index_status()
+    return {
+        "status": "created",
+        "feedback_dir": str(feedback_dir),
+        "markdown_path": str(markdown_path),
+        "html_path": str(html_path),
+        "html_url": "/files/application/" + quote(str(html_path.resolve().relative_to(PATENT_APPLICATION_ROOT.resolve())).replace("\\", "/")),
+        "metadata_path": str(meta_path),
+        "index": index_result,
+        "metadata": metadata,
     }
 
 
@@ -475,11 +672,17 @@ def refresh_application_index(*, force: bool = True) -> dict[str, Any]:
 def application_index_status() -> dict[str, Any]:
     manifest = _read_json(_manifest_path()) or {}
     report = application_download_report()
+    feedback_files = sorted(_feedback_root().glob("*/feedback.md")) if _feedback_root().exists() else []
     return {
         "root": str(PATENT_APPLICATION_ROOT),
         "root_exists": PATENT_APPLICATION_ROOT.exists(),
         "index_exists": _documents_path().exists(),
         "manifest": manifest,
+        "feedback": {
+            "root": str(_feedback_root()),
+            "count": len(feedback_files),
+            "latest": str(feedback_files[-1]) if feedback_files else None,
+        },
         "download_report": {
             "exists": report.get("exists"),
             "success_count": report.get("success_count"),

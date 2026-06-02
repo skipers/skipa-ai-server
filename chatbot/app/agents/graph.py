@@ -84,17 +84,19 @@ def run_chat_agent(
 
 def chat_graph_mermaid() -> str:
     return """flowchart TD
-  A[Chat API Request] --> B[resolve_history_context]
-  B --> C[route_question / lightweight LLM intent]
-  C --> D[retrieve patent-local wiki context]
-  D --> E{wiki hit exists?}
-  E -- yes --> F[skip web search]
-  E -- no and needs_web --> G[retrieve web context]
-  E -- no and no web need --> H[skip web]
-  F --> I[answer from patent original/report core index]
-  G --> I
-  H --> I
-  I --> J[merge wiki/web evidence cards]
-  J --> K[finish_answer]
-  K --> L[Answer + source_cards + metrics]
+  A[질문 입력] --> B[대화 이력/선택 특허 정리]
+  B --> C[가벼운 LLM 의도 파악]
+  C --> D{외부 정보가 필요한가?}
+
+  D -- 아니오 --> E[특허 원문/보고서 core vectorstore 검색]
+  D -- 예 --> F[특허별 wiki vectorstore 유사도 확인]
+  F --> G{wiki 유사도 충분?}
+  G -- 예 --> H[wiki를 web 대체 근거로 사용]
+  G -- 아니오 --> I[Tavily 웹검색]
+
+  E --> J[답변 생성]
+  H --> J
+  I --> J
+  J --> K[근거 카드 + 품질 지표]
+  K --> L[UI/Swagger 응답]
 """

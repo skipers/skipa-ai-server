@@ -270,6 +270,8 @@ GET  /api/v1/wiki/agent/mermaid
 GET  /api/v1/application/status
 GET  /api/v1/application/external/status
 POST /api/v1/application/preprocess
+POST /api/v1/application/feedback/create
+POST /api/v1/application/feedback/upload
 POST /api/v1/application/sources/download
 GET  /api/v1/application/sources/download-report
 POST /api/v1/application/index/refresh
@@ -288,6 +290,10 @@ scripts/preprocess_chatbot_data.sh --mode auto-audit
 
 # 출원 공식팩 전처리 리포트 생성 + 출원 도우미 vectorstore 갱신
 scripts/preprocess_chatbot_data.sh --mode application-preprocess
+
+# 거절의견서/의견서 PDF를 출원 피드백 HTML/Markdown으로 만들고 출원 vectorstore 갱신
+scripts/preprocess_chatbot_data.sh --mode application-feedback \
+  --opinion-file "data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf"
 
 # 챗봇 core/wiki refresh와 출원팩 전처리를 함께 실행
 scripts/preprocess_chatbot_data.sh --mode all
@@ -976,11 +982,12 @@ data/mapped_patent_reports/<patent_id>/original/input/
 1. 사용자가 특정 특허 또는 전체 특허에 대해 질문
 2. ChatGraph가 chat_history와 context_patent_id로 이어지는 질문인지 판단
 3. lightweight LLM intent agent가 질문 의도, source_plan, 답변 형식, 웹검색 필요 여부를 분류
-4. 감사 승인본 기반 특허별 wiki vectorstore에서 보조 context를 먼저 검색
-5. wiki에 충분한 근거가 없고 의도 라우터가 외부 정보가 필요하다고 판단하면 웹 검색 실행
-6. rag.zip에서 복구한 FAISS + BM25 + RRF RAG 엔진과 LangGraph 답변 agent가 원문/보고서/core 근거와 wiki/web 보강 근거로 답변 생성
-7. 질문이 표/다이어그램을 요구하면 Markdown 표 또는 Mermaid 다이어그램을 포함
-8. 답변, source_cards, agent_trace, confidence/latency/answer_mode metrics를 반환
+4. 특허 원문/보고서 질문이면 원본 PDF와 보고서 core vectorstore만 검색
+5. 최신 시장, 경쟁사, 외부 제도처럼 웹검색 의도가 있으면 해당 특허의 wiki vectorstore를 gate로 먼저 확인
+6. wiki 유사도가 충분하면 wiki를 웹검색 대체 근거로 사용하고, 부족하면 Tavily 웹검색 실행
+7. rag.zip에서 복구한 FAISS + BM25 + RRF RAG 엔진과 LangGraph 답변 agent가 원문/보고서/core 근거와 wiki/web 보강 근거로 답변 생성
+8. 질문이 표/다이어그램을 요구하면 Markdown 표 또는 Mermaid 다이어그램을 포함
+9. 답변, source_cards, agent_trace, confidence/latency/answer_mode metrics를 반환
 ```
 
 챗봇 LangGraph:
@@ -989,18 +996,31 @@ data/mapped_patent_reports/<patent_id>/original/input/
 flowchart TD
   Q[POST /api/v1/rag/chat] --> H[resolve_history_context]
   H --> I[route_question lightweight LLM intent]
-  I --> W[retrieve_wiki_context]
-  W --> WEB[retrieve_web_context]
-  WEB --> R[answer_from_patent_context]
+  I --> X{web needed?}
+  X -->|no| C[core original/report vectorstore]
+  X -->|yes| W[patent-local wiki gate]
+  W --> Y{wiki similarity >= threshold?}
+  Y -->|yes| WG[use wiki as web replacement]
+  Y -->|no| WEB[Tavily web search]
+  C --> R[answer_from_patent_context]
+  WG --> R
+  WEB --> R
   R --> F[finish_answer]
   F --> O[answer + source_cards + metrics]
 
-  I -. decides .-> SP[source_plan: original/report/wiki/web/global]
+  I -. decides .-> SP[source_plan: original/report/global + optional web]
   I -. decides .-> AF[answer_format: text/table/diagram]
-  W -. reads .-> VS[index/vectorstore human_reviewed]
+  W -. reads .-> VS[wiki/vectorstore per patent only]
   WEB -. temporary evidence .-> WD[web result cards]
   R -. uses .-> LG[legacy FAISS + BM25 + RRF RAG]
 ```
+
+중요 정책:
+
+- 원문/보고서 기반 질문에는 WIKI 근거가 섞이지 않습니다.
+- WIKI는 전체 core vectorstore가 아니라 `data/mapped_patent_reports/<patent_id>/wiki/vectorstore/`에 특허별로 분리됩니다.
+- “최신”, “시장”, “경쟁사”, “외부 자료”, “웹검색”처럼 외부정보가 필요한 의도일 때만 WIKI gate가 열립니다.
+- WIKI gate에서 높은 유사도 근거가 있으면 Tavily 호출 없이 WIKI로 답변하고, 없으면 Tavily로 웹검색합니다.
 
 특허 출원 도우미 LangGraph:
 
@@ -1018,6 +1038,12 @@ flowchart TD
   F --> O[answer + source_cards + quality metrics]
 
   D[data/patent_application_official_pack(1)] --> IX[index/vectorstore]
+  OP[거절의견서/의견서 PDF] --> FB[POST /api/v1/application/feedback/create or upload]
+  PR[기존 특허 원본/보고서] --> FB
+  FB --> MD[feedback.md]
+  FB --> HTML[feedback_report.html]
+  MD --> IX
+  HTML --> UI[UI에서 HTML 보고서 열기]
   DL[POST /api/v1/application/sources/download] --> D
   PP[POST /api/v1/application/preprocess] --> IX
   RF[POST /api/v1/application/index/refresh] --> IX
@@ -1034,6 +1060,57 @@ KIPRIS/CPC/IPC 검색 자료를 우선하며, 처음 출원 절차 질문이면 
 실패 요인 분석/거절 대응/사업화/최신 동향처럼 내부 공식팩만으로 부족한 질문은
 `KIPRIS_API_KEY`, `KOSIS_API_KEY`, `TAVILY_API_KEY` 설정 상태를 metrics에 표시하고,
 사용 가능한 외부 근거를 답변의 근거 카드에 함께 붙입니다.
+
+거절의견서 피드백 흐름은 출원 도우미 index에 연결됩니다. 기본 테스트 파일은
+`data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf`이고,
+Swagger에서는 `POST /api/v1/application/feedback/create`, 파일 업로드 UI에서는
+`POST /api/v1/application/feedback/upload`를 사용합니다. 생성 결과는
+`data/patent_application_official_pack(1)/feedback/<timestamp>_<title>/feedback.md`,
+`feedback_report.html`, `metadata.json`에 저장되고, `refresh_index=true`이면 바로
+출원 도우미 vectorstore에 반영됩니다. 이후 `/api/v1/application/chat`에서
+“거절이유”, “실패 요인”, “보정 전략”, “의견서 대응” 질문을 하면 이 피드백 리포트와
+공식팩, 필요한 경우 외부 KIPRIS/KOSIS/Tavily 근거를 함께 사용합니다.
+
+### 전체 연결 다이어그램
+
+```mermaid
+flowchart TD
+  U[사용자/UI/Swagger] --> Q{질문/작업 종류}
+
+  Q -->|특허 유지/평가 질문| C1[챗봇 ChatGraph]
+  C1 --> I1[가벼운 LLM 의도 파악]
+  I1 -->|원문/보고서 질문| CORE[core vectorstore: original + report]
+  I1 -->|외부정보 필요| WG[특허별 wiki gate]
+  WG -->|유사도 충분| WANS[wiki 승인 근거 사용]
+  WG -->|부족| TV[Tavily 웹검색]
+  CORE --> ANS[답변 + 근거 카드 + 품질 지표]
+  WANS --> ANS
+  TV --> ANS
+
+  Q -->|wiki 감사/승인| AU[Wiki LangGraph Audit]
+  AU --> BAD[나쁜 데이터/주의 후보 판별]
+  BAD --> HR[사람 검토 또는 auto exclude]
+  HR --> APP[approved_context.md]
+  APP --> WV[특허별 wiki vectorstore refresh]
+
+  Q -->|전처리/재색인| PP[preprocess API/CLI]
+  PP --> CORE
+  PP --> WV
+
+  Q -->|출원 도움/거절 대응| AP[ApplicationGraph]
+  AP --> AV[출원 공식팩 vectorstore]
+  AP --> EXT[KIPRIS/KOSIS/Tavily 보강]
+  AP --> AANS[출원 답변 + 실패요인 + 보정전략]
+
+  Q -->|의견서/거절문서 피드백| FR[Feedback report generator]
+  FR --> FM[feedback.md]
+  FR --> FH[feedback_report.html]
+  FM --> AV
+  FH --> UIHTML[UI/파일 링크에서 HTML 확인]
+
+  CORE -. 필요시 .-> FR
+  AV -. 출원 답변에서 .-> AANS
+```
 
 답변 품질은 `metrics.answer_quality`에 표시됩니다. 항상 계산되는 지표는 검색 근거와
 답변의 의미 유사도, 질문 키워드가 답변/근거에 반영된 비율, retrieval 평균 점수이며,

@@ -21,19 +21,19 @@ def _rule_intent(query: str) -> dict[str, Any]:
     text = query.lower()
     if any(term in text for term in ["보고서", "평가", "점수", "유지", "포기", "판단"]):
         intent = "patent_report"
-        source_plan = ["report", "reviewed_vectorstore", "wiki"]
+        source_plan = ["report", "reviewed_vectorstore"]
     elif any(term in text for term in ["청구항", "원문", "요약", "발명", "pdf"]):
         intent = "patent_original"
-        source_plan = ["original", "reviewed_vectorstore", "wiki"]
+        source_plan = ["original", "reviewed_vectorstore"]
     elif "wiki" in text or "위키" in text:
         intent = "wiki"
         source_plan = ["wiki", "reviewed_vectorstore"]
     elif any(term in text for term in ["비교", "차이", "유사"]):
         intent = "comparison"
-        source_plan = ["global_patents", "report", "original", "wiki"]
+        source_plan = ["global_patents", "report", "original"]
     else:
         intent = "general"
-        source_plan = ["reviewed_vectorstore", "original", "report", "wiki"]
+        source_plan = ["reviewed_vectorstore", "original", "report"]
     needs_web = any(term in text for term in WEB_TERMS)
     if needs_web:
         source_plan.append("web")

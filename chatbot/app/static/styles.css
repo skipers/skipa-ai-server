@@ -422,14 +422,25 @@ pre {
 
 .diagram-edge {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) auto minmax(0, auto) minmax(120px, 1fr);
+  grid-template-columns: 28px minmax(150px, 1fr) 18px minmax(150px, 1fr);
   gap: 8px;
   align-items: center;
-  padding: 7px 8px;
+  padding: 9px 10px;
   border: 1px solid #d7e3f1;
   border-radius: 6px;
   background: #fff;
   color: #334155;
+  font-size: 12px;
+}
+
+.diagram-edge strong {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: #e9f2ff;
+  color: #2457a6;
   font-size: 12px;
 }
 
@@ -445,6 +456,14 @@ pre {
   color: #2457a6;
   font-style: normal;
   overflow-wrap: anywhere;
+  grid-column: 2 / 5;
+  width: fit-content;
+}
+
+.diagram-from,
+.diagram-to {
+  line-height: 1.35;
+  font-weight: 700;
 }
 
 .flow {

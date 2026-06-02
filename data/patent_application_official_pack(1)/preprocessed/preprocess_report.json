@@ -1,18 +1,18 @@
 {
   "status": "preprocessed",
-  "generated_at": "2026-06-02T14:44:30",
+  "generated_at": "2026-06-02T15:11:55",
   "root": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)",
-  "active_file_count": 29,
+  "active_file_count": 33,
   "roles": {
     "application_procedure": 22,
     "prior_art_search": 2,
-    "rejection_failure_feedback": 5
+    "rejection_failure_feedback": 9
   },
   "index": {
     "status": "refreshed",
     "scope": "patent_application",
-    "document_count": 2345,
-    "source_file_count": 29,
+    "document_count": 2351,
+    "source_file_count": 33,
     "manifest_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/index/vectorstore/manifest.json",
     "documents_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/index/vectorstore/documents.jsonl",
     "errors": []
@@ -227,6 +227,54 @@
       "relative_path": "patent_application_official_pack(1)/downloads/특허거절의견서.pdf",
       "file_name": "특허거절의견서.pdf",
       "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 87196,
+      "text_char_count": 1648,
+      "chunk_estimate": 1,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/feedback.md",
+      "relative_path": "patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/feedback.md",
+      "file_name": "feedback.md",
+      "role": "rejection_failure_feedback",
+      "suffix": ".md",
+      "size_bytes": 5606,
+      "text_char_count": 2725,
+      "chunk_estimate": 2,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/feedback_report.html",
+      "relative_path": "patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/feedback_report.html",
+      "file_name": "feedback_report.html",
+      "role": "rejection_failure_feedback",
+      "suffix": ".html",
+      "size_bytes": 6329,
+      "text_char_count": 2743,
+      "chunk_estimate": 2,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/metadata.json",
+      "relative_path": "patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/metadata.json",
+      "file_name": "metadata.json",
+      "role": "rejection_failure_feedback",
+      "suffix": ".json",
+      "size_bytes": 895,
+      "text_char_count": 733,
+      "chunk_estimate": 1,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/특허거절의견서.pdf",
+      "relative_path": "patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/특허거절의견서.pdf",
+      "file_name": "특허거절의견서.pdf",
+      "role": "rejection_failure_feedback",
       "suffix": ".pdf",
       "size_bytes": 87196,
       "text_char_count": 1648,

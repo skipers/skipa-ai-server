@@ -1,0 +1,13 @@
+{
+  "title": "특허거절의견서 기반 출원 피드백",
+  "patent_id": null,
+  "created_at": "2026-06-02T15:10:31",
+  "reviewer": "codex-test",
+  "opinion_file_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf",
+  "copied_opinion_file_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/특허거절의견서.pdf",
+  "source_input_path": null,
+  "source_report_path": null,
+  "markdown_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/feedback.md",
+  "html_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/feedback/20260602_151031_특허거절의견서_기반_출원_피드백/feedback_report.html",
+  "notes": "verification"
+}

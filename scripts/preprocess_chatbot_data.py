@@ -5,6 +5,7 @@ Examples:
   scripts/preprocess_chatbot_data.sh
   scripts/preprocess_chatbot_data.sh --mode auto-audit
   scripts/preprocess_chatbot_data.sh --mode application-preprocess
+  scripts/preprocess_chatbot_data.sh --mode application-feedback --opinion-file "data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf"
   scripts/preprocess_chatbot_data.sh --mode all
   scripts/preprocess_chatbot_data.sh --mode status
 """
@@ -37,6 +38,7 @@ def main() -> int:
             "status",
             "normalize-wiki",
             "application-preprocess",
+            "application-feedback",
             "application-status",
             "all",
         ],
@@ -45,6 +47,7 @@ def main() -> int:
             "refresh=approved vectorstore rebuild, auto-audit=audit+auto exclude+refresh, "
             "audit=audit only, normalize-wiki=rewrite approved wiki markdown, "
             "application-preprocess=preprocess application pack, all=chatbot refresh+application preprocess, "
+            "application-feedback=create rejection/opinion feedback HTML and refresh application index, "
             "status=show status"
         ),
     )
@@ -53,6 +56,13 @@ def main() -> int:
         action="store_true",
         help="Use raw documents instead of human-approved documents for refresh mode.",
     )
+    parser.add_argument("--title", default="특허거절의견서 기반 출원 피드백", help="Feedback report title.")
+    parser.add_argument("--patent-id", default=None, help="Patent ID to connect with original/report data.")
+    parser.add_argument("--opinion-file", default=None, help="Rejection opinion or office action PDF/document path.")
+    parser.add_argument("--opinion-text", default=None, help="Inline rejection opinion text.")
+    parser.add_argument("--source-report", default=None, help="Existing generated patent report path to connect.")
+    parser.add_argument("--reviewer", default="cli", help="Feedback report reviewer name.")
+    parser.add_argument("--notes", default=None, help="Optional notes for feedback metadata.")
     args = parser.parse_args()
 
     from chatbot.app.vectorstore import (
@@ -65,6 +75,7 @@ def main() -> int:
     from chatbot.app.application_data import (
         application_external_status,
         application_index_status,
+        create_application_feedback_report,
         preprocess_application_pack,
     )
 
@@ -83,6 +94,20 @@ def main() -> int:
         return 0
     if args.mode == "application-preprocess":
         _print_json(preprocess_application_pack(refresh_index=True))
+        return 0
+    if args.mode == "application-feedback":
+        _print_json(
+            create_application_feedback_report(
+                title=args.title,
+                patent_id=args.patent_id,
+                opinion_text=args.opinion_text,
+                opinion_file_path=args.opinion_file,
+                source_report_path=args.source_report,
+                reviewer=args.reviewer,
+                notes=args.notes,
+                refresh_index=True,
+            )
+        )
         return 0
     if args.mode == "audit":
         _print_json(run_audit())

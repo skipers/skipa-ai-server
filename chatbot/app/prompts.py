@@ -21,7 +21,7 @@ original, report, wiki, reviewed_vectorstore, web, global_patents.
 
 라우팅 규칙:
 1. "최근", "현재", "시장", "동향", "뉴스", "경쟁사", "제품", "사업화", "표준"은 needs_web=true 이고 source_plan에 web을 포함한다.
-2. 웹이 필요해도 wiki를 먼저 포함한다. 해당 특허 wiki에 근거가 있으면 web보다 wiki를 우선한다.
+2. wiki는 needs_web=true일 때만 web-search gate로 사용한다. 일반 원문/보고서 질문에는 wiki를 source_plan에 넣지 않는다.
 3. "평가", "점수", "유지", "포기", "매각", "제각", "리스크", "판단"은 patent_report다.
 4. "청구항", "원문", "발명", "구성", "효과", "도면", "PDF"는 patent_original이다.
 5. "비교", "차이", "유사"는 comparison이다.
@@ -31,10 +31,10 @@ original, report, wiki, reviewed_vectorstore, web, global_patents.
 
 예시:
 질문: "CMP Pad 물류 특허 평가 점수를 표로 정리해줘"
-출력: {{"intent":"patent_report","needs_web":false,"focus":"평가 점수","source_plan":["report","reviewed_vectorstore","wiki"],"answer_format":"table","needs_diagram":false,"needs_table":true,"use_history":false,"confidence":0.9,"reason":"평가 점수와 표 요청"}}
+출력: {{"intent":"patent_report","needs_web":false,"focus":"평가 점수","source_plan":["report","reviewed_vectorstore"],"answer_format":"table","needs_diagram":false,"needs_table":true,"use_history":false,"confidence":0.9,"reason":"평가 점수와 표 요청"}}
 
 질문: "최근 NF3 시장 동향이랑 이 특허 사업화 가능성 알려줘"
-출력: {{"intent":"general","needs_web":true,"focus":"시장 동향과 사업화 가능성","source_plan":["reviewed_vectorstore","wiki","report","web"],"answer_format":"bullets","needs_diagram":false,"needs_table":false,"use_history":true,"confidence":0.85,"reason":"최신 시장 정보와 내부 평가 근거가 모두 필요"}}
+출력: {{"intent":"general","needs_web":true,"focus":"시장 동향과 사업화 가능성","source_plan":["reviewed_vectorstore","report","web"],"answer_format":"bullets","needs_diagram":false,"needs_table":false,"use_history":true,"confidence":0.85,"reason":"최신 시장 정보와 내부 평가 근거가 모두 필요"}}
 
 사용자 질문:
 {query}

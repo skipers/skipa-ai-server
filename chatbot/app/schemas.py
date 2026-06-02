@@ -44,6 +44,17 @@ class PatentApplicationPreprocessRequest(BaseModel):
     refresh_index: bool = Field(True, description="전처리 리포트 생성과 함께 출원 공식팩 vectorstore도 다시 생성")
 
 
+class PatentApplicationFeedbackRequest(BaseModel):
+    title: str = Field("특허 출원 실패/거절 대응 피드백", description="생성할 피드백 리포트 제목")
+    patent_id: str | None = Field(None, description="기존 mapped_patent_reports의 특허 ID. 있으면 latest input/report를 연결")
+    opinion_text: str | None = Field(None, description="거절의견/의견서/출원 실패 사유 텍스트")
+    opinion_file_path: str | None = Field(None, description="서버 로컬 의견서/PDF 경로. data 또는 patent_application pack 하위만 허용")
+    source_report_path: str | None = Field(None, description="기존 평가 보고서 JSON/PDF/HTML 경로. 비우면 patent_id의 latest report 사용")
+    reviewer: str | None = Field(None, description="검토자")
+    notes: str | None = Field(None, description="추가 메모")
+    refresh_index: bool = Field(True, description="피드백 생성 후 출원 도우미 vectorstore refresh")
+
+
 class PreprocessRunRequest(BaseModel):
     mode: Literal[
         "normalize_wiki",

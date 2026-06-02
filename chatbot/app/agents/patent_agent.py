@@ -68,13 +68,15 @@ def _format_web_section(results: list[dict], *, limit: int = 3) -> str:
 
 def _merge_context_sections(result: dict, state: ChatAgentState, web_context: dict) -> dict:
     answer = str(result.get("answer") or "")
+    intent = state.get("intent") or {}
+    allow_wiki_supplement = bool(intent.get("needs_web"))
     wiki_hits = list((state.get("wiki_context") or {}).get("hits") or [])
     web_results = list(web_context.get("results") or [])
-    has_extra = bool(filter_usable_hits(wiki_hits, limit=1) or web_results)
+    has_extra = bool((allow_wiki_supplement and filter_usable_hits(wiki_hits, limit=1)) or web_results)
     if has_extra and any(marker in answer for marker in LOW_EVIDENCE_MARKERS):
         answer = "내부 원문/보고서 근거가 약해, 현재 확보된 승인 데이터와 웹 근거를 함께 기준으로 답변을 보강합니다."
 
-    wiki_section = _format_hit_section("내부 wiki/승인 데이터 보강", wiki_hits)
+    wiki_section = _format_hit_section("웹검색 전 내부 wiki 확인", wiki_hits) if allow_wiki_supplement else ""
     if wiki_section and "내부 wiki/승인 데이터 보강" not in answer:
         answer = answer.rstrip() + wiki_section
 
@@ -87,6 +89,9 @@ def _merge_context_sections(result: dict, state: ChatAgentState, web_context: di
 
 
 def _has_wiki_context(state: ChatAgentState) -> bool:
+    intent = state.get("intent") or {}
+    if not intent.get("needs_web"):
+        return False
     wiki_hits = list((state.get("wiki_context") or {}).get("hits") or [])
     return bool(filter_usable_hits(wiki_hits, limit=1))
 
@@ -116,7 +121,8 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
         web_context["enabled"] = True
 
     result = _merge_context_sections(result, state, web_context)
-    wiki_hits = filter_usable_hits(list((state.get("wiki_context") or {}).get("hits") or []), limit=3)
+    intent_needs_web = bool((state.get("intent") or {}).get("needs_web"))
+    wiki_hits = filter_usable_hits(list((state.get("wiki_context") or {}).get("hits") or []), limit=3) if intent_needs_web else []
     existing_snippets = {
         str(card.get("snippet") or "")[:160]
         for card in result.get("source_cards") or []
@@ -150,7 +156,8 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
             "intent_agent": state.get("intent") or {},
             "wiki_context_count": (state.get("wiki_context") or {}).get("hit_count", 0),
             "wiki_context_mode": (state.get("wiki_context") or {}).get("mode"),
-            "wiki_preferred_before_web": wiki_available,
+            "wiki_gate_enabled": intent_needs_web,
+            "wiki_gate_passed": wiki_available,
             "web_agent_enabled": bool(web_context.get("enabled")),
             "web_context_count": len(web_results),
             "web_provider": web_context.get("provider"),

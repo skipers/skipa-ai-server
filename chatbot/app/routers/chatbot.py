@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from pathlib import Path
+
+from fastapi import APIRouter, File, Form, Query, UploadFile
 
 from ..agents.application_graph import application_graph_mermaid, run_application_agent
 from ..agents.graph import chat_graph_mermaid, run_chat_agent
@@ -12,10 +14,12 @@ from ..application_data import (
     application_download_report,
     application_external_status,
     application_index_status,
+    create_application_feedback_report,
     download_application_sources,
     preprocess_application_pack,
     refresh_application_index,
 )
+from ..config import PATENT_APPLICATION_ROOT
 from ..config import (
     ANSWER_LLM_TIMEOUT,
     ANSWER_MODEL,
@@ -40,6 +44,7 @@ from ..schemas import (
     FeedbackRequest,
     PatentApplicationChatRequest,
     PatentApplicationDownloadRequest,
+    PatentApplicationFeedbackRequest,
     PatentApplicationPreprocessRequest,
     PreprocessRunRequest,
     ReindexRequest,
@@ -408,6 +413,37 @@ def get_application_external_status() -> dict:
 @application_router.post("/preprocess", summary="특허 출원 공식팩 전처리 리포트 생성 및 vectorstore 갱신")
 def post_application_preprocess(request: PatentApplicationPreprocessRequest) -> dict:
     return preprocess_application_pack(refresh_index=request.refresh_index)
+
+
+@application_router.post("/feedback/create", summary="의견서/거절사유/기존 평가 보고서를 연결한 출원 피드백 리포트 생성")
+def post_application_feedback_create(request: PatentApplicationFeedbackRequest) -> dict:
+    return create_application_feedback_report(**request.model_dump())
+
+
+@application_router.post("/feedback/upload", summary="의견서 PDF/문서 업로드 후 출원 피드백 HTML 생성 및 vectorstore 갱신")
+def post_application_feedback_upload(
+    file: UploadFile = File(..., description="의견서, 거절이유 통지서, 출원 실패 분석 문서 PDF/HWP/HTML/TXT"),
+    title: str = Form("특허 출원 실패/거절 대응 피드백"),
+    patent_id: str | None = Form(None),
+    source_report_path: str | None = Form(None),
+    reviewer: str | None = Form(None),
+    notes: str | None = Form(None),
+    refresh_index: bool = Form(True),
+) -> dict:
+    upload_dir = PATENT_APPLICATION_ROOT / "feedback" / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = Path(file.filename or "opinion.pdf").name
+    upload_path = upload_dir / safe_name
+    upload_path.write_bytes(file.file.read())
+    return create_application_feedback_report(
+        title=title,
+        patent_id=patent_id,
+        opinion_file_path=str(upload_path),
+        source_report_path=source_report_path,
+        reviewer=reviewer,
+        notes=notes,
+        refresh_index=refresh_index,
+    )
 
 
 @application_router.post("/sources/download", summary="특허 출원 공식 자료 다운로드/크롤링")

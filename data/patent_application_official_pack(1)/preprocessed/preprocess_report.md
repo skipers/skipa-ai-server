@@ -1,13 +1,13 @@
 # Patent Application Pack Preprocess Report
 
-- Generated at: 2026-06-02T14:44:30
-- Active files: 29
-- Vectorstore documents: 2345
+- Generated at: 2026-06-02T15:11:55
+- Active files: 33
+- Vectorstore documents: 2351
 
 ## Roles
 - application_procedure: 22
 - prior_art_search: 2
-- rejection_failure_feedback: 5
+- rejection_failure_feedback: 9
 
 ## Recommended Additions
 - 최근 KIPRIS 유사특허 샘플: 출원 전 신규성/진보성 위험을 질문에서 바로 분석하려면 실제 유사특허 번호, 청구항, 공개/등록 상태 샘플이 필요합니다. (KIPRIS 특허검색 또는 KIPRISPlus API)
@@ -33,6 +33,10 @@
 - application_procedure / 출원방식심사기준.pdf / chunks~170
 - application_procedure / 통지서표준문안집.pdf / chunks~72
 - application_procedure / 특허거절의견서.pdf / chunks~1
+- rejection_failure_feedback / feedback.md / chunks~2
+- rejection_failure_feedback / feedback_report.html / chunks~2
+- rejection_failure_feedback / metadata.json / chunks~1
+- rejection_failure_feedback / 특허거절의견서.pdf / chunks~1
 - application_procedure / official_download_links.html / chunks~1
 - application_procedure / official_sources.csv / chunks~4
 - application_procedure / official_sources.json / chunks~6
