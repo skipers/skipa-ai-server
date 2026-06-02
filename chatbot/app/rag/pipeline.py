@@ -31,6 +31,8 @@ def answer_question(
     patent_id: str | None = None,
     source_types: set[str] | None = None,
     top_k: int = 5,
+    allow_web: bool = True,
+    intent_override: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     legacy_error: str | None = None
     if not source_types:
@@ -42,15 +44,18 @@ def answer_question(
         if legacy_result:
             legacy_error = legacy_result.get("metrics", {}).get("legacy_error")
 
-    intent = classify_intent(query)
+    intent = intent_override or classify_intent(query)
     local_result = retrieve_local(query, patent_id=patent_id, source_types=source_types, top_k=top_k)
     raw_local_hits = list(local_result.get("hits") or [])
     local_hits = filter_usable_hits(raw_local_hits, limit=top_k)
     local_result = {**local_result, "hits": local_hits, "raw_hit_count": len(raw_local_hits), "hit_count": len(local_hits)}
 
-    needs_web = bool(intent.get("needs_web") or len(local_hits) < 2)
+    needs_web = allow_web and bool(intent.get("needs_web") or len(local_hits) < 2)
     web_result = search_web(query) if needs_web else {"enabled": False, "provider": None, "results": [], "error": None}
-    if len(local_hits) < 2 and not intent.get("needs_web"):
+    if not allow_web:
+        web_result["skipped"] = True
+        web_result["skip_reason"] = "disabled_by_agent_policy"
+    elif len(local_hits) < 2 and not intent.get("needs_web"):
         web_result["fallback_reason"] = "local_evidence_insufficient"
     web_results = list(web_result.get("results") or [])
 

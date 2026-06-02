@@ -28,6 +28,8 @@ from .rag.quality import is_usable_evidence, preprocess_evidence_text
 
 VECTOR_DIMENSIONS = 256
 MAX_TEXT_CHARS = 20000
+CORE_SEARCH_SOURCE_TYPES = frozenset({"ORIGINAL_PDF", "REPORT_PDF", "PATENT_INPUT_JSON", "REPORT_JSON"})
+WIKI_SEARCH_SOURCE_TYPES = frozenset({"WIKI"})
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
 SECRET_RE = re.compile(
     r"(sk-[A-Za-z0-9_-]{16,}|BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY|AKIA[0-9A-Z]{16}|"
@@ -187,6 +189,14 @@ def _truncate(text: str) -> str:
 def _source_type(doc: dict[str, Any]) -> str:
     metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
     return str(metadata.get("source_type") or "")
+
+
+def _is_core_search_doc(doc: dict[str, Any]) -> bool:
+    return _source_type(doc) in CORE_SEARCH_SOURCE_TYPES
+
+
+def _is_wiki_doc(doc: dict[str, Any]) -> bool:
+    return _source_type(doc) in WIKI_SEARCH_SOURCE_TYPES
 
 
 def _document(
@@ -482,22 +492,34 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
     patent_results = []
     patent_wiki_results = []
     global_docs: list[dict[str, Any]] = []
+    excluded_by_policy: dict[str, int] = defaultdict(int)
     source = "human_reviewed" if use_reviewed else "raw"
 
     for patent_id in _patent_ids():
         patent_dir = PATENTS_ROOT / patent_id
         docs = collect_patent_documents(patent_id, use_reviewed=use_reviewed)
-        non_wiki_docs = [doc for doc in docs if _source_type(doc) != "WIKI"]
-        global_docs.extend(non_wiki_docs)
-        patent_results.append(_write_vectorstore(patent_dir / "index" / "vectorstore", docs, scope=f"patent:{patent_id}", source=source))
-        patent_wiki_docs = [doc for doc in docs if _source_type(doc) == "WIKI"]
+        core_docs = [doc for doc in docs if _is_core_search_doc(doc)]
+        patent_wiki_docs = [doc for doc in docs if _is_wiki_doc(doc)]
+        for doc in docs:
+            if not _is_core_search_doc(doc) and not _is_wiki_doc(doc):
+                excluded_by_policy[_source_type(doc) or "UNKNOWN"] += 1
+        global_docs.extend(core_docs)
+        patent_results.append(
+            _write_vectorstore(patent_dir / "index" / "vectorstore", core_docs, scope=f"patent:{patent_id}", source=source)
+        )
         patent_wiki_results.append(
             _write_vectorstore(patent_dir / "wiki" / "vectorstore" / "local", patent_wiki_docs, scope=f"wiki:{patent_id}", source=source)
         )
 
     business_docs = _business_documents()
-    global_docs.extend(business_docs)
-    business_result = _write_vectorstore(BUSINESS_ROOT / "index" / "vectorstore", business_docs, scope="business", source="raw")
+    for doc in business_docs:
+        excluded_by_policy[_source_type(doc) or "BUSINESS"] += 1
+    business_result = _write_vectorstore(
+        BUSINESS_ROOT / "index" / "vectorstore",
+        [],
+        scope="business-disabled",
+        source="disabled_non_core_web_routing",
+    )
     global_result = _write_vectorstore(PATENTS_ROOT / "_global" / "index" / "vectorstore", global_docs, scope="global", source=source)
     global_wiki_result = _write_vectorstore(
         PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local",
@@ -516,7 +538,10 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
         "business_vectorstore": business_result,
         "global_vectorstore": global_result,
         "global_wiki_vectorstore": global_wiki_result,
-        "wiki_policy": "wiki documents are stored only in each patent's wiki/vectorstore/local and are excluded from the global vectorstore",
+        "core_source_types": sorted(CORE_SEARCH_SOURCE_TYPES),
+        "excluded_from_core_search": dict(sorted(excluded_by_policy.items())),
+        "wiki_policy": "wiki documents are stored only in each patent's wiki/vectorstore/local and are checked before web search",
+        "web_policy": "non-core data is excluded from core vectorstores; questions without original/report/wiki evidence should route to web search",
     }
 
 
@@ -542,6 +567,8 @@ def vectorstore_status() -> dict[str, Any]:
     global_wiki_manifest = _read_json(PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local" / "manifest.json")
     return {
         "backend": "local_hashed_bow",
+        "core_source_types": sorted(CORE_SEARCH_SOURCE_TYPES),
+        "core_policy": "patent/report only; visual, wiki, business and other auxiliary data are excluded from core vectorstores",
         "global": {
             "exists": bool(global_manifest),
             "document_count": global_manifest.get("document_count", 0),
@@ -560,12 +587,21 @@ def vectorstore_status() -> dict[str, Any]:
     }
 
 
-def _iter_vector_documents(patent_id: str | None) -> Iterable[dict[str, Any]]:
-    docs_path = (
+def _vector_documents_path(*, patent_id: str | None, source_types: set[str] | None) -> Path:
+    requested = set(source_types or [])
+    if requested and requested <= WIKI_SEARCH_SOURCE_TYPES:
+        if patent_id:
+            return PATENTS_ROOT / patent_id / "wiki" / "vectorstore" / "local" / "documents.jsonl"
+        return PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local" / "documents.jsonl"
+    return (
         PATENTS_ROOT / patent_id / "index" / "vectorstore" / "documents.jsonl"
         if patent_id
         else PATENTS_ROOT / "_global" / "index" / "vectorstore" / "documents.jsonl"
     )
+
+
+def _iter_vector_documents(patent_id: str | None, source_types: set[str] | None = None) -> Iterable[dict[str, Any]]:
+    docs_path = _vector_documents_path(patent_id=patent_id, source_types=source_types)
     if not docs_path.exists():
         return
     for _, item in _read_jsonl(docs_path) or []:
@@ -585,23 +621,38 @@ def _excerpt(text: str, query: str, size: int = 360) -> str:
 
 def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int) -> dict[str, Any]:
     query_vector = _vectorize(query)
+    effective_source_types = set(source_types) if source_types is not None else set(CORE_SEARCH_SOURCE_TYPES)
+    docs_path = _vector_documents_path(patent_id=patent_id, source_types=effective_source_types)
     if not query_vector:
         return {
             "query": query,
             "mode": "local_vectorstore_search",
             "patent_id": patent_id,
             "top_k": top_k,
+            "source_types": sorted(effective_source_types),
+            "documents_path": str(docs_path),
+            "hit_count": 0,
+            "hits": [],
+        }
+    if not docs_path.exists():
+        return {
+            "query": query,
+            "mode": "local_vectorstore_search",
+            "patent_id": patent_id,
+            "top_k": top_k,
+            "source_types": sorted(effective_source_types),
+            "documents_path": str(docs_path),
             "hit_count": 0,
             "hits": [],
         }
     scored: list[tuple[float, dict[str, Any]]] = []
-    for doc in _iter_vector_documents(patent_id) or []:
+    for doc in _iter_vector_documents(patent_id, effective_source_types) or []:
         text = str(doc.get("page_content") or "")
         if not is_usable_evidence(text):
             continue
         metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
         source_type = str(metadata.get("source_type", ""))
-        if source_types and source_type not in source_types:
+        if effective_source_types and source_type not in effective_source_types:
             continue
         vector = doc.get("vector") if isinstance(doc.get("vector"), dict) else {}
         score = _dot(query_vector, {str(key): float(value) for key, value in vector.items()})
@@ -612,6 +663,7 @@ def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[s
     hits = []
     for score, doc in scored[:top_k]:
         metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        text = str(doc.get("page_content") or "")
         hits.append(
             {
                 "patent_id": str(metadata.get("patent_id") or patent_id or ""),
@@ -626,6 +678,8 @@ def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[s
         "mode": "local_vectorstore_search",
         "patent_id": patent_id,
         "top_k": top_k,
+        "source_types": sorted(effective_source_types),
+        "documents_path": str(docs_path),
         "hit_count": len(hits),
         "hits": hits,
     }

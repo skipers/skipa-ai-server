@@ -83,17 +83,18 @@ def run_chat_agent(
 
 
 def chat_graph_mermaid() -> str:
-    if CHAT_GRAPH is not None:
-        try:
-            return CHAT_GRAPH.get_graph().draw_mermaid()
-        except Exception:
-            pass
     return """flowchart TD
   A[Chat API Request] --> B[resolve_history_context]
   B --> C[route_question / lightweight LLM intent]
-  C --> D[retrieve_wiki_context]
-  D --> E[retrieve_web_context]
-  E --> F[answer_from_patent_context]
-  F --> G[finish_answer]
-  G --> H[Answer + source_cards + metrics]
+  C --> D[retrieve patent-local wiki context]
+  D --> E{wiki hit exists?}
+  E -- yes --> F[skip web search]
+  E -- no and needs_web --> G[retrieve web context]
+  E -- no and no web need --> H[skip web]
+  F --> I[answer from patent original/report core index]
+  G --> I
+  H --> I
+  I --> J[merge wiki/web evidence cards]
+  J --> K[finish_answer]
+  K --> L[Answer + source_cards + metrics]
 """

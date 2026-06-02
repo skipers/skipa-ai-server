@@ -39,7 +39,10 @@ def finish_answer(state: ChatAgentState) -> ChatAgentState:
     finish_trace = {"node": "finish_answer", "status": "success", "at": datetime.now().isoformat(timespec="seconds")}
     trace.append(finish_trace)
     metrics["agent_trace"] = trace
-    metrics["chatbot_workflow"] = "history_context -> intent_agent -> wiki_retrieval -> web_search -> rag_answer -> response_enrichment"
+    metrics["chatbot_workflow"] = (
+        "history_context -> intent_agent -> patent_local_wiki_gate -> web_search_if_needed -> "
+        "patent_original_report_answer -> response_enrichment"
+    )
     metrics["answer_has_diagram"] = "```mermaid" in str(result.get("answer") or "")
     result["metrics"] = metrics
     return {**state, "result": result, "trace": trace}

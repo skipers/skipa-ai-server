@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 
 from ..config import PATENTS_ROOT
-from ..rag.quality import compact_text, preprocess_evidence_text
+from ..rag.quality import compact_text, filter_usable_hits, preprocess_evidence_text
 from ..rag.web_answers import search_web
 from .state import ChatAgentState
 
@@ -68,12 +68,25 @@ def _archive_web_results(state: ChatAgentState, result: dict) -> str | None:
 def retrieve_web_context(state: ChatAgentState) -> ChatAgentState:
     intent = state.get("intent") or {}
     should_search = bool(intent.get("needs_web") or "web" in set(intent.get("source_plan") or []))
+    wiki_hits = filter_usable_hits(list((state.get("wiki_context") or {}).get("hits") or []), limit=1)
     result = {"enabled": should_search, "provider": None, "results": [], "error": None}
+    skipped_by_wiki = False
     if should_search:
-        result = search_web(state.get("query", ""))
-        archive_path = _archive_web_results(state, result)
-        if archive_path:
-            result["wiki_draft_path"] = archive_path
+        if wiki_hits:
+            skipped_by_wiki = True
+            result = {
+                "enabled": False,
+                "provider": None,
+                "results": [],
+                "error": None,
+                "skipped": True,
+                "skip_reason": "patent_local_wiki_context_available",
+            }
+        else:
+            result = search_web(state.get("query", ""))
+            archive_path = _archive_web_results(state, result)
+            if archive_path:
+                result["wiki_draft_path"] = archive_path
 
     trace = list(state.get("trace", []))
     trace.append(
@@ -82,9 +95,11 @@ def retrieve_web_context(state: ChatAgentState) -> ChatAgentState:
             "status": "success" if not result.get("error") else "warning",
             "at": datetime.now().isoformat(timespec="seconds"),
             "enabled": should_search,
+            "skipped_by_wiki": skipped_by_wiki,
             "provider": result.get("provider"),
             "result_count": len(result.get("results") or []),
             "error": result.get("error"),
+            "skip_reason": result.get("skip_reason"),
             "wiki_draft_path": result.get("wiki_draft_path"),
         }
     )

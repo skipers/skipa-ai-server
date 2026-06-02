@@ -12,7 +12,7 @@ from .llm import call_ollama
 
 
 ALLOWED_INTENTS = {"patent_original", "patent_report", "wiki", "comparison", "general"}
-ALLOWED_SOURCES = {"original", "report", "wiki", "reviewed_vectorstore", "web", "business", "global_patents"}
+ALLOWED_SOURCES = {"original", "report", "wiki", "reviewed_vectorstore", "web", "global_patents"}
 ALLOWED_FORMATS = {"text", "bullets", "table", "diagram", "table_and_diagram"}
 WEB_TERMS = ("시장", "동향", "뉴스", "최근", "현재", "웹", "사업화", "경쟁", "제품", "표준", "외부", "최신", "규모", "성장률")
 
@@ -59,6 +59,8 @@ def _rule_intent(query: str) -> dict[str, Any]:
         "needs_diagram": needs_diagram,
         "needs_table": needs_table,
         "use_history": use_history,
+        "confidence": 0.7,
+        "reason": "룰 기반 키워드 라우팅",
         "method": "rule",
     }
 

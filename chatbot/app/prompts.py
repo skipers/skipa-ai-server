@@ -17,11 +17,11 @@ intent 선택지:
 - general: 위 범주가 섞였거나 넓은 설명이 필요한 질문
 
 source_plan 배열 선택지:
-original, report, wiki, reviewed_vectorstore, web, business, global_patents.
+original, report, wiki, reviewed_vectorstore, web, global_patents.
 
 라우팅 규칙:
 1. "최근", "현재", "시장", "동향", "뉴스", "경쟁사", "제품", "사업화", "표준"은 needs_web=true 이고 source_plan에 web을 포함한다.
-2. 웹이 필요해도 wiki 또는 reviewed_vectorstore를 함께 포함한다. 내부 승인 데이터가 있으면 답변에 먼저 반영해야 한다.
+2. 웹이 필요해도 wiki를 먼저 포함한다. 해당 특허 wiki에 근거가 있으면 web보다 wiki를 우선한다.
 3. "평가", "점수", "유지", "포기", "매각", "제각", "리스크", "판단"은 patent_report다.
 4. "청구항", "원문", "발명", "구성", "효과", "도면", "PDF"는 patent_original이다.
 5. "비교", "차이", "유사"는 comparison이다.

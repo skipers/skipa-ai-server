@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ..rag.legacy_adapter import try_answer_with_legacy
 from ..rag.pipeline import answer_question
 from ..rag.quality import compact_text, filter_usable_hits
 from ..rag.sources import cards_from_hits, cards_from_web
 from ..rag.web_answers import search_web
+from ..vectorstore import CORE_SEARCH_SOURCE_TYPES
 from .state import ChatAgentState
 
 
@@ -85,34 +85,32 @@ def _merge_context_sections(result: dict, state: ChatAgentState, web_context: di
     return result
 
 
+def _has_wiki_context(state: ChatAgentState) -> bool:
+    wiki_hits = list((state.get("wiki_context") or {}).get("hits") or [])
+    return bool(filter_usable_hits(wiki_hits, limit=1))
+
+
 def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
     patent_id = state.get("resolved_patent_id") or state.get("patent_id")
-    result = try_answer_with_legacy(
+    wiki_available = _has_wiki_context(state)
+    requested_source_types = set(state.get("source_types") or CORE_SEARCH_SOURCE_TYPES)
+    source_types = requested_source_types & set(CORE_SEARCH_SOURCE_TYPES) or set(CORE_SEARCH_SOURCE_TYPES)
+    result = answer_question(
         state.get("query", ""),
         patent_id=patent_id,
+        source_types=source_types,
         top_k=int(state.get("top_k") or 5),
-        user_id=state.get("user_id"),
-        chat_history=state.get("chat_history"),
-        context_patent_id=state.get("context_patent_id"),
+        allow_web=not wiki_available,
+        intent_override=state.get("intent") or None,
     )
-    if not result or result.get("metrics", {}).get("fallback_required"):
-        fallback = answer_question(
-            state.get("query", ""),
-            patent_id=patent_id,
-            source_types=state.get("source_types"),
-            top_k=int(state.get("top_k") or 5),
-        )
-        if result:
-            fallback.setdefault("metrics", {})["legacy_error"] = result.get("metrics", {}).get("legacy_error")
-        result = fallback
-
+    result.setdefault("metrics", {})["legacy_agent_skipped_reason"] = "strict_core_source_policy"
     web_context = dict(state.get("web_context") or {})
     intent = state.get("intent") or {}
-    if _is_low_evidence_answer(result) and not web_context.get("results"):
+    if _is_low_evidence_answer(result) and not web_context.get("results") and not wiki_available:
         web_context = search_web(state.get("query", ""))
         web_context["enabled"] = True
         web_context["fallback_reason"] = "answer_evidence_insufficient"
-    elif intent.get("needs_web") and not web_context.get("enabled"):
+    elif intent.get("needs_web") and not web_context.get("enabled") and not wiki_available and not web_context.get("skipped"):
         web_context = search_web(state.get("query", ""))
         web_context["enabled"] = True
 
@@ -145,10 +143,12 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
             "intent_agent": state.get("intent") or {},
             "wiki_context_count": (state.get("wiki_context") or {}).get("hit_count", 0),
             "wiki_context_mode": (state.get("wiki_context") or {}).get("mode"),
+            "wiki_preferred_before_web": wiki_available,
             "web_agent_enabled": bool(web_context.get("enabled")),
             "web_context_count": len(web_results),
             "web_provider": web_context.get("provider"),
             "web_fallback_reason": web_context.get("fallback_reason"),
+            "web_skip_reason": web_context.get("skip_reason"),
             "answer_format_plan": (state.get("intent") or {}).get("answer_format"),
             "source_plan": (state.get("intent") or {}).get("source_plan"),
         }

@@ -11,21 +11,21 @@ const workflowText = {
   audit: "LangGraph wiki audit agent가 특허 원문, 보고서 JSON, chunk, wiki 데이터를 스캔해서 EMPTY/OCR_NOISE/SECRET/DUPLICATE 같은 나쁜 데이터 후보를 찾습니다.",
   review: "감사 결과는 audit.json과 review.md로 저장됩니다. 사람은 finding별 excerpt와 metadata를 보고 제외할 항목을 확정합니다.",
   apply: "선택한 finding_id에 연결된 문서만 제외하고 나머지를 approved_context.md와 approved_documents.jsonl로 저장합니다.",
-  vectorstore: "승인된 approved_documents.jsonl을 기준으로 local vectorstore를 다시 만들고, 필요하면 rag.zip FAISS/BM25 인덱스도 전처리 agent로 재생성합니다.",
-  query: "질문이 들어오면 가벼운 의도 판단 뒤 복구된 FAISS+BM25+RRF RAG, 특허 원문, 보고서, wiki/승인 데이터, 웹 근거를 조합해 답변합니다.",
+  vectorstore: "승인된 approved_documents.jsonl을 기준으로 원문/보고서 core vectorstore와 특허별 wiki vectorstore를 분리해서 다시 만듭니다.",
+  query: "질문이 들어오면 가벼운 의도 판단 뒤 특허 원문/보고서를 core로 검색하고, web 필요 질문은 특허별 wiki를 먼저 본 뒤 없을 때만 웹 근거를 붙입니다.",
 };
 
 const workflowGraphInfo = {
   chat: {
     title: "챗봇 답변 워크플로우",
     endpoint: "/api/v1/rag/chat/mermaid",
-    summary: "질문 맥락을 정리한 뒤 가벼운 LLM/룰 기반 의도 라우터가 검색 위치와 답변 형식을 정하고, wiki/vectorstore, 웹, 특허 원문/보고서를 조합해 답변과 근거 카드를 만듭니다.",
+    summary: "질문 맥락을 정리한 뒤 가벼운 LLM/룰 기반 의도 라우터가 검색 위치와 답변 형식을 정하고, 특허별 wiki가 있으면 web보다 먼저 사용한 뒤 특허 원문/보고서 core 근거로 답변합니다.",
     steps: [
       ["resolve_history_context", "이전 대화와 선택 특허를 현재 질문 맥락으로 정리"],
       ["route_question", "의도, 웹검색 필요 여부, 표/다이어그램 필요 여부 판단"],
-      ["retrieve_wiki_context", "감사 후 승인된 wiki/vectorstore 근거 검색"],
-      ["retrieve_web_context", "최신성 또는 외부 정보가 필요할 때 웹 근거 수집"],
-      ["answer_from_patent_context", "rag.zip FAISS+BM25+RRF와 fallback RAG로 답변 생성"],
+      ["retrieve_wiki_context", "감사 후 승인된 특허별 wiki vectorstore 근거 검색"],
+      ["retrieve_web_context", "wiki 근거가 없고 최신성/외부 정보가 필요할 때만 웹 근거 수집"],
+      ["answer_from_patent_context", "특허 원문/보고서 core vectorstore와 wiki/web 보강 근거로 답변 생성"],
       ["finish_answer", "근거 카드, 성능 지표, 워크플로우 trace 반환"],
     ],
   },
@@ -57,7 +57,7 @@ const workflowGraphInfo = {
   ingestion: {
     title: "전처리/RAG 재색인 워크플로우",
     endpoint: "/api/v1/rag/ingestion/mermaid",
-    summary: "특허별, 전체, 비즈니스 범위의 rag.zip 인덱스를 재생성하고 필요 시 승인 vectorstore 갱신까지 이어줍니다.",
+    summary: "특허별/전체 인덱스를 재생성하고 승인 vectorstore 갱신 시 원문/보고서 core와 특허별 wiki를 분리합니다.",
     steps: [
       ["inspect_request", "요청 scope와 특허 ID, 레거시 RAG 엔진 상태 확인"],
       ["run_reindex", "scope에 따라 특허별/global/business 인덱스 생성"],
