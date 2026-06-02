@@ -6,8 +6,83 @@ from datetime import datetime
 
 from ..rag.legacy_adapter import try_answer_with_legacy
 from ..rag.pipeline import answer_question
-from ..rag.sources import cards_from_web
+from ..rag.quality import compact_text, filter_usable_hits
+from ..rag.sources import cards_from_hits, cards_from_web
+from ..rag.web_answers import search_web
 from .state import ChatAgentState
+
+
+LOW_EVIDENCE_MARKERS = (
+    "관련 근거를 찾지 못했습니다",
+    "근거를 찾지 못했습니다",
+    "찾을 수 없습니다",
+    "내부 승인 데이터와 원문/보고서에서 직접 답할 만한 근거가 충분하지 않습니다",
+)
+
+
+def _is_low_evidence_answer(result: dict) -> bool:
+    answer = str(result.get("answer") or "")
+    metrics = result.get("metrics") if isinstance(result.get("metrics"), dict) else {}
+    cards = result.get("source_cards") if isinstance(result.get("source_cards"), list) else []
+    if any(marker in answer for marker in LOW_EVIDENCE_MARKERS):
+        return True
+    if metrics.get("search_pass") is False:
+        return True
+    if str(metrics.get("retrieval_quality_grade") or "").upper() in {"LOW", "BAD"}:
+        return True
+    return len(cards) == 0 and int(metrics.get("hit_count") or metrics.get("local_context_count") or 0) == 0
+
+
+def _hit_title(hit: dict) -> str:
+    metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+    return str(
+        metadata.get("section_title")
+        or metadata.get("file_name")
+        or metadata.get("title")
+        or metadata.get("source_type")
+        or "근거"
+    )
+
+
+def _format_hit_section(title: str, hits: list[dict], *, limit: int = 3) -> str:
+    usable = filter_usable_hits(hits, limit=limit)
+    if not usable:
+        return ""
+    lines = ["", f"## {title}"]
+    for index, hit in enumerate(usable, 1):
+        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        source_type = metadata.get("source_type") or "근거"
+        lines.append(f"{index}. **{source_type} / {_hit_title(hit)}**: {compact_text(hit.get('excerpt') or hit.get('page_content'), 280)}")
+    return "\n".join(lines)
+
+
+def _format_web_section(results: list[dict], *, limit: int = 3) -> str:
+    if not results:
+        return ""
+    lines = ["", "## 웹 검색 보강"]
+    for index, item in enumerate(results[:limit], 1):
+        lines.append(f"{index}. **{item.get('title') or 'web result'}**: {compact_text(item.get('snippet'), 280)}")
+    return "\n".join(lines)
+
+
+def _merge_context_sections(result: dict, state: ChatAgentState, web_context: dict) -> dict:
+    answer = str(result.get("answer") or "")
+    wiki_hits = list((state.get("wiki_context") or {}).get("hits") or [])
+    web_results = list(web_context.get("results") or [])
+    has_extra = bool(filter_usable_hits(wiki_hits, limit=1) or web_results)
+    if has_extra and any(marker in answer for marker in LOW_EVIDENCE_MARKERS):
+        answer = "내부 원문/보고서 근거가 약해, 현재 확보된 승인 데이터와 웹 근거를 함께 기준으로 답변을 보강합니다."
+
+    wiki_section = _format_hit_section("내부 wiki/승인 데이터 보강", wiki_hits)
+    if wiki_section and "내부 wiki/승인 데이터 보강" not in answer:
+        answer = answer.rstrip() + wiki_section
+
+    web_section = _format_web_section(web_results)
+    if web_section and "웹 검색 보강" not in answer:
+        answer = answer.rstrip() + web_section
+
+    result["answer"] = answer
+    return result
 
 
 def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
@@ -31,7 +106,30 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
             fallback.setdefault("metrics", {})["legacy_error"] = result.get("metrics", {}).get("legacy_error")
         result = fallback
 
-    web_context = state.get("web_context") or {}
+    web_context = dict(state.get("web_context") or {})
+    intent = state.get("intent") or {}
+    if _is_low_evidence_answer(result) and not web_context.get("results"):
+        web_context = search_web(state.get("query", ""))
+        web_context["enabled"] = True
+        web_context["fallback_reason"] = "answer_evidence_insufficient"
+    elif intent.get("needs_web") and not web_context.get("enabled"):
+        web_context = search_web(state.get("query", ""))
+        web_context["enabled"] = True
+
+    result = _merge_context_sections(result, state, web_context)
+    wiki_hits = filter_usable_hits(list((state.get("wiki_context") or {}).get("hits") or []), limit=3)
+    existing_snippets = {
+        str(card.get("snippet") or "")[:160]
+        for card in result.get("source_cards") or []
+        if isinstance(card, dict)
+    }
+    wiki_cards = [
+        card
+        for card in cards_from_hits(wiki_hits, query=state.get("query", ""))
+        if str(card.get("snippet") or "")[:160] not in existing_snippets
+    ]
+    if wiki_cards:
+        result["source_cards"] = list(result.get("source_cards") or []) + wiki_cards
     web_results = list(web_context.get("results") or [])
     if web_results and not any(card.get("source_type") == "WEB" for card in result.get("source_cards") or []):
         result["source_cards"] = list(result.get("source_cards") or []) + cards_from_web(
@@ -50,6 +148,7 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
             "web_agent_enabled": bool(web_context.get("enabled")),
             "web_context_count": len(web_results),
             "web_provider": web_context.get("provider"),
+            "web_fallback_reason": web_context.get("fallback_reason"),
             "answer_format_plan": (state.get("intent") or {}).get("answer_format"),
             "source_plan": (state.get("intent") or {}).get("source_plan"),
         }

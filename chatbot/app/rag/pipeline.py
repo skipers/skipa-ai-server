@@ -6,9 +6,10 @@ from typing import Any
 
 from ..prompts import ANSWER_PROMPT
 from .answer_utils import build_metrics, fallback_answer
-from .config import ANSWER_MODEL, ANSWER_NUM_PREDICT
+from .config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT
 from .llm import call_ollama
 from .policy import classify_intent
+from .quality import filter_usable_hits
 from .retrieval import retrieve_local
 from .sources import cards_from_hits, cards_from_web
 from .text import format_hits_for_prompt
@@ -43,9 +44,14 @@ def answer_question(
 
     intent = classify_intent(query)
     local_result = retrieve_local(query, patent_id=patent_id, source_types=source_types, top_k=top_k)
-    local_hits = list(local_result.get("hits") or [])
+    raw_local_hits = list(local_result.get("hits") or [])
+    local_hits = filter_usable_hits(raw_local_hits, limit=top_k)
+    local_result = {**local_result, "hits": local_hits, "raw_hit_count": len(raw_local_hits), "hit_count": len(local_hits)}
 
-    web_result = search_web(query) if intent.get("needs_web") else {"enabled": False, "provider": None, "results": [], "error": None}
+    needs_web = bool(intent.get("needs_web") or len(local_hits) < 2)
+    web_result = search_web(query) if needs_web else {"enabled": False, "provider": None, "results": [], "error": None}
+    if len(local_hits) < 2 and not intent.get("needs_web"):
+        web_result["fallback_reason"] = "local_evidence_insufficient"
     web_results = list(web_result.get("results") or [])
 
     prompt = ANSWER_PROMPT.format(
@@ -54,7 +60,7 @@ def answer_question(
         local_context=format_hits_for_prompt(local_hits, limit=top_k),
         web_context=_format_web_for_prompt(web_results),
     )
-    llm_result = call_ollama(prompt, model=ANSWER_MODEL, num_predict=ANSWER_NUM_PREDICT)
+    llm_result = call_ollama(prompt, model=ANSWER_MODEL, num_predict=ANSWER_NUM_PREDICT, timeout=ANSWER_LLM_TIMEOUT)
     answer = (
         llm_result["text"]
         if llm_result.get("ok")

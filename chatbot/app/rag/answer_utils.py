@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .text import compact_text
+from .quality import compact_text, filter_usable_hits
 
 
 def fallback_answer(
@@ -14,28 +14,29 @@ def fallback_answer(
     web_results: list[dict[str, Any]],
     llm_error: str | None = None,
 ) -> str:
+    local_hits = filter_usable_hits(local_hits, limit=6)
     if not local_hits and not web_results:
         return (
-            "관련 근거를 찾지 못했습니다.\n\n"
-            "- 특허를 전체 범위로 바꾸거나 질문 키워드를 더 구체화해 주세요.\n"
-            "- 감사 적용 후 vectorstore가 비어 있다면 감사 적용 또는 vectorstore 갱신을 먼저 실행해 주세요."
+            "내부 승인 데이터와 원문/보고서에서 직접 답할 만한 근거가 충분하지 않습니다.\n\n"
+            "- 같은 질문으로 웹 검색 보강이 가능하면 외부 근거를 함께 확인합니다.\n"
+            "- 특허명을 더 구체적으로 쓰거나 전체 특허 범위로 다시 질문하면 후보를 넓힐 수 있습니다."
         )
 
     lines = [
-        "LLM 답변 생성에 실패했거나 모델 응답이 비어 있어 검색 근거 기반으로 답변합니다.",
+        "모델 답변 생성이 지연되어 검색 근거 기반으로 먼저 정리합니다.",
         "",
-        "## 근거 요약",
+        "## 핵심 근거 요약",
     ]
     if llm_error:
         lines.insert(1, f"모델 상태: {llm_error}")
-    for index, hit in enumerate(local_hits[:4], 1):
+    for index, hit in enumerate(local_hits[:5], 1):
         metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
         source_type = metadata.get("source_type") or "unknown"
         section = metadata.get("section_title") or metadata.get("file_name") or metadata.get("title") or "근거"
         lines.append(f"{index}. {source_type} / {section}: {compact_text(hit.get('excerpt') or hit.get('page_content'), 220)}")
     if web_results:
         lines.append("")
-        lines.append("## 웹 근거")
+        lines.append("## 웹 근거 보강")
         for index, item in enumerate(web_results[:3], 1):
             lines.append(f"{index}. {item.get('title')}: {compact_text(item.get('snippet'), 220)}")
     return "\n".join(lines)

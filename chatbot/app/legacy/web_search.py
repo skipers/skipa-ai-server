@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Tuple
 
 import requests
 
+from ..rag.web_quality import web_result_relevance
+
 try:
     from langchain_core.documents import Document
 except Exception:  # pragma: no cover
@@ -375,12 +377,40 @@ def _kipris_citation_search(patent_meta: Dict[str, Any]) -> List[Dict[str, Any]]
     ]
 
 
+def _row_text(row: Dict[str, Any]) -> Tuple[str, str, str, str]:
+    title = str(row.get("title") or row.get("name") or "웹 검색 결과")
+    snippet = str(row.get("snippet") or row.get("summary") or row.get("content") or row.get("description") or "")
+    url = str(row.get("url") or row.get("link") or "")
+    provider = str(row.get("provider") or "WEB")
+    return title, snippet, url, provider
+
+
+def _filter_topical_rows(rows: List[Dict[str, Any]], query: str, patent_meta: Dict[str, Any], limit: int) -> List[Dict[str, Any]]:
+    filtered: List[Dict[str, Any]] = []
+    for row in rows:
+        title, snippet, url, provider = _row_text(row)
+        relevance = web_result_relevance(
+            query=query,
+            title=title,
+            snippet=snippet,
+            url=url,
+            patent_meta=patent_meta,
+            provider=provider,
+        )
+        if not relevance.get("relevant"):
+            continue
+        row = dict(row)
+        row["web_relevance"] = relevance
+        filtered.append(row)
+        if len(filtered) >= limit:
+            break
+    return filtered
+
+
 def _rows_to_documents(rows: List[Dict[str, Any]], patent_meta: Dict[str, Any], limit: int) -> List[Document]:
     docs: List[Document] = []
     for idx, row in enumerate(rows[:limit], start=1):
-        title = row.get("title") or row.get("name") or "웹 검색 결과"
-        snippet = row.get("snippet") or row.get("summary") or row.get("content") or row.get("description") or ""
-        url = row.get("url") or row.get("link") or ""
+        title, snippet, url, provider = _row_text(row)
         text = "\n".join(part for part in [title, snippet] if part).strip()
         if not text:
             continue
@@ -392,7 +422,6 @@ def _rows_to_documents(rows: List[Dict[str, Any]], patent_meta: Dict[str, Any], 
         if not grade["grade"]:
             grade = _web_source_grade(url, title)
 
-        provider = row.get("provider") or "WEB"
         provider_note = f"검색 공급자: {provider}"
         if row.get("provider_score") is not None:
             provider_note += f" / 공급자 점수: {row.get('provider_score')}"
@@ -418,6 +447,7 @@ def _rows_to_documents(rows: List[Dict[str, Any]], patent_meta: Dict[str, Any], 
                     "web_source_reason": grade["reason"],
                     "web_provider": provider,
                     "web_provider_score": row.get("provider_score"),
+                    "web_relevance": row.get("web_relevance"),
                     "published_date": row.get("published_date"),
                 },
             )
@@ -479,16 +509,16 @@ def search_web_documents(
             pass
     else:
         try:
-            rows.extend(_tavily_search(query, limit))
+            rows.extend(_tavily_search(query, max(limit * 3, 10)))
         except Exception:
             pass
 
-    rows = _dedupe_rows(rows, limit)
+    rows = _filter_topical_rows(_dedupe_rows(rows, max(limit * 3, 10)), query, patent_meta, limit)
     if rows:
         return _rows_to_documents(rows, patent_meta, limit), now_ms() - t0
 
     if os.getenv("ENABLE_WEB_SEARCH_FALLBACK", "true").lower() not in ("1", "true", "yes"):
         return [], now_ms() - t0
 
-    results = _bing_search(query, limit)
+    results = _filter_topical_rows(_bing_search(query, max(limit * 3, 10)), query, patent_meta, limit)
     return _rows_to_documents(results, patent_meta, limit), now_ms() - t0

@@ -23,6 +23,7 @@ from typing import Any, Iterable
 from fastapi import HTTPException
 
 from .config import BUSINESS_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT
+from .rag.quality import is_usable_evidence
 
 
 VECTOR_DIMENSIONS = 256
@@ -514,6 +515,9 @@ def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[s
         }
     scored: list[tuple[float, dict[str, Any]]] = []
     for doc in _iter_vector_documents(patent_id) or []:
+        text = str(doc.get("page_content") or "")
+        if not is_usable_evidence(text):
+            continue
         metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
         source_type = str(metadata.get("source_type", ""))
         if source_types and source_type not in source_types:
@@ -527,7 +531,6 @@ def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[s
     hits = []
     for score, doc in scored[:top_k]:
         metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        text = str(doc.get("page_content") or "")
         hits.append(
             {
                 "patent_id": str(metadata.get("patent_id") or patent_id or ""),

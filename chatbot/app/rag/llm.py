@@ -16,6 +16,7 @@ def call_ollama(
     model: str,
     num_predict: int,
     temperature: float = OLLAMA_TEMPERATURE,
+    timeout: int | None = None,
 ) -> dict[str, Any]:
     """Call Ollama generate API and return a normalized result.
 
@@ -41,7 +42,7 @@ def call_ollama(
         method="POST",
     )
     try:
-        with urlopen(request, timeout=LLM_TIMEOUT) as response:
+        with urlopen(request, timeout=timeout or LLM_TIMEOUT) as response:
             data = json.loads(response.read().decode("utf-8"))
     except (OSError, URLError, TimeoutError, json.JSONDecodeError) as exc:
         return {"ok": False, "text": "", "error": str(exc)}

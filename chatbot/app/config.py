@@ -50,9 +50,11 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip(
 INTENT_MODEL = os.getenv("INTENT_MODEL", GEN_MODEL or "qwen2.5:1.5b")
 ANSWER_MODEL = os.getenv("ANSWER_MODEL", GEN_MODEL or "qwen2.5:1.5b")
 OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.0"))
-INTENT_NUM_PREDICT = int(os.getenv("INTENT_NUM_PREDICT", "180"))
-ANSWER_NUM_PREDICT = int(os.getenv("ANSWER_NUM_PREDICT", "520"))
-LLM_TIMEOUT = min(int(os.getenv("CHATBOT_LLM_TIMEOUT", "6")), 30)
+INTENT_NUM_PREDICT = int(os.getenv("INTENT_NUM_PREDICT", "220"))
+ANSWER_NUM_PREDICT = int(os.getenv("ANSWER_NUM_PREDICT", "900"))
+LLM_TIMEOUT = min(int(os.getenv("CHATBOT_LLM_TIMEOUT", "45")), 180)
+INTENT_LLM_TIMEOUT = min(int(os.getenv("INTENT_LLM_TIMEOUT", os.getenv("CHATBOT_LLM_TIMEOUT", "30"))), 180)
+ANSWER_LLM_TIMEOUT = min(int(os.getenv("ANSWER_LLM_TIMEOUT", os.getenv("CHATBOT_LLM_TIMEOUT", "90"))), 240)
 TOP_K = int(os.getenv("TOP_K", "10"))
 
 ENABLE_WEB_SEARCH = os.getenv("ENABLE_WEB_SEARCH", "true").lower() == "true"

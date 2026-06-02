@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from ..config import (
     ANSWER_MODEL,
+    ANSWER_LLM_TIMEOUT,
     ANSWER_NUM_PREDICT,
     ENABLE_WEB_SEARCH,
+    INTENT_LLM_TIMEOUT,
     INTENT_MODEL,
     INTENT_NUM_PREDICT,
     LLM_TIMEOUT,
@@ -23,8 +25,10 @@ from ..config import (
 
 __all__ = [
     "ANSWER_MODEL",
+    "ANSWER_LLM_TIMEOUT",
     "ANSWER_NUM_PREDICT",
     "ENABLE_WEB_SEARCH",
+    "INTENT_LLM_TIMEOUT",
     "INTENT_MODEL",
     "INTENT_NUM_PREDICT",
     "LLM_TIMEOUT",

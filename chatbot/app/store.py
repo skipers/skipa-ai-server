@@ -12,6 +12,7 @@ from urllib.parse import quote
 from fastapi import HTTPException
 
 from .config import BUSINESS_ROOT, DATA_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT
+from .rag.quality import is_usable_evidence
 from .rag.source_card_utils import enrich_source_card
 from .vectorstore import search_vectorstore, vectorstore_status
 
@@ -319,6 +320,8 @@ def search_chunks(query: str, *, patent_id: str | None, source_types: set[str] |
 
     scored: list[tuple[float, dict[str, Any]]] = []
     for item in _iter_chunk_items(patent_id, source_types):
+        if not is_usable_evidence(item.get("page_content")):
+            continue
         score = _score(query, item)
         if score <= 0:
             continue

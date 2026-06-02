@@ -14,7 +14,16 @@ from ..application_data import (
     download_application_sources,
     refresh_application_index,
 )
-from ..config import EMBEDDING_MODEL, GEN_MODEL, PUBLIC_FILE_BASE_URL, TOP_K
+from ..config import (
+    ANSWER_LLM_TIMEOUT,
+    ANSWER_MODEL,
+    EMBEDDING_MODEL,
+    GEN_MODEL,
+    INTENT_LLM_TIMEOUT,
+    INTENT_MODEL,
+    PUBLIC_FILE_BASE_URL,
+    TOP_K,
+)
 from ..rag.legacy_adapter import (
     legacy_engine_status,
     patent_summary_cards,
@@ -64,6 +73,10 @@ def get_config() -> dict:
         "public_file_base_url": PUBLIC_FILE_BASE_URL,
         "embedding_model": EMBEDDING_MODEL,
         "generation_model": GEN_MODEL,
+        "intent_model": INTENT_MODEL,
+        "answer_model": ANSWER_MODEL,
+        "intent_llm_timeout": INTENT_LLM_TIMEOUT,
+        "answer_llm_timeout": ANSWER_LLM_TIMEOUT,
         "default_top_k": TOP_K,
         "legacy_rag_engine": legacy_engine_status(),
     }

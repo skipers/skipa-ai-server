@@ -2,19 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-
-def compact_text(value: Any, limit: int = 1000) -> str:
-    text = " ".join(str(value or "").split())
-    if len(text) <= limit:
-        return text
-    return text[: limit - 3].rstrip() + "..."
+from .quality import compact_text, filter_usable_hits
 
 
 def format_hits_for_prompt(hits: list[dict[str, Any]], *, limit: int = 5, chars_per_hit: int = 900) -> str:
     lines: list[str] = []
-    for index, hit in enumerate(hits[:limit], 1):
+    for index, hit in enumerate(filter_usable_hits(hits, limit=limit), 1):
         metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
         source_type = metadata.get("source_type") or "unknown"
         section = metadata.get("section_title") or metadata.get("file_name") or metadata.get("title") or "source"

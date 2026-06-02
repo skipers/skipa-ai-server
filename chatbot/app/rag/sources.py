@@ -7,6 +7,7 @@ from typing import Any
 from urllib.parse import quote
 
 from ..config import DATA_ROOT
+from .quality import filter_usable_hits
 from .source_card_utils import enrich_source_card
 
 
@@ -24,7 +25,7 @@ def _source_url(metadata: dict[str, Any]) -> str | None:
 
 def cards_from_hits(hits: list[dict[str, Any]], *, query: str | None = None) -> list[dict[str, Any]]:
     cards = []
-    for index, hit in enumerate(hits, 1):
+    for index, hit in enumerate(filter_usable_hits(hits), 1):
         metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
         source_type = str(metadata.get("source_type") or "unknown")
         title = metadata.get("section_title") or metadata.get("file_name") or metadata.get("title")
