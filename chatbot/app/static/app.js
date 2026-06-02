@@ -407,7 +407,7 @@ function renderPatentOptions() {
     option.textContent = `${patent.patent_id} · ${patent.title || patent.patent_id}`;
     select.appendChild(option);
   });
-  if (state.patents[0]) select.value = state.patents[0].patent_id;
+  select.value = "__all__";
 }
 
 function showTab(tabId) {
