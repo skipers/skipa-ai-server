@@ -32,13 +32,14 @@ const workflowGraphInfo = {
   application: {
     title: "특허 출원 도우미 워크플로우",
     endpoint: "/api/v1/application/chat/mermaid",
-    summary: "공식 출원 자료팩을 기반으로 출원 절차, 선행기술조사, 명세서/청구항, 거절대응, 수수료/서식 질문을 별도 라우팅해 답합니다.",
+    summary: "공식 출원 자료팩을 기반으로 출원 절차, 선행기술조사, 명세서/청구항, 거절대응, 수수료/서식 질문을 별도 라우팅하고, 필요한 경우 KIPRIS/KOSIS/Tavily 보강 근거를 붙입니다.",
     steps: [
       ["resolve_application_history", "후속 질문이면 이전 질문/답변을 검색 질의에 반영"],
-      ["route_application_question", "출원 의도와 필요한 답변 형식 판단"],
+      ["route_application_question", "출원 의도, 외부 보강 필요 여부, 표/다이어그램 답변 형식 판단"],
       ["retrieve_application_context", "공식팩 vectorstore에서 관련 공식 문서 검색"],
-      ["answer_application_question", "공식 근거 안에서 절차/표/다이어그램 답변 생성"],
-      ["finish_application_answer", "근거 카드와 agent trace 정리"],
+      ["retrieve_application_external_context", "선행기술/시장/최신 동향이 필요하면 외부 보강 검색"],
+      ["answer_application_question", "출원 절차, 실패 요인, 피드백, 다음 액션을 근거 기반으로 생성"],
+      ["finish_application_answer", "근거 카드, 품질 지표, agent trace 정리"],
     ],
   },
   wiki: {
@@ -523,13 +524,15 @@ function selectedFindingIds() {
 function appendAnswerMeta(metrics, sourceCards, containerId = "messages") {
   const meta = document.createElement("div");
   meta.className = "answer-meta";
+  const quality = metrics?.answer_quality || {};
   meta.innerHTML = [
     `engine ${metrics?.engine || metrics?.mode || "-"}`,
     `scope ${metrics?.scope || "-"}`,
     `mode ${metrics?.answer_mode || metrics?.mode || "-"}`,
     `근거 ${(sourceCards || []).length}개`,
     `confidence ${metrics?.confidence_score ?? metrics?.hit_count ?? "-"}`,
-  ].map((item) => `<span>${escapeHtml(item)}</span>`).join("");
+    quality.composite_score !== undefined ? `quality ${quality.composite_score} (${quality.grade || "-"})` : "",
+  ].filter(Boolean).map((item) => `<span>${escapeHtml(item)}</span>`).join("");
   $(containerId).appendChild(meta);
 }
 
@@ -758,10 +761,41 @@ async function refreshApplicationIndex() {
   }
 }
 
+async function preprocessApplicationPack() {
+  const button = $("preprocessApplicationButton");
+  setBusy(button, true, "전처리 중");
+  try {
+    const result = await api("/api/v1/application/preprocess", {
+      method: "POST",
+      body: JSON.stringify({ refresh_index: true }),
+    });
+    setStatus(`출원팩 전처리 · 파일 ${result.active_file_count ?? 0}개 · index ${result.index?.document_count ?? 0}개`);
+    showModal("출원팩 전처리", jsonBlock(result));
+  } finally {
+    setBusy(button, false);
+  }
+}
+
 async function showApplicationStatus() {
   const status = await api("/api/v1/application/status");
   setStatus(`출원 도우미 · index ${status.index_exists ? "있음" : "없음"} · 다운로드 실패 ${status.download_report?.failure_count ?? 0}건`);
   showModal("출원 도우미 상태", jsonBlock(status));
+}
+
+async function refreshApprovedVectorstore() {
+  const button = $("refreshApprovedVectorstoreButton");
+  setBusy(button, true, "갱신 중");
+  try {
+    const result = await api("/api/v1/chatbot/preprocess/run", {
+      method: "POST",
+      body: JSON.stringify({ mode: "refresh_vectorstore", use_reviewed: true, refresh_application: false }),
+    });
+    const source = result.vectorstore?.source || "approved";
+    setStatus(`승인 Vectorstore 갱신 완료 · ${source}`);
+    showModal("승인 Vectorstore 갱신", jsonBlock(result));
+  } finally {
+    setBusy(button, false);
+  }
 }
 
 async function ask() {
@@ -833,6 +867,7 @@ function bindEvents() {
   });
   $("reloadButton").addEventListener("click", () => loadBaseData().catch((error) => setStatus(error.message)));
   $("loadDataButton").addEventListener("click", () => loadBaseData().catch((error) => setStatus(error.message)));
+  $("refreshApprovedVectorstoreButton").addEventListener("click", () => refreshApprovedVectorstore().catch((error) => setStatus(error.message)));
   $("reindexButton").addEventListener("click", () => reindexSelected().catch((error) => setStatus(error.message)));
   $("globalReindexButton").addEventListener("click", () => checkGlobalIndex().catch((error) => setStatus(error.message)));
   $("runAuditButton").addEventListener("click", () => runAudit().catch((error) => setStatus(error.message)));
@@ -843,6 +878,7 @@ function bindEvents() {
   $("loadWorkflowButton").addEventListener("click", () => loadWorkflow().catch((error) => setStatus(error.message)));
   $("loadIngestionWorkflowButton").addEventListener("click", () => loadIngestionWorkflow().catch((error) => setStatus(error.message)));
   $("downloadApplicationButton").addEventListener("click", () => downloadApplicationSources().catch((error) => setStatus(error.message)));
+  $("preprocessApplicationButton").addEventListener("click", () => preprocessApplicationPack().catch((error) => setStatus(error.message)));
   $("refreshApplicationIndexButton").addEventListener("click", () => refreshApplicationIndex().catch((error) => setStatus(error.message)));
   $("applicationStatusButton").addEventListener("click", () => showApplicationStatus().catch((error) => setStatus(error.message)));
   $("sendButton").addEventListener("click", ask);

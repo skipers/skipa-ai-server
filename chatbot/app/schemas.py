@@ -40,6 +40,23 @@ class PatentApplicationDownloadRequest(BaseModel):
     include_embedded: bool = Field(True, description="웹 페이지 안의 PDF/HWP/DOC/XLS 등 첨부 문서 링크도 따라가서 다운로드")
 
 
+class PatentApplicationPreprocessRequest(BaseModel):
+    refresh_index: bool = Field(True, description="전처리 리포트 생성과 함께 출원 공식팩 vectorstore도 다시 생성")
+
+
+class PreprocessRunRequest(BaseModel):
+    mode: Literal[
+        "normalize_wiki",
+        "refresh_vectorstore",
+        "auto_audit_refresh",
+        "audit",
+        "application_preprocess",
+        "all",
+    ] = Field("refresh_vectorstore", description="실행할 전처리/리프레시 작업")
+    use_reviewed: bool = Field(True, description="vectorstore refresh 시 승인 데이터만 사용할지 여부")
+    refresh_application: bool = Field(True, description="all/application_preprocess 모드에서 출원 공식팩 index도 갱신")
+
+
 class FeedbackRequest(BaseModel):
     question: str
     answer: str | None = None

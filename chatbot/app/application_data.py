@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 import mimetypes
+import os
 import re
 from pathlib import Path
 from typing import Any, Iterable
@@ -43,6 +44,23 @@ DOCUMENT_ENDPOINT_TERMS = (
     "filetoss",
     "atchfile",
 )
+RECOMMENDED_APPLICATION_ADDITIONS = [
+    {
+        "name": "최근 KIPRIS 유사특허 샘플",
+        "reason": "출원 전 신규성/진보성 위험을 질문에서 바로 분석하려면 실제 유사특허 번호, 청구항, 공개/등록 상태 샘플이 필요합니다.",
+        "preferred_source": "KIPRIS 특허검색 또는 KIPRISPlus API",
+    },
+    {
+        "name": "최근 거절이유/의견제출통지서 샘플",
+        "reason": "실패 요인 분석과 보정/의견서 피드백 품질을 높이려면 실제 거절유형별 통지서 원문이 필요합니다.",
+        "preferred_source": "KIPRISPlus 의견제출통지서/거절결정서 API",
+    },
+    {
+        "name": "산업별 출원/시장 통계",
+        "reason": "사업화 가능성, 출원 타이밍, 시장성 질문에는 KOSIS 산업 통계와 출원 추세가 필요합니다.",
+        "preferred_source": "KOSIS, KIPRIS 통계, Tavily 보강 검색",
+    },
+]
 
 
 def _now() -> str:
@@ -229,7 +247,7 @@ def _iter_source_files() -> Iterable[Path]:
     if not PATENT_APPLICATION_ROOT.exists():
         return
     allowed = {".md", ".txt", ".csv", ".json", ".html", ".htm", ".pdf", ".xlsx", ".do", ".jsp", ".bin"}
-    skip_parts = {"index", "__pycache__", "readable", "named"}
+    skip_parts = {"index", "__pycache__", "readable", "named", "raw", "preprocessed"}
     generated_names = {
         "download_manifest.json",
         "download_report.md",
@@ -249,6 +267,99 @@ def _iter_source_files() -> Iterable[Path]:
         if path.parent == PATENT_APPLICATION_ROOT and path.name in {"download_manifest.json", "download_report.md"}:
             continue
         yield path
+
+
+def _application_file_role(path: Path) -> str:
+    name = path.name.lower()
+    text = str(path).lower()
+    if "rejection" in text or "거절" in name or "의견" in name or "통지서" in name:
+        return "rejection_failure_feedback"
+    if "kipris" in text or "cpc" in name or "선행" in name or "prior_art" in text:
+        return "prior_art_search"
+    if "수수료" in name or "등록료" in name or "fees" in text:
+        return "fees"
+    if "심사" in name or "심사기준" in name:
+        return "examination_standard"
+    if "출원" in name or "application" in text:
+        return "application_procedure"
+    return "official_reference"
+
+
+def _application_preprocess_report(files: list[Path], index_result: dict[str, Any]) -> dict[str, Any]:
+    items = []
+    by_role: Counter[str] = Counter()
+    for path in files:
+        text, error = _read_source_text(path)
+        role = _application_file_role(path)
+        by_role[role] += 1
+        items.append(
+            {
+                "path": str(path),
+                "relative_path": _safe_relative(path),
+                "file_name": path.name,
+                "role": role,
+                "suffix": path.suffix.lower(),
+                "size_bytes": path.stat().st_size if path.exists() else 0,
+                "text_char_count": len(text or ""),
+                "chunk_estimate": len(_chunk_text(text)),
+                "usable": bool((text or "").strip()) and error is None,
+                "error": error,
+            }
+        )
+    return {
+        "status": "preprocessed",
+        "generated_at": _now(),
+        "root": str(PATENT_APPLICATION_ROOT),
+        "active_file_count": len(files),
+        "roles": dict(sorted(by_role.items())),
+        "index": index_result,
+        "active_files": items,
+        "excluded_policy": {
+            "directories": ["downloads/raw", "downloads/readable", "downloads/named", "index"],
+            "reason": "중복 원시 다운로드와 사람이 읽기 어려운 변환 전 파일은 검색 품질을 낮추므로 인덱싱하지 않습니다.",
+        },
+        "recommended_additions": RECOMMENDED_APPLICATION_ADDITIONS,
+        "external_connectors": application_external_status(),
+    }
+
+
+def preprocess_application_pack(*, refresh_index: bool = True) -> dict[str, Any]:
+    if not PATENT_APPLICATION_ROOT.exists():
+        raise HTTPException(status_code=404, detail=f"출원 공식팩을 찾을 수 없습니다: {PATENT_APPLICATION_ROOT}")
+    files = list(_iter_source_files() or [])
+    index_result = refresh_application_index(force=True) if refresh_index else application_index_status()
+    report = _application_preprocess_report(files, index_result)
+    preprocess_dir = PATENT_APPLICATION_ROOT / "preprocessed"
+    preprocess_dir.mkdir(parents=True, exist_ok=True)
+    report_json = preprocess_dir / "preprocess_report.json"
+    report_md = preprocess_dir / "preprocess_report.md"
+    _write_json(report_json, report)
+    lines = [
+        "# Patent Application Pack Preprocess Report",
+        "",
+        f"- Generated at: {report['generated_at']}",
+        f"- Active files: {report['active_file_count']}",
+        f"- Vectorstore documents: {index_result.get('document_count')}",
+        "",
+        "## Roles",
+    ]
+    lines.extend(f"- {role}: {count}" for role, count in report["roles"].items())
+    lines.extend(["", "## Recommended Additions"])
+    lines.extend(f"- {item['name']}: {item['reason']} ({item['preferred_source']})" for item in RECOMMENDED_APPLICATION_ADDITIONS)
+    lines.extend(["", "## Active Files"])
+    lines.extend(f"- {item['role']} / {item['file_name']} / chunks~{item['chunk_estimate']}" for item in report["active_files"])
+    report_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    report["report_json_path"] = str(report_json)
+    report["report_markdown_path"] = str(report_md)
+    return report
+
+
+def application_external_status() -> dict[str, Any]:
+    return {
+        "tavily": {"configured": bool(os.getenv("TAVILY_API_KEY")), "usage": "external web evidence and official-source discovery"},
+        "kipris": {"configured": bool(os.getenv("KIPRIS_API_KEY")), "usage": "prior-art, legal status, rejection/family/citation checks"},
+        "kosis": {"configured": bool(os.getenv("KOSIS_API_KEY")), "usage": "market/industry statistics for filing and commercialization strategy"},
+    }
 
 
 def _chunk_text(text: str, *, size: int = 1800, overlap: int = 220) -> list[str]:
@@ -306,6 +417,7 @@ def refresh_application_index(*, force: bool = True) -> dict[str, Any]:
                 "source_path": str(path),
                 "relative_source_path": _safe_relative(path),
                 "file_name": path.name,
+                "application_role": _application_file_role(path),
                 "chunk_index": chunk_index,
                 "text_hash": _hash_text(chunk),
                 "assistant_scope": "patent_application",
@@ -341,6 +453,7 @@ def refresh_application_index(*, force: bool = True) -> dict[str, Any]:
         "refreshed_at": _now(),
         "document_count": len(docs),
         "source_file_count": len(source_files),
+        "source_roles": dict(sorted(Counter(_application_file_role(path) for path in source_files).items())),
         "documents_path": str(docs_path),
         "source_fingerprints": fingerprints,
         "errors": errors,

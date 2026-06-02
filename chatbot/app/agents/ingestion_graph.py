@@ -123,16 +123,24 @@ def run_ingestion_graph(
 
 def ingestion_graph_mermaid() -> str:
     return """flowchart TD
-  A[Reindex API Request] --> B[inspect_request]
-  B --> C{scope}
-  C -->|patent| D[legacy build_or_load_patent_index]
-  C -->|global| E[legacy build_or_load_global_index]
-  C -->|business| F[legacy build_or_load_business_index]
-  C -->|status| G[vectorstore_status]
-  D --> H[optional reviewed vectorstore refresh]
+  A[전처리/Reindex API] --> B[요청 검사]
+  B --> C{대상 scope}
+
+  C -- patent --> D[특허 1건 전처리]
+  C -- global --> E[전체 특허 코어 index]
+  C -- business --> F[공통 업무 index]
+  C -- status --> G[현재 상태 조회]
+
+  D --> H[원본 PDF/보고서 PDF/JSON chunk]
   E --> H
-  F --> H
-  G --> I[finish_ingestion]
-  H --> I
-  I --> J[Swagger/UI response]
+  F --> I[공통 업무 chunk]
+
+  H --> J[코어 vectorstore refresh]
+  I --> J
+  J --> K{승인 wiki refresh?}
+  K -- yes --> L[특허별 approved_context.md만 임베딩]
+  K -- no --> M[wiki 유지]
+  L --> N[Swagger/UI 결과 반환]
+  M --> N
+  G --> N
 """

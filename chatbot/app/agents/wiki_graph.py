@@ -196,4 +196,23 @@ def run_wiki_audit_graph(
 
 
 def wiki_audit_graph_mermaid() -> str:
-    return WIKI_AUDIT_GRAPH.get_graph().draw_mermaid()
+    return """flowchart TD
+  A[Wiki/API 요청] --> B{실행 모드}
+
+  B -- status --> C[현재 vectorstore 상태 조회]
+  B -- audit --> D[특허별 wiki/승인 데이터 감사]
+  B -- review --> E[사람 검토용 감사 Markdown 로드]
+  B -- apply --> F[사람이 제외한 finding 적용]
+  B -- auto_refresh --> G[주의/나쁜 데이터 자동 제외]
+  B -- refresh --> H[승인 데이터만 vectorstore 재생성]
+
+  D --> I[감사 리포트 저장]
+  E --> C
+  F --> J[approved_context.md 재작성]
+  G --> J
+  J --> H
+  H --> K[특허별 wiki vectorstore 갱신]
+  I --> C
+  K --> C
+  C --> L[Swagger/UI 결과 반환]
+"""

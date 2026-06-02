@@ -4,6 +4,8 @@
 Examples:
   scripts/preprocess_chatbot_data.sh
   scripts/preprocess_chatbot_data.sh --mode auto-audit
+  scripts/preprocess_chatbot_data.sh --mode application-preprocess
+  scripts/preprocess_chatbot_data.sh --mode all
   scripts/preprocess_chatbot_data.sh --mode status
 """
 
@@ -28,9 +30,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Preprocess SKIPA chatbot data.")
     parser.add_argument(
         "--mode",
-        choices=["refresh", "auto-audit", "audit", "status", "normalize-wiki"],
+        choices=[
+            "refresh",
+            "auto-audit",
+            "audit",
+            "status",
+            "normalize-wiki",
+            "application-preprocess",
+            "application-status",
+            "all",
+        ],
         default="refresh",
-        help="refresh=approved vectorstore rebuild, auto-audit=audit+auto exclude+refresh, audit=audit only, normalize-wiki=rewrite approved wiki markdown, status=show vectorstore status",
+        help=(
+            "refresh=approved vectorstore rebuild, auto-audit=audit+auto exclude+refresh, "
+            "audit=audit only, normalize-wiki=rewrite approved wiki markdown, "
+            "application-preprocess=preprocess application pack, all=chatbot refresh+application preprocess, "
+            "status=show status"
+        ),
     )
     parser.add_argument(
         "--raw",
@@ -46,9 +62,27 @@ def main() -> int:
         run_audit,
         vectorstore_status,
     )
+    from chatbot.app.application_data import (
+        application_external_status,
+        application_index_status,
+        preprocess_application_pack,
+    )
 
     if args.mode == "status":
-        _print_json({"status": "ok", "vectorstore": vectorstore_status()})
+        _print_json(
+            {
+                "status": "ok",
+                "vectorstore": vectorstore_status(),
+                "application": application_index_status(),
+                "application_external": application_external_status(),
+            }
+        )
+        return 0
+    if args.mode == "application-status":
+        _print_json({"status": "ok", "application": application_index_status(), "external": application_external_status()})
+        return 0
+    if args.mode == "application-preprocess":
+        _print_json(preprocess_application_pack(refresh_index=True))
         return 0
     if args.mode == "audit":
         _print_json(run_audit())
@@ -58,6 +92,20 @@ def main() -> int:
         return 0
     if args.mode == "auto-audit":
         _print_json(auto_audit_apply_and_refresh(refresh_vectorstore=True))
+        return 0
+    if args.mode == "all":
+        wiki_normalize = normalize_wiki_context_files()
+        vectorstore = refresh_vectorstores(use_reviewed=not args.raw)
+        application = preprocess_application_pack(refresh_index=True)
+        _print_json(
+            {
+                "status": "preprocessed",
+                "use_reviewed": not args.raw,
+                "wiki_normalize": wiki_normalize,
+                "vectorstore": vectorstore,
+                "application": application,
+            }
+        )
         return 0
 
     wiki_normalize = normalize_wiki_context_files() if not args.raw else {"status": "skipped", "reason": "raw refresh"}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from ..rag.evaluation import answer_quality_metrics
 from ..rag.pipeline import answer_question
 from ..rag.quality import compact_text, filter_usable_hits
 from ..rag.sources import cards_from_hits, cards_from_web
@@ -137,6 +138,12 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
         )
 
     metrics = dict(result.get("metrics") or {})
+    source_cards = [card for card in result.get("source_cards") or [] if isinstance(card, dict)]
+    retrieval_scores = [
+        (card.get("metadata") or {}).get("retrieval_score")
+        for card in source_cards
+        if isinstance(card.get("metadata"), dict)
+    ]
     metrics.update(
         {
             "resolved_patent_id": patent_id,
@@ -152,6 +159,12 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
             "answer_format_plan": (state.get("intent") or {}).get("answer_format"),
             "source_plan": (state.get("intent") or {}).get("source_plan"),
         }
+    )
+    metrics["answer_quality"] = answer_quality_metrics(
+        query=state.get("query", ""),
+        answer=str(result.get("answer") or ""),
+        source_cards=source_cards,
+        retrieval_scores=[score for score in retrieval_scores if isinstance(score, (int, float))],
     )
     result["metrics"] = metrics
 

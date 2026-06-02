@@ -234,6 +234,8 @@ GET  /api/v1/chatbot/patents/{patent_id}/report/latest
 GET  /api/v1/chatbot/patents/{patent_id}/chunks
 GET  /api/v1/chatbot/business/chunks
 GET  /api/v1/chatbot/vectorstore/status
+GET  /api/v1/chatbot/preprocess/status
+POST /api/v1/chatbot/preprocess/run
 POST /api/v1/chatbot/vectorstore/refresh
 POST /api/v1/chatbot/search
 POST /api/v1/chatbot/query
@@ -266,6 +268,8 @@ POST /api/v1/wiki/audit-auto-refresh
 POST /api/v1/wiki/agent/run
 GET  /api/v1/wiki/agent/mermaid
 GET  /api/v1/application/status
+GET  /api/v1/application/external/status
+POST /api/v1/application/preprocess
 POST /api/v1/application/sources/download
 GET  /api/v1/application/sources/download-report
 POST /api/v1/application/index/refresh
@@ -273,18 +277,36 @@ POST /api/v1/application/chat
 GET  /api/v1/application/chat/mermaid
 ```
 
+전처리와 vectorstore refresh는 Swagger와 CLI 둘 다에서 실행할 수 있습니다.
+
+```bash
+# 승인 wiki 정규화 + 원본/보고서 core vectorstore + 특허별 wiki vectorstore 갱신
+scripts/preprocess_chatbot_data.sh --mode refresh
+
+# 감사 후 주의/나쁜 데이터 자동 제외 + 승인본 refresh
+scripts/preprocess_chatbot_data.sh --mode auto-audit
+
+# 출원 공식팩 전처리 리포트 생성 + 출원 도우미 vectorstore 갱신
+scripts/preprocess_chatbot_data.sh --mode application-preprocess
+
+# 챗봇 core/wiki refresh와 출원팩 전처리를 함께 실행
+scripts/preprocess_chatbot_data.sh --mode all
+```
+
 `POST /api/v1/wiki/audit` 또는 `POST /api/v1/chatbot/wiki-audit/run`을 실행하면
 전체 `data/mapped_patent_reports`와 `data/business`를 다시 스캔하고, 나쁜 데이터
 후보를 `review.md`로 만듭니다. 사람이 Swagger에서 후보를 확인한 뒤
 `POST /api/v1/wiki/audit-apply`를 실행하면 선택된 후보만 제외한
-`approved_context.md`가 특허별 `reviewed/` 폴더에 저장되고, 그 승인본 기준으로
-vectorstore가 갱신됩니다. 생성 파일은 Git 커밋 대상에서 제외됩니다.
+`approved_context.md`가 특허별 `wiki/` 폴더와 `reviewed/` 승인 문서에 저장되고,
+그 승인본 기준으로 vectorstore가 갱신됩니다. 생성 파일은 Git 커밋 대상에서 제외됩니다.
 
 자동 refresh가 필요할 때는 `POST /api/v1/wiki/audit-auto-refresh` 또는
 `POST /api/v1/chatbot/vectorstore/refresh?auto_audit=true`를 사용합니다. 이 모드는
 `exclude` 후보와 `medium` 이상 `review` 후보를 주의/나쁜 데이터로 보고 자동 제외한 뒤
-승인본만 vectorstore에 반영합니다. vectorstore 파일은 임시 파일을 완성한 뒤 교체하므로
-refresh 중에도 기존 `documents.jsonl`은 계속 읽을 수 있습니다.
+승인본만 vectorstore에 반영합니다. 특허별 wiki vectorstore에는
+`data/mapped_patent_reports/<patent_id>/wiki/approved_context.md`만 들어가며,
+`web_search_drafts` 같은 승인 전 임시 검색 초안은 제외됩니다. vectorstore 파일은
+임시 파일을 완성한 뒤 교체하므로 refresh 중에도 기존 `documents.jsonl`은 계속 읽을 수 있습니다.
 
 ### 감사 프로세스와 평가 기준
 
@@ -479,7 +501,9 @@ data/mapped_patent_reports/<patent_id>/
       latest.json
       <timestamp>_<job_id>.json
   wiki/
+    approved_context.md
     vectorstore/
+      local/
   extracted/
     all_chunks.jsonl
     original_pdf_chunks.jsonl
@@ -499,7 +523,7 @@ data/mapped_patent_reports/<patent_id>/
 
 - 보고서 생성 결과가 곧바로 챗봇 질의 응답 데이터가 됩니다.
 - `eval_logic/api_test`와 `chatbot/data`에 흩어져 있던 입출력을 한곳에서 추적합니다.
-- 특허별로 원문, 보고서, wiki, vector index를 같이 보관해 재현성이 좋아집니다.
+- 특허별로 원문, 보고서, 승인 wiki, vector index를 같이 보관해 재현성이 좋아집니다.
 - `latest.*` 파일을 두어 API나 챗봇이 가장 최근 데이터를 쉽게 찾을 수 있습니다.
 
 ## Agent Workflow
@@ -952,9 +976,9 @@ data/mapped_patent_reports/<patent_id>/original/input/
 1. 사용자가 특정 특허 또는 전체 특허에 대해 질문
 2. ChatGraph가 chat_history와 context_patent_id로 이어지는 질문인지 판단
 3. lightweight LLM intent agent가 질문 의도, source_plan, 답변 형식, 웹검색 필요 여부를 분류
-4. 감사 승인본 기반 wiki/reviewed vectorstore에서 보조 context를 검색
-5. 필요한 경우 웹 검색을 실행하고 결과를 wiki/web_search_drafts/*.md에 Markdown으로 저장
-6. rag.zip에서 복구한 FAISS + BM25 + RRF RAG 엔진이 원문/보고서/wiki/웹 근거로 답변 생성
+4. 감사 승인본 기반 특허별 wiki vectorstore에서 보조 context를 먼저 검색
+5. wiki에 충분한 근거가 없고 의도 라우터가 외부 정보가 필요하다고 판단하면 웹 검색 실행
+6. rag.zip에서 복구한 FAISS + BM25 + RRF RAG 엔진과 LangGraph 답변 agent가 원문/보고서/core 근거와 wiki/web 보강 근거로 답변 생성
 7. 질문이 표/다이어그램을 요구하면 Markdown 표 또는 Mermaid 다이어그램을 포함
 8. 답변, source_cards, agent_trace, confidence/latency/answer_mode metrics를 반환
 ```
@@ -974,7 +998,7 @@ flowchart TD
   I -. decides .-> SP[source_plan: original/report/wiki/web/global]
   I -. decides .-> AF[answer_format: text/table/diagram]
   W -. reads .-> VS[index/vectorstore human_reviewed]
-  WEB -. writes .-> WD[wiki/web_search_drafts/*.md]
+  WEB -. temporary evidence .-> WD[web result cards]
   R -. uses .-> LG[legacy FAISS + BM25 + RRF RAG]
 ```
 
@@ -985,15 +1009,21 @@ flowchart TD
   A[POST /api/v1/application/chat] --> H[resolve_application_history]
   H --> I[route_application_question lightweight LLM intent]
   I --> R[retrieve_application_context]
-  R --> G[answer_application_question]
+  R --> X{external evidence needed?}
+  X -->|yes| E[retrieve_application_external_context]
+  X -->|no| S[skip external search]
+  E --> G[answer_application_question]
+  S --> G
   G --> F[finish_application_answer]
-  F --> O[answer + official source_cards + metrics]
+  F --> O[answer + source_cards + quality metrics]
 
   D[data/patent_application_official_pack(1)] --> IX[index/vectorstore]
   DL[POST /api/v1/application/sources/download] --> D
+  PP[POST /api/v1/application/preprocess] --> IX
   RF[POST /api/v1/application/index/refresh] --> IX
   R -. searches .-> IX
   I -. routes .-> P[procedure/forms/claims/prior-art/rejection/fees/strategy]
+  E -. uses .-> EXT[KIPRIS/KOSIS/Tavily status + web evidence]
 ```
 
 출원 도우미는 기존 특허별 가치평가 챗봇과 분리된 라우팅을 사용합니다. 질문이
@@ -1001,6 +1031,14 @@ flowchart TD
 KIPRIS/CPC/IPC 검색 자료를 우선하며, 처음 출원 절차 질문이면 특허로 출원가이드와
 절차 체크리스트를 우선 검색합니다. 다운로드 또는 크롤링에 실패한 URL은
 `data/patent_application_official_pack(1)/download_report.md`에 남습니다.
+실패 요인 분석/거절 대응/사업화/최신 동향처럼 내부 공식팩만으로 부족한 질문은
+`KIPRIS_API_KEY`, `KOSIS_API_KEY`, `TAVILY_API_KEY` 설정 상태를 metrics에 표시하고,
+사용 가능한 외부 근거를 답변의 근거 카드에 함께 붙입니다.
+
+답변 품질은 `metrics.answer_quality`에 표시됩니다. 항상 계산되는 지표는 검색 근거와
+답변의 의미 유사도, 질문 키워드가 답변/근거에 반영된 비율, retrieval 평균 점수이며,
+`bert-score` 패키지와 모델이 준비된 환경에서는 BERTScore precision/recall/f1도 함께
+계산됩니다.
 
 ## API 테스트 흐름
 
@@ -1038,7 +1076,16 @@ KIPRIS/CPC/IPC 검색 자료를 우선하며, 처음 출원 절차 질문이면 
 7. `POST /api/v1/wiki/audit`로 나쁜 데이터 후보 감사 실행
 8. `GET /api/v1/wiki/audit-review`로 사람이 제외 후보와 근거 excerpt 확인
 9. `POST /api/v1/wiki/audit-apply`로 제외할 후보를 확정하고 승인 Markdown 저장
-10. `GET /api/v1/chatbot/vectorstore/status`로 갱신된 문서 수 확인
+10. `POST /api/v1/chatbot/preprocess/run`에서 `mode=refresh_vectorstore`로 승인 vectorstore 갱신
+11. `GET /api/v1/chatbot/vectorstore/status`로 core/wiki 문서 수 확인
+12. `POST /api/v1/rag/chat`으로 질문 답변, 근거 카드, 품질 지표 확인
+
+출원 도우미 테스트:
+
+1. `POST /api/v1/application/preprocess`로 공식팩 전처리와 index refresh 실행
+2. `GET /api/v1/application/status`로 `document_count`, `source_roles` 확인
+3. `GET /api/v1/application/external/status`로 KIPRIS/KOSIS/Tavily 연결 상태 확인
+4. `POST /api/v1/application/chat`으로 출원 절차, 실패 요인, 선행기술, 거절 대응 질문 확인
 11. `POST /api/v1/chatbot/answer` 또는 `POST /api/v1/rag/answer`로 답변과 근거 카드 확인
 12. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/rag/query`로 원본 검색 hit 확인
 

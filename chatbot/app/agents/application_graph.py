@@ -8,17 +8,30 @@ import re
 from typing import Any, TypedDict
 
 from ..application_data import (
+    application_external_status,
     application_index_status,
     cards_from_application_hits,
     preferred_application_hits,
     refresh_application_index,
     search_application_index,
 )
+from ..rag.evaluation import answer_quality_metrics
+from ..rag.sources import cards_from_web
+from ..rag.web_answers import search_web
 from ..rag.config import ANSWER_MODEL, ANSWER_NUM_PREDICT, INTENT_MODEL, INTENT_NUM_PREDICT
 from ..rag.llm import call_ollama
 
 
 FOLLOWUP_TERMS = ("이거", "이것", "그거", "앞에서", "방금", "이전", "계속", "그 다음")
+SOURCE_PLAN_BY_INTENT = {
+    "application_procedure": ["application_guide", "process_checklist", "official_pack"],
+    "forms_and_filing": ["patent_customer_number", "certificate", "filing_forms"],
+    "drafting_claims": ["application_guide", "examination_standard", "strategy"],
+    "prior_art_search": ["kipris", "classification", "search_workflow"],
+    "rejection_response": ["notice_forms", "examination_standard", "appeal", "kipris"],
+    "fees": ["fee_guide", "official_forms"],
+    "application_strategy": ["strategy", "examination_timing", "publication", "kosis", "tavily"],
+}
 
 
 class ApplicationAgentState(TypedDict, total=False):
@@ -31,6 +44,7 @@ class ApplicationAgentState(TypedDict, total=False):
     retrieval_query: str
     intent: dict[str, Any]
     retrieval: dict[str, Any]
+    external_context: dict[str, Any]
     result: dict[str, Any]
     trace: list[dict[str, Any]]
 
@@ -66,27 +80,27 @@ def resolve_application_history(state: ApplicationAgentState) -> ApplicationAgen
 
 def _rule_application_intent(query: str) -> dict[str, Any]:
     text = query.lower()
-    if any(term in text for term in ["거절", "의견제출", "보정", "통지서", "불복", "심판"]):
+    if any(term in text for term in ["거절", "의견제출", "보정", "통지서", "불복", "심판", "실패", "리스크", "위험", "대응"]):
         intent = "rejection_response"
-        source_plan = ["notice_forms", "examination_standard", "appeal"]
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in ["선행기술", "kipris", "검색", "cpc", "ipc", "유사"]):
         intent = "prior_art_search"
-        source_plan = ["kipris", "classification", "search_workflow"]
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in ["명세서", "청구항", "청구범위", "작성", "권리범위"]):
         intent = "drafting_claims"
-        source_plan = ["application_guide", "examination_standard", "strategy"]
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in ["수수료", "비용", "감면", "등록료", "심사청구료"]):
         intent = "fees"
-        source_plan = ["fee_guide", "official_forms"]
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in ["서식", "특허고객번호", "인증서", "전자출원", "제출"]):
         intent = "forms_and_filing"
-        source_plan = ["patent_customer_number", "certificate", "filing_forms"]
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in ["전략", "사업화", "해외", "우선심사", "심사유예"]):
         intent = "application_strategy"
-        source_plan = ["strategy", "examination_timing", "publication"]
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
     else:
         intent = "application_procedure"
-        source_plan = ["application_guide", "process_checklist", "official_pack"]
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
 
     needs_table = any(term in text for term in ["표", "비교", "체크리스트", "단계", "정리"])
     needs_diagram = any(term in text for term in ["다이어그램", "흐름", "프로세스", "순서"])
@@ -104,15 +118,36 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
         "answer_format": answer_format,
         "needs_table": needs_table,
         "needs_diagram": needs_diagram,
+        "needs_external": any(term in text for term in ["kipris", "kosis", "타빌리", "시장", "동향", "유사", "거절", "실패", "사업화", "최신"]),
         "method": "rule",
     }
+
+
+def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, Any]:
+    repaired = dict(intent)
+    intent_name = str(repaired.get("intent") or "application_procedure")
+    if intent_name not in SOURCE_PLAN_BY_INTENT:
+        intent_name = _rule_application_intent(query)["intent"]
+        repaired["intent"] = intent_name
+    repaired["source_plan"] = SOURCE_PLAN_BY_INTENT[intent_name]
+    text = query.lower()
+    repaired["needs_external"] = bool(
+        repaired.get("needs_external")
+        or {"kipris", "kosis", "tavily"} & set(repaired.get("source_plan") or [])
+        or any(term in text for term in ["kipris", "kosis", "타빌리", "시장", "동향", "유사", "거절", "실패", "사업화", "최신"])
+    )
+    return repaired
 
 
 def route_application_question(state: ApplicationAgentState) -> ApplicationAgentState:
     fallback = _rule_application_intent(state.get("query", ""))
     prompt = f"""You are a lightweight intent router for a Korean patent filing assistant.
-Return JSON only with keys: intent, source_plan, answer_format, needs_table, needs_diagram.
+Return JSON only with keys: intent, source_plan, answer_format, needs_table, needs_diagram, needs_external.
 Allowed intents: application_procedure, forms_and_filing, drafting_claims, prior_art_search, rejection_response, fees, application_strategy.
+Rules:
+- If the user asks about failure factors, rejection, office-action response, risk or feedback, use rejection_response.
+- If the user asks about prior art, novelty, inventive step, KIPRIS, CPC/IPC or similar patents, use prior_art_search.
+- If the user asks about market, commercialization, timing, external trends or statistics, set needs_external=true and include tavily/kosis.
 Question: {state.get("query", "")}
 """
     llm = call_ollama(prompt, model=INTENT_MODEL, num_predict=INTENT_NUM_PREDICT)
@@ -129,6 +164,7 @@ Question: {state.get("query", "")}
                         "answer_format": parsed.get("answer_format") or intent["answer_format"],
                         "needs_table": bool(parsed.get("needs_table", intent["needs_table"])),
                         "needs_diagram": bool(parsed.get("needs_diagram", intent["needs_diagram"])),
+                        "needs_external": bool(parsed.get("needs_external", intent.get("needs_external", False))),
                         "method": "llm",
                     }
                 )
@@ -138,7 +174,42 @@ Question: {state.get("query", "")}
             intent["llm_raw"] = str(llm.get("text") or "")[:400]
     else:
         intent["llm_error"] = llm.get("error")
+    intent = _repair_application_intent(state.get("query", ""), intent)
     return {**state, "intent": intent, "trace": _trace(state, "route_application_question", "success", intent=intent)}
+
+
+def retrieve_application_external_context(state: ApplicationAgentState) -> ApplicationAgentState:
+    intent = state.get("intent") or {}
+    query = state.get("query", "")
+    should_search = bool(intent.get("needs_external") or {"kipris", "kosis", "tavily"} & set(intent.get("source_plan") or []))
+    external = {
+        "enabled": should_search,
+        "connectors": application_external_status(),
+        "web": {"enabled": False, "provider": None, "results": [], "error": None},
+        "search_query": None,
+    }
+    if should_search:
+        terms = ["특허 출원", "KIPRIS", "KOSIS", "거절이유", "선행기술", "시장 통계"]
+        search_query = " ".join([query, *terms[:3]])
+        if intent.get("intent") == "prior_art_search":
+            search_query = f"{query} KIPRIS 선행기술 IPC CPC 유사특허"
+        elif intent.get("intent") == "rejection_response":
+            search_query = f"{query} KIPRIS 의견제출통지서 거절이유 보정 의견서"
+        elif intent.get("intent") == "application_strategy":
+            search_query = f"{query} KOSIS 시장 통계 특허 출원 전략 사업화"
+        external["search_query"] = search_query
+        external["web"] = search_web(search_query)
+    return {
+        **state,
+        "external_context": external,
+        "trace": _trace(
+            state,
+            "retrieve_application_external_context",
+            "success",
+            enabled=should_search,
+            result_count=len((external.get("web") or {}).get("results") or []),
+        ),
+    }
 
 
 def retrieve_application_context(state: ApplicationAgentState) -> ApplicationAgentState:
@@ -235,6 +306,23 @@ def _context_for_prompt(hits: list[dict[str, Any]]) -> str:
             f"{str(hit.get('page_content') or '')[:1400]}"
         )
     return "\n\n".join(lines) if lines else "No application official context found."
+
+
+def _external_context_for_prompt(external: dict[str, Any]) -> str:
+    if not external.get("enabled"):
+        return "External context was not requested."
+    lines = ["External connector status:"]
+    for name, status in (external.get("connectors") or {}).items():
+        lines.append(f"- {name}: configured={status.get('configured')} / usage={status.get('usage')}")
+    web = external.get("web") or {}
+    results = web.get("results") or []
+    if not results:
+        lines.append(f"- web search: no result / provider={web.get('provider')} / error={web.get('error')}")
+        return "\n".join(lines)
+    lines.append(f"Web/Tavily evidence query: {external.get('search_query')}")
+    for index, item in enumerate(results[:5], 1):
+        lines.append(f"[E{index}] {item.get('title')}\n{item.get('snippet')}\n{item.get('url') or ''}")
+    return "\n\n".join(lines)
 
 
 def _fallback_application_answer(query: str, intent: dict[str, Any], hits: list[dict[str, Any]]) -> str:
@@ -339,30 +427,52 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
 공식팩 근거:
 {_context_for_prompt(hits)}
 
+외부 보강 근거(KIPRIS/KOSIS/Tavily 연결 상태와 검색 결과):
+{_external_context_for_prompt(state.get("external_context") or {})}
+
 답변 요구:
 - 한국어로 구체적인 실행 순서를 제시합니다.
-- 출원 절차, 거절 대응, 선행기술 검색, 서식/수수료 중 의도에 맞는 항목을 우선합니다.
+- 출원 절차, 거절 대응, 선행기술 검색, 실패 요인 분석, 피드백, 다음 액션 중 의도에 맞는 항목을 우선합니다.
+- 실패 요인 질문이면 신규성/진보성/기재불비/청구범위/절차 기한/보정 리스크를 나눠 진단합니다.
+- 외부 근거는 공식팩 근거를 보강할 때만 사용하고, KIPRIS/KOSIS/Tavily 중 어떤 경로인지 표시합니다.
+- 부족한 데이터와 추가하면 좋은 데이터도 마지막에 제안합니다.
 - 표가 필요하면 Markdown 표를 포함합니다.
 - 다이어그램이 필요하면 Mermaid flowchart를 포함합니다.
 - 마지막에는 확인해야 할 공식 자료명을 짧게 적습니다.
 """
     llm = call_ollama(prompt, model=ANSWER_MODEL, num_predict=ANSWER_NUM_PREDICT)
     answer = llm.get("text") if llm.get("ok") else _fallback_application_answer(state.get("query", ""), intent, hits)
+    source_cards = cards_from_application_hits(hits, query=state.get("query", ""))
+    external_results = (((state.get("external_context") or {}).get("web") or {}).get("results") or [])
+    if external_results:
+        source_cards.extend(cards_from_web(external_results[:5], start_index=len(source_cards) + 1, query=state.get("query", "")))
     result = {
         "query": state.get("query", ""),
         "patent_id": "patent_application",
         "answer": str(answer or ""),
-        "source_cards": cards_from_application_hits(hits, query=state.get("query", "")),
+        "source_cards": source_cards,
         "metrics": {
             "engine": "patent_application_langgraph",
             "intent_agent": intent,
             "hit_count": retrieval.get("hit_count", 0),
+            "external_context": {
+                "enabled": bool((state.get("external_context") or {}).get("enabled")),
+                "search_query": (state.get("external_context") or {}).get("search_query"),
+                "web_result_count": len(((state.get("external_context") or {}).get("web") or {}).get("results") or []),
+                "connectors": (state.get("external_context") or {}).get("connectors"),
+            },
             "llm_ok": bool(llm.get("ok")),
             "llm_error": llm.get("error"),
             "answer_format_plan": intent.get("answer_format"),
             "source_plan": intent.get("source_plan"),
         },
     }
+    result["metrics"]["answer_quality"] = answer_quality_metrics(
+        query=state.get("query", ""),
+        answer=result["answer"],
+        source_cards=source_cards,
+        retrieval_scores=[hit.get("score") for hit in hits if isinstance(hit.get("score"), (int, float))],
+    )
     return {
         **state,
         "result": result,
@@ -375,7 +485,7 @@ def finish_application_answer(state: ApplicationAgentState) -> ApplicationAgentS
     metrics = dict(result.get("metrics") or {})
     trace = _trace(state, "finish_application_answer", "success")
     metrics["agent_trace"] = trace
-    metrics["application_workflow"] = "history -> intent_router -> official_pack_retrieval -> guided_answer"
+    metrics["application_workflow"] = "history -> intent_router -> official_pack_retrieval -> external_enrichment -> guided_answer"
     metrics["answer_has_diagram"] = "```mermaid" in str(result.get("answer") or "")
     result["metrics"] = metrics
     return {**state, "result": result, "trace": trace}
@@ -385,6 +495,7 @@ def _sequential(state: ApplicationAgentState) -> ApplicationAgentState:
     state = resolve_application_history(state)
     state = route_application_question(state)
     state = retrieve_application_context(state)
+    state = retrieve_application_external_context(state)
     state = answer_application_question(state)
     return finish_application_answer(state)
 
@@ -397,12 +508,14 @@ def build_application_graph() -> Any:
         graph.add_node("resolve_application_history", resolve_application_history)
         graph.add_node("route_application_question", route_application_question)
         graph.add_node("retrieve_application_context", retrieve_application_context)
+        graph.add_node("retrieve_application_external_context", retrieve_application_external_context)
         graph.add_node("answer_application_question", answer_application_question)
         graph.add_node("finish_application_answer", finish_application_answer)
         graph.set_entry_point("resolve_application_history")
         graph.add_edge("resolve_application_history", "route_application_question")
         graph.add_edge("route_application_question", "retrieve_application_context")
-        graph.add_edge("retrieve_application_context", "answer_application_question")
+        graph.add_edge("retrieve_application_context", "retrieve_application_external_context")
+        graph.add_edge("retrieve_application_external_context", "answer_application_question")
         graph.add_edge("answer_application_question", "finish_application_answer")
         graph.add_edge("finish_application_answer", END)
         return graph.compile()
@@ -434,16 +547,21 @@ def run_application_agent(
 
 
 def application_graph_mermaid() -> str:
-    if APPLICATION_GRAPH is not None:
-        try:
-            return APPLICATION_GRAPH.get_graph().draw_mermaid()
-        except Exception:
-            pass
     return """flowchart TD
-  A[Patent Application Chat Request] --> B[resolve_application_history]
-  B --> C[route_application_question / lightweight LLM intent]
-  C --> D[retrieve_application_context / official pack vectorstore]
-  D --> E[answer_application_question]
-  E --> F[finish_application_answer]
-  F --> G[Answer + source cards + metrics]
+  A[사용자 질문] --> B[대화 이력 반영]
+  B --> C[가벼운 LLM 의도 라우팅]
+  C --> D{질문 유형}
+  D -- 출원 절차/서식/수수료 --> E[공식팩 문서 검색]
+  D -- 청구항/명세서 작성 --> E
+  D -- 거절/실패 요인/피드백 --> E
+  D -- 선행기술/시장/최신 동향 --> E
+
+  E --> F{외부 보강 필요?}
+  F -- KIPRIS/KOSIS/Tavily 필요 --> G[외부 근거 보강]
+  F -- 공식팩 충분 --> H[외부 검색 생략]
+
+  G --> I[상용 서비스형 답변 생성]
+  H --> I
+  I --> J[표/다이어그램/체크리스트 형식화]
+  J --> K[근거 카드 + 품질 지표 반환]
 """

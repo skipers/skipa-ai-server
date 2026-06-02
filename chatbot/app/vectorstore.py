@@ -199,6 +199,13 @@ def _is_wiki_doc(doc: dict[str, Any]) -> bool:
     return _source_type(doc) in WIKI_SEARCH_SOURCE_TYPES
 
 
+def _is_approved_wiki_doc(doc: dict[str, Any]) -> bool:
+    metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+    source_path = str(metadata.get("source_path") or "")
+    file_name = str(metadata.get("file_name") or Path(source_path).name)
+    return _is_wiki_doc(doc) and file_name == "approved_context.md" and "web_search_drafts" not in source_path
+
+
 def _document(
     *,
     patent_id: str,
@@ -276,6 +283,8 @@ def _wiki_documents(patent_id: str, wiki_root: Path) -> Iterable[dict[str, Any]]
         return
     for path in sorted(wiki_root.rglob("*")):
         if not path.is_file() or "vectorstore" in path.parts:
+            continue
+        if path.name != "approved_context.md" or "web_search_drafts" in path.parts:
             continue
         if path.suffix.lower() not in {".md", ".txt", ".json", ".jsonl"}:
             continue
@@ -378,9 +387,7 @@ def normalize_wiki_context_files() -> dict[str, Any]:
             if not isinstance(doc, dict):
                 continue
             metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-            if metadata.get("source_type") == "WIKI" and (
-                metadata.get("human_review_source") == "approved_context" or metadata.get("file_name") == "approved_context.md"
-            ):
+            if metadata.get("source_type") == "WIKI":
                 continue
             docs.append(doc)
 
@@ -499,7 +506,7 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
         patent_dir = PATENTS_ROOT / patent_id
         docs = collect_patent_documents(patent_id, use_reviewed=use_reviewed)
         core_docs = [doc for doc in docs if _is_core_search_doc(doc)]
-        patent_wiki_docs = [doc for doc in docs if _is_wiki_doc(doc)]
+        patent_wiki_docs = [doc for doc in docs if _is_approved_wiki_doc(doc)]
         for doc in docs:
             if not _is_core_search_doc(doc) and not _is_wiki_doc(doc):
                 excluded_by_policy[_source_type(doc) or "UNKNOWN"] += 1
@@ -550,7 +557,9 @@ def vectorstore_status() -> dict[str, Any]:
     for patent_id in _patent_ids():
         patent_dir = PATENTS_ROOT / patent_id
         manifest_path = patent_dir / "index" / "vectorstore" / "manifest.json"
+        wiki_manifest_path = patent_dir / "wiki" / "vectorstore" / "local" / "manifest.json"
         manifest = _read_json(manifest_path)
+        wiki_manifest = _read_json(wiki_manifest_path)
         reviewed_path = _reviewed_docs_path(patent_id)
         patent_status.append(
             {
@@ -559,6 +568,12 @@ def vectorstore_status() -> dict[str, Any]:
                 "document_count": manifest.get("document_count", 0),
                 "refreshed_at": manifest.get("refreshed_at"),
                 "manifest_path": str(manifest_path),
+                "wiki_vectorstore_exists": wiki_manifest_path.exists(),
+                "wiki_document_count": wiki_manifest.get("document_count", 0),
+                "wiki_manifest_path": str(wiki_manifest_path),
+                "wiki_markdown_path": str(patent_dir / "wiki" / "approved_context.md")
+                if (patent_dir / "wiki" / "approved_context.md").exists()
+                else None,
                 "has_human_reviewed_source": reviewed_path.exists(),
                 "approved_markdown_path": str(_reviewed_md_path(patent_id)) if _reviewed_md_path(patent_id).exists() else None,
             }

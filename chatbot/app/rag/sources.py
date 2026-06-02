@@ -43,7 +43,7 @@ def cards_from_hits(hits: list[dict[str, Any]], *, query: str | None = None) -> 
                     "page_no": page_no,
                     "url": _source_url(metadata),
                     "snippet": str(hit.get("excerpt") or hit.get("page_content") or ""),
-                    "metadata": metadata,
+                    "metadata": {**metadata, "retrieval_score": hit.get("score")},
                 },
                 query=query,
                 index=index,

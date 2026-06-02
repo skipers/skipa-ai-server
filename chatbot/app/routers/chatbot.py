@@ -10,8 +10,10 @@ from ..agents.ingestion_graph import ingestion_graph_mermaid, run_ingestion_grap
 from ..agents.wiki_graph import run_wiki_audit_graph, wiki_audit_graph_mermaid
 from ..application_data import (
     application_download_report,
+    application_external_status,
     application_index_status,
     download_application_sources,
+    preprocess_application_pack,
     refresh_application_index,
 )
 from ..config import (
@@ -38,6 +40,8 @@ from ..schemas import (
     FeedbackRequest,
     PatentApplicationChatRequest,
     PatentApplicationDownloadRequest,
+    PatentApplicationPreprocessRequest,
+    PreprocessRunRequest,
     ReindexRequest,
     SearchRequest,
     SearchResponse,
@@ -55,7 +59,7 @@ from ..store import (
     search_chunks,
     wiki_audit_report,
 )
-from ..vectorstore import vectorstore_status
+from ..vectorstore import normalize_wiki_context_files, refresh_vectorstores, run_audit, vectorstore_status
 
 
 router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
@@ -139,6 +143,37 @@ def get_business_chunks(offset: int = Query(0, ge=0), limit: int = Query(20, ge=
 @router.get("/vectorstore/status", summary="챗봇 vectorstore 갱신 상태")
 def get_vectorstore_status() -> dict:
     return vectorstore_status()
+
+
+@router.get("/preprocess/status", summary="전처리/vectorstore/application 상태 통합 확인")
+def get_preprocess_status() -> dict:
+    return {
+        "vectorstore": vectorstore_status(),
+        "application": application_index_status(),
+        "application_external": application_external_status(),
+    }
+
+
+@router.post("/preprocess/run", summary="전처리/wiki 정리/vectorstore refresh/application preprocess 실행")
+def post_preprocess_run(request: PreprocessRunRequest) -> dict:
+    result: dict[str, object] = {"mode": request.mode}
+    if request.mode == "normalize_wiki":
+        result["wiki_normalize"] = normalize_wiki_context_files()
+    elif request.mode == "refresh_vectorstore":
+        result["wiki_normalize"] = normalize_wiki_context_files() if request.use_reviewed else {"status": "skipped"}
+        result["vectorstore"] = refresh_vectorstores(use_reviewed=request.use_reviewed)
+    elif request.mode == "auto_audit_refresh":
+        result["wiki_agent"] = run_wiki_audit_graph(mode="auto_refresh", refresh_vectorstore=True)
+    elif request.mode == "audit":
+        result["audit"] = run_audit()
+    elif request.mode == "application_preprocess":
+        result["application"] = preprocess_application_pack(refresh_index=request.refresh_application)
+    elif request.mode == "all":
+        result["wiki_normalize"] = normalize_wiki_context_files()
+        result["vectorstore"] = refresh_vectorstores(use_reviewed=True)
+        result["application"] = preprocess_application_pack(refresh_index=request.refresh_application)
+    result["status"] = "ok"
+    return result
 
 
 @router.post("/vectorstore/refresh", summary="감사 자동 적용 후 전체 vectorstore 재생성")
@@ -363,6 +398,16 @@ def get_wiki_agent_mermaid() -> dict:
 @application_router.get("/status", summary="특허 출원 도우미 공식팩/index 상태")
 def get_application_status() -> dict:
     return application_index_status()
+
+
+@application_router.get("/external/status", summary="KIPRIS/KOSIS/Tavily 외부 보강 연결 상태")
+def get_application_external_status() -> dict:
+    return application_external_status()
+
+
+@application_router.post("/preprocess", summary="특허 출원 공식팩 전처리 리포트 생성 및 vectorstore 갱신")
+def post_application_preprocess(request: PatentApplicationPreprocessRequest) -> dict:
+    return preprocess_application_pack(refresh_index=request.refresh_index)
 
 
 @application_router.post("/sources/download", summary="특허 출원 공식 자료 다운로드/크롤링")

@@ -1,0 +1,410 @@
+{
+  "status": "preprocessed",
+  "generated_at": "2026-06-02T14:44:30",
+  "root": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)",
+  "active_file_count": 29,
+  "roles": {
+    "application_procedure": 22,
+    "prior_art_search": 2,
+    "rejection_failure_feedback": 5
+  },
+  "index": {
+    "status": "refreshed",
+    "scope": "patent_application",
+    "document_count": 2345,
+    "source_file_count": 29,
+    "manifest_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/index/vectorstore/manifest.json",
+    "documents_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/index/vectorstore/documents.jsonl",
+    "errors": []
+  },
+  "active_files": [
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/README.md",
+      "relative_path": "patent_application_official_pack(1)/README.md",
+      "file_name": "README.md",
+      "role": "application_procedure",
+      "suffix": ".md",
+      "size_bytes": 1236,
+      "text_char_count": 678,
+      "chunk_estimate": 1,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/13.2026 지식재산권의 손쉬운 이용.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/13.2026 지식재산권의 손쉬운 이용.pdf",
+      "file_name": "13.2026 지식재산권의 손쉬운 이용.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 31198191,
+      "text_char_count": 165580,
+      "chunk_estimate": 98,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/5.BM 길라잡이.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/5.BM 길라잡이.pdf",
+      "file_name": "5.BM 길라잡이.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 38861323,
+      "text_char_count": 0,
+      "chunk_estimate": 0,
+      "usable": false,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/CPC 매뉴얼 2020.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/CPC 매뉴얼 2020.pdf",
+      "file_name": "CPC 매뉴얼 2020.pdf",
+      "role": "prior_art_search",
+      "suffix": ".pdf",
+      "size_bytes": 5035724,
+      "text_char_count": 63263,
+      "chunk_estimate": 39,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/IP정보 활용 길라잡이.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/IP정보 활용 길라잡이.pdf",
+      "file_name": "IP정보 활용 길라잡이.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 15614567,
+      "text_char_count": 14809,
+      "chunk_estimate": 10,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/NICE 국제상품분류 Class Heading 해설서.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/NICE 국제상품분류 Class Heading 해설서.pdf",
+      "file_name": "NICE 국제상품분류 Class Heading 해설서.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 2983355,
+      "text_char_count": 185820,
+      "chunk_estimate": 117,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/PCT 국제조사 및 국제예비심사 가이드라인.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/PCT 국제조사 및 국제예비심사 가이드라인.pdf",
+      "file_name": "PCT 국제조사 및 국제예비심사 가이드라인.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 3101309,
+      "text_char_count": 413340,
+      "chunk_estimate": 255,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/기술분야별 심사실무가이드 2026.03.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/기술분야별 심사실무가이드 2026.03.pdf",
+      "file_name": "기술분야별 심사실무가이드 2026.03.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 24213255,
+      "text_char_count": 1054932,
+      "chunk_estimate": 651,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/등록업무 편람.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/등록업무 편람.pdf",
+      "file_name": "등록업무 편람.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 6126099,
+      "text_char_count": 431573,
+      "chunk_estimate": 261,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/디자이너를 위한 디자인출원도면 작성 가이드북.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/디자이너를 위한 디자인출원도면 작성 가이드북.pdf",
+      "file_name": "디자이너를 위한 디자인출원도면 작성 가이드북.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 17552717,
+      "text_char_count": 0,
+      "chunk_estimate": 0,
+      "usable": false,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/디자인 심사기준.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/디자인 심사기준.pdf",
+      "file_name": "디자인 심사기준.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 9234793,
+      "text_char_count": 371928,
+      "chunk_estimate": 224,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/상표심사기준.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/상표심사기준.pdf",
+      "file_name": "상표심사기준.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 5745767,
+      "text_char_count": 457706,
+      "chunk_estimate": 283,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/유사상품·서비스업 심사기준(니스 제8판 기준).pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/유사상품·서비스업 심사기준(니스 제8판 기준).pdf",
+      "file_name": "유사상품·서비스업 심사기준(니스 제8판 기준).pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 3847135,
+      "text_char_count": 180501,
+      "chunk_estimate": 114,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/의견(답변 소명)서 별지 제24호서식.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/의견(답변 소명)서 별지 제24호서식.pdf",
+      "file_name": "의견(답변 소명)서 별지 제24호서식.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 136645,
+      "text_char_count": 8917,
+      "chunk_estimate": 6,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/지식재산권 권리회복 심사 가이드라인.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/지식재산권 권리회복 심사 가이드라인.pdf",
+      "file_name": "지식재산권 권리회복 심사 가이드라인.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 376836,
+      "text_char_count": 23282,
+      "chunk_estimate": 15,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/출원방식심사기준.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/출원방식심사기준.pdf",
+      "file_name": "출원방식심사기준.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 49923025,
+      "text_char_count": 269161,
+      "chunk_estimate": 170,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/통지서표준문안집.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/통지서표준문안집.pdf",
+      "file_name": "통지서표준문안집.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 2325467,
+      "text_char_count": 113533,
+      "chunk_estimate": 72,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf",
+      "relative_path": "patent_application_official_pack(1)/downloads/특허거절의견서.pdf",
+      "file_name": "특허거절의견서.pdf",
+      "role": "application_procedure",
+      "suffix": ".pdf",
+      "size_bytes": 87196,
+      "text_char_count": 1648,
+      "chunk_estimate": 1,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/official_download_links.html",
+      "relative_path": "patent_application_official_pack(1)/official_download_links.html",
+      "file_name": "official_download_links.html",
+      "role": "application_procedure",
+      "suffix": ".html",
+      "size_bytes": 6958,
+      "text_char_count": 1200,
+      "chunk_estimate": 1,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/official_sources.csv",
+      "relative_path": "patent_application_official_pack(1)/official_sources.csv",
+      "file_name": "official_sources.csv",
+      "role": "application_procedure",
+      "suffix": ".csv",
+      "size_bytes": 9477,
+      "text_char_count": 5475,
+      "chunk_estimate": 4,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/official_sources.json",
+      "relative_path": "patent_application_official_pack(1)/official_sources.json",
+      "file_name": "official_sources.json",
+      "role": "application_procedure",
+      "suffix": ".json",
+      "size_bytes": 13540,
+      "text_char_count": 8649,
+      "chunk_estimate": 6,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/patent_application_process_guide.md",
+      "relative_path": "patent_application_official_pack(1)/patent_application_process_guide.md",
+      "file_name": "patent_application_process_guide.md",
+      "role": "application_procedure",
+      "suffix": ".md",
+      "size_bytes": 5591,
+      "text_char_count": 2769,
+      "chunk_estimate": 2,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/patent_rejection_failure_response.md",
+      "relative_path": "patent_application_official_pack(1)/patent_rejection_failure_response.md",
+      "file_name": "patent_rejection_failure_response.md",
+      "role": "rejection_failure_feedback",
+      "suffix": ".md",
+      "size_bytes": 2953,
+      "text_char_count": 1433,
+      "chunk_estimate": 1,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/patent_rejection_notice_original_links.html",
+      "relative_path": "patent_application_official_pack(1)/patent_rejection_notice_original_links.html",
+      "file_name": "patent_rejection_notice_original_links.html",
+      "role": "rejection_failure_feedback",
+      "suffix": ".html",
+      "size_bytes": 3800,
+      "text_char_count": 799,
+      "chunk_estimate": 1,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/patent_rejection_notice_original_sources.md",
+      "relative_path": "patent_application_official_pack(1)/patent_rejection_notice_original_sources.md",
+      "file_name": "patent_rejection_notice_original_sources.md",
+      "role": "rejection_failure_feedback",
+      "suffix": ".md",
+      "size_bytes": 4592,
+      "text_char_count": 2429,
+      "chunk_estimate": 2,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/patent_rejection_notice_sources.csv",
+      "relative_path": "patent_application_official_pack(1)/patent_rejection_notice_sources.csv",
+      "file_name": "patent_rejection_notice_sources.csv",
+      "role": "rejection_failure_feedback",
+      "suffix": ".csv",
+      "size_bytes": 2340,
+      "text_char_count": 1815,
+      "chunk_estimate": 2,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/patent_rejection_notice_sources.json",
+      "relative_path": "patent_application_official_pack(1)/patent_rejection_notice_sources.json",
+      "file_name": "patent_rejection_notice_sources.json",
+      "role": "rejection_failure_feedback",
+      "suffix": ".json",
+      "size_bytes": 3196,
+      "text_char_count": 2476,
+      "chunk_estimate": 2,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/patent_sources.xlsx",
+      "relative_path": "patent_application_official_pack(1)/patent_sources.xlsx",
+      "file_name": "patent_sources.xlsx",
+      "role": "application_procedure",
+      "suffix": ".xlsx",
+      "size_bytes": 18410,
+      "text_char_count": 9122,
+      "chunk_estimate": 6,
+      "usable": true,
+      "error": null
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/prior_art_search_workflow.md",
+      "relative_path": "patent_application_official_pack(1)/prior_art_search_workflow.md",
+      "file_name": "prior_art_search_workflow.md",
+      "role": "prior_art_search",
+      "suffix": ".md",
+      "size_bytes": 1784,
+      "text_char_count": 928,
+      "chunk_estimate": 1,
+      "usable": true,
+      "error": null
+    }
+  ],
+  "excluded_policy": {
+    "directories": [
+      "downloads/raw",
+      "downloads/readable",
+      "downloads/named",
+      "index"
+    ],
+    "reason": "중복 원시 다운로드와 사람이 읽기 어려운 변환 전 파일은 검색 품질을 낮추므로 인덱싱하지 않습니다."
+  },
+  "recommended_additions": [
+    {
+      "name": "최근 KIPRIS 유사특허 샘플",
+      "reason": "출원 전 신규성/진보성 위험을 질문에서 바로 분석하려면 실제 유사특허 번호, 청구항, 공개/등록 상태 샘플이 필요합니다.",
+      "preferred_source": "KIPRIS 특허검색 또는 KIPRISPlus API"
+    },
+    {
+      "name": "최근 거절이유/의견제출통지서 샘플",
+      "reason": "실패 요인 분석과 보정/의견서 피드백 품질을 높이려면 실제 거절유형별 통지서 원문이 필요합니다.",
+      "preferred_source": "KIPRISPlus 의견제출통지서/거절결정서 API"
+    },
+    {
+      "name": "산업별 출원/시장 통계",
+      "reason": "사업화 가능성, 출원 타이밍, 시장성 질문에는 KOSIS 산업 통계와 출원 추세가 필요합니다.",
+      "preferred_source": "KOSIS, KIPRIS 통계, Tavily 보강 검색"
+    }
+  ],
+  "external_connectors": {
+    "tavily": {
+      "configured": true,
+      "usage": "external web evidence and official-source discovery"
+    },
+    "kipris": {
+      "configured": true,
+      "usage": "prior-art, legal status, rejection/family/citation checks"
+    },
+    "kosis": {
+      "configured": true,
+      "usage": "market/industry statistics for filing and commercialization strategy"
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-01T20:07:50",
+  "generated_at": "2026-06-01T20:55:27",
   "root": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)",
   "attempted_count": 84,
   "success_count": 81,
@@ -18,8 +18,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 121799,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
-      "started_at": "2026-06-01T20:05:56",
-      "finished_at": "2026-06-01T20:05:58"
+      "started_at": "2026-06-01T20:55:07",
+      "finished_at": "2026-06-01T20:55:08"
     },
     {
       "url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
@@ -32,8 +32,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 198711,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
-      "started_at": "2026-06-01T20:05:58",
-      "finished_at": "2026-06-01T20:05:58"
+      "started_at": "2026-06-01T20:55:08",
+      "finished_at": "2026-06-01T20:55:08"
     },
     {
       "url": "https://patent.go.kr/smart/jsp/ka/pki/kipocertmgr/KCertMgrView.do",
@@ -46,8 +46,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 107461,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-003_4c6db459ee.do",
-      "started_at": "2026-06-01T20:05:58",
-      "finished_at": "2026-06-01T20:05:59"
+      "started_at": "2026-06-01T20:55:08",
+      "finished_at": "2026-06-01T20:55:08"
     },
     {
       "url": "https://www.patent.go.kr/smart/jsp/ka/menu/fee/main/FeeMain01.do",
@@ -60,8 +60,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 233369,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-004_894134253b.do",
-      "started_at": "2026-06-01T20:05:59",
-      "finished_at": "2026-06-01T20:05:59"
+      "started_at": "2026-06-01T20:55:08",
+      "finished_at": "2026-06-01T20:55:09"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200111",
@@ -74,8 +74,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 291941,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-005_72934bb860.do",
-      "started_at": "2026-06-01T20:05:59",
-      "finished_at": "2026-06-01T20:05:59"
+      "started_at": "2026-06-01T20:55:09",
+      "finished_at": "2026-06-01T20:55:10"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=1&seq=30",
@@ -88,8 +88,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 12266980,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-006_6548c9fa75.do",
-      "started_at": "2026-06-01T20:05:59",
-      "finished_at": "2026-06-01T20:05:59"
+      "started_at": "2026-06-01T20:55:10",
+      "finished_at": "2026-06-01T20:55:10"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200146",
@@ -102,8 +102,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 224054,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-006_82b2227d3c.do",
-      "started_at": "2026-06-01T20:05:59",
-      "finished_at": "2026-06-01T20:06:00"
+      "started_at": "2026-06-01T20:55:10",
+      "finished_at": "2026-06-01T20:55:10"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=2&seq=30",
@@ -116,8 +116,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 24213255,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-007_21b972afb1.do",
-      "started_at": "2026-06-01T20:06:00",
-      "finished_at": "2026-06-01T20:06:00"
+      "started_at": "2026-06-01T20:55:10",
+      "finished_at": "2026-06-01T20:55:10"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200147",
@@ -130,8 +130,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 224415,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-007_1942117df5.do",
-      "started_at": "2026-06-01T20:06:00",
-      "finished_at": "2026-06-01T20:06:00"
+      "started_at": "2026-06-01T20:55:10",
+      "finished_at": "2026-06-01T20:55:10"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=12&seq=30",
@@ -144,8 +144,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 49923025,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_a10f1904f9.do",
-      "started_at": "2026-06-01T20:06:00",
-      "finished_at": "2026-06-01T20:06:00"
+      "started_at": "2026-06-01T20:55:10",
+      "finished_at": "2026-06-01T20:55:11"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
@@ -158,8 +158,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 164833,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
-      "started_at": "2026-06-01T20:06:00",
-      "finished_at": "2026-06-01T20:06:00"
+      "started_at": "2026-06-01T20:55:11",
+      "finished_at": "2026-06-01T20:55:11"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200117",
@@ -172,8 +172,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 228146,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-009_38d57c9864.do",
-      "started_at": "2026-06-01T20:06:00",
-      "finished_at": "2026-06-01T20:06:01"
+      "started_at": "2026-06-01T20:55:11",
+      "finished_at": "2026-06-01T20:55:11"
     },
     {
       "url": "https://www.kipo.go.kr/ipt/iptContentView.do?menuCd=SCD0400083",
@@ -186,8 +186,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 87836,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-010_cae3cec926.do",
-      "started_at": "2026-06-01T20:06:01",
-      "finished_at": "2026-06-01T20:06:01"
+      "started_at": "2026-06-01T20:55:11",
+      "finished_at": "2026-06-01T20:55:11"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?fileNum=20&seq=30",
@@ -200,8 +200,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 376836,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-011_d6cd171293.do",
-      "started_at": "2026-06-01T20:06:01",
-      "finished_at": "2026-06-01T20:06:01"
+      "started_at": "2026-06-01T20:55:11",
+      "finished_at": "2026-06-01T20:55:11"
     },
     {
       "url": "https://www.kipris.or.kr/kportal/search/total_search.do",
@@ -214,8 +214,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 307184,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-012_81be85e5c9.do",
-      "started_at": "2026-06-01T20:06:01",
-      "finished_at": "2026-06-01T20:06:01"
+      "started_at": "2026-06-01T20:55:11",
+      "finished_at": "2026-06-01T20:55:12"
     },
     {
       "url": "https://www.kipris.or.kr/khome/board/help/basic.do",
@@ -228,8 +228,8 @@
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 122720,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-013_39f78cee06.do",
-      "started_at": "2026-06-01T20:06:01",
-      "finished_at": "2026-06-01T20:06:01"
+      "started_at": "2026-06-01T20:55:12",
+      "finished_at": "2026-06-01T20:55:12"
     },
     {
       "url": "https://file.kipris.or.kr/abpat_manual/%EB%A7%A4%EB%89%B4%EC%96%BC%28%EA%B5%AD%EB%AC%B8%29.pdf",
@@ -242,8 +242,8 @@
       "content_type": "application/pdf",
       "size_bytes": 5035724,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-014_9224c3258f.pdf",
-      "started_at": "2026-06-01T20:06:01",
-      "finished_at": "2026-06-01T20:06:01"
+      "started_at": "2026-06-01T20:55:12",
+      "finished_at": "2026-06-01T20:55:12"
     },
     {
       "url": "https://plus.kipris.or.kr/sampledata/KIPRISPlus%20IP%20Information%20Guide.pdf",
@@ -256,8 +256,8 @@
       "content_type": "application/pdf",
       "size_bytes": 15614567,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-015_0de73052d0.pdf",
-      "started_at": "2026-06-01T20:06:01",
-      "finished_at": "2026-06-01T20:06:01"
+      "started_at": "2026-06-01T20:55:12",
+      "finished_at": "2026-06-01T20:55:12"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000048&ntatcAtflSeq=1&ntatcSeq=17056&sysCd=SCD02",
@@ -270,8 +270,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 31198191,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-016_8a197ba32c.do",
-      "started_at": "2026-06-01T20:06:01",
-      "finished_at": "2026-06-01T20:06:02"
+      "started_at": "2026-06-01T20:55:12",
+      "finished_at": "2026-06-01T20:55:12"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&keyword=&menuCd=SCD0200640&ntatcSeq=17056&pageIndex=&searchCondition=&sysCd=SCD02",
@@ -284,8 +284,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 168153,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-016_a89e1cfcd2.do",
-      "started_at": "2026-06-01T20:06:02",
-      "finished_at": "2026-06-01T20:06:02"
+      "started_at": "2026-06-01T20:55:12",
+      "finished_at": "2026-06-01T20:55:13"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000029&ntatcAtflSeq=2&ntatcSeq=20755&sysCd=SCD02",
@@ -298,8 +298,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 188746,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017_1b7e0d218e.do",
-      "started_at": "2026-06-01T20:06:02",
-      "finished_at": "2026-06-01T20:06:02"
+      "started_at": "2026-06-01T20:55:13",
+      "finished_at": "2026-06-01T20:55:13"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000029&menuCd=SCD0200618&ntatcSeq=20755&sysCd=SCD02",
@@ -312,8 +312,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 154310,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017_0657e7db59.do",
-      "started_at": "2026-06-01T20:06:02",
-      "finished_at": "2026-06-01T20:06:03"
+      "started_at": "2026-06-01T20:55:13",
+      "finished_at": "2026-06-01T20:55:14"
     },
     {
       "url": "https://www.kipo.go.kr/ko/issue/kpoIssuePgmMgmt.do?menuCd=SCD0200658&parntMenuCd2=SCD0200281",
@@ -326,8 +326,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 162829,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-018_37258b8647.do",
-      "started_at": "2026-06-01T20:06:03",
-      "finished_at": "2026-06-01T20:06:03"
+      "started_at": "2026-06-01T20:55:14",
+      "finished_at": "2026-06-01T20:55:14"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000048&ntatcAtflSeq=1&ntatcSeq=16423&sysCd=SCD02",
@@ -337,8 +337,8 @@
       "ok": false,
       "status": "failed",
       "error": "ValueError: empty response body",
-      "started_at": "2026-06-01T20:06:03",
-      "finished_at": "2026-06-01T20:06:03"
+      "started_at": "2026-06-01T20:55:14",
+      "finished_at": "2026-06-01T20:55:14"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&menuCd=SCD0200640&ntatcSeq=16423&sysCd=SCD02",
@@ -351,8 +351,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 159379,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-019_7c87796d38.do",
-      "started_at": "2026-06-01T20:06:03",
-      "finished_at": "2026-06-01T20:06:04"
+      "started_at": "2026-06-01T20:55:14",
+      "finished_at": "2026-06-01T20:55:15"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?aprchId=BUT0000048&ntatcAtflSeq=1&ntatcSeq=10148&sysCd=",
@@ -365,8 +365,8 @@
       "content_type": "application/download; utf-8",
       "size_bytes": 2325467,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-020_3a869c0620.do",
-      "started_at": "2026-06-01T20:06:04",
-      "finished_at": "2026-06-01T20:06:04"
+      "started_at": "2026-06-01T20:55:15",
+      "finished_at": "2026-06-01T20:55:15"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&menuCd=SCD0200640&ntatcSeq=10148&sysCd=",
@@ -379,8 +379,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 158229,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-020_1d8708628f.do",
-      "started_at": "2026-06-01T20:06:04",
-      "finished_at": "2026-06-01T20:06:04"
+      "started_at": "2026-06-01T20:55:15",
+      "finished_at": "2026-06-01T20:55:15"
     },
     {
       "url": "https://www.law.go.kr/flDownload.do?flNm=%5B%EB%B3%84%EC%A7%80+%EC%A0%9C24%ED%98%B8%EC%84%9C%EC%8B%9D%5D+%EC%9D%98%EA%B2%AC%28%EB%8B%B5%EB%B3%80%2C+%EC%86%8C%EB%AA%85%29%EC%84%9C%0A&flSeq=71598639",
@@ -393,8 +393,8 @@
       "content_type": "application/pdf;;charset=UTF-8",
       "size_bytes": 136645,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-021_f028f66dda.do",
-      "started_at": "2026-06-01T20:06:04",
-      "finished_at": "2026-06-01T20:06:06"
+      "started_at": "2026-06-01T20:55:15",
+      "finished_at": "2026-06-01T20:55:15"
     },
     {
       "url": "https://www.law.go.kr/LSW//lsSideInfoP.do?docCls=jo&joBrNo=00&joNo=0063&lsiSeq=279827&urlMode=lsScJoRltInfoR",
@@ -407,8 +407,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 71819,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-022_fe91cb6d0a.do",
-      "started_at": "2026-06-01T20:06:06",
-      "finished_at": "2026-06-01T20:06:07"
+      "started_at": "2026-06-01T20:55:15",
+      "finished_at": "2026-06-01T20:55:15"
     },
     {
       "url": "https://www.data.go.kr/data/15059446/openapi.do?recommendDataYn=Y",
@@ -421,8 +421,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 155329,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-023_c146cb6519.do",
-      "started_at": "2026-06-01T20:06:07",
-      "finished_at": "2026-06-01T20:06:08"
+      "started_at": "2026-06-01T20:55:15",
+      "finished_at": "2026-06-01T20:55:17"
     },
     {
       "url": "https://www.data.go.kr/data/15056951/openapi.do",
@@ -435,8 +435,8 @@
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 155189,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-024_338653b73e.do",
-      "started_at": "2026-06-01T20:06:08",
-      "finished_at": "2026-06-01T20:06:09"
+      "started_at": "2026-06-01T20:55:17",
+      "finished_at": "2026-06-01T20:55:18"
     },
     {
       "url": "https://kipo.go.kr/kcall/faqRead.do%3Bjsessionid%3DE911KedmrtQaxRt7CoZ3639QlMT6Gx3PmAglR8a2.kpowww-481-qm52j?curMenuCd=SCD0300095&keyword=&pageIndex=&pgmId=PGM0000014&pgmSeq=111&searchCondition=&searchDateEnd=&searchDateStart=&sysCd=SCD03&urlDo=cFaqEAList.do",
@@ -446,8 +446,8 @@
       "ok": false,
       "status": "failed",
       "error": "HTTPError: HTTP Error 404: Not Found",
-      "started_at": "2026-06-01T20:06:09",
-      "finished_at": "2026-06-01T20:06:09"
+      "started_at": "2026-06-01T20:55:18",
+      "finished_at": "2026-06-01T20:55:19"
     },
     {
       "url": "https://www.moip.go.kr/kcall/faqRead.do%3Bjsessionid%3DpWtQSHOW-BraQqeP-qQYsgECUOUzPQuFeCf0u5Th.kpowww-597-v682l?curMenuCd=SCD0300095&keyword=&pageIndex=&pgmId=PGM0000014&pgmSeq=94&searchCondition=&searchDateEnd=&searchDateStart=&sysCd=SCD03&urlDo=cFaqEAList.do",
@@ -457,8 +457,8 @@
       "ok": false,
       "status": "failed",
       "error": "HTTPError: HTTP Error 404: Not Found",
-      "started_at": "2026-06-01T20:06:09",
-      "finished_at": "2026-06-01T20:06:09"
+      "started_at": "2026-06-01T20:55:19",
+      "finished_at": "2026-06-01T20:55:19"
     },
     {
       "url": "https://plus.kipris.or.kr/openapi/fileToss.jsp?arg=348aaf18c46825cf15bf684c56c5907b523bceb566974ce00c913d0e1193363cb22971157ae8d0219bdf17f7f0d61bc57746d305fa8de6549f68b1e3e969f734cacb05a867ec689baef5963a884373f243778abbe8707cf2d1fbdc37d5df05958811f12ddb8538b0",
@@ -471,8 +471,8 @@
       "content_type": "application/octet-stream;charset=UTF-8",
       "size_bytes": 87196,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/patent_rejection_notice_original_3cc6ee04fb.jsp",
-      "started_at": "2026-06-01T20:06:09",
-      "finished_at": "2026-06-01T20:06:09"
+      "started_at": "2026-06-01T20:55:19",
+      "finished_at": "2026-06-01T20:55:19"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?fileNm=p-14_s.hwp&path=/upload/kipo/new/form/file/p-14_s.hwp",
@@ -482,13 +482,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 545280,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-001_7f3ae84a90.do",
-      "started_at": "2026-06-01T20:06:10",
-      "finished_at": "2026-06-01T20:06:10"
+      "started_at": "2026-06-01T20:55:20",
+      "finished_at": "2026-06-01T20:55:20"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/u-1_s.hwp&fileNm=u-1_s.hwp",
@@ -498,13 +498,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 6322176,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-002_41c17479b2.do",
-      "started_at": "2026-06-01T20:06:10",
-      "finished_at": "2026-06-01T20:06:12"
+      "started_at": "2026-06-01T20:55:20",
+      "finished_at": "2026-06-01T20:55:20"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-9_s.hwp&fileNm=p-9_s.hwp",
@@ -514,13 +514,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 30720,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-003_14b59479b4.do",
-      "started_at": "2026-06-01T20:06:12",
-      "finished_at": "2026-06-01T20:06:12"
+      "started_at": "2026-06-01T20:55:20",
+      "finished_at": "2026-06-01T20:55:20"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-22_s.hwp&fileNm=p-22_s.hwp",
@@ -530,13 +530,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 404480,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-004_b33482b587.do",
-      "started_at": "2026-06-01T20:06:12",
-      "finished_at": "2026-06-01T20:06:13"
+      "started_at": "2026-06-01T20:55:20",
+      "finished_at": "2026-06-01T20:55:20"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-25_s.hwp&fileNm=p-25_s.hwp",
@@ -546,13 +546,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 18944,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-005_6c23fffa24.do",
-      "started_at": "2026-06-01T20:06:13",
-      "finished_at": "2026-06-01T20:06:13"
+      "started_at": "2026-06-01T20:55:20",
+      "finished_at": "2026-06-01T20:55:20"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-2_s.hwp&fileNm=p-2_s.hwp",
@@ -562,13 +562,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 32256,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-006_23e313002e.do",
-      "started_at": "2026-06-01T20:06:13",
-      "finished_at": "2026-06-01T20:06:13"
+      "started_at": "2026-06-01T20:55:20",
+      "finished_at": "2026-06-01T20:55:21"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-10_d.hwp&fileNm=p-10_d.hwp",
@@ -578,13 +578,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 29184,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-007_aa4293e083.do",
-      "started_at": "2026-06-01T20:06:13",
-      "finished_at": "2026-06-01T20:06:13"
+      "started_at": "2026-06-01T20:55:21",
+      "finished_at": "2026-06-01T20:55:21"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-12_s.hwp&fileNm=p-12_s.hwp",
@@ -594,13 +594,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 33792,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-008_79b865ddc9.do",
-      "started_at": "2026-06-01T20:06:13",
-      "finished_at": "2026-06-01T20:06:13"
+      "started_at": "2026-06-01T20:55:21",
+      "finished_at": "2026-06-01T20:55:21"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-20_s.hwp&fileNm=p-20_s.hwp",
@@ -610,13 +610,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 37376,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-009_7a836feec4.do",
-      "started_at": "2026-06-01T20:06:13",
-      "finished_at": "2026-06-01T20:06:14"
+      "started_at": "2026-06-01T20:55:21",
+      "finished_at": "2026-06-01T20:55:21"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-13_s.hwp&fileNm=p-13_s.hwp",
@@ -626,13 +626,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 26624,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-010_5d2778b0f4.do",
-      "started_at": "2026-06-01T20:06:14",
-      "finished_at": "2026-06-01T20:06:14"
+      "started_at": "2026-06-01T20:55:21",
+      "finished_at": "2026-06-01T20:55:21"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-24_s.hwp&fileNm=p-24_s.hwp",
@@ -642,13 +642,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 42496,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-011_94338f9d03.do",
-      "started_at": "2026-06-01T20:06:14",
-      "finished_at": "2026-06-01T20:06:14"
+      "started_at": "2026-06-01T20:55:21",
+      "finished_at": "2026-06-01T20:55:21"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/p-23_s.hwp&fileNm=p-23_s.hwp",
@@ -658,13 +658,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 66048,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-012_d23c405205.do",
-      "started_at": "2026-06-01T20:06:14",
-      "finished_at": "2026-06-01T20:06:14"
+      "started_at": "2026-06-01T20:55:21",
+      "finished_at": "2026-06-01T20:55:21"
     },
     {
       "url": "https://www.moip.go.kr/ko/contFileDown.do?path=/upload/kipo/new/form/file/patent.hwp&fileNm=patent.hwp",
@@ -674,13 +674,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001_8496909b50.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 1946624,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-001-DOC-013_cf53db25dd.do",
-      "started_at": "2026-06-01T20:06:14",
-      "finished_at": "2026-06-01T20:06:15"
+      "started_at": "2026-06-01T20:55:21",
+      "finished_at": "2026-06-01T20:55:21"
     },
     {
       "url": "https://www.google.com/chrome/index.html#eula",
@@ -690,13 +690,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "text/html; charset=UTF-8",
       "size_bytes": 455725,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-014_9312abe02d.html",
-      "started_at": "2026-06-01T20:06:15",
-      "finished_at": "2026-06-01T20:06:15"
+      "started_at": "2026-06-01T20:55:21",
+      "finished_at": "2026-06-01T20:55:21"
     },
     {
       "url": "https://www.mozilla.org/ko/firefox/new/?scene=2",
@@ -706,13 +706,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "text/html; charset=utf-8",
       "size_bytes": 63618,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-015_789a911233.html",
-      "started_at": "2026-06-01T20:06:15",
-      "finished_at": "2026-06-01T20:06:17"
+      "started_at": "2026-06-01T20:55:21",
+      "finished_at": "2026-06-01T20:55:22"
     },
     {
       "url": "https://patent.go.kr/smart/raonkupload/agent/Patent.exe",
@@ -722,13 +722,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/x-msdownload",
       "size_bytes": 24306856,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-016_a43a5d7ab6.exe",
-      "started_at": "2026-06-01T20:06:17",
-      "finished_at": "2026-06-01T20:06:20"
+      "started_at": "2026-06-01T20:55:22",
+      "finished_at": "2026-06-01T20:55:23"
     },
     {
       "url": "https://supdate.nprotect.net/nprotect/nos_service/windows/install/nos_setup.exe",
@@ -738,13 +738,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/octet-stream",
       "size_bytes": 30669048,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-017_fa70a7d3a6.exe",
-      "started_at": "2026-06-01T20:06:20",
-      "finished_at": "2026-06-01T20:06:23"
+      "started_at": "2026-06-01T20:55:23",
+      "finished_at": "2026-06-01T20:55:23"
     },
     {
       "url": "https://patent.go.kr/smart/MagicLine4Web/ML4Web/install_bin/magicline4nx_setup.exe",
@@ -754,13 +754,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/x-msdownload",
       "size_bytes": 10648904,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-018_1522237ed7.exe",
-      "started_at": "2026-06-01T20:06:23",
-      "finished_at": "2026-06-01T20:06:24"
+      "started_at": "2026-06-01T20:55:23",
+      "finished_at": "2026-06-01T20:55:23"
     },
     {
       "url": "https://patent.go.kr/smart/raonkupload/agent/raonkSetup.exe",
@@ -770,13 +770,13 @@
       "parent_url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002_8c45815116.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/x-msdownload",
       "size_bytes": 4826152,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-002-DOC-019_3d876e4b65.exe",
-      "started_at": "2026-06-01T20:06:24",
-      "finished_at": "2026-06-01T20:06:25"
+      "started_at": "2026-06-01T20:55:23",
+      "finished_at": "2026-06-01T20:55:23"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnMgmt.do?menuCd=SCD0200636&parntMenuCd2=SCD0200198",
@@ -786,13 +786,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200111",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-005_72934bb860.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "text/html;charset=UTF-8",
       "size_bytes": 282381,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-005-DOC-020_bc86a1a882.do",
-      "started_at": "2026-06-01T20:06:25",
-      "finished_at": "2026-06-01T20:06:26"
+      "started_at": "2026-06-01T20:55:23",
+      "finished_at": "2026-06-01T20:55:23"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=4&fileNum=1",
@@ -802,13 +802,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200146",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-006_82b2227d3c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 12266980,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-006-DOC-021_cb7d026584.do",
-      "started_at": "2026-06-01T20:06:26",
-      "finished_at": "2026-06-01T20:06:29"
+      "started_at": "2026-06-01T20:55:23",
+      "finished_at": "2026-06-01T20:55:23"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=5&fileNum=1",
@@ -818,13 +818,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200147",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-007_1942117df5.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 24213255,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-007-DOC-022_e6761b5fe0.do",
-      "started_at": "2026-06-01T20:06:29",
-      "finished_at": "2026-06-01T20:06:33"
+      "started_at": "2026-06-01T20:55:23",
+      "finished_at": "2026-06-01T20:55:23"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=1",
@@ -834,13 +834,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 12266980,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-023_4d266c4ad8.do",
-      "started_at": "2026-06-01T20:06:33",
-      "finished_at": "2026-06-01T20:06:36"
+      "started_at": "2026-06-01T20:55:23",
+      "finished_at": "2026-06-01T20:55:24"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=2",
@@ -850,13 +850,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 24213255,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-024_c9fd7dd978.do",
-      "started_at": "2026-06-01T20:06:36",
-      "finished_at": "2026-06-01T20:06:40"
+      "started_at": "2026-06-01T20:55:24",
+      "finished_at": "2026-06-01T20:55:24"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=3",
@@ -866,13 +866,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 3101309,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-025_eb81d2a44c.do",
-      "started_at": "2026-06-01T20:06:40",
-      "finished_at": "2026-06-01T20:06:41"
+      "started_at": "2026-06-01T20:55:24",
+      "finished_at": "2026-06-01T20:55:24"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=4",
@@ -882,13 +882,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 5745767,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-026_f72199f945.do",
-      "started_at": "2026-06-01T20:06:41",
-      "finished_at": "2026-06-01T20:06:43"
+      "started_at": "2026-06-01T20:55:24",
+      "finished_at": "2026-06-01T20:55:24"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=5",
@@ -898,13 +898,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 9234793,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-027_a0987e0b70.do",
-      "started_at": "2026-06-01T20:06:43",
-      "finished_at": "2026-06-01T20:06:45"
+      "started_at": "2026-06-01T20:55:24",
+      "finished_at": "2026-06-01T20:55:24"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=6",
@@ -914,13 +914,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 5821779,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-028_729b4ea5d9.do",
-      "started_at": "2026-06-01T20:06:45",
-      "finished_at": "2026-06-01T20:06:47"
+      "started_at": "2026-06-01T20:55:24",
+      "finished_at": "2026-06-01T20:55:24"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=25",
@@ -930,13 +930,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 21884540,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-029_448d9372bb.do",
-      "started_at": "2026-06-01T20:06:47",
-      "finished_at": "2026-06-01T20:06:51"
+      "started_at": "2026-06-01T20:55:24",
+      "finished_at": "2026-06-01T20:55:24"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=7",
@@ -946,13 +946,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 21859723,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-030_1f5819e6f0.do",
-      "started_at": "2026-06-01T20:06:51",
-      "finished_at": "2026-06-01T20:06:55"
+      "started_at": "2026-06-01T20:55:24",
+      "finished_at": "2026-06-01T20:55:24"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=8",
@@ -962,13 +962,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 23524586,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-031_c2f76acfd2.do",
-      "started_at": "2026-06-01T20:06:55",
-      "finished_at": "2026-06-01T20:07:00"
+      "started_at": "2026-06-01T20:55:24",
+      "finished_at": "2026-06-01T20:55:24"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=9",
@@ -978,13 +978,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 104020993,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-032_bd4e24b20e.do",
-      "started_at": "2026-06-01T20:07:00",
-      "finished_at": "2026-06-01T20:07:11"
+      "started_at": "2026-06-01T20:55:24",
+      "finished_at": "2026-06-01T20:55:25"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=10",
@@ -994,13 +994,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 32300462,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-033_676650b77b.do",
-      "started_at": "2026-06-01T20:07:11",
-      "finished_at": "2026-06-01T20:07:16"
+      "started_at": "2026-06-01T20:55:25",
+      "finished_at": "2026-06-01T20:55:25"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=11",
@@ -1010,13 +1010,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 3847135,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-034_91dd3c0e6d.do",
-      "started_at": "2026-06-01T20:07:16",
-      "finished_at": "2026-06-01T20:07:17"
+      "started_at": "2026-06-01T20:55:25",
+      "finished_at": "2026-06-01T20:55:25"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=12",
@@ -1026,13 +1026,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 49923025,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-035_b4ccebd928.do",
-      "started_at": "2026-06-01T20:07:17",
-      "finished_at": "2026-06-01T20:07:24"
+      "started_at": "2026-06-01T20:55:25",
+      "finished_at": "2026-06-01T20:55:25"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=13",
@@ -1042,13 +1042,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 6126099,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-036_f28dbf3406.do",
-      "started_at": "2026-06-01T20:07:24",
-      "finished_at": "2026-06-01T20:07:26"
+      "started_at": "2026-06-01T20:55:25",
+      "finished_at": "2026-06-01T20:55:25"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=14",
@@ -1058,13 +1058,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 2983355,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-037_a03e4b0673.do",
-      "started_at": "2026-06-01T20:07:26",
-      "finished_at": "2026-06-01T20:07:28"
+      "started_at": "2026-06-01T20:55:25",
+      "finished_at": "2026-06-01T20:55:25"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=24",
@@ -1074,13 +1074,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 2138730,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-038_6c670cfdef.do",
-      "started_at": "2026-06-01T20:07:28",
-      "finished_at": "2026-06-01T20:07:29"
+      "started_at": "2026-06-01T20:55:25",
+      "finished_at": "2026-06-01T20:55:25"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=23",
@@ -1090,13 +1090,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 3138149,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-039_2ee132c806.do",
-      "started_at": "2026-06-01T20:07:29",
-      "finished_at": "2026-06-01T20:07:30"
+      "started_at": "2026-06-01T20:55:25",
+      "finished_at": "2026-06-01T20:55:25"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=22",
@@ -1106,13 +1106,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 3316611,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-040_c5fa3a9bcc.do",
-      "started_at": "2026-06-01T20:07:30",
-      "finished_at": "2026-06-01T20:07:31"
+      "started_at": "2026-06-01T20:55:25",
+      "finished_at": "2026-06-01T20:55:25"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=15",
@@ -1122,13 +1122,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 3247551,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-041_dc8363b3fe.do",
-      "started_at": "2026-06-01T20:07:31",
-      "finished_at": "2026-06-01T20:07:33"
+      "started_at": "2026-06-01T20:55:25",
+      "finished_at": "2026-06-01T20:55:26"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=19",
@@ -1138,13 +1138,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 17552717,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-042_ac5c060eab.do",
-      "started_at": "2026-06-01T20:07:33",
-      "finished_at": "2026-06-01T20:07:36"
+      "started_at": "2026-06-01T20:55:26",
+      "finished_at": "2026-06-01T20:55:26"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=30&fileNum=20",
@@ -1154,13 +1154,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 376836,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-043_3be2e666f5.do",
-      "started_at": "2026-06-01T20:07:36",
-      "finished_at": "2026-06-01T20:07:36"
+      "started_at": "2026-06-01T20:55:26",
+      "finished_at": "2026-06-01T20:55:26"
     },
     {
       "url": "https://www.kipo.go.kr/kipo/kipoContentView.do?menuCd=SCD0201127",
@@ -1170,13 +1170,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0201119",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008_ee5b997d0c.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "text/html;charset=utf-8",
       "size_bytes": 4868,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-008-DOC-044_22f48c5bdb.do",
-      "started_at": "2026-06-01T20:07:36",
-      "finished_at": "2026-06-01T20:07:37"
+      "started_at": "2026-06-01T20:55:26",
+      "finished_at": "2026-06-01T20:55:26"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoContFileDown.do?seq=3&fileNum=1",
@@ -1186,13 +1186,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoContentView.do?menuCd=SCD0200117",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-009_38d57c9864.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 443978,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-009-DOC-045_2b3beee5be.do",
-      "started_at": "2026-06-01T20:07:37",
-      "finished_at": "2026-06-01T20:07:37"
+      "started_at": "2026-06-01T20:55:26",
+      "finished_at": "2026-06-01T20:55:26"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=17056&ntatcAtflSeq=1&sysCd=SCD02&aprchId=BUT0000048",
@@ -1202,13 +1202,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&keyword=&menuCd=SCD0200640&ntatcSeq=17056&pageIndex=&searchCondition=&sysCd=SCD02",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-016_a89e1cfcd2.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 31198191,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-016-DOC-046_94af7dac4c.do",
-      "started_at": "2026-06-01T20:07:37",
-      "finished_at": "2026-06-01T20:07:42"
+      "started_at": "2026-06-01T20:55:26",
+      "finished_at": "2026-06-01T20:55:26"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=20755&ntatcAtflSeq=1&sysCd=SCD02&aprchId=BUT0000029",
@@ -1218,13 +1218,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000029&menuCd=SCD0200618&ntatcSeq=20755&sysCd=SCD02",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017_0657e7db59.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 129045,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017-DOC-047_e75b9d1c35.do",
-      "started_at": "2026-06-01T20:07:42",
-      "finished_at": "2026-06-01T20:07:42"
+      "started_at": "2026-06-01T20:55:26",
+      "finished_at": "2026-06-01T20:55:26"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=20755&ntatcAtflSeq=2&sysCd=SCD02&aprchId=BUT0000029",
@@ -1234,13 +1234,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000029&menuCd=SCD0200618&ntatcSeq=20755&sysCd=SCD02",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017_0657e7db59.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 188746,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-017-DOC-048_55610739cc.do",
-      "started_at": "2026-06-01T20:07:42",
-      "finished_at": "2026-06-01T20:07:43"
+      "started_at": "2026-06-01T20:55:26",
+      "finished_at": "2026-06-01T20:55:26"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=16423&ntatcAtflSeq=2&sysCd=SCD02&aprchId=BUT0000048",
@@ -1250,13 +1250,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&menuCd=SCD0200640&ntatcSeq=16423&sysCd=SCD02",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-019_7c87796d38.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 38861323,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-019-DOC-049_d9429c4e00.do",
-      "started_at": "2026-06-01T20:07:43",
-      "finished_at": "2026-06-01T20:07:48"
+      "started_at": "2026-06-01T20:55:26",
+      "finished_at": "2026-06-01T20:55:26"
     },
     {
       "url": "https://www.kipo.go.kr/ko/kpoBultnFileDown.do?ntatcSeq=10148&ntatcAtflSeq=1&sysCd=&aprchId=BUT0000048",
@@ -1266,13 +1266,13 @@
       "parent_url": "https://www.kipo.go.kr/ko/kpoBultnDetail.do?aprchId=BUT0000048&menuCd=SCD0200640&ntatcSeq=10148&sysCd=",
       "parent_path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-020_1d8708628f.do",
       "ok": true,
-      "status": "downloaded",
+      "status": "cached",
       "http_status": 200,
       "content_type": "application/download; utf-8",
       "size_bytes": 2325467,
       "path": "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/raw/SRC-020-DOC-050_61442a4b90.do",
-      "started_at": "2026-06-01T20:07:48",
-      "finished_at": "2026-06-01T20:07:50"
+      "started_at": "2026-06-01T20:55:26",
+      "finished_at": "2026-06-01T20:55:27"
     }
   ]
 }
