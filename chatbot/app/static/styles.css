@@ -351,6 +351,102 @@ pre {
   white-space: pre-wrap;
 }
 
+.table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 10px 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.answer-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+}
+
+.answer-table th,
+.answer-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.answer-table th {
+  background: #f3f7fb;
+  color: #334155;
+  font-weight: 800;
+}
+
+.answer-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.mermaid-render {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 14px;
+  padding: 12px;
+  border: 1px solid #bed2e8;
+  border-radius: 8px;
+  background: #f7fbff;
+}
+
+.diagram-node-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.diagram-node {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  padding: 4px 9px;
+  border: 1px solid #aac4df;
+  border-radius: 6px;
+  background: #fff;
+  color: #18324f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.diagram-edge-list {
+  display: grid;
+  gap: 6px;
+}
+
+.diagram-edge {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(0, auto) minmax(120px, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 7px 8px;
+  border: 1px solid #d7e3f1;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font-size: 12px;
+}
+
+.diagram-edge b {
+  color: var(--accent);
+}
+
+.diagram-edge em {
+  min-width: 0;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #2457a6;
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+
 .flow {
   display: flex;
   flex-wrap: wrap;
@@ -378,6 +474,56 @@ pre {
   color: #27313f;
   line-height: 1.5;
   background: #fcfcfd;
+}
+
+.workflow-detail h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.workflow-detail p {
+  color: #27313f;
+  font-size: 13px;
+}
+
+.workflow-step-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.workflow-step {
+  min-height: 66px;
+  height: auto;
+  display: block;
+  padding: 9px;
+  border: 1px solid #c8d6e7;
+  background: #fff;
+  color: var(--text);
+  text-align: left;
+  white-space: normal;
+}
+
+.workflow-step:hover {
+  background: #f4f8fd;
+  color: var(--accent);
+}
+
+.workflow-step strong,
+.workflow-step span {
+  display: block;
+}
+
+.workflow-step span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.workflow-diagram {
+  margin-top: 10px;
 }
 
 main {
@@ -408,6 +554,11 @@ main {
 .assistant h2 {
   margin: 4px 0 8px;
   font-size: 16px;
+}
+
+.assistant h3 {
+  margin: 10px 0 6px;
+  font-size: 14px;
 }
 
 .assistant p {

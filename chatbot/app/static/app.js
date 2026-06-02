@@ -15,6 +15,58 @@ const workflowText = {
   query: "질문이 들어오면 가벼운 의도 판단 뒤 복구된 FAISS+BM25+RRF RAG, 특허 원문, 보고서, wiki/승인 데이터, 웹 근거를 조합해 답변합니다.",
 };
 
+const workflowGraphInfo = {
+  chat: {
+    title: "챗봇 답변 워크플로우",
+    endpoint: "/api/v1/rag/chat/mermaid",
+    summary: "질문 맥락을 정리한 뒤 가벼운 LLM/룰 기반 의도 라우터가 검색 위치와 답변 형식을 정하고, wiki/vectorstore, 웹, 특허 원문/보고서를 조합해 답변과 근거 카드를 만듭니다.",
+    steps: [
+      ["resolve_history_context", "이전 대화와 선택 특허를 현재 질문 맥락으로 정리"],
+      ["route_question", "의도, 웹검색 필요 여부, 표/다이어그램 필요 여부 판단"],
+      ["retrieve_wiki_context", "감사 후 승인된 wiki/vectorstore 근거 검색"],
+      ["retrieve_web_context", "최신성 또는 외부 정보가 필요할 때 웹 근거 수집"],
+      ["answer_from_patent_context", "rag.zip FAISS+BM25+RRF와 fallback RAG로 답변 생성"],
+      ["finish_answer", "근거 카드, 성능 지표, 워크플로우 trace 반환"],
+    ],
+  },
+  application: {
+    title: "특허 출원 도우미 워크플로우",
+    endpoint: "/api/v1/application/chat/mermaid",
+    summary: "공식 출원 자료팩을 기반으로 출원 절차, 선행기술조사, 명세서/청구항, 거절대응, 수수료/서식 질문을 별도 라우팅해 답합니다.",
+    steps: [
+      ["resolve_application_history", "후속 질문이면 이전 질문/답변을 검색 질의에 반영"],
+      ["route_application_question", "출원 의도와 필요한 답변 형식 판단"],
+      ["retrieve_application_context", "공식팩 vectorstore에서 관련 공식 문서 검색"],
+      ["answer_application_question", "공식 근거 안에서 절차/표/다이어그램 답변 생성"],
+      ["finish_application_answer", "근거 카드와 agent trace 정리"],
+    ],
+  },
+  wiki: {
+    title: "Wiki 감사/승인 워크플로우",
+    endpoint: "/api/v1/wiki/agent/mermaid",
+    summary: "wiki와 특허/보고서 데이터를 감사하고, 나쁜 데이터 후보를 제외한 승인 Markdown/JSONL만 vectorstore에 반영합니다.",
+    steps: [
+      ["route_request", "audit/review/apply/refresh/status 모드 분기"],
+      ["run_audit", "EMPTY, OCR_NOISE, SECRET, DUPLICATE 등 품질 규칙 검사"],
+      ["load_review", "사람이 확인할 review.md와 finding 목록 로드"],
+      ["apply_review", "제외 항목을 반영해 승인 context/document 저장"],
+      ["refresh_vectorstore", "승인 데이터 기준으로 vectorstore 원자적 갱신"],
+      ["collect_status", "현재 감사/승인/vectorstore 상태 반환"],
+    ],
+  },
+  ingestion: {
+    title: "전처리/RAG 재색인 워크플로우",
+    endpoint: "/api/v1/rag/ingestion/mermaid",
+    summary: "특허별, 전체, 비즈니스 범위의 rag.zip 인덱스를 재생성하고 필요 시 승인 vectorstore 갱신까지 이어줍니다.",
+    steps: [
+      ["inspect_request", "요청 scope와 특허 ID, 레거시 RAG 엔진 상태 확인"],
+      ["run_reindex", "scope에 따라 특허별/global/business 인덱스 생성"],
+      ["reviewed vectorstore refresh", "옵션이 켜지면 승인 데이터 기반 vectorstore 갱신"],
+      ["finish_ingestion", "Swagger/UI에서 확인할 결과와 trace 반환"],
+    ],
+  },
+};
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -57,42 +109,198 @@ function chip(value, kind = "") {
   return `<span class="chip ${escapeHtml(kind || String(value).toLowerCase())}">${escapeHtml(value ?? "-")}</span>`;
 }
 
+function inlineMarkdown(value) {
+  return escapeHtml(value)
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+
+function stripMermaidFence(value) {
+  return String(value || "")
+    .replace(/^```mermaid\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+}
+
+function cleanMermaidLabel(value) {
+  return String(value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/^[\[\(\{]+|[\]\)\}]+$/g, "")
+    .replace(/^"+|"+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseMermaid(code) {
+  const nodes = new Map();
+  const edges = [];
+  const nodeId = "[A-Za-z_][A-Za-z0-9_]*|__[A-Za-z0-9_]+__";
+  const nodePattern = new RegExp(`(${nodeId})\\s*(?:\\[([^\\]]+)\\]|\\(([^\\)]+)\\)|\\{([^\\}]+)\\})`, "g");
+  const edgePattern = new RegExp(
+    `(${nodeId})(?:\\[[^\\]]*\\]|\\([^\\)]*\\)|\\{[^\\}]*\\})?\\s*(?:(-->|---|==>)\\s*(?:\\|([^|]+)\\|)?|-\\.\\s*([^.]*)\\s*\\.->|-.->)\\s*(${nodeId})`,
+    "g",
+  );
+
+  stripMermaidFence(code).split("\n").forEach((rawLine) => {
+    const line = rawLine.trim().replace(/;$/, "");
+    if (!line || line.startsWith("%%") || /^(flowchart|graph|sequenceDiagram|classDef|class\s)/i.test(line)) return;
+
+    [...line.matchAll(nodePattern)].forEach((match) => {
+      const id = match[1];
+      const label = cleanMermaidLabel(match[2] || match[3] || match[4] || id);
+      if (!nodes.has(id)) nodes.set(id, label || id);
+    });
+
+    [...line.matchAll(edgePattern)].forEach((match) => {
+      const from = match[1];
+      const label = cleanMermaidLabel(match[3] || match[4] || "");
+      const to = match[5];
+      if (!nodes.has(from)) nodes.set(from, from);
+      if (!nodes.has(to)) nodes.set(to, to);
+      edges.push({ from, to, label });
+    });
+  });
+
+  return { nodes, edges };
+}
+
+function renderMermaidDiagram(code) {
+  const parsed = parseMermaid(code);
+  const nodeLabel = (id) => parsed.nodes.get(id) || id;
+  if (!parsed.nodes.size && !parsed.edges.length) {
+    return `<pre>${escapeHtml(stripMermaidFence(code))}</pre>`;
+  }
+  const nodes = [...parsed.nodes.entries()]
+    .map(([id, label]) => `<span class="diagram-node" title="${escapeHtml(id)}">${escapeHtml(label)}</span>`)
+    .join("");
+  const edges = parsed.edges.length
+    ? parsed.edges.map((edge) => `
+        <div class="diagram-edge">
+          <span>${escapeHtml(nodeLabel(edge.from))}</span>
+          <b>→</b>
+          <em class="${edge.label ? "" : "empty"}">${edge.label ? escapeHtml(edge.label) : ""}</em>
+          <span>${escapeHtml(nodeLabel(edge.to))}</span>
+        </div>`).join("")
+    : "";
+  return `
+    <div class="mermaid-render">
+      <div class="diagram-node-row">${nodes}</div>
+      ${edges ? `<div class="diagram-edge-list">${edges}</div>` : ""}
+    </div>
+  `;
+}
+
+function splitTableRow(line) {
+  let value = line.trim();
+  if (value.startsWith("|")) value = value.slice(1);
+  if (value.endsWith("|")) value = value.slice(0, -1);
+  return value.split("|").map((cell) => cell.trim());
+}
+
+function isTableSeparator(line) {
+  return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line || "");
+}
+
+function renderMarkdownTable(lines, startIndex) {
+  const header = splitTableRow(lines[startIndex]);
+  const rows = [];
+  let index = startIndex + 2;
+  while (index < lines.length && lines[index].includes("|") && lines[index].trim()) {
+    rows.push(splitTableRow(lines[index]));
+    index += 1;
+  }
+  const headHtml = header.map((cell) => `<th>${inlineMarkdown(cell)}</th>`).join("");
+  const bodyHtml = rows
+    .map((row) => `<tr>${header.map((_, cellIndex) => `<td>${inlineMarkdown(row[cellIndex] || "")}</td>`).join("")}</tr>`)
+    .join("");
+  return {
+    html: `<div class="table-wrap"><table class="answer-table"><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`,
+    nextIndex: index,
+  };
+}
+
 function renderAnswerHtml(text) {
   const lines = String(text || "").split("\n");
   const html = [];
   let inList = false;
-  lines.forEach((line) => {
+  let listType = null;
+  const closeList = () => {
+    if (inList) {
+      html.push(`</${listType}>`);
+      inList = false;
+      listType = null;
+    }
+  };
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
     const trimmed = line.trim();
     if (!trimmed) {
-      if (inList) {
-        html.push("</ol>");
-        inList = false;
-      }
-      return;
+      closeList();
+      continue;
     }
+
+    if (trimmed.startsWith("```")) {
+      closeList();
+      const lang = trimmed.replace(/^```/, "").trim().toLowerCase();
+      const block = [];
+      i += 1;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) {
+        block.push(lines[i]);
+        i += 1;
+      }
+      const code = block.join("\n");
+      html.push(lang === "mermaid" ? renderMermaidDiagram(code) : `<pre><code>${escapeHtml(code)}</code></pre>`);
+      continue;
+    }
+
+    if (i + 1 < lines.length && line.includes("|") && isTableSeparator(lines[i + 1])) {
+      closeList();
+      const table = renderMarkdownTable(lines, i);
+      html.push(table.html);
+      i = table.nextIndex - 1;
+      continue;
+    }
+
     if (trimmed.startsWith("## ")) {
-      if (inList) {
-        html.push("</ol>");
-        inList = false;
-      }
-      html.push(`<h2>${escapeHtml(trimmed.slice(3))}</h2>`);
-      return;
+      closeList();
+      html.push(`<h2>${inlineMarkdown(trimmed.slice(3))}</h2>`);
+      continue;
     }
+
+    if (trimmed.startsWith("### ")) {
+      closeList();
+      html.push(`<h3>${inlineMarkdown(trimmed.slice(4))}</h3>`);
+      continue;
+    }
+
     if (/^\d+\.\s+/.test(trimmed)) {
-      if (!inList) {
+      if (!inList || listType !== "ol") {
+        closeList();
         html.push("<ol>");
         inList = true;
+        listType = "ol";
       }
-      html.push(`<li>${escapeHtml(trimmed.replace(/^\d+\.\s+/, ""))}</li>`);
-      return;
+      html.push(`<li>${inlineMarkdown(trimmed.replace(/^\d+\.\s+/, ""))}</li>`);
+      continue;
     }
-    if (inList) {
-      html.push("</ol>");
-      inList = false;
+
+    if (/^[-*]\s+/.test(trimmed)) {
+      if (!inList || listType !== "ul") {
+        closeList();
+        html.push("<ul>");
+        inList = true;
+        listType = "ul";
+      }
+      html.push(`<li>${inlineMarkdown(trimmed.replace(/^[-*]\s+/, ""))}</li>`);
+      continue;
     }
-    html.push(`<p>${escapeHtml(line)}</p>`);
-  });
-  if (inList) html.push("</ol>");
+
+    closeList();
+    html.push(`<p>${inlineMarkdown(line)}</p>`);
+  }
+  closeList();
   return html.join("");
 }
 
@@ -209,6 +417,9 @@ function showTab(tabId) {
   document.querySelectorAll(".tab-panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === tabId);
   });
+  if (tabId === "workflowTab" && !$("workflowDiagram").dataset.loaded) {
+    loadChatWorkflow().catch((error) => setStatus(error.message));
+  }
 }
 
 function renderDataCards() {
@@ -430,31 +641,59 @@ async function applyAudit() {
 }
 
 async function loadWorkflow() {
-  const graph = await api("/api/v1/wiki/agent/mermaid");
-  state.mermaid = graph.diagram || "";
-  $("workflowMermaid").textContent = state.mermaid || "그래프가 없습니다.";
-  setStatus("워크플로우 그래프 로드 완료");
+  return loadWorkflowGraph("wiki");
 }
 
 async function loadChatWorkflow() {
-  const graph = await api("/api/v1/rag/chat/mermaid");
-  state.mermaid = graph.diagram || "";
-  $("workflowMermaid").textContent = state.mermaid || "그래프가 없습니다.";
-  setStatus("챗봇 그래프 로드 완료");
+  return loadWorkflowGraph("chat");
 }
 
 async function loadApplicationWorkflow() {
-  const graph = await api("/api/v1/application/chat/mermaid");
-  state.mermaid = graph.diagram || "";
-  $("workflowMermaid").textContent = state.mermaid || "그래프가 없습니다.";
-  setStatus("출원 도우미 그래프 로드 완료");
+  return loadWorkflowGraph("application");
 }
 
 async function loadIngestionWorkflow() {
-  const graph = await api("/api/v1/rag/ingestion/mermaid");
+  return loadWorkflowGraph("ingestion");
+}
+
+function workflowInfoHtml(type) {
+  const info = workflowGraphInfo[type] || workflowGraphInfo.wiki;
+  const steps = info.steps
+    .map(([name, description]) => `
+      <button class="workflow-step" type="button" data-step-name="${escapeHtml(name)}" data-step-description="${escapeHtml(description)}">
+        <strong>${escapeHtml(name)}</strong>
+        <span>${escapeHtml(description)}</span>
+      </button>
+    `)
+    .join("");
+  return `
+    <h3>${escapeHtml(info.title)}</h3>
+    <p>${escapeHtml(info.summary)}</p>
+    <div class="workflow-step-grid">${steps}</div>
+  `;
+}
+
+function bindWorkflowStepDetails() {
+  document.querySelectorAll(".workflow-step").forEach((button) => {
+    button.addEventListener("click", () => {
+      showModal(
+        button.dataset.stepName || "워크플로우 단계",
+        `<p>${escapeHtml(button.dataset.stepDescription || "")}</p>`,
+      );
+    });
+  });
+}
+
+async function loadWorkflowGraph(type) {
+  const info = workflowGraphInfo[type] || workflowGraphInfo.wiki;
+  const graph = await api(info.endpoint);
   state.mermaid = graph.diagram || "";
+  $("workflowDetail").innerHTML = workflowInfoHtml(type);
+  $("workflowDiagram").innerHTML = state.mermaid ? renderMermaidDiagram(state.mermaid) : `<div class="empty">그래프가 없습니다.</div>`;
+  $("workflowDiagram").dataset.loaded = type;
   $("workflowMermaid").textContent = state.mermaid || "그래프가 없습니다.";
-  setStatus("전처리 그래프 로드 완료");
+  bindWorkflowStepDetails();
+  setStatus(`${info.title} 로드 완료`);
 }
 
 async function reindexSelected() {
@@ -620,7 +859,7 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-flow]").forEach((button) => {
     button.addEventListener("click", () => {
-      $("workflowDetail").textContent = workflowText[button.dataset.flow] || "";
+      $("workflowDetail").innerHTML = `<h3>${escapeHtml(button.textContent || "워크플로우 단계")}</h3><p>${escapeHtml(workflowText[button.dataset.flow] || "")}</p>`;
     });
   });
   $("closeModalButton").addEventListener("click", () => $("detailModal").classList.remove("open"));
