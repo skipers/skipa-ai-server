@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 
 from ..config import PATENTS_ROOT
+from ..rag.quality import compact_text, preprocess_evidence_text
 from ..rag.web_answers import search_web
 from .state import ChatAgentState
 
@@ -18,29 +19,48 @@ def _archive_web_results(state: ChatAgentState, result: dict) -> str | None:
     wiki_dir = PATENTS_ROOT / patent_id / "wiki" / "web_search_drafts"
     wiki_dir.mkdir(parents=True, exist_ok=True)
     path = wiki_dir / (datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".md")
+    query = str(state.get("query") or "")
     lines = [
-        f"# Web Search Draft: {state.get('query', '')}",
+        f"# Web Search Draft",
         "",
-        "이 문서는 웹 검색 결과를 자연어 Markdown으로 임시 저장한 파일입니다.",
-        "감사 프로세스에서 사람이 확인한 뒤 승인된 내용만 vectorstore에 반영합니다.",
+        "## 질문",
         "",
-        f"- Provider: {result.get('provider') or 'unknown'}",
-        f"- Patent ID: `{patent_id}`",
+        query,
         "",
-        "## Results",
+        "## 답변",
+        "",
+        "아래 내용은 웹 검색 결과를 자연어 Markdown으로 정리한 답변 후보입니다. 감사 프로세스에서 사람이 확인한 뒤 승인된 내용만 해당 특허의 wiki vectorstore에 반영합니다.",
     ]
     for index, item in enumerate(results, 1):
+        snippet = preprocess_evidence_text(item.get("snippet"), max_chars=700)
         lines.extend(
             [
                 "",
                 f"### {index}. {item.get('title') or 'web result'}",
                 "",
                 f"- URL: {item.get('url') or '-'}",
+                f"- 요약: {compact_text(snippet, 500)}",
                 "",
-                str(item.get("snippet") or ""),
+                snippet,
             ]
         )
-    lines.extend(["", "## Raw JSON", "", "```json", json.dumps(results, ensure_ascii=False, indent=2), "```"])
+    lines.extend(
+        [
+            "",
+            "## 메타정보",
+            "",
+            f"- Provider: {result.get('provider') or 'unknown'}",
+            f"- Patent ID: `{patent_id}`",
+            f"- Created at: {datetime.now().isoformat(timespec='seconds')}",
+            "- Review policy: 사람이 승인하기 전에는 global vectorstore에 반영하지 않습니다.",
+            "",
+            "### Raw JSON",
+            "",
+            "```json",
+            json.dumps(results, ensure_ascii=False, indent=2),
+            "```",
+        ]
+    )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return str(path)
 

@@ -18,6 +18,12 @@ NEGATIVE_PLACEHOLDER_RE = re.compile(
     r"데이터가 없습니다|자료가 없습니다)"
 )
 REPEATED_CHAR_RE = re.compile(r"(.)\1{12,}")
+LOW_VALUE_LINE_RE = re.compile(
+    r"(관련 근거를 찾지 못했습니다|근거를 찾지 못했습니다|찾을 수 없습니다|"
+    r"검색 결과가 없습니다|no local evidence|no web evidence|"
+    r"LLM 답변 생성에 실패|모델 상태:|traceback|jsondecodeerror)",
+    flags=re.I,
+)
 
 
 def compact_text(value: Any, limit: int = 1000) -> str:
@@ -58,20 +64,46 @@ def evidence_quality(text: str) -> dict[str, Any]:
     }
 
 
+def preprocess_evidence_text(value: Any, *, max_chars: int | None = None) -> str:
+    """Normalize RAG evidence before it is stored or sent to the LLM."""
+
+    text = str(value or "").replace("\ufeff", " ")
+    text = re.sub(r"\r\n?", "\n", text)
+    cleaned_lines: list[str] = []
+    previous = ""
+    for raw_line in text.splitlines():
+        line = re.sub(r"\s+", " ", raw_line).strip()
+        if not line:
+            if cleaned_lines and cleaned_lines[-1] != "":
+                cleaned_lines.append("")
+            continue
+        if LOW_VALUE_LINE_RE.search(line):
+            continue
+        if line == previous:
+            continue
+        cleaned_lines.append(line)
+        previous = line
+    normalized = "\n".join(cleaned_lines).strip()
+    normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+    if max_chars is not None and len(normalized) > max_chars:
+        normalized = normalized[:max_chars].rstrip()
+    return normalized
+
+
 def is_usable_evidence(text: Any) -> bool:
-    return bool(evidence_quality(str(text or "")).get("usable"))
+    return bool(evidence_quality(preprocess_evidence_text(text)).get("usable"))
 
 
 def filter_usable_hits(hits: list[dict[str, Any]], *, limit: int | None = None) -> list[dict[str, Any]]:
     filtered: list[dict[str, Any]] = []
     for hit in hits:
-        text = str(hit.get("excerpt") or hit.get("page_content") or "")
+        text = preprocess_evidence_text(hit.get("excerpt") or hit.get("page_content") or "")
         quality = evidence_quality(text)
         if not quality["usable"]:
             continue
         metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
         metadata = {**metadata, "evidence_quality": quality}
-        filtered.append({**hit, "metadata": metadata})
+        filtered.append({**hit, "excerpt": text, "metadata": metadata})
         if limit is not None and len(filtered) >= limit:
             break
     return filtered

@@ -23,7 +23,7 @@ from typing import Any, Iterable
 from fastapi import HTTPException
 
 from .config import BUSINESS_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT
-from .rag.quality import is_usable_evidence
+from .rag.quality import is_usable_evidence, preprocess_evidence_text
 
 
 VECTOR_DIMENSIONS = 256
@@ -198,7 +198,7 @@ def _document(
     metadata: dict[str, Any] | None = None,
     line_no: int | None = None,
 ) -> dict[str, Any] | None:
-    content = _truncate(text)
+    content = _truncate(preprocess_evidence_text(text))
     if not content:
         return None
     text_hash = _hash_text(content)
@@ -348,6 +348,70 @@ def _load_reviewed_documents(patent_id: str) -> list[dict[str, Any]]:
     return docs
 
 
+def normalize_wiki_context_files() -> dict[str, Any]:
+    """Rewrite existing approved wiki contexts into the current Q/A/metadata format."""
+
+    updated = []
+    for patent_id in _patent_ids():
+        reviewed_path = _reviewed_docs_path(patent_id)
+        if not reviewed_path.exists():
+            continue
+        reviewed_dir = PATENTS_ROOT / patent_id / "reviewed"
+        wiki_dir = PATENTS_ROOT / patent_id / "wiki"
+        manifest = _read_json(reviewed_dir / "manifest.json")
+        audit_id = str(manifest.get("audit_id") or "unknown")
+        approved_at = str(manifest.get("approved_at") or _now())
+        reviewer = manifest.get("reviewer")
+
+        docs: list[dict[str, Any]] = []
+        for _, doc in _read_jsonl(reviewed_path) or []:
+            if not isinstance(doc, dict):
+                continue
+            metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+            if metadata.get("source_type") == "WIKI" and (
+                metadata.get("human_review_source") == "approved_context" or metadata.get("file_name") == "approved_context.md"
+            ):
+                continue
+            docs.append(doc)
+
+        wiki_dir.mkdir(parents=True, exist_ok=True)
+        wiki_md_path = wiki_dir / "approved_context.md"
+        wiki_markdown = _wiki_markdown_from_approved_docs(patent_id, docs, audit_id=audit_id)
+        wiki_md_path.write_text(wiki_markdown, encoding="utf-8")
+        wiki_doc = _document(
+            patent_id=patent_id,
+            text=wiki_markdown,
+            source_path=wiki_md_path,
+            source_type="WIKI",
+            metadata={
+                "title": f"{patent_id} 감사 승인 Wiki Context",
+                "file_name": wiki_md_path.name,
+                "human_review_source": "approved_context",
+                "human_review_status": "approved",
+                "human_review_audit_id": audit_id,
+                "human_reviewed_at": approved_at,
+            },
+        )
+        if wiki_doc:
+            wiki_doc_metadata = wiki_doc.get("metadata") if isinstance(wiki_doc.get("metadata"), dict) else {}
+            if reviewer:
+                wiki_doc_metadata["human_reviewer"] = reviewer
+            wiki_doc["metadata"] = wiki_doc_metadata
+            docs.append(wiki_doc)
+        with reviewed_path.open("w", encoding="utf-8") as file:
+            for doc in docs:
+                file.write(json.dumps(doc, ensure_ascii=False, sort_keys=True) + "\n")
+        updated.append(
+            {
+                "patent_id": patent_id,
+                "wiki_markdown_path": str(wiki_md_path),
+                "approved_documents_path": str(reviewed_path),
+                "document_count": len(docs),
+            }
+        )
+    return {"status": "normalized", "updated_count": len(updated), "patents": updated}
+
+
 def collect_patent_documents(patent_id: str, *, use_reviewed: bool = True) -> list[dict[str, Any]]:
     if use_reviewed and _reviewed_docs_path(patent_id).exists():
         return _load_reviewed_documents(patent_id)
@@ -416,24 +480,31 @@ def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: s
 
 def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
     patent_results = []
+    patent_wiki_results = []
     global_docs: list[dict[str, Any]] = []
-    wiki_docs: list[dict[str, Any]] = []
     source = "human_reviewed" if use_reviewed else "raw"
 
     for patent_id in _patent_ids():
         patent_dir = PATENTS_ROOT / patent_id
         docs = collect_patent_documents(patent_id, use_reviewed=use_reviewed)
-        global_docs.extend(docs)
+        non_wiki_docs = [doc for doc in docs if _source_type(doc) != "WIKI"]
+        global_docs.extend(non_wiki_docs)
         patent_results.append(_write_vectorstore(patent_dir / "index" / "vectorstore", docs, scope=f"patent:{patent_id}", source=source))
         patent_wiki_docs = [doc for doc in docs if _source_type(doc) == "WIKI"]
-        wiki_docs.extend(patent_wiki_docs)
-        _write_vectorstore(patent_dir / "wiki" / "vectorstore" / "local", patent_wiki_docs, scope=f"wiki:{patent_id}", source=source)
+        patent_wiki_results.append(
+            _write_vectorstore(patent_dir / "wiki" / "vectorstore" / "local", patent_wiki_docs, scope=f"wiki:{patent_id}", source=source)
+        )
 
     business_docs = _business_documents()
     global_docs.extend(business_docs)
     business_result = _write_vectorstore(BUSINESS_ROOT / "index" / "vectorstore", business_docs, scope="business", source="raw")
     global_result = _write_vectorstore(PATENTS_ROOT / "_global" / "index" / "vectorstore", global_docs, scope="global", source=source)
-    wiki_result = _write_vectorstore(PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local", wiki_docs, scope="wiki:global", source=source)
+    global_wiki_result = _write_vectorstore(
+        PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local",
+        [],
+        scope="wiki:global-disabled",
+        source="disabled_patent_local_only",
+    )
 
     return {
         "status": "refreshed",
@@ -441,9 +512,11 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
         "source": source,
         "patent_count": len(patent_results),
         "patent_vectorstores": patent_results,
+        "patent_wiki_vectorstores": patent_wiki_results,
         "business_vectorstore": business_result,
         "global_vectorstore": global_result,
-        "wiki_vectorstore": wiki_result,
+        "global_wiki_vectorstore": global_wiki_result,
+        "wiki_policy": "wiki documents are stored only in each patent's wiki/vectorstore/local and are excluded from the global vectorstore",
     }
 
 
@@ -466,6 +539,7 @@ def vectorstore_status() -> dict[str, Any]:
             }
         )
     global_manifest = _read_json(PATENTS_ROOT / "_global" / "index" / "vectorstore" / "manifest.json")
+    global_wiki_manifest = _read_json(PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local" / "manifest.json")
     return {
         "backend": "local_hashed_bow",
         "global": {
@@ -474,6 +548,13 @@ def vectorstore_status() -> dict[str, Any]:
             "refreshed_at": global_manifest.get("refreshed_at"),
             "source": global_manifest.get("source"),
             "manifest_path": str(PATENTS_ROOT / "_global" / "index" / "vectorstore" / "manifest.json"),
+        },
+        "global_wiki": {
+            "exists": bool(global_wiki_manifest),
+            "document_count": global_wiki_manifest.get("document_count", 0),
+            "source": global_wiki_manifest.get("source"),
+            "policy": "disabled; wiki is patent-local only",
+            "manifest_path": str(PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local" / "manifest.json"),
         },
         "patents": patent_status,
     }
@@ -798,10 +879,11 @@ def _wiki_markdown_from_approved_docs(patent_id: str, approved_docs: list[dict[s
     lines = [
         f"# {patent_id} 감사 승인 Wiki Context",
         "",
-        f"이 문서는 audit `{audit_id}` 이후 사람이 승인한 특허 원문, 보고서, 시각자료, 웹/wiki 보조 자료를 챗봇이 자연어로 검색할 수 있도록 정리한 Markdown입니다.",
-        "원문 데이터에서 제외된 finding은 반영하지 않습니다.",
+        "## 질문",
         "",
-        "## 검색용 요약",
+        f"`{patent_id}` 특허에 대해 사람이 승인한 데이터만 기준으로 답변할 때 사용할 핵심 근거는 무엇인가?",
+        "",
+        "## 답변",
     ]
     for source_type in sorted(by_type):
         docs = by_type[source_type][:6]
@@ -809,8 +891,20 @@ def _wiki_markdown_from_approved_docs(patent_id: str, approved_docs: list[dict[s
         for index, doc in enumerate(docs, 1):
             metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
             title = metadata.get("section_title") or metadata.get("file_name") or metadata.get("title") or doc.get("doc_id")
-            text = " ".join(str(doc.get("page_content") or "").split())
+            text = preprocess_evidence_text(doc.get("page_content"), max_chars=650)
             lines.append(f"- {index}. {title}: {text[:650]}")
+    lines.extend(
+        [
+            "",
+            "## 메타정보",
+            "",
+            f"- Patent ID: `{patent_id}`",
+            f"- Audit ID: `{audit_id}`",
+            "- Source: human-approved patent/report/wiki corpus",
+            "- Vectorstore policy: 이 wiki 문서는 해당 특허의 단독 wiki vectorstore에만 반영되고 global vectorstore에는 포함되지 않습니다.",
+            "- Excluded data: 감사에서 제외된 finding과 저품질 placeholder 문장은 반영하지 않습니다.",
+        ]
+    )
     return "\n".join(lines).strip() + "\n"
 
 
