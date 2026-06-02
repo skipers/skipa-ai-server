@@ -1,0 +1,17 @@
+{
+  "patent_id": "10-2893083",
+  "title": "메시지 지향 미들웨어에서의 토폴로지 기반 시스템 상태 및 병목 구간 모니터링 방법 및 시스템",
+  "meta": {
+    "patent_id": "10-2893083",
+    "source_patent_id": "po000065",
+    "registration_number": "10-2893083",
+    "application_number": "10-2022-0180291",
+    "title": "메시지 지향 미들웨어에서의 토폴로지 기반 시스템 상태 및 병목 구간 모니터링 방법 및 시스템",
+    "original_pdf": "original.pdf",
+    "report_html": "report.html",
+    "source_patent_folder": "data/patents/po000065"
+  },
+  "restored_at": "2026-06-02T09:35:42+09:00",
+  "restored_from": "/Users/kgw/rag/mapped_patent_reports/10-2893083/metadata.json",
+  "source_format": "legacy_metadata"
+}

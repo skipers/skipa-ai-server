@@ -1,7 +1,7 @@
 {
   "patent_id": "10-2886381",
   "title": "CMP Pad의 물류 관리 시스템",
-  "updated_at": "2026-05-31T18:14:25",
+  "updated_at": "2026-06-02T09:35:42+09:00",
   "paths": {
     "patent_dir": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2886381",
     "original": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2886381/original",
@@ -11,12 +11,19 @@
     "wiki": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2886381/wiki",
     "extracted": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2886381/extracted",
     "index": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2886381/index",
-    "reports": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2886381/reports"
+    "reports": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2886381/reports",
+    "latest_report_html": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2886381/reports/html/latest.html"
   },
   "history": [
     {
       "at": "2026-05-31T18:14:25",
       "type": "workspace_registered"
+    },
+    {
+      "at": "2026-06-02T09:35:42+09:00",
+      "type": "legacy_source_files_restored",
+      "source": "/Users/kgw/rag/mapped_patent_reports/10-2886381",
+      "report_source": "/Users/kgw/rag/mapped_patent_reports/10-2886381/report.html"
     }
   ]
 }
