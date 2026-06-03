@@ -257,12 +257,13 @@ scripts/preprocess_chatbot_data.sh --mode all
 | 특허별 원문 | `data/mapped_patent_reports/<patent_id>/original/pdf` | 등록특허 원문 PDF |
 | 특허별 입력 JSON | `data/mapped_patent_reports/<patent_id>/original/input` | 보고서 생성에 쓰는 표준 입력 |
 | 특허별 보고서 JSON | `data/mapped_patent_reports/<patent_id>/reports/json` | 평가 결과와 유지/포기 판단 |
+| 특허별 출원/실패 피드백 | `data/mapped_patent_reports/<patent_id>/reports/application_feedback` | 출원 도우미가 만든 실패 원인/거절 대응 리포트를 특허별 챗봇 근거로 공유 |
 | 특허별 승인 wiki | `data/mapped_patent_reports/<patent_id>/wiki/approved_context.md` | 감사 후 승인된 wiki 보강 근거 |
 | 특허별 wiki vectorstore | `data/mapped_patent_reports/<patent_id>/wiki/vectorstore` | 웹검색 전 gate로만 사용 |
 | 특허별 core index | `data/mapped_patent_reports/<patent_id>/index` | 원문/보고서 검색 index |
 | 출원 공식팩 | `data/patent_application_official_pack(1)` | 출원 도우미 공식 자료 |
 | 출원 다운로드 자료 | `data/patent_application_official_pack(1)/downloads` | PDF/웹 문서 원본 |
-| 출원 피드백 리포트 | `data/patent_application_official_pack(1)/feedback` | 의견서/실패 분석 HTML/Markdown |
+| 출원 피드백 리포트 | `data/patent_application_official_pack(1)/feedback` | 출원 도우미 전용 index에 들어가는 의견서/실패 분석 HTML/Markdown |
 
 ## 8. 발표용 기능 정리
 

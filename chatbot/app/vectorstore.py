@@ -28,7 +28,9 @@ from .rag.quality import is_usable_evidence, preprocess_evidence_text
 
 VECTOR_DIMENSIONS = 256
 MAX_TEXT_CHARS = 20000
-CORE_SEARCH_SOURCE_TYPES = frozenset({"ORIGINAL_PDF", "REPORT_PDF", "PATENT_INPUT_JSON", "REPORT_JSON"})
+CORE_SEARCH_SOURCE_TYPES = frozenset(
+    {"ORIGINAL_PDF", "REPORT_PDF", "PATENT_INPUT_JSON", "REPORT_JSON", "APPLICATION_FEEDBACK_REPORT"}
+)
 WIKI_SEARCH_SOURCE_TYPES = frozenset({"WIKI"})
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
 SECRET_RE = re.compile(
@@ -313,6 +315,22 @@ def _wiki_documents(patent_id: str, wiki_root: Path) -> Iterable[dict[str, Any]]
                 yield doc
 
 
+def _application_feedback_documents(patent_id: str, patent_dir: Path) -> Iterable[dict[str, Any]]:
+    feedback_root = patent_dir / "reports" / "application_feedback"
+    latest_md = feedback_root / "latest.md"
+    if not latest_md.exists():
+        return
+    doc = _document(
+        patent_id=patent_id,
+        text=latest_md.read_text(encoding="utf-8", errors="ignore"),
+        source_path=latest_md,
+        source_type="APPLICATION_FEEDBACK_REPORT",
+        metadata={"file_name": latest_md.name, "section_title": "출원/실패 피드백 리포트"},
+    )
+    if doc:
+        yield doc
+
+
 def _business_documents() -> list[dict[str, Any]]:
     path = BUSINESS_ROOT / "index" / "all_chunks.jsonl"
     docs = []
@@ -447,6 +465,7 @@ def collect_patent_documents(patent_id: str, *, use_reviewed: bool = True) -> li
         if doc:
             docs.append(doc)
 
+    docs.extend(_application_feedback_documents(patent_id, patent_dir) or [])
     docs.extend(_wiki_documents(patent_id, patent_dir / "wiki") or [])
     return docs
 

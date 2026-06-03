@@ -43,6 +43,7 @@ skipa-ai-server/
           input/
         reports/
           json/
+          application_feedback/
         wiki/
         extracted/
         index/
@@ -54,7 +55,7 @@ skipa-ai-server/
       output/
         reports/
     artifacts/            # 로컬 생성 산출물/cache/report
-    business_rag/         # 제품/사업화 RAG 데이터
+    business/             # 챗봇과 평가 로직이 공유하는 제품/사업화 RAG 데이터
     patent_application_official_pack(1)/
       downloads/          # 공식 출원 자료 다운로드/크롤링 결과
       download_report.md  # 다운로드 불가 URL 리포트
@@ -514,6 +515,11 @@ data/mapped_patent_reports/<patent_id>/
     json/
       latest.json
       <timestamp>_<job_id>.json
+    application_feedback/
+      latest.md
+      latest.html
+      latest.json
+      <timestamp>_<title>/
   wiki/
     approved_context.md
     vectorstore/
@@ -529,7 +535,8 @@ data/mapped_patent_reports/<patent_id>/
     faiss/
 ```
 
-`manifest.json`에는 특허 ID, 제목, 최신 input, 최신 PDF, 최신 보고서, wiki/index
+`manifest.json`에는 특허 ID, 제목, 최신 input, 최신 PDF, 최신 보고서, 최신 출원/실패
+피드백 리포트, wiki/index
 위치, 저장 이력이 기록됩니다. 발표나 디버깅 때는 이 파일을 보면 해당 특허에 어떤
 데이터가 연결되어 있는지 빠르게 확인할 수 있습니다.
 
@@ -701,6 +708,9 @@ wiki/vectorstore/faiss/
 보고서 생성 API가 새 input/output을 만들면 `patent_data_store.py`가 같은 특허 폴더의
 `original/input`과 `reports/json`에 최신 파일을 저장합니다. 이후 챗봇 전처리 또는
 index 재생성 단계에서 이 파일들을 읽으면 새 보고서가 RAG에 반영됩니다.
+출원 도우미가 만든 실패 원인/거절 대응 피드백 리포트도 특허 ID가 연결되어 있으면
+`reports/application_feedback`에 함께 저장되며, core vectorstore refresh 후 특허 챗봇도
+같은 근거를 사용할 수 있습니다.
 
 전처리/재색인 LangGraph:
 
@@ -1084,7 +1094,11 @@ Swagger에서는 `POST /api/v1/application/feedback/create`,
 파일 업로드 UI에서는 `POST /api/v1/application/feedback/upload`를 사용합니다. 생성 결과는
 `data/patent_application_official_pack(1)/feedback/<timestamp>_<title>/feedback.md`,
 `feedback_report.html`, `metadata.json`에 저장되고, `refresh_index=true`이면 바로
-출원 도우미 vectorstore에 반영됩니다. 이후 `/api/v1/application/chat`에서
+출원 도우미 vectorstore에 반영됩니다. `patent_id` 또는 특허별 `source_report_path`가
+연결되어 있으면 같은 리포트가
+`data/mapped_patent_reports/<patent_id>/reports/application_feedback/latest.md`와
+`latest.html`에도 저장되어 특허 챗봇/보고서 데이터와 동일한 특허 폴더에서 관리됩니다.
+이후 `/api/v1/application/chat`에서
 “거절이유”, “실패 요인”, “보정 전략”, “의견서 대응” 질문을 하면 이 피드백 리포트와
 공식팩, 필요한 경우 외부 KIPRIS/KOSIS/Tavily 근거를 함께 사용합니다.
 
@@ -1399,10 +1413,15 @@ GET  /api/v1/wiki/audit-report
 DATA_ROOT=../data
 PATENTS_ROOT=../data/mapped_patent_reports
 PATENT_APPLICATION_ROOT=../data/patent_application_official_pack(1)
+BUSINESS_ROOT=../data/business
 PUBLIC_FILE_BASE_URL=http://localhost:8000/files
 EMBEDDING_MODEL=BAAI/bge-m3
 TOP_K=10
 ```
+
+`DATA_ROOT=../data`는 chatbot에서는 `chatbot/` 기준, eval_logic에서는 `eval_logic/`
+기준으로 해석되어 둘 다 repository 중앙 폴더인 `/Users/kgw/skipers-ai/data`를
+가리키도록 맞춰져 있습니다.
 
 정상 기준:
 
@@ -1443,9 +1462,9 @@ python src/cli/visualize_agent_graph.py --skip-png
 eval_logic/.env
 eval_logic/.env.*
 data/artifacts/
-data/business_rag/index/
-data/business_rag/raw/
-data/business_rag/processed/
+data/business/index/
+data/business/raw/
+data/business/processed/
 ```
 
 특히 `.env`에는 API 키가 들어가므로 절대 커밋하면 안 됩니다.

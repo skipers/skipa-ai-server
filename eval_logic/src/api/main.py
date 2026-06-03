@@ -34,6 +34,9 @@ from core.paths import (
     API_TEST_INPUT_UPLOAD_DIR,
     API_TEST_PDF_UPLOAD_DIR,
     API_TEST_REPORT_OUTPUT_DIR,
+    BUSINESS_RAG_DATA_DIR,
+    DATA_ROOT,
+    PATENT_DATA_DIR,
     SAMPLE_INPUT_DIR,
 )
 from core.patent_data_store import save_original_pdf, save_patent_input, save_report_result
@@ -274,7 +277,12 @@ def _job_urls(job_id: str) -> tuple[str, str]:
 
 @app.get("/health", tags=["health"])
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "data_root": str(DATA_ROOT),
+        "patent_data_root": str(PATENT_DATA_DIR),
+        "business_root": str(BUSINESS_RAG_DATA_DIR),
+    }
 
 
 # ─────────────────────────────────────────────

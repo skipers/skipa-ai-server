@@ -13,6 +13,7 @@ import math
 import mimetypes
 import os
 import re
+import shutil
 import unicodedata
 from pathlib import Path
 from typing import Any, Iterable
@@ -79,6 +80,11 @@ def _safe_relative(path: Path) -> str:
         return str(path.resolve().relative_to(DATA_ROOT.resolve()))
     except Exception:
         return str(path)
+
+
+def _safe_patent_id(value: Any) -> str:
+    cleaned = re.sub(r"[^0-9A-Za-z가-힣_.-]+", "_", _norm(value)).strip("._")
+    return cleaned or "patent"
 
 
 def _tokens(text: str) -> list[str]:
@@ -389,6 +395,106 @@ def _slug(value: str) -> str:
     return cleaned[:80] or "feedback"
 
 
+def _infer_patent_id_from_path(path: Path | None) -> str | None:
+    if not path:
+        return None
+    try:
+        relative = path.resolve().relative_to(PATENTS_ROOT.resolve())
+        if relative.parts:
+            candidate = relative.parts[0]
+            if candidate and candidate != "_global":
+                return _safe_patent_id(candidate)
+    except Exception:
+        return None
+    return None
+
+
+def _read_json_object(path: Path) -> dict[str, Any]:
+    value = _read_json(path)
+    return value if isinstance(value, dict) else {}
+
+
+def _update_patent_manifest(
+    patent_id: str,
+    *,
+    title: str | None = None,
+    paths: dict[str, str | None] | None = None,
+    event: dict[str, Any] | None = None,
+) -> Path:
+    patent_dir = PATENTS_ROOT / _safe_patent_id(patent_id)
+    patent_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = patent_dir / "manifest.json"
+    manifest = _read_json_object(manifest_path)
+    manifest.setdefault("patent_id", _safe_patent_id(patent_id))
+    if title:
+        manifest["title"] = title
+    manifest["updated_at"] = _now()
+    manifest_paths = manifest.setdefault("paths", {})
+    if isinstance(manifest_paths, dict):
+        manifest_paths.update({key: value for key, value in (paths or {}).items() if value})
+    if event:
+        history = manifest.setdefault("history", [])
+        if isinstance(history, list):
+            history.append({"at": manifest["updated_at"], **event})
+            del history[:-50]
+    _write_json(manifest_path, manifest)
+    return manifest_path
+
+
+def _mirror_feedback_to_patent_workspace(
+    *,
+    patent_id: str,
+    title: str,
+    feedback_dir: Path,
+    markdown_path: Path,
+    html_path: Path,
+    metadata_path: Path,
+) -> dict[str, Any]:
+    safe_patent_id = _safe_patent_id(patent_id)
+    target_root = PATENTS_ROOT / safe_patent_id / "reports" / "application_feedback"
+    target_dir = target_root / feedback_dir.name
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    mirrored_markdown = target_dir / "feedback.md"
+    mirrored_html = target_dir / "feedback_report.html"
+    mirrored_metadata = target_dir / "metadata.json"
+    shutil.copy2(markdown_path, mirrored_markdown)
+    shutil.copy2(html_path, mirrored_html)
+    shutil.copy2(metadata_path, mirrored_metadata)
+
+    latest_markdown = target_root / "latest.md"
+    latest_html = target_root / "latest.html"
+    latest_metadata = target_root / "latest.json"
+    shutil.copy2(markdown_path, latest_markdown)
+    shutil.copy2(html_path, latest_html)
+    shutil.copy2(metadata_path, latest_metadata)
+
+    manifest_path = _update_patent_manifest(
+        safe_patent_id,
+        title=title,
+        paths={
+            "application_feedback_reports": str(target_root),
+            "latest_application_feedback_markdown": str(latest_markdown),
+            "latest_application_feedback_html": str(latest_html),
+            "latest_application_feedback_metadata": str(latest_metadata),
+        },
+        event={"type": "application_feedback_saved", "path": str(mirrored_markdown)},
+    )
+    return {
+        "patent_id": safe_patent_id,
+        "feedback_dir": str(target_dir),
+        "markdown_path": str(mirrored_markdown),
+        "html_path": str(mirrored_html),
+        "metadata_path": str(mirrored_metadata),
+        "latest_markdown_path": str(latest_markdown),
+        "latest_html_path": str(latest_html),
+        "latest_metadata_path": str(latest_metadata),
+        "manifest_path": str(manifest_path),
+        "html_url": "/files/patents/"
+        + quote(f"{safe_patent_id}/reports/application_feedback/latest.html", safe="/"),
+    }
+
+
 def _safe_pack_path(path_value: str | None) -> Path | None:
     if not path_value:
         return None
@@ -460,6 +566,9 @@ def create_application_feedback_report(
     source_input = latest.get("input") if latest.get("input") and latest["input"].exists() else None
     if source_report is None and latest.get("report") and latest["report"].exists():
         source_report = latest["report"]
+    effective_patent_id = _safe_patent_id(patent_id) if patent_id else None
+    if effective_patent_id is None:
+        effective_patent_id = _infer_patent_id_from_path(source_report) or _infer_patent_id_from_path(source_input)
 
     extracted_opinion = ""
     opinion_error = None
@@ -474,7 +583,8 @@ def create_application_feedback_report(
     if source_input:
         source_input_text, source_input_error = _read_source_text(source_input)
 
-    feedback_dir = _feedback_root() / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{_slug(title)}"
+    feedback_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    feedback_dir = _feedback_root() / f"{feedback_stamp}_{_slug(title)}"
     feedback_dir.mkdir(parents=True, exist_ok=True)
     if opinion_path:
         copied = feedback_dir / opinion_path.name
@@ -529,7 +639,7 @@ def create_application_feedback_report(
             "",
             "## 메타정보",
             "",
-            f"- Patent ID: {patent_id or '-'}",
+            f"- Patent ID: {effective_patent_id or patent_id or '-'}",
             f"- Reviewer: {reviewer or '-'}",
             f"- Created at: {_now()}",
             f"- Opinion file: {str(opinion_path) if opinion_path else '-'}",
@@ -549,7 +659,7 @@ def create_application_feedback_report(
     html_path.write_text(_html_page(title, markdown), encoding="utf-8")
     metadata = {
         "title": title,
-        "patent_id": patent_id,
+        "patent_id": effective_patent_id or patent_id,
         "created_at": _now(),
         "reviewer": reviewer,
         "opinion_file_path": str(opinion_path) if opinion_path else None,
@@ -561,13 +671,31 @@ def create_application_feedback_report(
         "notes": notes,
     }
     _write_json(meta_path, metadata)
+    linked_patent_report = None
+    if effective_patent_id:
+        linked_patent_report = _mirror_feedback_to_patent_workspace(
+            patent_id=effective_patent_id,
+            title=title,
+            feedback_dir=feedback_dir,
+            markdown_path=markdown_path,
+            html_path=html_path,
+            metadata_path=meta_path,
+        )
+        metadata["linked_patent_report"] = linked_patent_report
+        _write_json(meta_path, metadata)
+        linked_metadata_path = Path(str(linked_patent_report["metadata_path"]))
+        _write_json(linked_metadata_path, metadata)
+        latest_metadata_path = Path(str(linked_patent_report["latest_metadata_path"]))
+        _write_json(latest_metadata_path, metadata)
     index_result = refresh_application_index(force=True) if refresh_index else application_index_status()
     return {
         "status": "created",
+        "linked_patent_id": effective_patent_id,
         "feedback_dir": str(feedback_dir),
         "markdown_path": str(markdown_path),
         "html_path": str(html_path),
         "html_url": "/files/application/" + quote(str(html_path.resolve().relative_to(PATENT_APPLICATION_ROOT.resolve())).replace("\\", "/")),
+        "linked_patent_report": linked_patent_report,
         "metadata_path": str(meta_path),
         "index": index_result,
         "metadata": metadata,
