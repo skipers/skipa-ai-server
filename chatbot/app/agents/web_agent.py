@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
 import json
 
 from ..config import PATENTS_ROOT
 from ..rag.quality import compact_text, filter_usable_hits, preprocess_evidence_text
 from ..rag.web_answers import search_web
+from ..vectorstore import auto_approve_web_draft, is_duplicate_web_query
 from .state import ChatAgentState
+
+
+def _query_hash(query: str) -> str:
+    return hashlib.sha1(query.encode("utf-8")).hexdigest()[:12]
+
+
+def _avg_relevance(results: list) -> float:
+    scores = [float((r.get("relevance") or {}).get("score") or 0.0) for r in results]
+    return sum(scores) / len(scores) if scores else 0.0
 
 
 def _archive_web_results(state: ChatAgentState, result: dict) -> str | None:
@@ -20,25 +31,29 @@ def _archive_web_results(state: ChatAgentState, result: dict) -> str | None:
     wiki_dir.mkdir(parents=True, exist_ok=True)
     path = wiki_dir / (datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".md")
     query = str(state.get("query") or "")
+    avg_rel = _avg_relevance(results)
     lines = [
-        f"# Web Search Draft",
+        "# Web Search Draft",
         "",
         "## 질문",
         "",
         query,
         "",
-        "## 답변",
+        f"## 결과 요약  (평균 관련도: {avg_rel:.2f}, 결과 수: {len(results)})",
         "",
-        "아래 내용은 웹 검색 결과를 자연어 Markdown으로 정리한 답변 후보입니다. 감사 프로세스에서 사람이 확인한 뒤 승인된 내용만 해당 특허의 wiki vectorstore에 반영합니다.",
+        "아래 내용은 웹 검색 결과입니다. 평균 관련도가 기준 이상이면 자동 승인되어 wiki vectorstore에 즉시 반영됩니다. 그렇지 않으면 감사 후 사람이 승인한 내용만 반영됩니다.",
     ]
     for index, item in enumerate(results, 1):
         snippet = preprocess_evidence_text(item.get("snippet"), max_chars=700)
+        rel = item.get("relevance") if isinstance(item.get("relevance"), dict) else {}
+        matched = rel.get("matched_terms") or []
         lines.extend(
             [
                 "",
                 f"### {index}. {item.get('title') or 'web result'}",
                 "",
                 f"- URL: {item.get('url') or '-'}",
+                f"- 관련도: {rel.get('score', 0):.2f}  매칭: {', '.join(str(t) for t in matched) or '-'}",
                 f"- 요약: {compact_text(snippet, 500)}",
                 "",
                 snippet,
@@ -52,7 +67,6 @@ def _archive_web_results(state: ChatAgentState, result: dict) -> str | None:
             f"- Provider: {result.get('provider') or 'unknown'}",
             f"- Patent ID: `{patent_id}`",
             f"- Created at: {datetime.now().isoformat(timespec='seconds')}",
-            "- Review policy: 사람이 승인하기 전에는 global vectorstore에 반영하지 않습니다.",
             "",
             "### Raw JSON",
             "",
@@ -71,6 +85,9 @@ def retrieve_web_context(state: ChatAgentState) -> ChatAgentState:
     wiki_hits = filter_usable_hits(list((state.get("wiki_context") or {}).get("hits") or []), limit=1)
     result = {"enabled": should_search, "provider": None, "results": [], "error": None}
     skipped_by_wiki = False
+    skipped_by_dedup = False
+    auto_approve_result: dict | None = None
+
     if should_search:
         if wiki_hits:
             skipped_by_wiki = True
@@ -83,10 +100,34 @@ def retrieve_web_context(state: ChatAgentState) -> ChatAgentState:
                 "skip_reason": "patent_local_wiki_context_available",
             }
         else:
-            result = search_web(state.get("query", ""))
-            archive_path = _archive_web_results(state, result)
-            if archive_path:
-                result["wiki_draft_path"] = archive_path
+            query = state.get("query", "")
+            patent_id = state.get("resolved_patent_id") or state.get("patent_id") or "_global"
+            qhash = _query_hash(query)
+
+            if patent_id != "_global" and is_duplicate_web_query(patent_id, qhash):
+                skipped_by_dedup = True
+                result = {
+                    "enabled": False,
+                    "provider": None,
+                    "results": [],
+                    "error": None,
+                    "skipped": True,
+                    "skip_reason": "duplicate_query_within_dedup_window",
+                }
+            else:
+                result = search_web(query)
+                archive_path = _archive_web_results(state, result)
+                if archive_path:
+                    result["wiki_draft_path"] = archive_path
+                results = result.get("results") or []
+                if results:
+                    auto_approve_result = auto_approve_web_draft(
+                        patent_id,
+                        draft_path=archive_path,
+                        query=query,
+                        results=results,
+                    )
+                    result["wiki_auto_approve"] = auto_approve_result
 
     trace = list(state.get("trace", []))
     trace.append(
@@ -96,11 +137,13 @@ def retrieve_web_context(state: ChatAgentState) -> ChatAgentState:
             "at": datetime.now().isoformat(timespec="seconds"),
             "enabled": should_search,
             "skipped_by_wiki": skipped_by_wiki,
+            "skipped_by_dedup": skipped_by_dedup,
             "provider": result.get("provider"),
             "result_count": len(result.get("results") or []),
             "error": result.get("error"),
             "skip_reason": result.get("skip_reason"),
             "wiki_draft_path": result.get("wiki_draft_path"),
+            "wiki_auto_approve": auto_approve_result,
         }
     )
     return {**state, "web_context": result, "trace": trace}

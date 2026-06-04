@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from ..store import search_chunks
+from ..vectorstore import get_patent_draft_stats
 from .state import ChatAgentState
 
 
@@ -35,7 +36,22 @@ def retrieve_wiki_context(state: ChatAgentState) -> ChatAgentState:
         result["hit_count"] = len(hits)
         result["gate_passed"] = bool(hits)
         if not hits:
-            result["fallback_reason"] = "no high-similarity patent-local WIKI hit; web search may run next"
+            draft_stats = get_patent_draft_stats(patent_id) if patent_id else {}
+            pending = draft_stats.get("pending_review", 0)
+            auto_approved = draft_stats.get("auto_approved", 0)
+            if auto_approved > 0:
+                result["fallback_reason"] = (
+                    f"no high-similarity WIKI hit; {auto_approved} auto-approved draft(s) exist "
+                    "but vectorstore may need refresh — web search will run"
+                )
+            elif pending > 0:
+                result["fallback_reason"] = (
+                    f"no high-similarity WIKI hit; {pending} pending draft(s) awaiting audit "
+                    "— web search will run"
+                )
+            else:
+                result["fallback_reason"] = "no high-similarity patent-local WIKI hit; web search may run next"
+            result["draft_stats"] = draft_stats
 
     trace = list(state.get("trace", []))
     trace.append(
@@ -50,6 +66,7 @@ def retrieve_wiki_context(state: ChatAgentState) -> ChatAgentState:
             "gate_passed": result.get("gate_passed"),
             "mode": result.get("mode"),
             "fallback_reason": result.get("fallback_reason"),
+            "draft_stats": result.get("draft_stats"),
         }
     )
     return {**state, "wiki_context": result, "trace": trace}

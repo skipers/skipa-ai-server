@@ -1280,3 +1280,158 @@ def _write_audit_report(report: dict[str, Any]) -> None:
     log_path = WIKI_AUDITOR_ROOT / "audit.log"
     with log_path.open("a", encoding="utf-8") as file:
         file.write(json.dumps(report, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+# ---------------------------------------------------------------------------
+# Web draft index + auto-approve
+# ---------------------------------------------------------------------------
+
+WIKI_AUTO_APPROVE_MIN_RELEVANCE = 0.50
+WIKI_AUTO_APPROVE_MIN_RESULTS = 1
+WIKI_DRAFT_DEDUP_HOURS = 20
+
+
+def _draft_index_path(patent_id: str) -> Path:
+    return PATENTS_ROOT / patent_id / "wiki" / "web_search_drafts" / "draft_index.json"
+
+
+def _read_draft_index(patent_id: str) -> dict[str, Any]:
+    path = _draft_index_path(patent_id)
+    if not path.exists():
+        return {"patent_id": patent_id, "drafts": []}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"patent_id": patent_id, "drafts": []}
+    return data if isinstance(data, dict) else {"patent_id": patent_id, "drafts": []}
+
+
+def _write_draft_index(patent_id: str, index: dict[str, Any]) -> None:
+    path = _draft_index_path(patent_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    index["updated_at"] = _now()
+    path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def is_duplicate_web_query(patent_id: str, query_hash: str) -> bool:
+    """True if the same query hash was searched for this patent within WIKI_DRAFT_DEDUP_HOURS."""
+    from datetime import datetime, timedelta
+
+    index = _read_draft_index(patent_id)
+    cutoff = (datetime.now() - timedelta(hours=WIKI_DRAFT_DEDUP_HOURS)).isoformat()
+    for draft in index.get("drafts", []):
+        if draft.get("query_hash") == query_hash and draft.get("created_at", "") >= cutoff:
+            return True
+    return False
+
+
+def get_patent_draft_stats(patent_id: str) -> dict[str, Any]:
+    """Return counts of pending / auto-approved web search drafts for a patent."""
+    index = _read_draft_index(patent_id)
+    drafts = index.get("drafts", [])
+    pending = sum(1 for d in drafts if d.get("status") == "pending")
+    auto_approved = sum(1 for d in drafts if d.get("status") == "auto_approved")
+    return {
+        "patent_id": patent_id,
+        "total_drafts": len(drafts),
+        "pending_review": pending,
+        "auto_approved": auto_approved,
+        "has_pending": pending > 0,
+    }
+
+
+def auto_approve_web_draft(
+    patent_id: str,
+    *,
+    draft_path: str | None,
+    query: str,
+    results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Promote high-quality web results to the patent's wiki vectorstore without human review.
+
+    If avg relevance >= WIKI_AUTO_APPROVE_MIN_RELEVANCE, content is appended to
+    wiki/approved_context.md and the patent's wiki vectorstore is refreshed immediately.
+    Low-quality drafts are recorded as pending for the normal audit cycle.
+    _global patent and empty result lists are always skipped.
+    """
+    if patent_id in {"_global", ""} or not results:
+        return {"auto_approved": False, "reason": "skipped_global_or_empty"}
+
+    query_hash = hashlib.sha1(query.encode("utf-8")).hexdigest()[:12]
+
+    relevance_scores = [
+        float((r.get("relevance") or {}).get("score") or 0.0)
+        for r in results
+    ]
+    avg_relevance = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0.0
+    result_count = len(results)
+
+    index = _read_draft_index(patent_id)
+    drafts: list[dict[str, Any]] = index.get("drafts", [])
+
+    draft_entry: dict[str, Any] = {
+        "query_hash": query_hash,
+        "query": query,
+        "created_at": _now(),
+        "draft_file": Path(draft_path).name if draft_path else "",
+        "result_count": result_count,
+        "avg_relevance": round(avg_relevance, 4),
+        "status": "pending",
+    }
+
+    can_auto_approve = (
+        result_count >= WIKI_AUTO_APPROVE_MIN_RESULTS
+        and avg_relevance >= WIKI_AUTO_APPROVE_MIN_RELEVANCE
+    )
+
+    if can_auto_approve:
+        lines = [
+            "",
+            f"## 자동 승인 웹 근거 — {_now()[:10]}",
+            "",
+            f"- 질문: {query}",
+            f"- 평균 관련도: {avg_relevance:.2f} (기준 ≥ {WIKI_AUTO_APPROVE_MIN_RELEVANCE})",
+            f"- 결과 수: {result_count}",
+            "",
+        ]
+        for idx, r in enumerate(results, 1):
+            title = str(r.get("title") or "web result")
+            url = str(r.get("url") or "")
+            snippet = preprocess_evidence_text(r.get("snippet") or "", max_chars=600)
+            rel = r.get("relevance") if isinstance(r.get("relevance"), dict) else {}
+            matched = rel.get("matched_terms") or []
+            lines.append(f"### {idx}. {title}")
+            if url:
+                lines.append(f"- URL: {url}")
+            if matched:
+                lines.append(f"- 매칭 키워드: {', '.join(str(t) for t in matched)}")
+            lines.extend(["", snippet or "", ""])
+
+        wiki_dir = PATENTS_ROOT / patent_id / "wiki"
+        wiki_dir.mkdir(parents=True, exist_ok=True)
+        approved_md = wiki_dir / "approved_context.md"
+        with approved_md.open("a", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+        patent_dir = PATENTS_ROOT / patent_id
+        wiki_docs = list(_wiki_documents(patent_id, wiki_dir))
+        _write_vectorstore(
+            patent_dir / "wiki" / "vectorstore" / "local",
+            wiki_docs,
+            scope=f"wiki:{patent_id}",
+            source="auto_approved_web",
+        )
+
+        draft_entry["status"] = "auto_approved"
+        draft_entry["auto_approved_at"] = _now()
+
+    drafts.append(draft_entry)
+    index["drafts"] = drafts
+    _write_draft_index(patent_id, index)
+
+    return {
+        "auto_approved": can_auto_approve,
+        "avg_relevance": round(avg_relevance, 4),
+        "result_count": result_count,
+        "reason": "high_relevance" if can_auto_approve else f"low_relevance ({avg_relevance:.2f} < {WIKI_AUTO_APPROVE_MIN_RELEVANCE})",
+    }
