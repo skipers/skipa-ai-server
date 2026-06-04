@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from ..rag.config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT, ANSWER_PROVIDER
 from ..rag.evaluation import answer_quality_metrics
+from ..rag.llm import call_openai_prompt
 from ..rag.pipeline import answer_question
 from ..rag.quality import compact_text, filter_usable_hits
 from ..rag.sources import cards_from_hits, cards_from_web
@@ -66,16 +68,49 @@ def _format_web_section(results: list[dict], *, limit: int = 3) -> str:
     return "\n".join(lines)
 
 
+def _web_snippets_for_prompt(results: list[dict], limit: int = 3) -> str:
+    lines = []
+    for i, r in enumerate(results[:limit], 1):
+        title = r.get("title") or "웹 결과"
+        snippet = compact_text(r.get("snippet") or "", 300)
+        lines.append(f"[웹{i}] {title}: {snippet}")
+    return "\n\n".join(lines)
+
+
 def _merge_context_sections(result: dict, state: ChatAgentState, web_context: dict) -> dict:
     answer = str(result.get("answer") or "")
     intent = state.get("intent") or {}
-    allow_wiki_supplement = bool(intent.get("needs_web"))
-    wiki_hits = list((state.get("wiki_context") or {}).get("hits") or [])
     web_results = list(web_context.get("results") or [])
-    has_extra = bool((allow_wiki_supplement and filter_usable_hits(wiki_hits, limit=1)) or web_results)
-    # 내부 근거 없고 외부 근거만 있는 경우 문구 교체 — raw 섹션은 이어붙이지 않음
-    if has_extra and any(marker in answer for marker in LOW_EVIDENCE_MARKERS):
+    needs_web = bool(intent.get("needs_web"))
+
+    # 내부 근거 없고 외부 근거만 있는 경우 안내 문구 교체
+    if web_results and any(marker in answer for marker in LOW_EVIDENCE_MARKERS):
         answer = "내부 원문/보고서 근거가 충분하지 않아 웹 근거를 중심으로 답변합니다."
+
+    # needs_web 질문에서 웹 결과가 있으면 LLM으로 내부+외부 통합 답변 생성
+    if needs_web and web_results and ANSWER_PROVIDER == "openai":
+        try:
+            combined_prompt = (
+                f"질문: {state.get('query', '')}\n\n"
+                f"내부 특허 DB 기반 답변:\n{answer}\n\n"
+                f"외부 웹 검색 결과:\n{_web_snippets_for_prompt(web_results)}\n\n"
+                "위 두 정보를 통합해 질문에 직접 답하세요.\n"
+                "- 내부 DB 정보(특허 원문·보고서)와 웹 정보를 자연스럽게 합칩니다.\n"
+                "- 1-4문장으로 간결하게 씁니다.\n"
+                "- '확인 필요 사항', '근거', '해석' 섹션은 추가하지 않습니다."
+            )
+            llm = call_openai_prompt(
+                combined_prompt,
+                model=ANSWER_MODEL,
+                max_output_tokens=min(ANSWER_NUM_PREDICT, 600),
+                timeout=ANSWER_LLM_TIMEOUT,
+                temperature=0.2,
+            )
+            if llm.get("ok") and llm.get("text"):
+                answer = str(llm["text"]).strip()
+        except Exception:
+            pass  # 실패 시 기존 answer 유지
+
     result["answer"] = answer
     return result
 

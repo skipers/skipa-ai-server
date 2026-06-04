@@ -282,6 +282,25 @@ def now_ms() -> int:
     return int(time.time() * 1000)
 
 
+def _clean_patent_ocr_text(text: str) -> str:
+    """Remove common Korean patent PDF OCR artifacts."""
+    # Paragraph reference numbers like [0001], [0003]
+    text = re.sub(r"\[\d{4}\]", "", text)
+    # Section markers with spaces like "요 약", "배 경 기 술", "(57) 요 약"
+    text = re.sub(r"\(\d+\)\s*[가-힣\s]{1,10}\n", "\n", text)
+    # Spaces inserted between Korean characters by OCR: "가 나 다" → "가나다"
+    text = re.sub(r"(?<=[가-힣])\s(?=[가-힣])", "", text)
+    # Collapse 3+ blank lines to 2
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _extract_abbr_definition(text: str) -> str:
+    """Try to extract 'ABBR(Full Name)' or 'ABBR Pad(...)' patterns from patent text."""
+    match = re.search(r"[A-Z]{2,6}(?:\s+\w+)?\([^)]{6,60}\)", text)
+    return match.group(0) if match else ""
+
+
 def normalize(text: str) -> str:
     return " ".join((text or "").split())
 
@@ -6984,7 +7003,8 @@ class PatentRAGPipeline:
                     in {"KR_ABSTRACT", "KR_BACKGROUND", "KR_SUMMARY"}
                 ][:2] or overview_docs[:1]
                 _, def_source_cards = format_context(key_docs)
-                key_text = "\n\n".join(d.page_content[:400] for d in key_docs)
+                raw_key_text = "\n\n".join(d.page_content[:400] for d in key_docs)
+                key_text = _clean_patent_ocr_text(raw_key_text)
                 llm_t0 = now_ms()
                 try:
                     def_answer = call_ollama([
@@ -7006,7 +7026,12 @@ class PatentRAGPipeline:
                         },
                     ])
                 except Exception:
-                    def_answer = key_text
+                    # 스마트 폴백: OCR 원문 대신 약어 정의만 추출해서 안내
+                    abbr = _extract_abbr_definition(raw_key_text)
+                    if abbr:
+                        def_answer = f"{abbr} 관련 기술입니다. 내부 DB에 '{def_title}'(등록번호: {reg_no}) 특허가 있습니다."
+                    else:
+                        def_answer = f"내부 DB에 '{def_title}'(등록번호: {reg_no}) 관련 특허가 있습니다."
                 llm_ms = now_ms() - llm_t0
                 def_metrics = {
                     "scope": "GLOBAL",
