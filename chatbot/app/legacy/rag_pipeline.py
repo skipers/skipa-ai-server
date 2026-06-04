@@ -4936,27 +4936,21 @@ def build_global_discovery_answer(
         cards_by_patent.setdefault(patent_id, []).append(card)
 
     terms_text = ", ".join(query_terms)
-    count_phrase = f"{len(patent_groups)}건"
-    subject = f"`{terms_text}` 관련 특허" if terms_text else "현재 인덱싱된 특허"
+    count = len(patent_groups)
+
+    # 소제목은 검색어와 결과 수에 따라 동적으로 결정
     if terms_text:
+        short_terms = terms_text if len(terms_text) <= 12 else terms_text[:12] + "…"
+        table_header = f"## {short_terms} 관련 특허" if count > 1 else f"## {short_terms} 관련 특허"
         lines = [
-            "## 답변",
-            "",
-            f"현재 검토 데이터 기준으로 {subject}는 {count_phrase}입니다.",
-            "아래 표는 원문과 보고서를 특허 단위로 묶어 관련성이 높은 순서로 정리한 결과입니다.",
-            "",
-            "## 관련 특허",
+            table_header,
             "",
             "| 순위 | 특허 | 관련성 | 핵심 이유 | 주요 출처 |",
             "| --- | --- | --- | --- | --- |",
         ]
     else:
         lines = [
-            "## 답변",
-            "",
-            f"현재 인덱싱된 특허는 {count_phrase}입니다.",
-            "",
-            "## 특허 목록",
+            "## 보유 특허 목록",
             "",
             "| 순위 | 특허 | 번호 | 요약 | 주요 출처 |",
             "| --- | --- | --- | --- | --- |",
@@ -5003,50 +4997,47 @@ def build_global_discovery_answer(
             )
 
     if "COUNT" in intents:
-        lines.extend(
-            [
-                "",
-                "## 수량 요약",
-                "",
-                f"- 조건에 맞는 특허는 {len(patent_groups)}건입니다.",
-            ]
-        )
+        lines.extend(["", f"총 {count}건이 확인됩니다."])
 
     top_group = patent_groups[0]
     top_labels = label_by_patent.get(top_group["patent_id"], [])
     top_label_text = " ".join(f"[{label}]" for label in top_labels[:2]) or "[자료1]"
+
     if terms_text:
-        plural_note = "- 표의 나머지 후보는 보고서나 원문에 같은 키워드가 나타나는 정도를 기준으로 정렬했습니다." if len(patent_groups) > 1 else "- 현재 인덱스에서는 이 특허가 질문 키워드와 가장 직접적으로 연결됩니다."
-        lines.extend(
-            [
-                "",
-                "## 해석",
-                "",
-                f"- 가장 직접적인 후보는 {top_group['title']}입니다. 질문 키워드가 원문 또는 제목 수준에서 확인되어 우선 검토 대상으로 볼 수 있습니다. {top_label_text}",
-                plural_note,
-                "- 최종 유지/매각/제각 판단은 이 목록만으로 결정할 수 없고, 개별 특허 상세 화면에서 청구항과 평가보고서를 함께 확인해야 합니다.",
-            ]
-        )
+        if count == 1:
+            # 1건 → 소제목 없이 한 줄로 마무리
+            lines.extend(
+                [
+                    "",
+                    f"질문 키워드({terms_text})가 위 특허 원문·제목에서 확인되었습니다. {top_label_text}",
+                ]
+            )
+        else:
+            # 다건 → 간결한 소제목
+            plural_note = (
+                f"- 나머지 후보는 보고서나 원문에 같은 키워드가 나타나는 정도를 기준으로 정렬했습니다."
+            )
+            lines.extend(
+                [
+                    "",
+                    f"## {short_terms} 검색 결과 요약",
+                    "",
+                    f"- 가장 직접적인 후보는 **{top_group['title']}**입니다. {top_label_text}",
+                    plural_note,
+                ]
+            )
+            # 평가·판단 질문일 때만 주의 문구 추가
+            needs_eval_note = any(t in question for t in ("유지", "매각", "제각", "판단", "평가", "리스크"))
+            if needs_eval_note:
+                lines.append("- 최종 유지/매각/제각 판단은 개별 특허 상세 화면에서 청구항과 평가보고서를 함께 확인하세요.")
     else:
         lines.extend(
             [
                 "",
-                "## 해석",
-                "",
-                "- 위 표는 현재 챗봇이 접근 가능한 전체 인덱스 목록입니다.",
-                "- 특정 기술어를 함께 입력하면 관련 특허만 좁혀서 볼 수 있습니다. 예: `물류 특허`, `반도체 특허`, `모니터링 특허`.",
+                "특정 기술어를 함께 입력하면 관련 특허만 좁혀볼 수 있습니다. 예: `물류 특허`, `반도체 특허`.",
             ]
         )
 
-    lines.extend(
-        [
-            "",
-            "## 확인 필요 사항",
-            "",
-            "- 원문 PDF의 청구항과 AI 평가 보고서의 점수·리스크 항목을 함께 확인해야 합니다.",
-            "- 외부 최신 특허나 KIPRIS 실시간 조회 결과는 현재 내부 인덱스와 별도입니다.",
-        ]
-    )
     return "\n".join(lines)
 
 
