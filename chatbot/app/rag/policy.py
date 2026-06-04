@@ -170,6 +170,18 @@ def _as_source_plan(value: Any, fallback: list[str], *, needs_web: bool) -> list
 def _repair_intent(query: str, result: dict[str, Any]) -> dict[str, Any]:
     text = query.lower()
     repaired = dict(result)
+    if _is_too_ambiguous(text):
+        repaired.update(
+            {
+                "needs_web": False,
+                "search_scope": "clarify",
+                "needs_clarification": True,
+                "clarification_question": repaired.get("clarification_question")
+                or "어떤 특허나 어떤 데이터 범위를 기준으로 답할까요?",
+                "source_plan": [item for item in repaired.get("source_plan", []) if item != "web"] or ["reviewed_vectorstore"],
+                "reason": f"{repaired.get('reason') or ''} / 질문 대상이 불명확해 재질문 필요",
+            }
+        )
     if _wants_internal_db_search(text):
         repaired.update(
             {
@@ -261,9 +273,16 @@ def classify_intent(query: str) -> dict[str, Any]:
             model=INTENT_MODEL or OPENAI_INTENT_MODEL,
             timeout=INTENT_LLM_TIMEOUT,
         )
+    elif INTENT_PROVIDER in {"ollama", "local", "ollama_chat"}:
+        llm = call_ollama(
+            INTENT_PROMPT.format(query=query),
+            model=INTENT_MODEL,
+            num_predict=INTENT_NUM_PREDICT,
+            timeout=INTENT_LLM_TIMEOUT,
+        )
     else:
-        llm = {"ok": False, "text": "", "error": "INTENT_PROVIDER is not openai"}
-    if not llm.get("ok") and ENABLE_OLLAMA_INTENT_FALLBACK:
+        llm = {"ok": False, "text": "", "error": f"unsupported INTENT_PROVIDER: {INTENT_PROVIDER}"}
+    if not llm.get("ok") and ENABLE_OLLAMA_INTENT_FALLBACK and INTENT_PROVIDER != "ollama":
         llm = call_ollama(
             INTENT_PROMPT.format(query=query),
             model=INTENT_MODEL,

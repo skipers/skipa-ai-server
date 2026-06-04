@@ -136,8 +136,10 @@ def call_openai_messages(
     messages: list[dict[str, str]],
     model: str,
     timeout: int | None = None,
+    max_output_tokens: int | None = None,
+    temperature: float | None = None,
 ) -> dict[str, Any]:
-    """Dependency-light OpenAI chat fallback for legacy JSON-only intent prompts."""
+    """Dependency-light OpenAI Responses API text generation."""
     if not OPENAI_API_KEY:
         return {"ok": False, "text": "", "error": "OPENAI_API_KEY is not configured", "model": model, "provider": "openai"}
     payload = {
@@ -147,6 +149,10 @@ def call_openai_messages(
             for item in messages
         ],
     }
+    if max_output_tokens:
+        payload["max_output_tokens"] = max_output_tokens
+    if temperature is not None:
+        payload["temperature"] = temperature
     request = Request(
         f"{OPENAI_BASE_URL}/responses",
         data=json.dumps(payload).encode("utf-8"),
@@ -160,3 +166,20 @@ def call_openai_messages(
         return {"ok": False, "text": "", "error": str(exc), "model": model, "provider": "openai"}
     text = _openai_output_text(data)
     return {"ok": bool(text), "text": text, "error": None if text else "empty response", "model": model, "provider": "openai", "raw": data}
+
+
+def call_openai_prompt(
+    prompt: str,
+    *,
+    model: str,
+    timeout: int | None = None,
+    max_output_tokens: int | None = None,
+    temperature: float | None = None,
+) -> dict[str, Any]:
+    return call_openai_messages(
+        messages=[{"role": "user", "content": prompt}],
+        model=model,
+        timeout=timeout,
+        max_output_tokens=max_output_tokens,
+        temperature=temperature,
+    )

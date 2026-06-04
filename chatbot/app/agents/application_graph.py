@@ -23,6 +23,7 @@ from ..rag.config import (
     ANSWER_LLM_TIMEOUT,
     ANSWER_MODEL,
     ANSWER_NUM_PREDICT,
+    ANSWER_PROVIDER,
     ENABLE_OLLAMA_INTENT_FALLBACK,
     INTENT_LLM_TIMEOUT,
     INTENT_MODEL,
@@ -30,7 +31,7 @@ from ..rag.config import (
     INTENT_PROVIDER,
     OPENAI_INTENT_MODEL,
 )
-from ..rag.llm import call_ollama, call_openai_json
+from ..rag.llm import call_ollama, call_openai_json, call_openai_prompt
 
 
 FOLLOWUP_TERMS = ("이거", "이것", "그거", "앞에서", "방금", "이전", "계속", "그 다음", "그럼", "그러면", "이어서", "다음")
@@ -246,9 +247,16 @@ Rules:
             model=INTENT_MODEL or OPENAI_INTENT_MODEL,
             timeout=INTENT_LLM_TIMEOUT,
         )
+    elif INTENT_PROVIDER in {"ollama", "local", "ollama_chat"}:
+        llm = call_ollama(
+            f"{system_prompt}\n{user_prompt}",
+            model=INTENT_MODEL,
+            num_predict=INTENT_NUM_PREDICT,
+            timeout=INTENT_LLM_TIMEOUT,
+        )
     else:
-        llm = {"ok": False, "text": "", "error": "INTENT_PROVIDER is not openai"}
-    if not llm.get("ok") and ENABLE_OLLAMA_INTENT_FALLBACK:
+        llm = {"ok": False, "text": "", "error": f"unsupported INTENT_PROVIDER: {INTENT_PROVIDER}"}
+    if not llm.get("ok") and ENABLE_OLLAMA_INTENT_FALLBACK and INTENT_PROVIDER != "ollama":
         llm = call_ollama(
             f"{system_prompt}\n{user_prompt}",
             model=INTENT_MODEL,
@@ -810,12 +818,20 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
 - 마지막에는 확인해야 할 공식 자료명을 짧게 적습니다.
 """
     use_guided_template = intent_name in GUIDED_TEMPLATE_INTENTS
-    if use_guided_template:
+    if ANSWER_PROVIDER == "openai":
+        llm = call_openai_prompt(
+            prompt,
+            model=ANSWER_MODEL,
+            max_output_tokens=ANSWER_NUM_PREDICT,
+            timeout=ANSWER_LLM_TIMEOUT,
+            temperature=0.2,
+        )
+    elif use_guided_template:
         llm = {"ok": False, "text": "", "error": "guided_template_intent"}
     else:
         llm = call_ollama(prompt, model=ANSWER_MODEL, num_predict=ANSWER_NUM_PREDICT, timeout=ANSWER_LLM_TIMEOUT)
     answer = llm.get("text") if llm.get("ok") else _fallback_application_answer(state.get("query", ""), intent, hits)
-    repaired_answer = use_guided_template
+    repaired_answer = not bool(llm.get("ok"))
     if _answer_needs_guided_repair(state.get("query", ""), intent, answer):
         answer = _fallback_application_answer(state.get("query", ""), intent, hits)
         repaired_answer = True
@@ -830,6 +846,7 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
         "source_cards": source_cards,
         "metrics": {
             "engine": "patent_application_langgraph",
+            "answer_provider": ANSWER_PROVIDER,
             "intent_agent": intent,
             "hit_count": retrieval.get("hit_count", 0),
             "external_context": {
@@ -841,7 +858,7 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
             "llm_ok": bool(llm.get("ok")),
             "llm_error": llm.get("error"),
             "answer_repaired": repaired_answer,
-            "answer_strategy": "guided_template" if use_guided_template else "llm_then_guardrail",
+            "answer_strategy": "openai_answer_then_guardrail" if ANSWER_PROVIDER == "openai" else "guided_template" if use_guided_template else "llm_then_guardrail",
             "answer_format_plan": intent.get("answer_format"),
             "source_plan": intent.get("source_plan"),
         },
@@ -928,7 +945,7 @@ def run_application_agent(
 def application_graph_mermaid() -> str:
     return """flowchart TD
   A[사용자 질문] --> B[대화 이력 반영]
-  B --> C[가벼운 LLM 의도 라우팅]
+  B --> C[Ollama 경량 LLM 의도 라우팅]
   C --> D{질문 유형}
   D -- 출원 절차/서식/수수료 --> E[공식팩 문서 검색]
   D -- 청구항/명세서 작성 --> E
@@ -940,7 +957,7 @@ def application_graph_mermaid() -> str:
   G -- KIPRIS/KOSIS/Tavily 필요 --> H[외부 근거 보강]
   G -- 공식팩/피드백 충분 --> I[외부 검색 생략]
 
-  H --> J[상용 서비스형 답변 생성]
+  H --> J[OpenAI 상용 서비스형 답변 생성]
   I --> J
   J --> K[표/다이어그램/체크리스트 형식화]
   K --> L[근거 카드 + 품질 지표 + HTML 리포트 링크]

@@ -6,8 +6,8 @@ from typing import Any
 
 from ..prompts import ANSWER_PROMPT
 from .answer_utils import build_metrics, fallback_answer
-from .config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT
-from .llm import call_ollama
+from .config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT, ANSWER_PROVIDER
+from .llm import call_ollama, call_openai_prompt
 from .policy import classify_intent
 from .quality import filter_usable_hits
 from .retrieval import retrieve_local
@@ -119,7 +119,16 @@ def answer_question(
         local_context=format_hits_for_prompt(local_hits, limit=top_k),
         web_context=_format_web_for_prompt(web_results),
     )
-    llm_result = call_ollama(prompt, model=ANSWER_MODEL, num_predict=ANSWER_NUM_PREDICT, timeout=ANSWER_LLM_TIMEOUT)
+    if ANSWER_PROVIDER == "openai":
+        llm_result = call_openai_prompt(
+            prompt,
+            model=ANSWER_MODEL,
+            max_output_tokens=ANSWER_NUM_PREDICT,
+            timeout=ANSWER_LLM_TIMEOUT,
+            temperature=0.2,
+        )
+    else:
+        llm_result = call_ollama(prompt, model=ANSWER_MODEL, num_predict=ANSWER_NUM_PREDICT, timeout=ANSWER_LLM_TIMEOUT)
     answer = (
         llm_result["text"]
         if llm_result.get("ok")
@@ -132,6 +141,7 @@ def answer_question(
 
     metrics = build_metrics(intent=intent, local_result=local_result, web_result=web_result, llm_result=llm_result)
     metrics["engine"] = "langgraph_lightweight_fallback"
+    metrics["answer_provider"] = ANSWER_PROVIDER
     if hybrid_retrieval_error:
         metrics["hybrid_retrieval_error"] = hybrid_retrieval_error
     if hybrid_retrieval_rejected:

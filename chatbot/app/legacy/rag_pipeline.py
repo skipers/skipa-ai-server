@@ -28,6 +28,8 @@ except Exception:  # pragma: no cover
     OpenAIEmbeddings = None
 
 from ..config import (
+    ANSWER_MODEL as CONFIG_ANSWER_MODEL,
+    ANSWER_PROVIDER as CONFIG_ANSWER_PROVIDER,
     DATA_ROOT as CONFIG_DATA_ROOT,
     EMBEDDING_MODEL as CONFIG_EMBEDDING_MODEL,
     EMBEDDING_PROVIDER as CONFIG_EMBEDDING_PROVIDER,
@@ -64,6 +66,8 @@ GEN_MODEL = os.getenv("GEN_MODEL", "qwen2.5:1.5b")
 OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.0"))
 INTENT_PROVIDER = os.getenv("INTENT_PROVIDER", CONFIG_INTENT_PROVIDER).lower()
 INTENT_MODEL = os.getenv("INTENT_MODEL", CONFIG_INTENT_MODEL or GEN_MODEL)
+ANSWER_PROVIDER = os.getenv("ANSWER_PROVIDER", CONFIG_ANSWER_PROVIDER).lower()
+ANSWER_MODEL = os.getenv("ANSWER_MODEL", CONFIG_ANSWER_MODEL or GEN_MODEL)
 OPENAI_API_KEY = CONFIG_OPENAI_API_KEY
 OPENAI_BASE_URL = CONFIG_OPENAI_BASE_URL
 ENABLE_OLLAMA_INTENT_FALLBACK = os.getenv(
@@ -1587,7 +1591,18 @@ def call_ollama_model(
 
 
 def call_ollama(messages: List[Dict[str, str]], timeout: int = 120) -> str:
-    return call_ollama_model(GEN_MODEL, messages, timeout=timeout)
+    if ANSWER_PROVIDER == "openai":
+        result = call_openai_messages(
+            messages=messages,
+            model=ANSWER_MODEL,
+            timeout=timeout,
+            max_output_tokens=ANSWER_NUM_PREDICT,
+            temperature=0.2,
+        )
+        if result.get("ok"):
+            return str(result.get("text") or "").strip()
+        raise RuntimeError(f"OpenAI answer call failed: {result.get('error')}")
+    return call_ollama_model(ANSWER_MODEL or GEN_MODEL, messages, timeout=timeout)
 
 
 def parse_json_object(text: str) -> Optional[Dict[str, Any]]:

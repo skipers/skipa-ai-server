@@ -23,10 +23,12 @@ from ..config import PATENT_APPLICATION_ROOT
 from ..config import (
     ANSWER_LLM_TIMEOUT,
     ANSWER_MODEL,
+    ANSWER_PROVIDER,
     EMBEDDING_MODEL,
     GEN_MODEL,
     INTENT_LLM_TIMEOUT,
     INTENT_MODEL,
+    INTENT_PROVIDER,
     PUBLIC_FILE_BASE_URL,
     TOP_K,
 )
@@ -84,7 +86,9 @@ def get_config() -> dict:
         "public_file_base_url": PUBLIC_FILE_BASE_URL,
         "embedding_model": EMBEDDING_MODEL,
         "generation_model": GEN_MODEL,
+        "intent_provider": INTENT_PROVIDER,
         "intent_model": INTENT_MODEL,
+        "answer_provider": ANSWER_PROVIDER,
         "answer_model": ANSWER_MODEL,
         "intent_llm_timeout": INTENT_LLM_TIMEOUT,
         "answer_llm_timeout": ANSWER_LLM_TIMEOUT,
