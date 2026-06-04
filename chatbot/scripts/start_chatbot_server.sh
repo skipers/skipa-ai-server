@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 PYTHON_BIN="${ROOT_DIR}/chatbot/.venv/bin/python"
@@ -14,6 +14,7 @@ export PORT="${PORT:-8001}"
 export INTENT_LLM_TIMEOUT="${INTENT_LLM_TIMEOUT:-30}"
 export ANSWER_LLM_TIMEOUT="${ANSWER_LLM_TIMEOUT:-120}"
 export ANSWER_NUM_PREDICT="${ANSWER_NUM_PREDICT:-900}"
+export PYTHONPATH="${PYTHONPATH:-$ROOT_DIR}"
 
 echo "Starting SKIPA chatbot API/UI at http://${HOST}:${PORT}/ui"
 echo "Intent timeout: ${INTENT_LLM_TIMEOUT}s, answer timeout: ${ANSWER_LLM_TIMEOUT}s"

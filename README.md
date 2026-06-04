@@ -1,954 +1,353 @@
 # SKIPA AI Server
 
-특허 가치평가, 보조 자료 수집, 유사 특허 분석, 유지/포기 의사결정 보조 보고서 생성을 제공하는 FastAPI 기반 AI 백엔드 서버입니다.
+특허 재평가 보고서 생성, 특허 RAG 챗봇, 특허 출원/실패 원인 분석 도우미, wiki 감사 및 vectorstore 갱신을 함께 제공하는 AI 백엔드입니다.
 
-현재 핵심 구현은 `eval_logic` 아래에 있으며, LangGraph 스타일의 supervisor workflow로 평가 파이프라인을 실행합니다.
+현재 구조는 `eval_logic`의 보고서 생성 workflow와 `chatbot`의 LangGraph 기반 답변 workflow가 데이터 폴더를 기준으로 연결되는 형태입니다. 보고서 생성 로직은 특허 PDF/JSON을 평가 보고서로 만들고, 챗봇은 특허 원문, 평가 보고서, 승인 wiki, 출원 공식팩, 실패특허 케이스별 보고서를 검색해 답변합니다.
 
-## 주요 기능
+## 핵심 기능
 
-- 특허 JSON 입력 기반 가치평가 및 유지/포기 의사결정 보고서 생성
-- 특허 PDF 원문 업로드 기반 메타데이터, 청구항, 명세서 핵심 섹션 추출
-- 규칙 기반 자동 점수 산출
-- LLM 기반 평가 항목 산출
-- KOSIS/KSIC/IPC 기반 시장 성장성 보조 평가
-- RAG 기반 제품/사업화 현황 추정
-- 유사 특허 분석 결과 통합
-- 챗봇 RAG용 특허별 원문/보고서/wiki/index 데이터 관리
-- `rag.zip` 기준 FAISS + BM25 + RRF + 의도 분류 + 웹 검색 챗봇 RAG 엔진 복구
-- LangGraph 기반 챗봇 답변, wiki 감사, 전처리/재색인 workflow
-- 감사 자동 적용 후 승인 데이터만 반영하는 안전한 vectorstore refresh
-- 공식 출원 자료팩 기반 특허 출원 도우미 챗봇
-- 출원 예정/실패 특허 분석 피드백 리포트 생성 및 출원 vectorstore 반영
-- Swagger UI를 통한 API 테스트
-- API 테스트용 입력/출력 산출물 분리 저장
+- 특허 PDF 또는 JSON 입력 기반 가치평가/재평가 보고서 생성
+- 보고서 생성 후 자동 신뢰도 검증(`verify_report`) 및 `report_verification` 제공
+- 특허별 원문 PDF, 표준 input JSON, 보고서 JSON, chunk, vectorstore 통합 관리
+- 가벼운 LLM 의도 라우팅 기반 특허 챗봇
+- OpenAI 답변 생성, Ollama 의도 분류, OpenAI embedding 설정 지원
+- FAISS + BM25 + RRF 기반 hybrid retrieval
+- 특허별 wiki gate, Tavily/web 검색 보강, 감사 후 승인 데이터만 wiki vectorstore 반영
+- 특허 출원 공식팩 기반 출원 도우미 챗봇
+- 실패특허 원본 PDF 업로드, 선택 거절사유 업로드, 재평가 보고서 생성, 케이스별 vectorstore 분리
+- Swagger UI와 브라우저 UI를 통한 기능 테스트
 
-## 발표/사용 설명서
+## 전체 아키텍처
 
-챗봇, 출원 도우미, wiki 감사, 보고서 생성, 중앙 데이터 폴더의 전체 연결 구조와
-API별 사용법은 [docs/CHATBOT_ARCHITECTURE_AND_USAGE.md](docs/CHATBOT_ARCHITECTURE_AND_USAGE.md)에
-정리되어 있습니다.
+```mermaid
+flowchart TB
+  U[사용자<br/>브라우저 UI / Swagger / CLI]
+
+  subgraph EV[eval_logic - 특허 보고서 생성]
+    EVAPI[FastAPI<br/>apps.api.main]
+    EVWF[PatentValuationWorkflow]
+    EVCOL[collect_evidence<br/>PDF/사업화 근거 수집]
+    EVVAL[validate_input<br/>표준 특허 입력 검증]
+    EVRUN[run_valuation<br/>자동점수/LLM/KOSIS/RAG]
+    EVSIM[analyze_similar_patents]
+    EVREP[build_report<br/>보고서 JSON 조립]
+    EVVER[verify_report<br/>근거/수치/출처 신뢰도 검증]
+  end
+
+  subgraph CHAT[chatbot - 특허 질의응답]
+    CAPI[FastAPI<br/>chatbot.app.main]
+    UI[/ui<br/>간단 테스트 화면]
+    PROUTER[Patent Chat LangGraph<br/>의도 라우팅]
+    CORE[Core Retrieval<br/>원문+보고서 vectorstore]
+    WGATE[Wiki Gate<br/>특허별 승인 wiki 검색]
+    WEB[Web Search<br/>Tavily 등 외부검색]
+    ANSWER[Answer Generator<br/>답변/표/다이어그램/근거/품질지표]
+  end
+
+  subgraph APP[chatbot - 특허 출원 도우미]
+    AROUTER[Application LangGraph<br/>출원/거절/실패 의도 라우팅]
+    APACK[공용 공식팩 index<br/>downloads + 4개 guide md]
+    FCASE[선택 실패특허 case index<br/>원본 PDF + 사유서 + latest_report]
+    RGEN[보고서 생성 에이전트 연결<br/>eval_logic 호출/저장]
+    AANS[출원 답변 생성<br/>절차/서식/청구항/거절대응/등록전략]
+  end
+
+  subgraph WIKI[wiki 감사]
+    DRAFT[web_search_drafts<br/>임시 Markdown]
+    AUDIT[run_audit<br/>나쁜 데이터 후보 판별]
+    REVIEW[사람 검토/자동 제외]
+    APPROVED[approved_context.md]
+    WIDX[wiki vectorstore refresh]
+  end
+
+  subgraph DATA[데이터]
+    CDATA[chatbot/data]
+    MP[mapped_patent_reports/<patent_id>]
+    ORIG[original/pdf, original/input]
+    REPS[reports/json]
+    EXT[extracted/all_chunks.jsonl]
+    IDX[index/vectorstore]
+    WDATA[wiki/vectorstore]
+    APROOT[patent_application_official_pack]
+    FAILED[failed_patent/<registration>_failed]
+    EDATA[eval_logic/data<br/>samples/resources/api_test/runtime_artifacts]
+  end
+
+  U --> UI
+  U --> CAPI
+  U --> EVAPI
+
+  EVAPI --> EVWF
+  EVWF --> EVCOL --> EVVAL --> EVRUN --> EVSIM --> EVREP --> EVVER
+  EVVER -->|보고서 저장| REPS
+  EVAPI -->|API 테스트 입출력| EDATA
+
+  CAPI --> PROUTER
+  UI --> CAPI
+  PROUTER --> CORE
+  CORE --> ORIG
+  CORE --> REPS
+  CORE --> EXT
+  CORE --> IDX
+  PROUTER -->|외부정보 필요| WGATE
+  WGATE --> WDATA
+  WGATE -->|충분하면 wiki 답변| ANSWER
+  WGATE -->|부족하면| WEB
+  WEB --> DRAFT
+  WEB --> ANSWER
+  CORE --> ANSWER
+
+  CAPI --> AROUTER
+  AROUTER --> APACK
+  AROUTER --> FCASE
+  AROUTER -->|실패특허 보고서 생성| RGEN
+  RGEN --> EVAPI
+  RGEN --> FAILED
+  APACK --> APROOT
+  FCASE --> FAILED
+  APACK --> AANS
+  FCASE --> AANS
+  WEB --> AANS
+
+  DRAFT --> AUDIT --> REVIEW --> APPROVED --> WIDX --> WDATA
+
+  CDATA --> MP
+  CDATA --> APROOT
+  MP --> ORIG
+  MP --> REPS
+  MP --> EXT
+  MP --> IDX
+  MP --> WDATA
+  APROOT --> FAILED
+```
 
 ## 디렉토리 구조
 
 ```text
-skipa-ai-server/
+skipers-ai/
   README.md
-  .gitignore
-
-  data/                   # 챗봇과 보고서 로직이 공유하는 중앙 데이터 루트
-    mapped_patent_reports/
-      <patent_id>/        # 특허별 원문, 보고서 JSON, 위키, chunk/index 관리
-        original/
-          pdf/
-          input/
-        reports/
-          json/
-          application_feedback/
-        wiki/
-        extracted/
-        index/
-    api_test/             # Swagger/API 테스트용 입력·출력 저장소
-      input/
-        pdf/
-        extracted/
-        uploads/
-      output/
-        reports/
-    artifacts/            # 로컬 생성 산출물/cache/report
-    business/             # 챗봇과 평가 로직이 공유하는 제품/사업화 RAG 데이터
-    patent_application_official_pack/
-      downloads/          # 공식 출원 자료 다운로드/크롤링 결과
-      download_report.md  # 다운로드 불가 URL 리포트
-      *.md, *.csv, *.json # 출원 절차/거절대응/선행기술 공식 자료팩
 
   eval_logic/
+    README.md
+    STRUCTURE.md
     requirements.txt
-    .env                  # 로컬 환경변수 파일, git에 올리면 안 됨
-
     src/
-      api/                # FastAPI 엔드포인트, API 요청/응답 스키마, 인메모리 Job 저장소
-      agent/              # supervisor 기반 특허 의사결정 workflow, 보고서 조립
-      services/           # 가치평가 서비스, 증거/자료 수집 서비스
-      core/               # 공통 경로, 표준 input/output schema, normalizer
-      evaluation/         # 자동 점수, LLM 평가, KOSIS 성장률, 웹 검색
-      document_processing/ # 특허 PDF 원문 파싱
-      business_rag/       # 제품/사업화 현황 RAG
-      patent_analysis/    # 유사 특허 분석
-      cli/                # 로컬 실행/그래프 시각화 CLI
-
-    samples/
-      input/              # 테스트용 샘플 특허 JSON
-      data/               # 샘플 보조 데이터
-      patent_documents/   # Swagger/API 테스트용 샘플 PDF
-
-    resources/            # 매핑표, RAG 리소스
-    legacy/               # 현재 API와 직접 무관한 프로토타입/레거시 코드
+      apps/
+        api/                 # 권장 FastAPI entrypoint
+        cli/                 # 권장 CLI entrypoint
+      api/                   # 기존 import/uvicorn 호환 wrapper
+      cli/                   # 기존 CLI 호환 wrapper
+      agent/                 # 보고서 생성 supervisor workflow
+      services/              # 평가/근거수집/검증 서비스
+      core/                  # 경로, schema, normalizer
+      evaluation/            # 자동점수, LLM 평가, KOSIS, web
+      patent_analysis/       # 유사 특허 분석
+      document_processing/   # PDF 처리
+      business_rag/          # 사업화 RAG
+    data/
+      samples/               # 샘플 입력/PDF/참조 데이터
+      resources/             # 체크리스트, KSIC-IPC, RAG 리소스
+      api_test/              # Swagger 테스트 입출력
+      runtime_artifacts/     # CLI/agent 산출물
+      legacy_artifacts/      # 이전 산출물/cache
 
   chatbot/
-    .env.example          # 챗봇 실행 환경변수 예시
-    requirements.txt      # 챗봇 Swagger API 실행 의존성
+    README.md
+    requirements.txt
+    .env.example
     app/
-      main.py             # 챗봇 FastAPI entrypoint
-      config.py           # DATA_ROOT, PATENTS_ROOT 등 경로/환경변수 처리
-      application_data.py # 특허 출원 공식팩 다운로드, 인덱싱, 검색 helper
-      store.py            # 중앙 data 폴더 read/search helper
-      schemas.py          # Swagger request/response schema
-      routers/
-        chatbot.py        # 챗봇, rag, agent, wiki API router
-      legacy/             # Hybrid Retrieval로 통합한 전처리/RAG 엔진
-        ingest.py         # PDF/HTML/JSON chunk, visual asset 추출
-        rag_pipeline.py   # FAISS + BM25 + RRF + intent/web 답변 엔진
-      rag/
-        legacy_adapter.py # 현재 중앙 data 구조와 Hybrid Retrieval 엔진 연결
+      main.py                # 챗봇 FastAPI entrypoint
+      config.py              # DATA_ROOT, 모델, 외부검색 설정
+      application_data.py    # 출원 공식팩/실패특허 케이스/index 관리
+      store.py               # 특허 데이터 조회/search helper
+      routers/chatbot.py     # chatbot, patent-chat, wiki, application API
       agents/
-        graph.py          # 챗봇 LangGraph 답변 workflow
-        application_graph.py # 특허 출원 도우미 LangGraph workflow
-        ingestion_graph.py # 전처리/FAISS 재색인 LangGraph workflow
-        wiki_graph.py     # 감사/사람검토/vectorstore 갱신 workflow
-      static/             # /ui, /chat 브라우저 테스트 화면
+        graph.py             # 특허 챗봇 LangGraph
+        application_graph.py # 출원 도우미 LangGraph
+        ingestion_graph.py   # 전처리/재색인 workflow
+        wiki_graph.py        # wiki 감사 workflow
+      legacy/                # rag.zip 기반 hybrid retrieval 복구 코드
+      rag/                   # 현재 데이터 구조와 legacy RAG adapter
+      static/                # /ui 화면
     data/
-      mapped_patent_reports -> ../../data/mapped_patent_reports
-      business -> ../../data/business
-    wiki_auditor/         # 기존 wiki 감사 fixture
-    logs/                 # 로컬 실행 로그, git 제외
-      wiki_auditor/       # 새 감사 실행 결과, git 제외
-    patents_backup_*/     # 이전 특허 데이터 backup, git 제외
+      README.md
+      mapped_patent_reports/
+      business/
+      patent_application_official_pack/
+    docs/
+      CHATBOT_ARCHITECTURE_AND_USAGE.md
+    scripts/
+      start_chatbot_server.sh
+      preprocess_chatbot_data.sh
 ```
 
-## 전체 아키텍처
+## 데이터 계약
 
-전체 시스템은 `data/`를 중심에 두고, 보고서 생성 로직과 챗봇 RAG가 같은 특허별
-폴더를 바라보는 구조입니다.
+### 특허 챗봇 데이터
+
+특허 하나는 아래 폴더 하나에서 관리합니다.
 
 ```text
-사용자 / Swagger / CLI
-        |
-        v
-eval_logic FastAPI
-  - PDF 업로드
-  - JSON 업로드
-  - tool API
-  - 보고서 생성 API
-        |
-        v
-전처리 / 정규화
-  - PDF 원문 파싱
-  - normalize_patent_input()
-  - 표준 특허 input JSON 생성
-        |
-        v
-PatentDecisionWorkflow
-  - collect_evidence
-  - validate_input
-  - run_valuation
-  - analyze_similar_patents
-  - make_decision
-  - build_report
-        |
-        v
-data/
-  - api_test/                         Swagger/API 재현용 입출력
-  - mapped_patent_reports/<patent_id> 특허별 원문, 보고서, 위키, index
-        ^
-        |
-chatbot
-  - 특허별 원문 chunk
-  - 보고서 chunk
-  - wiki/vectorstore
-  - FAISS index 기반 질의 응답
-```
-
-역할 분리는 다음과 같습니다.
-
-```text
-eval_logic
-  PDF/JSON 입력을 받아 평가 workflow를 실행하고 보고서 JSON을 생성합니다.
-
-chatbot
-  특허별 원문, 보고서, wiki, vector index를 읽어 질의 응답에 사용합니다.
-
-data
-  두 시스템이 공유하는 단일 데이터 루트입니다. 특허 하나는
-  data/mapped_patent_reports/<patent_id> 하나의 폴더에서 관리합니다.
-```
-
-기존 경로와의 호환성을 위해 `chatbot/data/mapped_patent_reports`,
-`chatbot/data/business`, `eval_logic/api_test`는 중앙 `data/` 아래의 실제 폴더를
-가리키도록 연결되어 있습니다.
-
-## Chatbot 디렉토리
-
-`chatbot`은 보고서 생성 결과와 특허 원문 데이터를 RAG로 검색해 사용자의 질문에
-답하는 영역입니다. 이 repository에서 커밋으로 관리되는 핵심은 실행 환경 예시,
-중앙 데이터 폴더 연결, wiki 감사 결과입니다.
-
-```text
-chatbot/
-  .env.example
-    DATA_ROOT, PATENTS_ROOT, embedding model, LLM model, web search, API key
-    변수 예시를 제공합니다. 실제 키는 chatbot/.env에만 둡니다.
-
-  data/mapped_patent_reports
-    ../../data/mapped_patent_reports를 가리키는 연결입니다.
-    챗봇은 여기서 특허별 original, reports, wiki, extracted, index를 읽습니다.
-
-  data/business
-    ../../data/business를 가리키는 연결입니다.
-    제품/사업화 RAG에 필요한 공통 business index를 읽습니다.
-
-  wiki_auditor/
-    기존 wiki 감사 fixture입니다. Swagger에서 새 감사를 실행하면 기본적으로
-    chatbot/logs/wiki_auditor 아래에 새 감사 리포트와 audit.log가 저장됩니다.
-```
-
-현재 `chatbot/app`에는 Swagger에서 챗봇 API를 확인할 수 있는 FastAPI 앱이
-포함되어 있습니다.
-
-```text
-app/main.py
-  챗봇 API 서버 entrypoint입니다. /docs, /openapi.json, /health를 제공합니다.
-
-app/config.py
-  chatbot/.env, DATA_ROOT, PATENTS_ROOT, PUBLIC_FILE_BASE_URL, embedding/model 설정을 읽습니다.
-
-app/store.py
-  data/mapped_patent_reports, data/business, wiki 감사 파일을 읽고
-  특허 목록, manifest, latest input/report, chunk, 간단 검색 결과를 반환합니다.
-
-app/schemas.py
-  Swagger에서 보이는 query/search request와 response schema를 정의합니다.
-
-app/routers/chatbot.py
-  /api/v1/chatbot, /api/v1/patent-chat, /api/v1/agent, /api/v1/wiki API를 제공합니다.
-```
-
-현재 챗봇 Swagger API는 중앙 데이터 연결 확인, RAG 검색, 실제 답변 생성,
-전처리/FAISS 재색인, wiki 감사와 사람 승인 vectorstore 갱신까지 확인할 수 있습니다.
-`rag.zip`의 원래 RAG 성능을 유지하기 위해 `chatbot/app/legacy`에 복구한 엔진을
-우선 사용하고, 현재 프로젝트에서 발전한 중앙 `data/`, 감사, UI, LangGraph 구조는
-그대로 유지합니다.
-
-Swagger에서 확인 가능한 챗봇 API:
-
-```text
-GET  /health
-GET  /api/v1/chatbot/config
-GET  /api/v1/chatbot/data-links
-GET  /api/v1/chatbot/patents
-GET  /api/v1/chatbot/patents/{patent_id}
-GET  /api/v1/chatbot/patents/{patent_id}/files
-GET  /api/v1/chatbot/patents/{patent_id}/input/latest
-GET  /api/v1/chatbot/patents/{patent_id}/report/latest
-GET  /api/v1/chatbot/patents/{patent_id}/chunks
-GET  /api/v1/chatbot/business/chunks
-GET  /api/v1/chatbot/vectorstore/status
-GET  /api/v1/chatbot/preprocess/status
-POST /api/v1/chatbot/preprocess/run
-POST /api/v1/chatbot/vectorstore/refresh
-POST /api/v1/chatbot/search
-POST /api/v1/chatbot/query
-POST /api/v1/chatbot/answer
-POST /api/v1/patent-chat/query
-POST /api/v1/patent-chat/answer
-GET  /api/v1/patent-chat/engine/status
-GET  /api/v1/patent-chat/patents
-GET  /api/v1/patent-chat/patent-summary-cards
-POST /api/v1/patent-chat/chat
-POST /api/v1/patent-chat/global/chat
-POST /api/v1/patent-chat/reindex
-POST /api/v1/patent-chat/global/reindex
-POST /api/v1/patent-chat/business/reindex
-GET  /api/v1/patent-chat/ingestion/mermaid
-GET  /api/v1/patent-chat/chat/mermaid
-GET  /api/v1/patent-chat/page-image
-POST /api/v1/patent-chat/feedback
-POST /api/v1/agent/query
-POST /api/v1/agent/answer
-GET  /api/v1/chatbot/wiki-audit/report
-POST /api/v1/chatbot/wiki-audit/run
-GET  /api/v1/chatbot/wiki-audit/review
-POST /api/v1/chatbot/wiki-audit/apply
-GET  /api/v1/wiki/audit-report
-POST /api/v1/wiki/audit
-GET  /api/v1/wiki/audit-review
-POST /api/v1/wiki/audit-apply
-POST /api/v1/wiki/audit-auto-refresh
-POST /api/v1/wiki/agent/run
-GET  /api/v1/wiki/agent/mermaid
-GET  /api/v1/application/status
-GET  /api/v1/application/external/status
-POST /api/v1/application/preprocess
-POST /api/v1/application/feedback/create
-POST /api/v1/application/feedback/upload
-GET  /api/v1/application/failed-patents
-GET  /api/v1/application/failed-patents/{case_id}
-POST /api/v1/application/failed-patents/create
-POST /api/v1/application/failed-patents/upload
-POST /api/v1/application/failed-patents/{case_id}/index/refresh
-POST /api/v1/application/failed-patents/{case_id}/report/save
-POST /api/v1/application/failed-patents/{case_id}/report/generate
-POST /api/v1/application/failed-patents/{case_id}/chat
-POST /api/v1/application/sources/download
-GET  /api/v1/application/sources/download-report
-POST /api/v1/application/report/generate
-POST /api/v1/application/index/refresh
-POST /api/v1/application/chat
-GET  /api/v1/application/chat/mermaid
-```
-
-전처리와 vectorstore refresh는 Swagger와 CLI 둘 다에서 실행할 수 있습니다.
-
-```bash
-# 승인 wiki 정규화 + 원본/보고서 core vectorstore + 특허별 wiki vectorstore 갱신
-scripts/preprocess_chatbot_data.sh --mode refresh
-
-# 감사 후 주의/나쁜 데이터 자동 제외 + 승인본 refresh
-scripts/preprocess_chatbot_data.sh --mode auto-audit
-
-# 출원 공식팩 전처리 리포트 생성 + 출원 도우미 vectorstore 갱신
-scripts/preprocess_chatbot_data.sh --mode application-preprocess
-
-# 거절의견서/의견서 PDF를 출원 피드백 HTML/Markdown으로 만들고 출원 vectorstore 갱신
-scripts/preprocess_chatbot_data.sh --mode application-feedback \
-  --opinion-file "data/patent_application_official_pack/downloads/특허거절의견서.pdf"
-
-# 실패특허 원본 PDF로 케이스 생성 + 해당 케이스 전용 vectorstore 갱신
-scripts/preprocess_chatbot_data.sh --mode application-case \
-  --original-pdf "data/mapped_patent_reports/10-2893083/original.pdf" \
-  --opinion-text "거절 사유 또는 실패 원인을 여기에 입력"
-
-# 선택 실패특허 케이스 1건만 재색인
-scripts/preprocess_chatbot_data.sh --mode application-case-refresh \
-  --case-id "failed_20260604_153000"
-
-# 선택 실패특허 원본 PDF를 보고서 생성 에이전트에 넘기고,
-# 결과를 failed_patent/{case_id}/reports에 저장한 뒤 케이스 전용 vectorstore 갱신
-scripts/preprocess_chatbot_data.sh --mode application-case-generate \
-  --case-id "failed_20260604_153000"
-
-# 재평가 API에서 받은 보고서를 선택 실패특허 폴더에 저장하고 케이스 전용 vectorstore 갱신
-scripts/preprocess_chatbot_data.sh --mode application-case-report \
-  --case-id "failed_20260604_153000" \
-  --report-path "eval_logic/data/api_test/output/reports/10-0000000.json"
-
-# 챗봇 core/wiki refresh와 출원팩 전처리를 함께 실행
-scripts/preprocess_chatbot_data.sh --mode all
-```
-
-`POST /api/v1/wiki/audit` 또는 `POST /api/v1/chatbot/wiki-audit/run`을 실행하면
-전체 `data/mapped_patent_reports`와 `data/business`를 다시 스캔하고, 나쁜 데이터
-후보를 `review.md`로 만듭니다. 사람이 Swagger에서 후보를 확인한 뒤
-`POST /api/v1/wiki/audit-apply`를 실행하면 선택된 후보만 제외한
-`approved_context.md`가 특허별 `wiki/` 폴더와 `reviewed/` 승인 문서에 저장되고,
-그 승인본 기준으로 vectorstore가 갱신됩니다. 생성 파일은 Git 커밋 대상에서 제외됩니다.
-
-자동 refresh가 필요할 때는 `POST /api/v1/wiki/audit-auto-refresh` 또는
-`POST /api/v1/chatbot/vectorstore/refresh?auto_audit=true`를 사용합니다. 이 모드는
-`exclude` 후보와 `medium` 이상 `review` 후보를 주의/나쁜 데이터로 보고 자동 제외한 뒤
-승인본만 vectorstore에 반영합니다. 특허별 wiki vectorstore에는
-`data/mapped_patent_reports/<patent_id>/wiki/approved_context.md`만 들어가며,
-`web_search_drafts` 같은 승인 전 임시 검색 초안은 제외됩니다. vectorstore 파일은
-임시 파일을 완성한 뒤 교체하므로 refresh 중에도 기존 `documents.jsonl`은 계속 읽을 수 있습니다.
-
-### 감사 프로세스와 평가 기준
-
-Wiki 감사, 사람 검토, 승인본 저장, vectorstore 갱신은 `chatbot/app/agents/wiki_graph.py`
-의 LangGraph agent로 실행됩니다. `/api/v1/wiki/audit`, `/api/v1/wiki/audit-review`,
-`/api/v1/wiki/audit-apply`는 모두 이 graph의 mode별 실행 wrapper입니다.
-
-감사는 원본 chunk, 최신 input JSON, 최신 report JSON, wiki 문서, business chunk를
-문서 단위로 스캔합니다. 기본 흐름은 사람 검토 후보를 만들고, 자동 refresh 흐름에서는
-주의 이상 후보만 자동 제외합니다.
-
-```text
-1. Audit
-   원본 데이터를 스캔하고 finding_id가 붙은 나쁜 데이터 후보를 생성합니다.
-
-2. Human Review
-   GET /api/v1/wiki/audit-review 또는 review.md에서 후보의 사유와 원문 excerpt를 확인합니다.
-
-3. Apply
-   POST /api/v1/wiki/audit-apply로 제외할 finding_id를 확정합니다.
-   exclude_finding_ids를 null로 보내면 기본 exclude 후보만 제외합니다.
-   빈 배열 []로 보내면 제외 없이 전체를 승인합니다.
-
-4. Auto Refresh
-   POST /api/v1/wiki/audit-auto-refresh는 default exclude와 medium/high review 후보를
-   자동 제외한 뒤 승인본을 저장합니다.
-
-5. Approved Markdown
-   각 특허별 data/mapped_patent_reports/<patent_id>/reviewed/approved_context.md에
-   제외된 부분을 뺀 승인본을 저장합니다.
-
-6. Vectorstore Refresh
-   approved_context.md와 approved_documents.jsonl 기준으로 vectorstore를 재생성합니다.
-```
-
-평가 기준:
-
-```text
-EMPTY_OR_TOO_SHORT
-  본문이 30자 미만이면 검색 근거로 가치가 낮아 high/exclude 후보로 표시합니다.
-
-OCR_NOISE
-  한글/영문/숫자 비율이 낮고 기호가 과도하면 OCR 또는 표 추출 잡음으로 보고 high/exclude 후보로 표시합니다.
-
-ERROR_TEXT
-  traceback, exception, undefined, NaN, internal server error 같은 시스템 오류 문자열이 있으면 high/exclude 후보로 표시합니다.
-
-SECRET_PATTERN
-  API key, access token, private key 패턴이 보이면 민감정보 위험으로 high/exclude 후보로 표시합니다.
-
-METADATA_MISMATCH
-  metadata patent_id와 실제 source path의 특허 폴더가 다르면 다른 특허 데이터가 섞인 것으로 보고 high/exclude 후보로 표시합니다.
-
-DUPLICATE_TEXT
-  동일 text hash가 이미 등장하면 중복 chunk로 보고 medium/exclude 후보로 표시합니다.
-
-REPEATED_PATTERN
-  같은 문자나 토큰이 과도하게 반복되면 OCR footer, 표 파싱 반복, 깨진 chunk 가능성으로 보고 medium/review 후보로 표시합니다.
-
-MISSING_METADATA
-  source_type, source_path 등 출처 추적 정보가 부족하면 low/review 후보로 표시합니다.
-
-OVERSIZED_DOCUMENT
-  문서가 너무 길어 vectorstore 저장 시 잘릴 가능성이 있으면 low/review 후보로 표시합니다.
-```
-
-Wiki LangGraph agent:
-
-```mermaid
-flowchart TD
-  W0([Wiki API Request]) --> W1[route_request]
-  W1 -->|mode=audit| W2[run_audit]
-  W1 -->|mode=review| W3[load_review]
-  W1 -->|mode=apply| W4[apply_review]
-  W1 -->|mode=auto_refresh| W9[auto_refresh]
-  W1 -->|mode=refresh| W5[refresh_vectorstore]
-  W1 -->|mode=status| W6[collect_status]
-
-  W2 --> W6
-  W3 --> W6
-  W4 --> W6
-  W9 --> W6
-  W5 --> W6
-  W6 --> W7[finish]
-  W7 --> W8([END])
-
-  W2 -. scans .-> D1[(data/mapped_patent_reports)]
-  W2 -. writes .-> A1[logs/wiki_auditor/audits/audit.json]
-  W2 -. writes .-> A2[logs/wiki_auditor/audits/review.md]
-  W4 -. writes .-> R1[reviewed/approved_context.md]
-  W4 -. writes .-> R2[reviewed/approved_documents.jsonl]
-  W9 -. auto excludes .-> R2
-  W4 -. refreshes .-> V1[index/vectorstore]
-  W9 -. atomic refresh .-> V1
-```
-
-전체 시스템 Mermaid:
-
-```mermaid
-flowchart LR
-  U([User / Swagger / CLI])
-
-  subgraph EVAL[eval_logic Report LangGraph]
-    E0[PDF or JSON input]
-    E1[PDF extraction]
-    E2[normalize_patent_input]
-    E3[collect_evidence]
-    E4[validate_input]
-    E5[run_valuation]
-    E6[analyze_similar_patents]
-    E7[make_decision]
-    E8[build_report]
-  end
-
-  subgraph DATA[Shared data root]
-    D0[(data/api_test)]
-    D1[("data/mapped_patent_reports/{patent_id}")]
-    D2[original/input/latest.json]
-    D3[original/pdf/latest.pdf]
-    D4[reports/json/latest.json]
-    D5[extracted/all_chunks.jsonl]
-    D6[wiki/*]
-    D7[reviewed/approved_context.md]
-    D8[index/vectorstore]
-  end
-
-  subgraph CHATBOT[chatbot LangGraph + RAG]
-    C0[POST /api/v1/wiki/audit]
-    C1[WikiAuditGraph route_request]
-    C2[run_audit]
-    C3[GET /api/v1/wiki/audit-review]
-    C4[Human review]
-    C5[POST /api/v1/wiki/audit-apply]
-    C6[apply_review]
-    C7[refresh_vectorstore]
-    C8[POST /api/v1/chatbot/query]
-    C9[local_vectorstore_search]
-    C10[chunk keyword fallback]
-    C11[POST /api/v1/patent-chat/chat]
-    C12[ChatGraph route_question]
-    C13[Legacy rag.zip RAG]
-    C14[FAISS + BM25 + RRF]
-    C15[Intent/Web/Search Agent]
-    C16[POST /api/v1/patent-chat/reindex]
-    C17[IngestionGraph]
-  end
-
-  U --> E0
-  E0 --> E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7 --> E8
-  E2 --> D2
-  E1 --> D3
-  E8 --> D4
-  D1 --> D2
-  D1 --> D3
-  D1 --> D4
-  D1 --> D5
-  D1 --> D6
-
-  U --> C0 --> C1 --> C2
-  C2 --> D5
-  C2 --> D6
-  C2 --> D2
-  C2 --> D4
-  C2 --> C3 --> C4 --> C5 --> C6
-  C6 --> D7 --> C7 --> D8
-  U --> C8 --> C9 --> D8
-  C9 -->|no hit| C10 --> D5
-  U --> C11 --> C12 --> C13 --> C14 --> D5
-  C13 --> C15
-  U --> C16 --> C17 --> C14
-```
-
-## 중앙 데이터 저장 규칙
-
-보고서 생성 로직과 챗봇은 모두 `SKIPA_DATA_ROOT` 또는 `DATA_ROOT`를 먼저 확인하고,
-값이 없으면 repository 루트의 `data/`를 기본값으로 사용합니다.
-
-특허별 표준 폴더 구조:
-
-```text
-data/mapped_patent_reports/<patent_id>/
+chatbot/data/mapped_patent_reports/<patent_id>/
   manifest.json
   original/
-    pdf/
-      latest.pdf
-      <timestamp>_<source>.pdf
-    input/
-      latest.json
-      <timestamp>_<kind>_<source>.json
+    pdf/                    # 특허 원문 PDF
+    input/                  # 표준 특허 input JSON
   reports/
-    json/
-      latest.json
-      <timestamp>_<job_id>.json
-    application_feedback/
-      latest.md
-      latest.html
-      latest.json
-      <timestamp>_<title>/
-  wiki/
-    approved_context.md
-    vectorstore/
-      local/
+    json/                   # eval_logic이 생성한 보고서 JSON
+    application_feedback/   # 출원/실패 피드백 공유 보고서
   extracted/
-    all_chunks.jsonl
-    original_pdf_chunks.jsonl
-    report_pdf_chunks.jsonl
-    original_visual_chunks.jsonl
-    report_visual_chunks.jsonl
-    assets/
+    all_chunks.jsonl        # 원문/보고서 chunk
   index/
-    faiss/
+    vectorstore/            # 원문+보고서 core vectorstore
+  wiki/
+    approved_context.md     # 감사 후 승인된 wiki
+    web_search_drafts/      # 웹검색 임시 draft
+    vectorstore/            # web 검색 전 gate 전용
 ```
 
-`manifest.json`에는 특허 ID, 제목, 최신 input, 최신 PDF, 최신 보고서, 최신 출원/실패
-피드백 리포트, wiki/index
-위치, 저장 이력이 기록됩니다. 발표나 디버깅 때는 이 파일을 보면 해당 특허에 어떤
-데이터가 연결되어 있는지 빠르게 확인할 수 있습니다.
+중요한 규칙:
 
-이 구조로 통합한 이유:
+- 원문/보고서 질문은 `index/vectorstore`를 먼저 사용합니다.
+- wiki는 core vectorstore에 섞지 않고 `wiki/vectorstore`로만 관리합니다.
+- wiki는 외부정보가 필요한 질문에서 web 검색 전에만 gate로 사용합니다.
+- web 검색 draft는 감사/승인 전까지 답변용 vectorstore에 바로 들어가지 않습니다.
 
-- 보고서 생성 결과가 곧바로 챗봇 질의 응답 데이터가 됩니다.
-- `eval_logic/api_test`와 `chatbot/data`에 흩어져 있던 입출력을 한곳에서 추적합니다.
-- 특허별로 원문, 보고서, 승인 wiki, vector index를 같이 보관해 재현성이 좋아집니다.
-- `latest.*` 파일을 두어 API나 챗봇이 가장 최근 데이터를 쉽게 찾을 수 있습니다.
-
-## Agent Workflow
-
-현재 workflow는 기능별 review node를 별도로 두지 않고, `supervisor`가 전체 상태를 점검하며 다음 worker node를 결정합니다.
+### 특허 출원 도우미 데이터
 
 ```text
-supervisor
- -> collect_evidence
- -> supervisor
- -> validate_input
- -> supervisor
- -> run_valuation
- -> supervisor
- -> analyze_similar_patents
- -> supervisor
- -> make_decision
- -> supervisor
- -> build_report
- -> supervisor
- -> END
+chatbot/data/patent_application_official_pack/
+  downloads/                                # 공식 PDF/웹문서
+  patent_application_process_guide.md
+  patent_rejection_failure_response.md
+  patent_rejection_notice_original_sources.md
+  prior_art_search_workflow.md
+  index/vectorstore/                         # 공용 공식팩 index
+  failed_patent/
+    <registration_number>_failed/
+      input/                                 # 실패특허 원본 PDF
+      rejection/                             # 선택 거절의견서/사유서
+      reports/                               # 재평가 보고서, latest_report.*
+      index/vectorstore/                     # 해당 실패특허 1건 전용 index
+      metadata.json
 ```
 
-각 node의 역할은 다음과 같습니다.
+중요한 규칙:
+
+- 출원 도우미는 채팅 전 실패특허 원본 PDF 업로드가 필요합니다.
+- 공용 공식팩 index와 현재 선택한 실패특허 case index만 함께 검색합니다.
+- 여러 실패특허는 절대 같은 vectorstore에 섞지 않습니다.
+- 실패특허 보고서 생성 후에는 해당 case 폴더의 `reports/`에 저장하고 그 case index만 갱신합니다.
+
+### eval_logic 데이터
+
+`eval_logic`은 자체 API 테스트와 런타임 산출물을 `eval_logic/data` 아래에 둡니다.
 
 ```text
-collect_evidence
-  PDF 메타데이터 추출, 사업화 RAG 등 보조 자료 수집
-
-validate_input
-  특허 ID, 제목, 청구항, 설명 요약 등 평가 입력 검증
-
-run_valuation
-  시장 성장성, 자동 점수, LLM 평가 실행
-
-analyze_similar_patents
-  유사 특허 분석 결과 조회 또는 분석
-
-make_decision
-  점수, 시장성, 유사 특허, 사업화 신호를 종합해 유지/포기/검토 권고 생성
-
-build_report
-  최종 의사결정 보조 보고서 JSON 생성
+eval_logic/data/api_test/input/
+eval_logic/data/api_test/output/reports/
+eval_logic/data/runtime_artifacts/reports/
+eval_logic/data/runtime_artifacts/graphs/
 ```
 
-## 표준 Input Schema
-
-모든 API/서비스 진입점은 `src/core/schemas.py`의 `normalize_patent_input()`을 거쳐 표준 입력 형태로 정규화됩니다.
-
-```json
-{
-  "schema_version": "patent-input/v1",
-  "patent_id": "10-0000000",
-  "meta": {
-    "title": "특허 제목",
-    "registration_number": "10-0000000",
-    "registration_date": "2024-01-01",
-    "application_number": "10-0000-0000000",
-    "application_date": "2022-01-01",
-    "publication_number": "10-0000-0000000",
-    "publication_date": "2023-01-01",
-    "legal_status": "등록",
-    "assignee": ["권리자"],
-    "inventors": ["발명자"],
-    "ipc": ["G06Q10/04"],
-    "cpc": ["G06Q10/04"],
-    "prior_art_cited": [],
-    "total_claims": 10,
-    "deleted_claims": []
-  },
-  "description_summary": "초록 및 명세서 핵심 요약",
-  "claims_text": {
-    "claim_1": {
-      "type": "독립항",
-      "category": "방법",
-      "text": "청구항 1 내용"
-    }
-  },
-  "specification": {
-    "technical_field": "기술분야",
-    "background_art": "배경기술",
-    "problem_to_solve": "해결하려는 과제",
-    "solution": "과제의 해결 수단",
-    "advantageous_effects": "발명의 효과",
-    "implementation": "구체적인 실시 내용"
-  },
-  "legal": {},
-  "source_pdf": "업로드 PDF 경로"
-}
-```
-
-허용되는 입력 형태:
+최종 보고서 파일명은 등록번호 기준입니다.
 
 ```text
-표준 특허 JSON
-{"patent": {...}}
-{"patent_data": {...}}
-{"normalized_patent": {...}}
-PDF 추출 결과 JSON
+{registration_number}.json
 ```
 
-## 챗봇 전처리 방식
+## 실행 방법
 
-챗봇은 보고서 생성 로직이 저장한 특허별 폴더를 그대로 사용합니다. 전처리 결과는
-`data/mapped_patent_reports/<patent_id>/extracted`, `index`, `wiki` 아래에
-저장됩니다.
-
-현재 전처리는 `rag.zip`에서 복구한 `chatbot/app/legacy/ingest.py`와
-`chatbot/app/legacy/rag_pipeline.py`를 LangGraph 전처리 agent로 감싼 구조입니다.
-예전 zip은 `meta.json`과 `original.pdf` 같은 flat layout을 기대했지만, 현재 코드는
-`manifest.json`, `original/pdf/latest.pdf`, `reports/json/latest.json`을 읽는
-compat layer를 추가해 중앙 데이터 구조를 그대로 사용합니다.
-
-전처리 대상:
-
-```text
-특허 원문 PDF
-  명세서, 청구항, 도면/이미지, 페이지 단위 텍스트
-
-보고서 PDF 또는 보고서 JSON
-  평가 항목, 표, 유지/포기 판단 근거, 점수, 코멘트
-
-wiki 데이터
-  특허별 배경 지식, 용어 설명, 외부/내부 정리 문서
-```
-
-전처리 산출물:
-
-```text
-extracted/all_chunks.jsonl
-  원문, 보고서, 시각 자료 chunk를 통합한 검색 단위
-
-extracted/original_pdf_chunks.jsonl
-  특허 원문 텍스트 chunk
-
-extracted/report_pdf_chunks.jsonl
-  보고서 텍스트 chunk
-
-extracted/original_visual_chunks.jsonl
-extracted/report_visual_chunks.jsonl
-  도면, 이미지, 표 같은 시각 자료 chunk
-
-extracted/assets/
-  PDF에서 추출한 이미지, 표 HTML/PNG, thumbnail
-
-index/faiss/
-  특허별 RAG 검색용 FAISS index
-
-wiki/vectorstore/faiss/
-  특허별 wiki 검색용 FAISS index
-```
-
-이 방식으로 전처리한 이유:
-
-- 원문과 보고서의 출처를 chunk metadata로 유지해 답변 근거를 추적할 수 있습니다.
-- 긴 PDF를 한 번에 LLM에 넣지 않고 검색 가능한 작은 단위로 쪼개 응답 품질을 높입니다.
-- 표, 도면, 페이지 이미지 같은 시각 자료도 별도 asset으로 남겨 챗봇이 근거 자료를 연결할 수 있습니다.
-- 특허별 index를 분리해 다른 특허의 내용이 섞이는 문제를 줄입니다.
-- `_global` index를 같이 두어 전체 특허를 대상으로 한 검색도 확장할 수 있습니다.
-
-보고서 생성 API가 새 input/output을 만들면 `patent_data_store.py`가 같은 특허 폴더의
-`original/input`과 `reports/json`에 최신 파일을 저장합니다. 이후 챗봇 전처리 또는
-index 재생성 단계에서 이 파일들을 읽으면 새 보고서가 RAG에 반영됩니다.
-출원 도우미가 만든 실패 원인/거절 대응 피드백 리포트도 특허 ID가 연결되어 있으면
-`reports/application_feedback`에 함께 저장되며, core vectorstore refresh 후 특허 챗봇도
-같은 근거를 사용할 수 있습니다.
-
-전처리/재색인 LangGraph:
-
-```mermaid
-flowchart TD
-  A[POST /api/v1/patent-chat/reindex] --> B[inspect_request]
-  B --> C{scope}
-  C -->|patent| D[build_or_load_patent_index]
-  C -->|global| E[build_or_load_global_index]
-  C -->|business| F[build_or_load_business_index]
-  D --> G[PDF/JSON/HTML chunk 생성]
-  G --> H[FAISS index 저장]
-  E --> H
-  F --> H
-  H --> I[optional reviewed vectorstore refresh]
-  I --> J[agent_trace 반환]
-```
-
-## 환경 설정
-
-`skipa-ai-server/eval_logic` 기준으로 실행합니다.
+### eval_logic 보고서 서버
 
 ```bash
-cd eval_logic
-python -m venv .venv
+cd /Users/kgw/skipers-ai/eval_logic
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+uvicorn apps.api.main:app --reload --app-dir src --port 8000
 ```
 
-`.env` 파일은 로컬에서만 생성합니다. 절대 GitHub에 올리면 안 됩니다.
-
-예시:
-
-```env
-OPENAI_API_KEY=...
-KOSIS_API_KEY=...
-KIPRIS_API_KEY=...
-KSIC_TABLE_PATH=resources/산업_KSIC_-특허_IPC__연계표.xlsx
-```
-
-## 서버 실행
-
-### 보고서 생성 API 서버
-
-`skipa-ai-server/eval_logic`에서 실행합니다.
-
-```bash
-PYTHONPATH=src uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Swagger UI:
+Swagger:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-Health check:
-
-```text
-GET /health
-```
-
-### 챗봇 Swagger API 서버
-
-`skipa-ai-server/chatbot`에서 실행합니다.
+기존 wrapper도 동작합니다.
 
 ```bash
-cd chatbot
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+uvicorn src.api.main:app --reload --port 8000
 ```
 
-Swagger UI:
+### 챗봇 UI/API 서버
 
-```text
-http://127.0.0.1:8001/docs
+```bash
+cd /Users/kgw/skipers-ai
+PYTHONPATH="$PWD" python3 -m uvicorn chatbot.app.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
-브라우저 테스트 UI:
+또는 helper script:
+
+```bash
+bash chatbot/scripts/start_chatbot_server.sh
+```
+
+UI와 Swagger:
 
 ```text
 http://127.0.0.1:8001/ui
+http://127.0.0.1:8001/docs
 ```
 
-테스트 UI는 채팅 중심 화면입니다. 특허를 선택해 질문하면 답변 요약과 클릭
-가능한 근거 카드가 표시되고, 감사 패널에서는 wiki 감사 실행, finding 상세
-확인, finding 선택 적용, 승인 Markdown 확인, 워크플로우 확인을 한 화면에서
-테스트할 수 있습니다.
+## 환경변수
 
-챗봇 Swagger에서 바로 눌러볼 대표 API:
+실제 키는 커밋하지 않고 `chatbot/.env`, `eval_logic/.env`에 둡니다.
+
+챗봇 주요 변수:
+
+```env
+DATA_ROOT=/Users/kgw/skipers-ai/chatbot/data
+PATENTS_ROOT=/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports
+PATENT_APPLICATION_ROOT=/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack
+
+INTENT_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+INTENT_MODEL=qwen2.5:1.5b
+
+ANSWER_PROVIDER=openai
+OPENAI_API_KEY=...
+OPENAI_ANSWER_MODEL=gpt-4.1
+OPENAI_EMBEDDING_MODEL=text-embedding-3-large
+EMBEDDING_PROVIDER=openai
+
+TAVILY_API_KEY=...
+ENABLE_WEB_SEARCH=true
+```
+
+eval_logic 주요 변수:
+
+```env
+OPENAI_API_KEY=...
+KOSIS_API_KEY=...
+KIPRIS_API_KEY=...
+KSIC_TABLE_PATH=data/resources/산업_KSIC_-특허_IPC__연계표.xlsx
+```
+
+## 주요 API
+
+### eval_logic 보고서 생성
 
 ```text
-GET  /health
-GET  /api/v1/chatbot/config
-GET  /api/v1/chatbot/patents
-GET  /api/v1/chatbot/patents/10-2886381
-GET  /api/v1/chatbot/patents/10-2886381/chunks
-GET  /api/v1/chatbot/vectorstore/status
-POST /api/v1/wiki/audit
-GET  /api/v1/wiki/audit-review
-POST /api/v1/wiki/audit-apply
-POST /api/v1/wiki/agent/run
-GET  /api/v1/wiki/agent/mermaid
-POST /api/v1/chatbot/answer
-POST /api/v1/chatbot/query
-POST /api/v1/patent-chat/answer
-POST /api/v1/patent-chat/query
-GET  /api/v1/wiki/audit-report
-```
-
-질의 API 예시:
-
-```json
-{
-  "query": "CMP Pad 물류 관리 시스템의 유지 판단 근거",
-  "patent_id": "10-2886381",
-  "source_types": ["ORIGINAL_PDF", "REPORT_PDF"],
-  "top_k": 5
-}
-```
-
-## API 엔드포인트
-
-### 서비스용 보고서 API
-
-```text
-POST /api/v1/reports/patent-maintenance/from-json
-POST /api/v1/reports/patent-maintenance/from-json-file
-POST /api/v1/reports/patent-maintenance/from-pdf
+POST /api/v1/reports/patent-valuation/from-json
+POST /api/v1/reports/patent-valuation/from-json-file
+POST /api/v1/reports/patent-valuation/from-pdf
 GET  /api/v1/reports/{job_id}
 GET  /api/v1/reports/{job_id}/status
 GET  /api/v1/reports/{job_id}/result
 ```
 
-`from-json`은 request body로 특허 JSON을 받습니다.
-
-```json
-{
-  "patent": {
-    "patent_id": "10-0000000",
-    "meta": {
-      "title": "특허 제목",
-      "registration_number": "10-0000000",
-      "ipc": ["G06Q10/04"]
-    },
-    "claims_text": {
-      "claim_1": {
-        "type": "독립항",
-        "category": "방법",
-        "text": "청구항 내용"
-      }
-    },
-    "description_summary": "발명의 요약"
-  }
-}
-```
-
-`from-json-file`은 Swagger에서 JSON 파일을 업로드합니다. `samples/input/*.json` 또는 `data/api_test/input/extracted/*.json` 파일을 그대로 사용할 수 있습니다.
-
-`from-pdf`는 Swagger에서 특허 PDF 파일을 업로드합니다. PDF에서 input JSON을 추출한 뒤 보고서 workflow까지 실행합니다.
-
-### 개발/디버그용 통합 API
-
-```text
-POST /api/v1/dev/patent-decision/evaluate
-POST /api/v1/dev/patent-decision/evaluate-sample/{sample_name}
-```
-
-`evaluate`는 옵션을 직접 제어하며 전체 workflow를 실행합니다.
-
-```json
-{
-  "patent_data": {
-    "patent_id": "10-0000000",
-    "meta": {
-      "title": "특허 제목",
-      "registration_number": "10-0000000"
-    },
-    "claims_text": {
-      "claim_1": {
-        "type": "독립항",
-        "text": "청구항 내용"
-      }
-    },
-    "description_summary": "발명의 요약"
-  },
-  "options": {
-    "enable_market": true,
-    "enable_auto": true,
-    "enable_llm": true,
-    "enable_pdf_metadata_extraction": false,
-    "enable_business_rag": true,
-    "enable_similar_analysis": true,
-    "similar_use_llm": true,
-    "rag_top_k": 5,
-    "fail_on_validation_error": true,
-    "enable_human_review": false
-  }
-}
-```
-
-샘플 파일 실행:
-
-```text
-POST /api/v1/dev/patent-decision/evaluate-sample/patent_10_1306409
-```
-
-### 기능별 Tool API
+Tool API:
 
 ```text
 POST /api/v1/tools/patent-metadata
@@ -959,578 +358,153 @@ POST /api/v1/tools/llm-evaluation
 POST /api/v1/tools/similar-patents
 ```
 
-`patent-metadata`는 Swagger에서 PDF 파일을 직접 업로드합니다.
-
-결과:
+### 특허 챗봇
 
 ```text
-data/api_test/input/pdf/        업로드된 PDF
-data/api_test/input/extracted/  PDF에서 추출된 표준 input JSON
-data/mapped_patent_reports/<patent_id>/original/pdf/
-data/mapped_patent_reports/<patent_id>/original/input/
+GET  /api/v1/patent-chat/patents
+POST /api/v1/patent-chat/chat
+POST /api/v1/patent-chat/global/chat
+POST /api/v1/patent-chat/query
+POST /api/v1/patent-chat/answer
+POST /api/v1/patent-chat/reindex
+POST /api/v1/patent-chat/global/reindex
+GET  /api/v1/patent-chat/chat/mermaid
+GET  /api/v1/patent-chat/ingestion/mermaid
 ```
 
-나머지 tool API는 대체로 다음 형태를 사용합니다.
+`/api/v1/rag`와 `/rag`는 호환 alias입니다. 기능 기준 이름은 `patent-chat`입니다.
 
-```json
-{
-  "patent": {
-    "patent_id": "10-0000000",
-    "meta": {
-      "title": "특허 제목",
-      "registration_number": "10-0000000",
-      "ipc": ["G06Q10/04"]
-    },
-    "claims_text": {
-      "claim_1": {
-        "type": "독립항",
-        "text": "청구항 내용"
-      }
-    },
-    "description_summary": "발명의 요약"
-  }
-}
-```
-
-## 통합 워크플로우
-
-### PDF에서 보고서와 챗봇 데이터까지
+### wiki 감사
 
 ```text
-1. 사용자가 Swagger에서 특허 PDF 업로드
-2. eval_logic이 PDF를 data/api_test/input/pdf/에 저장
-3. document_processing이 PDF에서 특허번호, 제목, 청구항, 명세서 섹션 추출
-4. normalize_patent_input()이 표준 input JSON으로 정규화
-5. 추출 JSON을 data/api_test/input/extracted/에 저장
-6. 같은 input을 data/mapped_patent_reports/<patent_id>/original/input/에 저장
-7. 원본 PDF를 data/mapped_patent_reports/<patent_id>/original/pdf/에 저장
-8. PatentDecisionWorkflow가 평가와 의사결정 보고서 생성
-9. 보고서 JSON을 data/api_test/output/reports/에 저장
-10. 같은 보고서를 data/mapped_patent_reports/<patent_id>/reports/json/에 저장
-11. 챗봇은 해당 특허 폴더의 original, reports, wiki, index 데이터를 사용
-```
-
-### JSON에서 보고서 생성
-
-```text
-1. 사용자가 표준 특허 JSON 또는 PDF 추출 JSON 업로드
-2. normalize_patent_input()으로 입력 형태 통일
-3. data/api_test/input/uploads/에 업로드 원본 저장
-4. data/mapped_patent_reports/<patent_id>/original/input/에 특허별 input 저장
-5. workflow 실행 후 보고서 생성
-6. data/api_test/output/reports/와 특허별 reports/json/에 결과 저장
-```
-
-### 챗봇 조회 흐름
-
-```text
-1. 사용자가 특정 특허 또는 전체 특허에 대해 질문
-2. ChatGraph가 chat_history와 context_patent_id로 이어지는 질문인지 판단
-3. lightweight LLM intent agent가 질문 의도, source_plan, 답변 형식, 웹검색 필요 여부를 분류
-4. 특허 원문/보고서 질문이면 원본 PDF와 보고서 core vectorstore만 검색
-5. 최신 시장, 경쟁사, 외부 제도처럼 웹검색 의도가 있으면 해당 특허의 wiki vectorstore를 gate로 먼저 확인
-6. wiki 유사도가 충분하면 wiki를 웹검색 대체 근거로 사용하고, 부족하면 Tavily 웹검색 실행
-7. Hybrid Retrieval(FAISS + BM25 + RRF) 엔진과 LangGraph 답변 agent가 원문/보고서/core 근거와 wiki/web 보강 근거로 답변 생성
-8. 질문이 표/다이어그램을 요구하면 Markdown 표 또는 Mermaid 다이어그램을 포함
-9. 답변, source_cards, agent_trace, confidence/latency/answer_mode metrics를 반환
-```
-
-챗봇 LangGraph:
-
-```mermaid
-flowchart TD
-  Q[POST /api/v1/patent-chat/chat] --> H[resolve_history_context]
-  H --> I[route_question lightweight LLM intent]
-  I --> X{web needed?}
-  X -->|no| C[core original/report vectorstore]
-  X -->|yes| W[patent-local wiki gate]
-  W --> Y{wiki similarity >= threshold?}
-  Y -->|yes| WG[use wiki as web replacement]
-  Y -->|no| WEB[Tavily web search]
-  C --> HR[Hybrid Retrieval 먼저 시도]
-  WG --> HR
-  WEB --> HR
-  HR --> SG{source guard 통과?}
-  SG -->|yes| R[FAISS+BM25+RRF 답변 사용]
-  SG -->|no| FB[core vectorstore fallback]
-  FB --> R
-  R --> F[finish_answer]
-  F --> O[answer + source_cards + metrics]
-
-  I -. decides .-> SP[source_plan: original/report/global + optional web]
-  I -. decides .-> AF[answer_format: text/table/diagram]
-  W -. reads .-> VS[wiki/vectorstore per patent only]
-  WEB -. temporary evidence .-> WD[web result cards]
-  HR -. uses .-> LG[Hybrid Retrieval: FAISS + BM25 + RRF]
-```
-
-중요 정책:
-
-- 원문/보고서 기반 질문에는 WIKI 근거가 섞이지 않습니다.
-- WIKI는 전체 core vectorstore가 아니라 `data/mapped_patent_reports/<patent_id>/wiki/vectorstore/`에 특허별로 분리됩니다.
-- “최신”, “시장”, “경쟁사”, “외부 자료”, “웹검색”처럼 외부정보가 필요한 의도일 때만 WIKI gate가 열립니다.
-- WIKI gate에서 높은 유사도 근거가 있으면 Tavily 호출 없이 WIKI로 답변하고, 없으면 Tavily로 웹검색합니다.
-
-특허 출원 도우미 LangGraph:
-
-```mermaid
-flowchart TD
-  A[POST /api/v1/application/chat] --> H[resolve_application_history]
-  H --> I[route_application_question lightweight LLM intent]
-  I --> R[retrieve_application_context]
-  R --> X{external evidence needed?}
-  X -->|yes| E[retrieve_application_external_context]
-  X -->|no| S[skip external search]
-  E --> G[answer_application_question]
-  S --> G
-  G --> F[finish_application_answer]
-  F --> O[answer + source_cards + quality metrics]
-
-  D[data/patent_application_official_pack] --> IX[index/vectorstore]
-  OP[실패특허 원본 PDF + 선택 사유서] --> CASE[failed_patent/{case_id}]
-  CASE --> CIX[failed_patent/{case_id}/index/vectorstore]
-  CASE --> CR[reports/재평가 보고서]
-  CR --> CIX
-  BTN[UI 출원 데이터 준비 버튼] --> PP[POST /api/v1/application/preprocess]
-  BTN --> RF[POST /api/v1/application/index/refresh]
-  UP[POST /api/v1/application/failed-patents/upload] --> CASE
-  RP[POST /api/v1/application/failed-patents/{case_id}/report/save] --> CR
-  PP --> IX
-  RF --> IX
-  R -. searches .-> IX
-  R -. selected case only .-> CIX
-  I -. routes .-> P[procedure/forms/claims/prior-art/rejection/fees/strategy]
-  E -. uses .-> EXT[KIPRIS/KOSIS/Tavily status + web evidence]
-```
-
-출원 도우미는 기존 특허별 가치평가 챗봇과 분리된 라우팅을 사용합니다. 질문이
-거절이유 대응이면 의견제출통지서/보정/심판 근거를 우선하고, 선행기술 질문이면
-KIPRIS/CPC/IPC 검색 자료를 우선하며, 처음 출원 절차 질문이면 특허로 출원가이드와
-절차 체크리스트를 우선 검색합니다. 출원 도우미 채팅은 먼저 실패특허 원본 PDF가 있는
-`failed_patent_id`를 선택해야 시작됩니다. UI의 `출원 데이터 준비` 버튼은 공식팩 전처리와
-공용 출원 index refresh를 실행하고, 실패특허 원본/사유서/생성 보고서는
-`data/patent_application_official_pack/failed_patent/{case_id}` 아래의 독립 폴더와
-전용 vectorstore에서 관리합니다. 여러 실패특허가 쌓여도 답변은 공용 공식팩 vectorstore와
-현재 선택한 실패특허 1건의 vectorstore만 함께 참조합니다. 공용 공식팩 vectorstore에는
-`downloads/`와 `patent_application_process_guide.md`,
-`patent_rejection_failure_response.md`,
-`patent_rejection_notice_original_sources.md`,
-`prior_art_search_workflow.md`만 들어가며, `failed_patent/`와 `feedback/` 생성물은
-절대 공용 index에 섞지 않습니다. 다운로드 또는
-크롤링에 실패한 URL은 `data/patent_application_official_pack/download_report.md`에 남습니다.
-실패 요인 분석/거절 대응/사업화/최신 동향처럼 내부 공식팩만으로 부족한 질문은
-`KIPRIS_API_KEY`, `KOSIS_API_KEY`, `TAVILY_API_KEY` 설정 상태를 metrics에 표시하고,
-사용 가능한 외부 근거를 답변의 근거 카드에 함께 붙입니다.
-
-실패특허 케이스 흐름은 출원 도우미 index와 분리됩니다. Swagger/UI에서는
-`POST /api/v1/application/failed-patents/upload`로 실패특허 원본 PDF를 반드시 업로드하고,
-사유서/거절의견서는 선택 파일이나 텍스트로 같이 넣습니다. 생성 결과는
-`data/patent_application_official_pack/failed_patent/{case_id}/input`,
-`rejection`, `reports`, `index/vectorstore`로 나뉘어 저장됩니다. 보고서 생성 에이전트를
-직접 실행하려면 `POST /api/v1/application/failed-patents/{case_id}/report/generate`
-또는 CLI `--mode application-case-generate`를 사용합니다. 이 API는 선택 케이스의
-`input/` 안 원본 PDF만 `eval_logic` 보고서 생성 에이전트에 넘기고, 생성된 JSON/Markdown/HTML을
-같은 케이스의 `reports/` 폴더에 저장한 뒤 해당 케이스 vectorstore만 다시 갱신합니다.
-이미 생성된 외부 보고서 파일이 있으면
-`POST /api/v1/application/failed-patents/{case_id}/report/save` 또는 CLI
-`--mode application-case-report`로 같은 폴더에 저장합니다. 이후 `/api/v1/application/chat` 또는
-`/api/v1/application/failed-patents/{case_id}/chat`에서
-“거절이유”, “실패 요인”, “보정 전략”, “의견서 대응” 질문을 하면 이 피드백 리포트와
-공식팩, 필요한 경우 외부 KIPRIS/KOSIS/Tavily 근거를 함께 사용합니다.
-
-### 전체 연결 다이어그램
-
-```mermaid
-flowchart TD
-  U[사용자/UI/Swagger] --> Q{질문/작업 종류}
-
-  Q -->|특허 유지/평가 질문| C1[챗봇 ChatGraph]
-  C1 --> I1[가벼운 LLM 의도 파악]
-  I1 -->|원문/보고서 질문| CORE[core vectorstore: original + report]
-  I1 -->|외부정보 필요| WG[특허별 wiki gate]
-  WG -->|유사도 충분| WANS[wiki 승인 근거 사용]
-  WG -->|부족| TV[Tavily 웹검색]
-  CORE --> ANS[답변 + 근거 카드 + 품질 지표]
-  WANS --> ANS
-  TV --> ANS
-
-  Q -->|wiki 감사/승인| AU[Wiki LangGraph Audit]
-  AU --> BAD[나쁜 데이터/주의 후보 판별]
-  BAD --> HR[사람 검토 또는 auto exclude]
-  HR --> APP[approved_context.md]
-  APP --> WV[특허별 wiki vectorstore refresh]
-
-  Q -->|전처리/재색인| PP[preprocess API/CLI]
-  PP --> CORE
-  PP --> WV
-
-  Q -->|출원 도움/거절 대응| AP[ApplicationGraph]
-  AP --> AV[출원 공식팩 vectorstore]
-  AP --> EXT[KIPRIS/KOSIS/Tavily 보강]
-  AP --> AANS[출원 답변 + 실패요인 + 보정전략]
-
-  Q -->|의견서/거절문서 피드백| FR[Feedback report generator]
-  FR --> FM[feedback.md]
-  FR --> FH[feedback_report.html]
-  FM --> AV
-  FH --> UIHTML[UI/파일 링크에서 HTML 확인]
-
-  CORE -. 필요시 .-> FR
-  AV -. 출원 답변에서 .-> AANS
-```
-
-답변 품질은 `metrics.answer_quality`에 표시됩니다. 항상 계산되는 지표는 검색 근거와
-답변의 의미 유사도, 질문 키워드가 답변/근거에 반영된 비율, retrieval 평균 점수이며,
-`bert-score` 패키지와 모델이 준비된 환경에서는 BERTScore precision/recall/f1도 함께
-계산됩니다.
-
-## API 테스트 흐름
-
-### JSON 파일 기반 보고서 생성
-
-1. 서버 실행
-2. Swagger 접속
-3. `POST /api/v1/reports/patent-maintenance/from-json-file`
-4. `samples/input/*.json` 또는 `data/api_test/input/extracted/*.json` 선택
-5. 응답의 `job_id`, `status_url`, `result_url` 확인
-6. `GET /api/v1/reports/{job_id}/result` 호출
-
-### PDF 기반 input JSON 추출
-
-1. `POST /api/v1/tools/patent-metadata`
-2. PDF 파일 업로드
-3. 응답의 `normalized_patent`, `extracted_input_path` 확인
-4. 생성된 JSON은 `data/api_test/input/extracted/`와 `data/mapped_patent_reports/<patent_id>/original/input/` 아래 저장됨
-
-### PDF 기반 보고서 생성
-
-1. `POST /api/v1/reports/patent-maintenance/from-pdf`
-2. PDF 파일 업로드
-3. 응답의 `input_path`, `output_path`, `result_url` 확인
-4. 생성된 보고서 결과는 `data/api_test/output/reports/`와 `data/mapped_patent_reports/<patent_id>/reports/json/` 아래 저장됨
-
-### 챗봇 UI 및 Swagger API 테스트
-
-1. `cd chatbot`
-2. `uvicorn app.main:app --reload --host 127.0.0.1 --port 8001`
-3. `http://127.0.0.1:8001/ui` 접속
-4. `GET /api/v1/chatbot/config`로 `DATA_ROOT`, `PATENTS_ROOT` 연결 확인
-5. `GET /api/v1/chatbot/patents`로 특허 목록 확인
-6. `GET /api/v1/chatbot/patents/{patent_id}/chunks`로 원문/보고서 chunk 확인
-7. `POST /api/v1/wiki/audit`로 나쁜 데이터 후보 감사 실행
-8. `GET /api/v1/wiki/audit-review`로 사람이 제외 후보와 근거 excerpt 확인
-9. `POST /api/v1/wiki/audit-apply`로 제외할 후보를 확정하고 승인 Markdown 저장
-10. `POST /api/v1/chatbot/preprocess/run`에서 `mode=refresh_vectorstore`로 승인 vectorstore 갱신
-11. `GET /api/v1/chatbot/vectorstore/status`로 core/wiki 문서 수 확인
-12. `POST /api/v1/patent-chat/chat`으로 질문 답변, 근거 카드, 품질 지표 확인
-
-출원 도우미 테스트:
-
-1. `POST /api/v1/application/preprocess`로 공식팩 전처리와 index refresh 실행
-2. `GET /api/v1/application/status`로 `document_count`, `source_roles` 확인
-3. `GET /api/v1/application/external/status`로 KIPRIS/KOSIS/Tavily 연결 상태 확인
-4. `POST /api/v1/application/chat`으로 출원 절차, 실패 요인, 선행기술, 거절 대응 질문 확인
-11. `POST /api/v1/chatbot/answer` 또는 `POST /api/v1/patent-chat/answer`로 답변과 근거 카드 확인
-12. `POST /api/v1/chatbot/query` 또는 `POST /api/v1/patent-chat/query`로 원본 검색 hit 확인
-
-같은 기능은 Swagger에서도 `http://127.0.0.1:8001/docs`로 확인할 수 있습니다.
-
-현재 answer/query API는 사람 검토 후 재생성된 로컬 vectorstore를 먼저
-검색하고, vectorstore가 없으면 기존 chunk keyword search로 fallback합니다.
-`answer`는 검색 결과를 발표/테스트용 답변 요약과 클릭 가능한 근거 카드로
-가공해서 반환합니다. 운영형 LLM 답변 생성은 같은 endpoint 뒤에 FAISS retrieval과
-LLM generation을 붙여 확장할 수 있습니다.
-
-## 기능별 검증 방법
-
-### GitHub 반영 확인
-
-```bash
-cd /Users/kgw/skipers-ai
-git log -1 --oneline --decorate
-git status --short
-```
-
-정상 기준:
-
-```text
-HEAD와 origin/<current-branch>가 같은 커밋을 가리킴
-git status --short 출력이 비어 있음
-```
-
-### 공통 데이터 폴더 확인
-
-```bash
-cd /Users/kgw/skipers-ai
-ls data
-find data/mapped_patent_reports -maxdepth 2 -name manifest.json
-```
-
-정상 기준:
-
-```text
-data/api_test
-data/mapped_patent_reports
-data/business
-특허별 manifest.json
-```
-
-### 챗봇 데이터 연결 확인
-
-```bash
-cd /Users/kgw/skipers-ai
-readlink chatbot/data/mapped_patent_reports
-readlink chatbot/data/business
-find data/mapped_patent_reports -path '*index/faiss/*' -type f
-find data/mapped_patent_reports -path '*wiki/vectorstore/faiss/*' -type f
-find chatbot/app -name '*.py' -type f
-```
-
-정상 기준:
-
-```text
-chatbot/data/mapped_patent_reports -> ../../data/mapped_patent_reports
-chatbot/data/business -> ../../data/business
-FAISS index.faiss, index.pkl 파일 존재
-chatbot/app 아래 Python source 파일 존재
-```
-
-### Python import와 문법 확인
-
-```bash
-cd /Users/kgw/skipers-ai
-python3 -m compileall eval_logic/src
-python3 -m compileall chatbot/app
-```
-
-정상 기준:
-
-```text
-compile error 없이 종료
-```
-
-### PDF 추출 API 확인
-
-서버 실행:
-
-```bash
-cd /Users/kgw/skipers-ai/eval_logic
-PYTHONPATH=src uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Swagger에서 실행:
-
-```text
-POST /api/v1/tools/patent-metadata
-파일 예시: ../data/api_test/input/pdf/20260529_144101_pdf.pdf
-```
-
-정상 기준:
-
-```text
-응답에 normalized_patent, extracted_input_path 포함
-data/api_test/input/extracted/에 JSON 생성
-data/mapped_patent_reports/<patent_id>/original/pdf/latest.pdf 생성
-data/mapped_patent_reports/<patent_id>/original/input/latest.json 생성
-```
-
-### JSON 보고서 생성 API 확인
-
-Swagger에서 실행:
-
-```text
-POST /api/v1/reports/patent-maintenance/from-json-file
-파일 예시: ../data/api_test/input/extracted/20260529_144106_10-1959619_20260529_144101_pdf.json
-GET /api/v1/reports/{job_id}/result
-```
-
-정상 기준:
-
-```text
-status가 success
-data/api_test/output/reports/에 보고서 JSON 생성
-data/mapped_patent_reports/<patent_id>/reports/json/latest.json 생성
-응답 artifacts에 patent_data_dir, patent_report_output_path 포함
-```
-
-### PDF 기반 보고서 생성 API 확인
-
-Swagger에서 실행:
-
-```text
-POST /api/v1/reports/patent-maintenance/from-pdf
-파일 예시: ../data/api_test/input/pdf/20260529_144101_pdf.pdf
-GET /api/v1/reports/{job_id}/result
-```
-
-정상 기준:
-
-```text
-PDF 추출 JSON과 보고서 JSON이 모두 생성됨
-특허별 original/pdf, original/input, reports/json이 모두 갱신됨
-```
-
-### CLI workflow 확인
-
-```bash
-cd /Users/kgw/skipers-ai/eval_logic
-python3 src/cli/run_agent.py samples/input/patent_10_1306409.json
-```
-
-정상 기준:
-
-```text
-Workflow: langgraph
-Status: success
-결과 저장 경로 출력
-```
-
-### 챗봇 Swagger API 확인
-
-서버 실행:
-
-```bash
-cd /Users/kgw/skipers-ai/chatbot
-pip install -r requirements.txt
-test -f .env || cp .env.example .env
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
-```
-
-Swagger 접속:
-
-```text
-http://127.0.0.1:8001/docs
-```
-
-브라우저 테스트 UI:
-
-```text
-http://127.0.0.1:8001/ui
-```
-
-Swagger에서 확인할 API:
-
-```text
-GET  /health
-GET  /api/v1/chatbot/config
-GET  /api/v1/chatbot/data-links
-GET  /api/v1/chatbot/patents
-GET  /api/v1/chatbot/patents/10-2886381
-GET  /api/v1/chatbot/patents/10-2886381/chunks
-GET  /api/v1/chatbot/vectorstore/status
 POST /api/v1/wiki/audit
 GET  /api/v1/wiki/audit-review
 POST /api/v1/wiki/audit-apply
+POST /api/v1/wiki/audit-auto-refresh
 POST /api/v1/wiki/agent/run
 GET  /api/v1/wiki/agent/mermaid
-POST /api/v1/chatbot/answer
-POST /api/v1/chatbot/query
-POST /api/v1/patent-chat/answer
-POST /api/v1/patent-chat/query
-POST /api/v1/agent/answer
-POST /api/v1/agent/query
-GET  /api/v1/wiki/audit-report
 ```
 
-`POST /api/v1/chatbot/answer` request body 예시:
-
-```json
-{
-  "query": "CMP Pad 물류 관리 시스템의 유지 판단 근거",
-  "patent_id": "10-2886381",
-  "source_types": ["ORIGINAL_PDF", "REPORT_PDF"],
-  "top_k": 5
-}
-```
-
-확인할 환경변수:
+### 특허 출원 도우미
 
 ```text
-DATA_ROOT=./data
-PATENTS_ROOT=./data/mapped_patent_reports
-PATENT_APPLICATION_ROOT=./data/patent_application_official_pack
-BUSINESS_ROOT=./data/business
-PUBLIC_FILE_BASE_URL=http://localhost:8000/files
-INTENT_PROVIDER=ollama
-INTENT_MODEL=qwen2.5:1.5b
-ANSWER_PROVIDER=openai
-ANSWER_MODEL=gpt-4.1
-EMBEDDING_PROVIDER=openai
-EMBEDDING_MODEL=text-embedding-3-large
-TOP_K=10
+GET  /api/v1/application/status
+GET  /api/v1/application/external/status
+POST /api/v1/application/preprocess
+POST /api/v1/application/index/refresh
+POST /api/v1/application/chat
+GET  /api/v1/application/chat/mermaid
+
+GET  /api/v1/application/failed-patents
+POST /api/v1/application/failed-patents/upload
+POST /api/v1/application/failed-patents/create
+GET  /api/v1/application/failed-patents/{case_id}
+POST /api/v1/application/failed-patents/{case_id}/report/generate
+POST /api/v1/application/failed-patents/{case_id}/report/save
+POST /api/v1/application/failed-patents/{case_id}/index/refresh
+POST /api/v1/application/failed-patents/{case_id}/chat
 ```
 
-`DATA_ROOT=../data`는 chatbot에서는 `chatbot/` 기준, eval_logic에서는 `eval_logic/`
-기준으로 해석되어 둘 다 repository 중앙 폴더인 `/Users/kgw/skipers-ai/data`를
-가리키도록 맞춰져 있습니다.
+## workflow 요약
 
-정상 기준:
+### 보고서 생성
 
 ```text
-GET /api/v1/chatbot/patents에서 특허 목록 반환
-GET /api/v1/chatbot/patents/10-2886381/chunks에서 chunk 반환
-POST /api/v1/wiki/audit에서 status가 human_review_required 또는 clean
-GET /api/v1/wiki/audit-review에서 review Markdown과 finding_id 확인
-POST /api/v1/wiki/audit-apply에서 approved_context.md 저장 및 vectorstore_refresh.status가 refreshed
-POST /api/v1/wiki/audit-auto-refresh에서 status가 auto_applied
-GET /api/v1/chatbot/vectorstore/status에서 human_reviewed_source와 document_count 확인
-POST /api/v1/chatbot/query에서 local_vectorstore_search hit 반환
-GET /api/v1/wiki/audit-report에서 wiki 감사 리포트 반환
-GET /api/v1/application/status에서 patent_application index 상태 반환
-POST /api/v1/application/chat에서 공식 출원 자료 근거 카드 포함 답변 반환
+supervisor
+ -> collect_evidence
+ -> validate_input
+ -> run_valuation
+ -> analyze_similar_patents
+ -> build_report
+ -> verify_report
+ -> END
 ```
 
-## 로컬 CLI
+`verify_report`는 근거 커버리지, LLM 평가 항목 출처, 고평가 항목 근거, 수치 무결성, 공식/전문 출처 비율, 사업화 RAG 누락, 유사특허 분석 누락을 검증합니다.
 
-샘플 JSON workflow 실행:
+### 특허 챗봇
+
+```text
+질문
+ -> chat_history 반영
+ -> Ollama 기반 가벼운 의도 분류
+ -> 원문/보고서 검색 또는 wiki gate 또는 web 검색 결정
+ -> OpenAI 답변 생성
+ -> 표/다이어그램/체크리스트 형식화
+ -> 근거 카드와 품질 지표 반환
+```
+
+### 출원 도우미
+
+```text
+실패특허 PDF 업로드
+ -> <registration>_failed case 생성
+ -> 공용 공식팩 index 준비
+ -> case 전용 index 준비
+ -> 필요 시 eval_logic 보고서 생성
+ -> latest_report를 case reports에 저장
+ -> case index만 refresh
+ -> 공식팩 index + 선택 case index + web 검색으로 답변
+```
+
+### wiki 감사
+
+```text
+web_search_drafts 생성
+ -> audit로 나쁜 데이터 후보 추출
+ -> 사람 검토 또는 자동 제외
+ -> approved_context.md 저장
+ -> wiki vectorstore refresh
+ -> 다음 외부정보 질문에서 wiki gate로 사용
+```
+
+## 전처리와 재색인 명령
 
 ```bash
-cd eval_logic
-python src/cli/run_agent.py samples/input/patent_10_1306409.json
+cd /Users/kgw/skipers-ai
+
+# 전체 상태 확인
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode status
+
+# 특허 챗봇 core/wiki refresh
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode refresh
+
+# wiki 자동 감사 후 승인 데이터만 refresh
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode auto-audit
+
+# 출원 공식팩 전처리 및 공용 index 갱신
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode application-preprocess
+
+# 실패특허 case 생성
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode application-case \
+  --original-pdf "/path/to/failed_patent.pdf" \
+  --rejection-file "/path/to/rejection_notice.pdf"
+
+# 실패특허 보고서 생성 후 해당 case index만 갱신
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode application-case-generate \
+  --case-id "10-1959619_failed"
 ```
 
-LangGraph 시각화:
+## 문서
 
-```bash
-python src/cli/visualize_agent_graph.py --skip-png
-```
+- [eval_logic README](eval_logic/README.md)
+- [chatbot README](chatbot/README.md)
+- [챗봇 전체 아키텍처와 사용설명서](chatbot/docs/CHATBOT_ARCHITECTURE_AND_USAGE.md)
+- [챗봇 데이터 README](chatbot/data/README.md)
+- [특허 출원 공식팩 README](chatbot/data/patent_application_official_pack/README.md)
+- [eval_logic 구조 요약](eval_logic/STRUCTURE.md)
 
-## Git 관리 주의사항
-
-다음 파일/디렉토리는 GitHub에 올리지 않습니다.
-
-```text
-eval_logic/.env
-eval_logic/.env.*
-data/artifacts/
-data/business/index/
-data/business/raw/
-data/business/processed/
-```
-
-특히 `.env`에는 API 키가 들어가므로 절대 커밋하면 안 됩니다.
-
-`data/api_test`와 `eval_logic/samples/patent_documents`는 다른 사람이 Swagger/API
-테스트를 바로 재현할 수 있도록 커밋 대상에 포함합니다. 다만 실제 기업 내부 PDF,
-API 키, 비공개 원문, 고객명 등 민감정보가 포함된 JSON/PDF는 넣지 말고 공개 가능한
-테스트 fixture만 유지합니다.
-
-커밋 전 확인:
+## 커밋 전 확인
 
 ```bash
 git status --short
-git check-ignore -v eval_logic/.env
+git diff --check
 ```
 
-## 현재 Legacy 영역
-
-현재 API와 직접 무관한 프로토타입/실험용 코드는 `eval_logic/legacy` 아래에 보관합니다.
+다음 파일은 커밋하지 않습니다.
 
 ```text
-eval_logic/legacy/src/crawling
-eval_logic/legacy/src/reporting
-eval_logic/legacy/src/agent/patent_valuation_agent.py
-eval_logic/legacy/src/cli/run_pipeline.py
+chatbot/.env
+eval_logic/.env
+eval_logic/.env.*
 ```
-
-신규 API/서비스 코드는 `legacy`에 의존하지 않도록 관리합니다.
