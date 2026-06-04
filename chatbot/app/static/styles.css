@@ -728,7 +728,7 @@ footer button {
 
 .application-case-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(180px, 1.1fr) auto;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(180px, 1.1fr) auto auto;
   gap: 8px;
   align-items: end;
 }

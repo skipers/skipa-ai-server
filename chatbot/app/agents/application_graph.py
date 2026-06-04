@@ -1075,12 +1075,19 @@ def run_application_agent(
 
 def application_graph_mermaid() -> str:
     return """flowchart TD
+  U[실패특허 원본 PDF 업로드] --> U1[failed_patent/{case_id}/input 저장]
+  U1 --> RG[보고서 생성 에이전트 eval_logic 실행]
+  RG --> RP[failed_patent/{case_id}/reports 저장]
+  RP --> RV[선택 케이스 전용 vectorstore 갱신]
+  U1 --> RV
+
   A[사용자 질문] --> B[대화 이력 반영]
   B --> C{failed_patent_id 있음?}
   C -- 없음 --> C1[원본 PDF 업로드/케이스 선택 요청]
   C -- 있음 --> C2{케이스 원본 PDF 있음?}
   C2 -- 없음 --> C1
   C2 -- 있음 --> D[선택 케이스 전용 vectorstore 확인/갱신]
+  RV --> D
   D --> E[Ollama 경량 LLM 의도 라우팅]
   E --> F{질문 유형}
   F -- 출원 절차/서식/수수료 --> G[공용 공식팩 vectorstore 검색]

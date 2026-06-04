@@ -14,6 +14,7 @@ import mimetypes
 import os
 import re
 import shutil
+import sys
 import unicodedata
 from pathlib import Path
 from typing import Any, Iterable
@@ -65,6 +66,12 @@ RECOMMENDED_APPLICATION_ADDITIONS = [
     },
 ]
 NON_PATENT_APPLICATION_TERMS = ("상표", "유사상품", "니스", "nice", "국제상품분류", "디자인")
+APPLICATION_OFFICIAL_GUIDE_FILES = {
+    "patent_application_process_guide.md",
+    "patent_rejection_failure_response.md",
+    "patent_rejection_notice_original_sources.md",
+    "prior_art_search_workflow.md",
+}
 
 
 def _norm(value: Any) -> str:
@@ -268,7 +275,7 @@ def _iter_source_files() -> Iterable[Path]:
     if not PATENT_APPLICATION_ROOT.exists():
         return
     allowed = {".md", ".txt", ".csv", ".json", ".html", ".htm", ".pdf", ".xlsx", ".do", ".jsp", ".bin"}
-    skip_parts = {"index", "__pycache__", "readable", "named", "raw", "preprocessed", "failed_patent"}
+    skip_parts = {"index", "__pycache__", "readable", "named", "raw", "preprocessed", "failed_patent", "feedback"}
     generated_names = {
         "download_manifest.json",
         "download_report.md",
@@ -295,6 +302,10 @@ def _iter_source_files() -> Iterable[Path]:
         if any(part in skip_parts for part in path.relative_to(PATENT_APPLICATION_ROOT).parts):
             continue
         if path.name in generated_names:
+            continue
+        relative_parts = path.relative_to(PATENT_APPLICATION_ROOT).parts
+        in_downloads = bool(relative_parts and relative_parts[0] == "downloads")
+        if not in_downloads and path.name not in APPLICATION_OFFICIAL_GUIDE_FILES:
             continue
         yield path
 
@@ -1073,7 +1084,8 @@ def create_failed_patent_case(
     notes: str | None = None,
     refresh_index: bool = True,
 ) -> dict[str, Any]:
-    safe_id = _safe_case_id(case_id or title)
+    case_seed = case_id or title or original_pdf_filename or (Path(original_pdf_path).name if original_pdf_path else None)
+    safe_id = _safe_case_id(case_seed)
     root = _failed_patent_root()
     case_dir = root / safe_id
     if case_dir.exists() and not case_id:
@@ -1368,6 +1380,153 @@ def search_failed_patent_case_index(case_id: str, query: str, *, top_k: int = 6)
     }
 
 
+def _failed_case_original_pdf(case_id: str) -> Path:
+    safe_id = _safe_case_id(case_id)
+    metadata = _read_case_metadata(safe_id)
+    candidates = []
+    if metadata.get("original_pdf_path"):
+        candidates.append(Path(str(metadata["original_pdf_path"])))
+    candidates.extend(sorted((_failed_case_dir(safe_id) / "input").glob("*.pdf")))
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_file() and candidate.suffix.lower() == ".pdf":
+            return candidate
+    raise HTTPException(status_code=400, detail=f"{safe_id} 케이스에 보고서 생성용 원본 PDF가 없습니다.")
+
+
+def _report_markdown_from_result(title: str, result: dict[str, Any], *, case_id: str) -> str:
+    report = result.get("report") if isinstance(result.get("report"), dict) else {}
+    valuation = result.get("valuation") if isinstance(result.get("valuation"), dict) else {}
+    verification = result.get("report_verification") if isinstance(result.get("report_verification"), dict) else {}
+    workflow = {
+        "workflow_type": result.get("workflow_type"),
+        "elapsed_seconds": result.get("elapsed_seconds"),
+        "node_trace": result.get("node_trace") or [],
+        "errors": result.get("errors") or [],
+    }
+    lines = [
+        f"# {title}",
+        "",
+        "## 질문/답변",
+        "",
+        "실패특허 원본 PDF를 특허 재평가 에이전트에 전달해 생성한 출원 도우미용 보고서입니다.",
+        "",
+        "## 평가 요약",
+        "",
+        f"- Case ID: {case_id}",
+        f"- Status: {result.get('status') or '-'}",
+        f"- Workflow: {result.get('workflow_type') or '-'}",
+        f"- Elapsed seconds: {result.get('elapsed_seconds') or '-'}",
+        f"- Verification grade: {verification.get('reliability_grade') or '-'}",
+        f"- Verification score: {verification.get('overall_reliability_score') or '-'}",
+        f"- Human review required: {verification.get('human_review_required') if verification else '-'}",
+        "",
+        "## 재평가 보고서 핵심 내용",
+        "",
+        compact_text(json.dumps(report or valuation or result, ensure_ascii=False, indent=2), 9000),
+        "",
+        "## 보고서 신뢰도/검증",
+        "",
+        compact_text(json.dumps(verification, ensure_ascii=False, indent=2), 3000) if verification else "검증 결과가 없습니다.",
+        "",
+        "## 워크플로우 메타정보",
+        "",
+        compact_text(json.dumps(workflow, ensure_ascii=False, indent=2), 3000),
+        "",
+        "## 메타정보",
+        "",
+        f"- saved_at: {_now()}",
+        "- vectorstore_scope: selected_failed_patent_case_only",
+    ]
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _run_eval_logic_pdf_workflow(source_pdf: Path, options: dict[str, Any] | None = None) -> dict[str, Any]:
+    eval_src = PROJECT_ROOT / "eval_logic" / "src"
+    if not eval_src.exists():
+        raise HTTPException(status_code=500, detail=f"eval_logic/src를 찾을 수 없습니다: {eval_src}")
+    inserted = False
+    if str(eval_src) not in sys.path:
+        sys.path.insert(0, str(eval_src))
+        inserted = True
+    try:
+        from agent.patent_valuation_graph import PatentValuationWorkflow, PatentValuationWorkflowOptions
+
+        workflow_options = PatentValuationWorkflowOptions.from_dict(options or {})
+        return PatentValuationWorkflow(workflow_options).run({"source_pdf": str(source_pdf)})
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"특허 재평가 보고서 생성 실패: {type(exc).__name__}: {exc}") from exc
+    finally:
+        if inserted:
+            try:
+                sys.path.remove(str(eval_src))
+            except ValueError:
+                pass
+
+
+def generate_failed_patent_case_report(
+    case_id: str,
+    *,
+    title: str | None = None,
+    options: dict[str, Any] | None = None,
+    refresh_index: bool = True,
+) -> dict[str, Any]:
+    safe_id = _safe_case_id(case_id)
+    status = failed_patent_case_index_status(safe_id)
+    if not status.get("has_original_pdf"):
+        raise HTTPException(status_code=400, detail=f"{safe_id} 케이스에 실패특허 원본 PDF가 없습니다.")
+    source_pdf = _failed_case_original_pdf(safe_id)
+    default_options = {
+        "enable_market": True,
+        "enable_auto": True,
+        "enable_llm": True,
+        "enable_pdf_metadata_extraction": True,
+        "enable_business_rag": True,
+        "enable_similar_analysis": True,
+        "similar_use_llm": True,
+        "rag_top_k": 5,
+        "fail_on_validation_error": True,
+        "enable_human_review": False,
+    }
+    if options:
+        default_options.update({key: value for key, value in options.items() if value is not None})
+    report_title = title or f"{safe_id} 실패특허 재평가 보고서"
+    result = _run_eval_logic_pdf_workflow(source_pdf, default_options)
+    markdown = _report_markdown_from_result(report_title, result, case_id=safe_id)
+    saved = save_failed_patent_case_report(
+        safe_id,
+        title=report_title,
+        report=result,
+        report_text=markdown,
+        refresh_index=refresh_index,
+    )
+    metadata = _read_case_metadata(safe_id)
+    metadata["latest_report_generation"] = {
+        "generated_at": _now(),
+        "source_pdf_path": str(source_pdf),
+        "options": default_options,
+        "status": result.get("status"),
+        "workflow_type": result.get("workflow_type"),
+        "report_verification": result.get("report_verification"),
+        "saved_paths": saved.get("saved_paths"),
+    }
+    _write_case_metadata(safe_id, metadata)
+    return {
+        "status": "generated",
+        "case_id": safe_id,
+        "source_pdf_path": str(source_pdf),
+        "report_status": result.get("status"),
+        "workflow_type": result.get("workflow_type"),
+        "elapsed_seconds": result.get("elapsed_seconds"),
+        "report_verification": result.get("report_verification"),
+        "saved_paths": saved.get("saved_paths"),
+        "index": saved.get("index"),
+        "metadata_path": str(_case_metadata_path(safe_id)),
+        "result": result,
+    }
+
+
 def save_failed_patent_case_report(
     case_id: str,
     *,
@@ -1396,24 +1555,33 @@ def save_failed_patent_case_report(
         json_path = reports_dir / f"{stamp}_{base}.json"
         _write_json(json_path, report)
         saved_paths.append(str(json_path))
+        latest_json_path = reports_dir / "latest_report.json"
+        _write_json(latest_json_path, report)
+        saved_paths.append(str(latest_json_path))
     if report_text and report_text.strip():
         markdown_path = reports_dir / f"{stamp}_{base}.md"
-        markdown = "\n".join(
-            [
-                f"# {title or '실패특허 재평가 보고서'}",
-                "",
-                report_text.strip(),
-                "",
-                "## 메타정보",
-                "",
-                f"- case_id: {safe_id}",
-                f"- saved_at: {_now()}",
-            ]
-        )
+        markdown = report_text.strip()
+        if not markdown.startswith("# "):
+            markdown = "\n".join(
+                [
+                    f"# {title or '실패특허 재평가 보고서'}",
+                    "",
+                    markdown,
+                    "",
+                    "## 메타정보",
+                    "",
+                    f"- case_id: {safe_id}",
+                    f"- saved_at: {_now()}",
+                ]
+            )
         markdown_path.write_text(markdown + "\n", encoding="utf-8")
         html_path = reports_dir / f"{stamp}_{base}.html"
         html_path.write_text(_html_page(title or "실패특허 재평가 보고서", markdown), encoding="utf-8")
-        saved_paths.extend([str(markdown_path), str(html_path)])
+        latest_markdown_path = reports_dir / "latest_report.md"
+        latest_html_path = reports_dir / "latest_report.html"
+        latest_markdown_path.write_text(markdown + "\n", encoding="utf-8")
+        latest_html_path.write_text(_html_page(title or "실패특허 재평가 보고서", markdown), encoding="utf-8")
+        saved_paths.extend([str(markdown_path), str(html_path), str(latest_markdown_path), str(latest_html_path)])
     if not saved_paths:
         raise HTTPException(status_code=400, detail="저장할 보고서 내용이나 source_report_path가 필요합니다.")
 

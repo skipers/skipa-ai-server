@@ -35,8 +35,11 @@ const workflowGraphInfo = {
   application: {
     title: "특허 출원 도우미 워크플로우",
     endpoint: "/api/v1/application/chat/mermaid",
-    summary: "실패특허 원본 PDF가 있는 케이스를 먼저 선택한 뒤, 공용 공식팩 vectorstore와 선택 케이스 전용 vectorstore를 함께 검색합니다. 여러 실패특허가 있어도 답변에는 선택된 케이스 하나만 섞입니다.",
+    summary: "실패특허 원본 PDF를 케이스 폴더에 저장하고, 필요하면 보고서 생성 에이전트가 재평가 보고서를 같은 케이스 reports 폴더에 저장합니다. 답변은 공용 공식팩 vectorstore와 선택 케이스 전용 vectorstore만 함께 검색합니다.",
     steps: [
+      ["upload_failed_patent_case", "원본 PDF와 선택 사유서를 failed_patent/{case_id}에 저장"],
+      ["generate_failed_patent_report", "eval_logic 보고서 생성 에이전트 실행 후 reports 폴더에 결과 저장"],
+      ["refresh_failed_case_vectorstore", "원본 PDF와 생성 보고서만 해당 케이스 전용 vectorstore에 반영"],
       ["resolve_application_history", "후속 질문이면 이전 질문/답변을 검색 질의에 반영"],
       ["validate_failed_patent_case", "failed_patent_id와 원본 PDF, 케이스 전용 vectorstore 상태 확인"],
       ["route_application_question", "출원 의도, 외부 보강 필요 여부, 표/다이어그램 답변 형식 판단"],
@@ -923,6 +926,41 @@ async function uploadFailedPatentCase() {
   }
 }
 
+async function generateFailedPatentReport() {
+  const caseId = $("applicationCaseSelect").value;
+  if (!caseId) {
+    setStatus("보고서를 생성할 실패특허 케이스를 먼저 선택하세요.");
+    return;
+  }
+  const button = $("generateFailedPatentReportButton");
+  setBusy(button, true, "생성 중");
+  try {
+    const result = await api(`/api/v1/application/failed-patents/${encodeURIComponent(caseId)}/report/generate`, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `${caseId} 실패특허 재평가 보고서`,
+        refresh_index: true,
+      }),
+    });
+    await loadApplicationCases(caseId);
+    const summary = {
+      status: result.status,
+      case_id: result.case_id,
+      report_status: result.report_status,
+      workflow_type: result.workflow_type,
+      elapsed_seconds: result.elapsed_seconds,
+      report_verification: result.report_verification,
+      saved_paths: result.saved_paths,
+      index: result.index,
+      metadata_path: result.metadata_path,
+    };
+    setStatus(`보고서 생성 완료 · ${caseId} · 문서 ${result.index?.document_count ?? 0}개`);
+    showModal("실패특허 재평가 보고서 생성", jsonBlock(summary));
+  } finally {
+    setBusy(button, false);
+  }
+}
+
 async function askApplication() {
   const text = $("applicationQuestion").value.trim();
   if (!text) return;
@@ -982,6 +1020,7 @@ function bindEvents() {
   $("prepareApplicationButton").addEventListener("click", () => prepareApplicationData().catch((error) => setStatus(error.message)));
   $("applicationStatusButton").addEventListener("click", () => showApplicationStatus().catch((error) => setStatus(error.message)));
   $("uploadFailedPatentButton").addEventListener("click", () => uploadFailedPatentCase().catch((error) => setStatus(error.message)));
+  $("generateFailedPatentReportButton").addEventListener("click", () => generateFailedPatentReport().catch((error) => setStatus(error.message)));
   $("applicationCaseSelect").addEventListener("change", () => {
     state.applicationHistory = [];
     setStatus($("applicationCaseSelect").value ? `출원 케이스 선택 · ${$("applicationCaseSelect").value}` : "출원 케이스를 선택하세요");

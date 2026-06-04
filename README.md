@@ -286,6 +286,7 @@ POST /api/v1/application/failed-patents/create
 POST /api/v1/application/failed-patents/upload
 POST /api/v1/application/failed-patents/{case_id}/index/refresh
 POST /api/v1/application/failed-patents/{case_id}/report/save
+POST /api/v1/application/failed-patents/{case_id}/report/generate
 POST /api/v1/application/failed-patents/{case_id}/chat
 POST /api/v1/application/sources/download
 GET  /api/v1/application/sources/download-report
@@ -318,6 +319,11 @@ scripts/preprocess_chatbot_data.sh --mode application-case \
 
 # 선택 실패특허 케이스 1건만 재색인
 scripts/preprocess_chatbot_data.sh --mode application-case-refresh \
+  --case-id "failed_20260604_153000"
+
+# 선택 실패특허 원본 PDF를 보고서 생성 에이전트에 넘기고,
+# 결과를 failed_patent/{case_id}/reports에 저장한 뒤 케이스 전용 vectorstore 갱신
+scripts/preprocess_chatbot_data.sh --mode application-case-generate \
   --case-id "failed_20260604_153000"
 
 # 재평가 API에서 받은 보고서를 선택 실패특허 폴더에 저장하고 케이스 전용 vectorstore 갱신
@@ -1105,7 +1111,12 @@ KIPRIS/CPC/IPC 검색 자료를 우선하며, 처음 출원 절차 질문이면 
 공용 출원 index refresh를 실행하고, 실패특허 원본/사유서/생성 보고서는
 `data/patent_application_official_pack/failed_patent/{case_id}` 아래의 독립 폴더와
 전용 vectorstore에서 관리합니다. 여러 실패특허가 쌓여도 답변은 공용 공식팩 vectorstore와
-현재 선택한 실패특허 1건의 vectorstore만 함께 참조합니다. 다운로드 또는
+현재 선택한 실패특허 1건의 vectorstore만 함께 참조합니다. 공용 공식팩 vectorstore에는
+`downloads/`와 `patent_application_process_guide.md`,
+`patent_rejection_failure_response.md`,
+`patent_rejection_notice_original_sources.md`,
+`prior_art_search_workflow.md`만 들어가며, `failed_patent/`와 `feedback/` 생성물은
+절대 공용 index에 섞지 않습니다. 다운로드 또는
 크롤링에 실패한 URL은 `data/patent_application_official_pack/download_report.md`에 남습니다.
 실패 요인 분석/거절 대응/사업화/최신 동향처럼 내부 공식팩만으로 부족한 질문은
 `KIPRIS_API_KEY`, `KOSIS_API_KEY`, `TAVILY_API_KEY` 설정 상태를 metrics에 표시하고,
@@ -1115,10 +1126,14 @@ KIPRIS/CPC/IPC 검색 자료를 우선하며, 처음 출원 절차 질문이면 
 `POST /api/v1/application/failed-patents/upload`로 실패특허 원본 PDF를 반드시 업로드하고,
 사유서/거절의견서는 선택 파일이나 텍스트로 같이 넣습니다. 생성 결과는
 `data/patent_application_official_pack/failed_patent/{case_id}/input`,
-`rejection`, `reports`, `index/vectorstore`로 나뉘어 저장됩니다. 재평가 로직에서 생성된
-보고서 JSON/Markdown/HTML은 `POST /api/v1/application/failed-patents/{case_id}/report/save`
-또는 CLI `--mode application-case-report`로 같은 케이스의 `reports` 폴더에 저장하고,
-해당 케이스 vectorstore만 다시 갱신합니다. 이후 `/api/v1/application/chat` 또는
+`rejection`, `reports`, `index/vectorstore`로 나뉘어 저장됩니다. 보고서 생성 에이전트를
+직접 실행하려면 `POST /api/v1/application/failed-patents/{case_id}/report/generate`
+또는 CLI `--mode application-case-generate`를 사용합니다. 이 API는 선택 케이스의
+`input/` 안 원본 PDF만 `eval_logic` 보고서 생성 에이전트에 넘기고, 생성된 JSON/Markdown/HTML을
+같은 케이스의 `reports/` 폴더에 저장한 뒤 해당 케이스 vectorstore만 다시 갱신합니다.
+이미 생성된 외부 보고서 파일이 있으면
+`POST /api/v1/application/failed-patents/{case_id}/report/save` 또는 CLI
+`--mode application-case-report`로 같은 폴더에 저장합니다. 이후 `/api/v1/application/chat` 또는
 `/api/v1/application/failed-patents/{case_id}/chat`에서
 “거절이유”, “실패 요인”, “보정 전략”, “의견서 대응” 질문을 하면 이 피드백 리포트와
 공식팩, 필요한 경우 외부 KIPRIS/KOSIS/Tavily 근거를 함께 사용합니다.

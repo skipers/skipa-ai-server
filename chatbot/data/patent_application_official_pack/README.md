@@ -41,5 +41,15 @@ failed_patent/{case_id}/
 ```
 
 답변은 항상 공용 공식팩 vectorstore와 현재 선택한 `failed_patent/{case_id}` 전용
-vectorstore만 함께 사용합니다. 새 재평가 보고서가 생성되면 같은 케이스의 `reports/`에
-저장한 뒤 그 케이스 index만 refresh합니다.
+vectorstore만 함께 사용합니다. 공용 공식팩 vectorstore에는 `downloads/`와 아래 4개 Markdown만
+들어갑니다.
+
+- `patent_application_process_guide.md`
+- `patent_rejection_failure_response.md`
+- `patent_rejection_notice_original_sources.md`
+- `prior_art_search_workflow.md`
+
+새 재평가 보고서는 `POST /api/v1/application/failed-patents/{case_id}/report/generate`
+또는 CLI `--mode application-case-generate`로 생성합니다. 결과는 같은 케이스의 `reports/`에
+저장되고, 그 케이스 index만 refresh합니다. 다른 실패특허 폴더나 공용 공식팩 index에는
+절대 섞지 않습니다.

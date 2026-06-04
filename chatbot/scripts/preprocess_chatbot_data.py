@@ -8,6 +8,7 @@ Examples:
   scripts/preprocess_chatbot_data.sh --mode application-feedback --opinion-file "data/patent_application_official_pack/downloads/특허거절의견서.pdf"
   scripts/preprocess_chatbot_data.sh --mode application-case --original-pdf "failed.pdf" --rejection-file "notice.pdf"
   scripts/preprocess_chatbot_data.sh --mode application-case-refresh --case-id "failed_20260604"
+  scripts/preprocess_chatbot_data.sh --mode application-case-generate --case-id "failed_20260604"
   scripts/preprocess_chatbot_data.sh --mode all
   scripts/preprocess_chatbot_data.sh --mode status
 """
@@ -43,6 +44,7 @@ def main() -> int:
             "application-feedback",
             "application-case",
             "application-case-refresh",
+            "application-case-generate",
             "application-case-report",
             "application-status",
             "all",
@@ -88,6 +90,7 @@ def main() -> int:
         create_failed_patent_case,
         create_application_feedback_report,
         failed_patent_case_index_status,
+        generate_failed_patent_case_report,
         list_failed_patent_cases,
         preprocess_application_pack,
         refresh_failed_patent_case_index,
@@ -151,6 +154,11 @@ def main() -> int:
         if not args.case_id:
             raise SystemExit("--case-id is required for --mode application-case-refresh")
         _print_json(refresh_failed_patent_case_index(args.case_id))
+        return 0
+    if args.mode == "application-case-generate":
+        if not args.case_id:
+            raise SystemExit("--case-id is required for --mode application-case-generate")
+        _print_json(generate_failed_patent_case_report(args.case_id, title=args.title, refresh_index=True))
         return 0
     if args.mode == "application-case-report":
         if not args.case_id:

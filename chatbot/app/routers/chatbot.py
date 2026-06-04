@@ -18,6 +18,7 @@ from ..application_data import (
     create_failed_patent_case,
     download_application_sources,
     failed_patent_case_index_status,
+    generate_failed_patent_case_report,
     list_failed_patent_cases,
     preprocess_application_pack,
     refresh_application_index,
@@ -52,6 +53,7 @@ from ..schemas import (
     PatentApplicationChatRequest,
     PatentApplicationDownloadRequest,
     PatentApplicationFailedCaseCreateRequest,
+    PatentApplicationFailedCaseReportGenerateRequest,
     PatentApplicationFailedCaseReportSaveRequest,
     PatentApplicationFeedbackRequest,
     PatentApplicationPreprocessRequest,
@@ -447,7 +449,7 @@ def post_application_feedback_create(request: PatentApplicationFeedbackRequest) 
     return create_application_feedback_report(**request.model_dump())
 
 
-@application_router.post("/report/generate", summary="출원 예정/실패 특허 분석 보고서 생성 및 vectorstore 반영")
+@application_router.post("/report/generate", summary="호환용 전역 출원 피드백 리포트 생성")
 def post_application_report_generate(request: PatentApplicationFeedbackRequest) -> dict:
     payload = request.model_dump()
     if payload.get("title") == "특허 출원 실패/거절 대응 피드백":
@@ -545,6 +547,22 @@ def post_application_failed_patent_report_save(
     request: PatentApplicationFailedCaseReportSaveRequest,
 ) -> dict:
     return save_failed_patent_case_report(case_id, **request.model_dump())
+
+
+@application_router.post("/failed-patents/{case_id}/report/generate", summary="보고서 생성 에이전트를 실행하고 해당 실패특허 폴더 reports에 저장")
+def post_application_failed_patent_report_generate(
+    case_id: str,
+    request: PatentApplicationFailedCaseReportGenerateRequest,
+) -> dict:
+    payload = request.model_dump()
+    refresh_index = bool(payload.pop("refresh_index", True))
+    title = payload.pop("title", None)
+    return generate_failed_patent_case_report(
+        case_id,
+        title=title,
+        options=payload,
+        refresh_index=refresh_index,
+    )
 
 
 @application_router.post("/sources/download", summary="특허 출원 공식 자료 다운로드/크롤링")
