@@ -21,56 +21,56 @@
 
 ```mermaid
 flowchart TB
-  U[사용자<br/>브라우저 UI / Swagger / CLI]
+  U["사용자<br>브라우저 UI / Swagger / CLI"]
 
   subgraph EV[eval_logic - 특허 보고서 생성]
-    EVAPI[FastAPI<br/>apps.api.main]
+    EVAPI["FastAPI<br>apps.api.main"]
     EVWF[PatentValuationWorkflow]
-    EVCOL[collect_evidence<br/>PDF/사업화 근거 수집]
-    EVVAL[validate_input<br/>표준 특허 입력 검증]
-    EVRUN[run_valuation<br/>자동점수/LLM/KOSIS/RAG]
+    EVCOL["collect_evidence<br>PDF/사업화 근거 수집"]
+    EVVAL["validate_input<br>표준 특허 입력 검증"]
+    EVRUN["run_valuation<br>자동점수/LLM/KOSIS/RAG"]
     EVSIM[analyze_similar_patents]
-    EVREP[build_report<br/>보고서 JSON 조립]
-    EVVER[verify_report<br/>근거/수치/출처 신뢰도 검증]
+    EVREP["build_report<br>보고서 JSON 조립"]
+    EVVER["verify_report<br>근거/수치/출처 신뢰도 검증"]
   end
 
   subgraph CHAT[chatbot - 특허 질의응답]
-    CAPI[FastAPI<br/>chatbot.app.main]
-    UI[/ui<br/>간단 테스트 화면]
-    PROUTER[Patent Chat LangGraph<br/>의도 라우팅]
-    CORE[Core Retrieval<br/>원문+보고서 vectorstore]
-    WGATE[Wiki Gate<br/>특허별 승인 wiki 검색]
-    WEB[Web Search<br/>Tavily 등 외부검색]
-    ANSWER[Answer Generator<br/>답변/표/다이어그램/근거/품질지표]
+    CAPI["FastAPI<br>chatbot.app.main"]
+    UI["UI 테스트 화면<br>/ui"]
+    PROUTER["Patent Chat LangGraph<br>의도 라우팅"]
+    CORE["Core Retrieval<br>원문+보고서 vectorstore"]
+    WGATE["Wiki Gate<br>특허별 승인 wiki 검색"]
+    WEB["Web Search<br>Tavily 등 외부검색"]
+    ANSWER["Answer Generator<br>답변/표/다이어그램/근거/품질지표"]
   end
 
   subgraph APP[chatbot - 특허 출원 도우미]
-    AROUTER[Application LangGraph<br/>출원/거절/실패 의도 라우팅]
-    APACK[공용 공식팩 index<br/>downloads + 4개 guide md]
-    FCASE[선택 실패특허 case index<br/>원본 PDF + 사유서 + latest_report]
-    RGEN[보고서 생성 에이전트 연결<br/>eval_logic 호출/저장]
-    AANS[출원 답변 생성<br/>절차/서식/청구항/거절대응/등록전략]
+    AROUTER["Application LangGraph<br>출원/거절/실패 의도 라우팅"]
+    APACK["공용 공식팩 index<br>downloads + 4개 guide md"]
+    FCASE["선택 실패특허 case index<br>원본 PDF + 사유서 + latest_report"]
+    RGEN["보고서 생성 에이전트 연결<br>eval_logic 호출/저장"]
+    AANS["출원 답변 생성<br>절차/서식/청구항/거절대응/등록전략"]
   end
 
   subgraph WIKI[wiki 감사]
-    DRAFT[web_search_drafts<br/>임시 Markdown]
-    AUDIT[run_audit<br/>나쁜 데이터 후보 판별]
-    REVIEW[사람 검토/자동 제외]
+    DRAFT["web_search_drafts<br>임시 Markdown"]
+    AUDIT["run_audit<br>나쁜 데이터 후보 판별"]
+    REVIEW["사람 검토/자동 제외"]
     APPROVED[approved_context.md]
     WIDX[wiki vectorstore refresh]
   end
 
   subgraph DATA[데이터]
     CDATA[chatbot/data]
-    MP[mapped_patent_reports/<patent_id>]
-    ORIG[original/pdf, original/input]
+    MP["mapped_patent_reports<br>pat_id/"]
+    ORIG["original/pdf<br>original/input"]
     REPS[reports/json]
     EXT[extracted/all_chunks.jsonl]
     IDX[index/vectorstore]
     WDATA[wiki/vectorstore]
     APROOT[patent_application_official_pack]
-    FAILED[failed_patent/<registration>_failed]
-    EDATA[eval_logic/data<br/>samples/resources/api_test/runtime_artifacts]
+    FAILED["failed_patent<br>registration_failed/"]
+    EDATA["eval_logic/data<br>samples/resources/api_test/runtime_artifacts"]
   end
 
   U --> UI
@@ -339,6 +339,7 @@ KSIC_TABLE_PATH=data/resources/산업_KSIC_-특허_IPC__연계표.xlsx
 ### eval_logic 보고서 생성
 
 ```text
+GET  /health
 POST /api/v1/reports/patent-valuation/from-json
 POST /api/v1/reports/patent-valuation/from-json-file
 POST /api/v1/reports/patent-valuation/from-pdf
@@ -358,16 +359,49 @@ POST /api/v1/tools/llm-evaluation
 POST /api/v1/tools/similar-patents
 ```
 
+Dev API (개발/샘플 테스트용):
+
+```text
+POST /api/v1/dev/patent-valuation/evaluate
+POST /api/v1/dev/patent-valuation/evaluate-sample
+```
+
+### 챗봇 관리
+
+```text
+GET  /api/v1/chatbot/config
+GET  /api/v1/chatbot/data-links
+GET  /api/v1/chatbot/patents
+GET  /api/v1/chatbot/patents/{patent_id}
+GET  /api/v1/chatbot/patents/{patent_id}/files
+GET  /api/v1/chatbot/patents/{patent_id}/input/latest
+GET  /api/v1/chatbot/patents/{patent_id}/report/latest
+GET  /api/v1/chatbot/patents/{patent_id}/chunks
+GET  /api/v1/chatbot/business/chunks
+GET  /api/v1/chatbot/vectorstore/status
+GET  /api/v1/chatbot/preprocess/status
+POST /api/v1/chatbot/preprocess/run
+POST /api/v1/chatbot/vectorstore/refresh
+POST /api/v1/chatbot/search
+POST /api/v1/chatbot/query
+POST /api/v1/chatbot/answer
+```
+
 ### 특허 챗봇
 
 ```text
 GET  /api/v1/patent-chat/patents
+GET  /api/v1/patent-chat/patent-summary-cards
+GET  /api/v1/patent-chat/engine/status
 POST /api/v1/patent-chat/chat
 POST /api/v1/patent-chat/global/chat
 POST /api/v1/patent-chat/query
 POST /api/v1/patent-chat/answer
 POST /api/v1/patent-chat/reindex
 POST /api/v1/patent-chat/global/reindex
+POST /api/v1/patent-chat/business/reindex
+POST /api/v1/patent-chat/feedback
+GET  /api/v1/patent-chat/page-image
 GET  /api/v1/patent-chat/chat/mermaid
 GET  /api/v1/patent-chat/ingestion/mermaid
 ```
@@ -379,6 +413,7 @@ GET  /api/v1/patent-chat/ingestion/mermaid
 ```text
 POST /api/v1/wiki/audit
 GET  /api/v1/wiki/audit-review
+GET  /api/v1/wiki/audit-report
 POST /api/v1/wiki/audit-apply
 POST /api/v1/wiki/audit-auto-refresh
 POST /api/v1/wiki/agent/run
@@ -392,6 +427,11 @@ GET  /api/v1/application/status
 GET  /api/v1/application/external/status
 POST /api/v1/application/preprocess
 POST /api/v1/application/index/refresh
+POST /api/v1/application/feedback/create
+POST /api/v1/application/feedback/upload
+POST /api/v1/application/report/generate
+POST /api/v1/application/sources/download
+GET  /api/v1/application/sources/download-report
 POST /api/v1/application/chat
 GET  /api/v1/application/chat/mermaid
 
