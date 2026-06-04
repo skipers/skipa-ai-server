@@ -8,6 +8,7 @@ from html import escape as html_escape, unescape
 from html.parser import HTMLParser
 import csv
 import hashlib
+import importlib.util
 import json
 import math
 import mimetypes
@@ -1048,6 +1049,203 @@ def _failed_case_source_type(path: Path) -> str:
     return mapping.get(role, f"FAILED_PATENT_{suffix.upper()}")
 
 
+def _read_pdf_text_for_failed_case(path: Path) -> str:
+    readers = []
+    try:
+        import pypdf
+
+        def read_with_pypdf() -> str:
+            with path.open("rb") as file:
+                reader = pypdf.PdfReader(file)
+                return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+        readers.append(read_with_pypdf)
+    except Exception:
+        pass
+    try:
+        import pdfplumber
+
+        def read_with_pdfplumber() -> str:
+            with pdfplumber.open(path) as pdf:
+                return "\n".join(page.extract_text() or "" for page in pdf.pages)
+
+        readers.append(read_with_pdfplumber)
+    except Exception:
+        pass
+    try:
+        import fitz
+
+        def read_with_fitz() -> str:
+            with fitz.open(str(path)) as pdf:
+                return "\n".join(page.get_text("text") or "" for page in pdf)
+
+        readers.append(read_with_fitz)
+    except Exception:
+        pass
+    errors = []
+    for reader in readers:
+        try:
+            text = reader()
+            if text and text.strip():
+                return text
+        except Exception as exc:
+            errors.append(f"{type(exc).__name__}: {exc}")
+    raise HTTPException(status_code=400, detail=f"PDF 텍스트 추출 실패: {path.name}; {'; '.join(errors) or '사용 가능한 PDF reader 없음'}")
+
+
+def _extract_registration_number_from_pdf(path: Path) -> str | None:
+    try:
+        text = _read_pdf_text_for_failed_case(path)
+    except Exception:
+        return None
+    patterns = [
+        r"\(11\)\s*등록번호\s+(\d{2}-\d+)",
+        r"등록특허\s*(\d{2}-\d+)",
+        r"등록번호\s+(\d{2}-\d+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _extract_between(text: str, start_patterns: list[str], end_patterns: list[str], *, limit: int = 6000) -> str:
+    start = None
+    for pattern in start_patterns:
+        match = re.search(pattern, text, flags=re.MULTILINE)
+        if match and (start is None or match.end() < start):
+            start = match.end()
+    if start is None:
+        return ""
+    end = len(text)
+    tail = text[start:]
+    for pattern in end_patterns:
+        match = re.search(pattern, tail, flags=re.MULTILINE)
+        if match:
+            end = min(end, start + match.start())
+    value = re.sub(r"\s+", " ", text[start:end]).strip()
+    return value[:limit].rstrip()
+
+
+def _extract_claims_from_pdf_text(text: str) -> dict[str, dict[str, Any]]:
+    bounds_text = _extract_between(
+        text,
+        [r"청\s*구\s*범\s*위", r"청구범위"],
+        [r"발\s*명\s*의\s*설\s*명", r"발명의\s*설명", r"기\s*술\s*분\s*야", r"요\s*약\s*서"],
+        limit=20000,
+    )
+    section = bounds_text or text
+    matches = list(re.finditer(r"청구항\s*(\d+)(?!\s*에\s*있어서)", section))
+    claims: dict[str, dict[str, Any]] = {}
+    for index, match in enumerate(matches):
+        number = match.group(1)
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else min(len(section), start + 3500)
+        claim_text = re.sub(r"\s+", " ", section[start:end]).strip(" .:：")
+        if not claim_text or claim_text.startswith("삭제"):
+            continue
+        depends_on = re.search(r"(?:청구항|제)\s*(\d+)\s*(?:항)?\s*에\s*있어서", claim_text)
+        category = "방법" if any(term in claim_text for term in ["방법", "단계", "공정"]) else "시스템" if any(
+            term in claim_text for term in ["시스템", "장치", "서버", "단말", "모듈"]
+        ) else "기타"
+        item: dict[str, Any] = {
+            "type": "종속항" if depends_on else "독립항",
+            "category": category,
+            "text": claim_text[:3000],
+        }
+        if depends_on:
+            item["depends_on"] = int(depends_on.group(1))
+        claims[f"claim_{number}"] = item
+    return claims
+
+
+def _fallback_patent_input_from_pdf(path: Path) -> dict[str, Any]:
+    text = _read_pdf_text_for_failed_case(path)
+    registration_number = _extract_registration_number_from_pdf(path) or ""
+    application_number = ""
+    match = re.search(r"\(21\)\s*출원번호\s+([\d-]+)", text)
+    if match:
+        application_number = match.group(1)
+    title = ""
+    title_match = re.search(r"\(54\)\s*발명의\s*명칭\s+(.+?)(?=\n\s*\(57\)|\n\s*요\s*약|\n\s*\(52\))", text, flags=re.S)
+    if title_match:
+        title = re.sub(r"\s+", " ", title_match.group(1)).strip()
+    if not title:
+        title = Path(path).stem
+    abstract = _extract_between(
+        text,
+        [r"\(57\)\s*요\s*약", r"요\s*약"],
+        [r"명\s*세\s*서", r"청\s*구\s*범\s*위", r"\(52\)"],
+        limit=3000,
+    )
+    claims_text = _extract_claims_from_pdf_text(text)
+    technical_field = _extract_between(text, [r"기\s*술\s*분\s*야"], [r"배\s*경\s*기\s*술", r"발\s*명\s*의\s*내\s*용"], limit=2500)
+    background = _extract_between(text, [r"배\s*경\s*기\s*술"], [r"발\s*명\s*의\s*내\s*용", r"해결하려는\s*과제"], limit=3000)
+    problem = _extract_between(text, [r"해결하려는\s*과제"], [r"과제의\s*해결\s*수단", r"발명의\s*효과"], limit=2500)
+    solution = _extract_between(text, [r"과제의\s*해결\s*수단"], [r"발명의\s*효과", r"도면의\s*간단한\s*설명"], limit=3500)
+    effects = _extract_between(text, [r"발명의\s*효과"], [r"도면의\s*간단한\s*설명", r"발명을\s*실시하기"], limit=2500)
+    patent_id = registration_number or application_number or _safe_case_id(path.stem)
+    return {
+        "patent_id": patent_id,
+        "meta": {
+            "title": title,
+            "registration_number": registration_number or patent_id,
+            "application_number": application_number,
+            "legal_status": "등록" if registration_number else "",
+            "total_claims": len(claims_text) or None,
+        },
+        "description_summary": abstract or compact_text(text, 2500),
+        "claims_text": claims_text,
+        "specification": {
+            "technical_field": technical_field,
+            "background_art": background,
+            "problem_to_solve": problem,
+            "solution": solution,
+            "advantageous_effects": effects,
+            "description_text": compact_text(text, 12000),
+        },
+        "source_pdf": str(path),
+        "extraction": {
+            "method": "chatbot_pdf_text_fallback",
+            "text_char_count": len(text),
+        },
+    }
+
+
+def _patent_input_from_pdf(path: Path) -> dict[str, Any]:
+    eval_src = PROJECT_ROOT / "eval_logic" / "src"
+    inserted = False
+    if eval_src.exists() and str(eval_src) not in sys.path:
+        sys.path.insert(0, str(eval_src))
+        inserted = True
+    try:
+        try:
+            from services.evidence_collection_service import PatentMetadataExtractionService
+
+            result = PatentMetadataExtractionService().extract_from_pdf(str(path))
+            normalized = result.get("normalized_patent") if isinstance(result, dict) else None
+            if isinstance(normalized, dict):
+                normalized["source_pdf"] = str(path)
+                return normalized
+        except Exception:
+            return _fallback_patent_input_from_pdf(path)
+    finally:
+        if inserted:
+            try:
+                sys.path.remove(str(eval_src))
+            except ValueError:
+                pass
+    return _fallback_patent_input_from_pdf(path)
+
+
+def _module_available(name: str) -> bool:
+    try:
+        return importlib.util.find_spec(name) is not None
+    except Exception:
+        return False
+
+
 def _iter_failed_case_source_files(case_id: str) -> Iterable[Path]:
     case_dir = _failed_case_dir(case_id)
     allowed = {".pdf", ".md", ".txt", ".json", ".html", ".htm"}
@@ -1114,6 +1312,39 @@ def create_failed_patent_case(
         original_target = input_dir / _safe_file_name(source.name, "failed_patent_original.pdf")
         if source.resolve() != original_target.resolve():
             shutil.copy2(source, original_target)
+
+    if original_target and not case_id:
+        registration_number = _extract_registration_number_from_pdf(original_target)
+        if registration_number:
+            desired_id = _safe_case_id(f"{registration_number}_failed")
+            if desired_id != safe_id:
+                desired_dir = root / desired_id
+                desired_dir.mkdir(parents=True, exist_ok=True)
+                for child in case_dir.iterdir():
+                    target_child = desired_dir / child.name
+                    if target_child.exists() and child.is_dir():
+                        for nested in child.iterdir():
+                            nested_target = target_child / nested.name
+                            if nested_target.exists():
+                                nested_target.unlink() if nested_target.is_file() else shutil.rmtree(nested_target)
+                            shutil.move(str(nested), str(nested_target))
+                        child.rmdir()
+                    else:
+                        if target_child.exists():
+                            target_child.unlink() if target_child.is_file() else shutil.rmtree(target_child)
+                        shutil.move(str(child), str(target_child))
+                try:
+                    case_dir.rmdir()
+                except OSError:
+                    pass
+                safe_id = desired_id
+                case_dir = desired_dir
+                input_dir = case_dir / "input"
+                rejection_dir = case_dir / "rejection"
+                reports_dir = case_dir / "reports"
+                for directory in (input_dir, rejection_dir, reports_dir):
+                    directory.mkdir(parents=True, exist_ok=True)
+                original_target = input_dir / original_target.name
 
     rejection_target: Path | None = None
     if rejection_file_bytes is not None:
@@ -1440,7 +1671,11 @@ def _report_markdown_from_result(title: str, result: dict[str, Any], *, case_id:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _run_eval_logic_pdf_workflow(source_pdf: Path, options: dict[str, Any] | None = None) -> dict[str, Any]:
+def _run_eval_logic_pdf_workflow(
+    source_pdf: Path,
+    options: dict[str, Any] | None = None,
+    patent_input: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     eval_src = PROJECT_ROOT / "eval_logic" / "src"
     if not eval_src.exists():
         raise HTTPException(status_code=500, detail=f"eval_logic/src를 찾을 수 없습니다: {eval_src}")
@@ -1452,7 +1687,8 @@ def _run_eval_logic_pdf_workflow(source_pdf: Path, options: dict[str, Any] | Non
         from agent.patent_valuation_graph import PatentValuationWorkflow, PatentValuationWorkflowOptions
 
         workflow_options = PatentValuationWorkflowOptions.from_dict(options or {})
-        return PatentValuationWorkflow(workflow_options).run({"source_pdf": str(source_pdf)})
+        payload = patent_input if isinstance(patent_input, dict) and patent_input else {"source_pdf": str(source_pdf)}
+        return PatentValuationWorkflow(workflow_options).run(payload)
     except HTTPException:
         raise
     except Exception as exc:
@@ -1491,8 +1727,20 @@ def generate_failed_patent_case_report(
     }
     if options:
         default_options.update({key: value for key, value in options.items() if value is not None})
+    auto_disabled: dict[str, str] = {}
+    if default_options.get("enable_business_rag") and not _module_available("rank_bm25"):
+        default_options["enable_business_rag"] = False
+        auto_disabled["enable_business_rag"] = "rank_bm25 dependency is not installed"
     report_title = title or f"{safe_id} 실패특허 재평가 보고서"
-    result = _run_eval_logic_pdf_workflow(source_pdf, default_options)
+    patent_input = _patent_input_from_pdf(source_pdf)
+    if patent_input.get("patent_id") and patent_input.get("meta", {}).get("title"):
+        default_options["enable_pdf_metadata_extraction"] = False
+    result = _run_eval_logic_pdf_workflow(source_pdf, default_options, patent_input=patent_input)
+    result.setdefault("artifacts", {})
+    result["artifacts"]["chatbot_pre_extracted_input"] = patent_input
+    result["artifacts"]["chatbot_pre_extracted_from_pdf"] = str(source_pdf)
+    if auto_disabled:
+        result["artifacts"]["chatbot_auto_disabled_options"] = auto_disabled
     markdown = _report_markdown_from_result(report_title, result, case_id=safe_id)
     saved = save_failed_patent_case_report(
         safe_id,
