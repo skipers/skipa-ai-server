@@ -6972,14 +6972,12 @@ class PatentRAGPipeline:
                         "metrics": metrics if RETURN_PERFORMANCE else {},
                     }
             if is_definition_question(question) and len(patent_groups) == 1:
-                # "cmp가 뭐야?" 같은 정의 질문 → abstract + background로 간결 답변
+                # "cmp가 뭐야?" 같은 정의 질문 → LLM으로 간결 정의 답변
                 def_patent_id = str(patent_groups[0].get("patent_id") or "")
                 def_meta = self.load_patent_meta(def_patent_id) if def_patent_id else {}
                 def_title = def_meta.get("title") or def_patent_id
                 reg_no = def_meta.get("registration_number") or def_patent_id
-                # select_patent_overview_docs로 핵심 섹션만 가져옴
                 overview_docs = select_patent_overview_docs(def_patent_id, question)
-                # 요약(abstract)과 배경기술만 사용 - 최대 2개 청크
                 key_docs = [
                     d for d in overview_docs
                     if str((d.metadata or {}).get("section_key") or "").upper()
@@ -6987,11 +6985,29 @@ class PatentRAGPipeline:
                 ][:2] or overview_docs[:1]
                 _, def_source_cards = format_context(key_docs)
                 key_text = "\n\n".join(d.page_content[:400] for d in key_docs)
-                def_answer = (
-                    f"**{def_title}** 개요 (특허 원문 기반):\n\n"
-                    f"{key_text}\n\n"
-                    f"---\n내부 DB 관련 특허: **{def_title}** (등록번호: {reg_no})"
-                )
+                llm_t0 = now_ms()
+                try:
+                    def_answer = call_ollama([
+                        {
+                            "role": "system",
+                            "content": "당신은 특허 분석 전문 어시스턴트입니다. 질문에 직접 답하되, 서론·면책 문구·고정 섹션(근거/해석/확인 필요 사항) 없이 간결하게 답하세요.",
+                        },
+                        {
+                            "role": "user",
+                            "content": (
+                                f"질문: {question}\n\n"
+                                f"내부 DB 관련 특허 원문 (참고용):\n"
+                                f"특허명: {def_title} (등록번호: {reg_no})\n"
+                                f"{key_text}\n\n"
+                                "위 원문을 참고해 질문에 직접 답하세요.\n"
+                                "- 기술 용어라면 1-2문장으로 정의하고, 내부에 관련 특허가 있다면 자연스럽게 한 문장으로 언급합니다.\n"
+                                "- 고정 섹션(근거, 해석, 확인 필요 사항 등)은 추가하지 않습니다."
+                            ),
+                        },
+                    ])
+                except Exception:
+                    def_answer = key_text
+                llm_ms = now_ms() - llm_t0
                 def_metrics = {
                     "scope": "GLOBAL",
                     "patent_id": def_patent_id,
@@ -7002,16 +7018,16 @@ class PatentRAGPipeline:
                     "confidence_score": 0.8,
                     **retrieval_metrics,
                     "web_search_ms": 0,
-                    "llm_ms": 0,
+                    "llm_ms": llm_ms,
                     "total_ms": now_ms() - total_t0,
                     "answer_mode": "GLOBAL_DEFINITION",
                     "answer_cache_hit": False,
-                    "answer_generation_basis": "patent_abstract",
+                    "answer_generation_basis": "patent_abstract_llm",
                     "answer_presentation": ["brief_definition"],
                     "retrieval_quality_score": 0.8,
                     "retrieval_quality_grade": "GOOD",
                     "retrieval_quality_label": "양호",
-                    "retrieval_quality_reason": "정의 질문에 특허 요약으로 간결 답변",
+                    "retrieval_quality_reason": "정의 질문에 특허 원문 기반 LLM 간결 답변",
                     "search_pass": True,
                     **domain_scope_metrics,
                 }
