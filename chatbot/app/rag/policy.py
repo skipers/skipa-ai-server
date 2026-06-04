@@ -47,6 +47,30 @@ AMBIGUOUS_SHORT_TERMS = ("이거", "그거", "저거", "이 특허", "앞에서"
 # 연속 질문 패턴 - 이전 답변 기반으로 이어가야 하는 질문
 CONTINUATION_TERMS = ("더 자세하게", "자세히 알려줘", "더 알려줘", "이어서", "계속해서", "좀 더", "추가로 알려줘")
 
+# 복합 의도 감지 카테고리
+_MULTI_INTENT_CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
+    ("특허 원문 · 청구항", ("원문", "청구항", "청구범위", "pdf", "발명", "상세한 설명", "대표도")),
+    ("AI 평가보고서 · 유지판단", ("보고서", "평가", "점수", "유지", "판단", "제각", "매각", "리스크", "검증 등급")),
+    ("시장 동향 · 외부 정보", ("시장", "동향", "최근", "최신", "경쟁", "뉴스", "외부", "성장률", "사업화")),
+    ("유사 특허 · 비교", ("비교", "차이", "유사", "다른 특허", "선행")),
+]
+
+
+def _detect_multi_intent(text: str) -> list[str]:
+    """두 개 이상의 의도 카테고리가 감지되면 카테고리 레이블 목록을 반환."""
+    norm = _normalize_compound(text.lower())
+    return [label for label, terms in _MULTI_INTENT_CATEGORIES if any(t in norm for t in terms)]
+
+
+def _build_multi_intent_options(categories: list[str], *, query: str = "") -> str:
+    lines = ["질문이 여러 영역에 걸쳐 있습니다. 어떤 내용을 먼저 드릴까요?", ""]
+    for i, cat in enumerate(categories, 1):
+        lines.append(f"{i}. {cat}")
+    lines.append(f"{len(categories) + 1}. 위 항목 모두 순서대로")
+    lines.append("")
+    lines.append("번호를 입력하거나, 더 구체적인 질문을 해주세요.")
+    return "\n".join(lines)
+
 
 INTENT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -123,6 +147,14 @@ def _rule_intent(query: str) -> dict[str, Any]:
     text = _normalize_compound(query.lower())
     needs_clarification = _is_too_ambiguous(text)
     is_continuation = _is_continuation(text)
+    multi_intent_categories: list[str] = []
+
+    # 연속 질문이 아니고 짧거나 중간 길이 쿼리에서 복합 의도 감지
+    if not is_continuation and not needs_clarification:
+        multi_intent_categories = _detect_multi_intent(text)
+        # 2개 이상 카테고리 + 쿼리가 하나의 카테고리 단독으로 답하기 애매한 경우 → 보기 제시
+        if len(multi_intent_categories) >= 2 and len(query.strip()) <= 40:
+            needs_clarification = True
 
     report_term_question = any(term in text for term in REPORT_TERM_TERMS) and any(
         term in text for term in ["뭐야", "무슨 뜻", "뜻", "의미", "이란", "설명", "왜", "주의", "보고서"]
@@ -193,6 +225,20 @@ def _rule_intent(query: str) -> dict[str, Any]:
     else:
         answer_format = "text"
     use_history = is_continuation or any(term in text for term in ["이거", "이 특허", "그거", "앞에서", "방금", "이전", "계속"])
+    if needs_clarification and multi_intent_categories:
+        clarification_question = _build_multi_intent_options(multi_intent_categories, query=query)
+    elif needs_clarification:
+        clarification_question = (
+            "어떤 특허나 어떤 범위를 기준으로 답할까요?\n\n"
+            "1. 특허 원문 / 청구항 내용\n"
+            "2. AI 평가보고서 / 유지·매각·제각 판단\n"
+            "3. 시장 동향 / 외부 정보 웹 검색\n"
+            "4. 유사 특허 비교 분석\n\n"
+            "번호를 입력하거나, 더 구체적인 질문을 해주세요."
+        )
+    else:
+        clarification_question = ""
+
     return {
         "intent": intent,
         "needs_web": needs_web,
@@ -207,11 +253,8 @@ def _rule_intent(query: str) -> dict[str, Any]:
         "method": "rule",
         "search_scope": "clarify" if needs_clarification else "mixed" if needs_web else "internal",
         "needs_clarification": needs_clarification,
-        "clarification_question": (
-            "어떤 특허나 어떤 범위를 기준으로 찾을까요? 예: 전체 DB에서 물류 특허 검색, 현재 선택 특허의 리스크 확인"
-            if needs_clarification
-            else ""
-        ),
+        "clarification_question": clarification_question,
+        "multi_intent_categories": multi_intent_categories,
     }
 
 

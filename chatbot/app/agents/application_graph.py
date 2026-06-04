@@ -263,8 +263,33 @@ def validate_failed_patent_case(state: ApplicationAgentState) -> ApplicationAgen
     }
 
 
+_APP_MULTI_INTENT_CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
+    ("출원 절차 · 서류 준비", ("절차", "출원", "서류", "특허청", "방법", "준비")),
+    ("거절 대응 · 의견서 작성", ("거절", "의견서", "보정", "불복", "거절이유")),
+    ("청구항 · 명세서 작성", ("청구항", "명세서", "청구범위", "작성", "권리범위", "독립항")),
+    ("선행기술 조사", ("선행기술", "kipris", "검색", "cpc", "ipc", "유사")),
+    ("실패 특허 분석", ("실패", "거절", "원인", "진보성", "신규성", "기재불비")),
+]
+
+
+def _detect_multi_application_intent(text: str) -> list[str]:
+    return [label for label, terms in _APP_MULTI_INTENT_CATEGORIES if any(t in text for t in terms)]
+
+
+def _build_application_options(categories: list[str]) -> str:
+    lines = ["질문이 여러 출원 업무 영역에 걸쳐 있습니다. 어떤 내용을 먼저 드릴까요?", ""]
+    for i, cat in enumerate(categories, 1):
+        lines.append(f"{i}. {cat}")
+    lines.append(f"{len(categories) + 1}. 위 항목 모두 순서대로")
+    lines.append("")
+    lines.append("번호를 입력하거나, 더 구체적인 질문을 해주세요.")
+    return "\n".join(lines)
+
+
 def _rule_application_intent(query: str) -> dict[str, Any]:
     text = query.lower()
+    multi_categories: list[str] = []
+
     if _is_failed_case_diagnostic_question(text):
         intent = "failed_case_evaluation"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
@@ -303,6 +328,28 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
         answer_format = "diagram"
     else:
         answer_format = "guided_answer"
+
+    # 복합 의도 감지 (짧은 쿼리에서 2개 이상 카테고리 → 보기 제시)
+    is_short_ambiguous = len(text.strip()) <= 8 and any(term in text for term in FOLLOWUP_TERMS)
+    multi_categories = _detect_multi_application_intent(text)
+    is_multi = len(multi_categories) >= 2 and len(query.strip()) <= 40
+
+    needs_clarification = is_short_ambiguous or is_multi
+    if needs_clarification and is_multi:
+        clarification_question = _build_application_options(multi_categories)
+    elif needs_clarification:
+        clarification_question = (
+            "어떤 출원 업무를 도와드릴까요?\n\n"
+            "1. 출원 절차 · 서류 준비\n"
+            "2. 거절 대응 · 의견서 작성\n"
+            "3. 청구항 · 명세서 작성\n"
+            "4. 선행기술 조사\n"
+            "5. 실패 특허 원인 분석\n\n"
+            "번호를 입력하거나, 더 구체적인 질문을 해주세요."
+        )
+    else:
+        clarification_question = ""
+
     return {
         "intent": intent,
         "source_plan": source_plan,
@@ -311,8 +358,9 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
         "needs_diagram": needs_diagram,
         "needs_external": False if intent == "failed_case_evaluation" else any(term in text for term in [*EXTERNAL_TERMS, *REJECTION_TERMS]),
         "method": "rule",
-        "needs_clarification": len(text.strip()) <= 8 and any(term in text for term in FOLLOWUP_TERMS),
-        "clarification_question": "출원 절차, 선행기술조사, 청구항 작성, 거절 대응 중 어느 범위를 기준으로 도와드릴까요?",
+        "needs_clarification": needs_clarification,
+        "clarification_question": clarification_question,
+        "multi_intent_categories": multi_categories,
     }
 
 
