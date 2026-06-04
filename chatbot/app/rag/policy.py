@@ -23,9 +23,29 @@ ALLOWED_SOURCES = {"original", "report", "wiki", "reviewed_vectorstore", "web", 
 ALLOWED_FORMATS = {"text", "bullets", "table", "diagram", "table_and_diagram"}
 ALLOWED_SCOPES = {"internal", "mixed", "external", "clarify"}
 WEB_TERMS = ("시장", "동향", "뉴스", "최근", "현재", "웹", "사업화", "경쟁", "제품", "표준", "외부", "최신", "규모", "성장률")
-INTERNAL_SEARCH_TERMS = ("db", "디비", "데이터", "내부", "보유", "폴더", "목록", "찾아", "검색", "찾아줘", "알려줘")
+# 내부 DB 검색 신호 - "찾아줘", "검색해줘" 등 + 특허 관련 명사
+INTERNAL_SEARCH_TERMS = ("db", "디비", "데이터", "내부", "보유", "폴더", "목록", "찾아", "검색")
 PATENT_DISCOVERY_TERMS = ("특허", "원문", "보고서", "평가", "청구항")
-AMBIGUOUS_SHORT_TERMS = ("이거", "그거", "저거", "이 특허", "앞에서", "방금", "이전", "계속")
+REPORT_TERM_TERMS = (
+    "무효",
+    "무효 가능성",
+    "권리범위",
+    "권리범위 적절성",
+    "권리성",
+    "신규성",
+    "진보성",
+    "기재불비",
+    "침해",
+    "권리의 구성요소",
+    "권리의 추상성",
+    "검증 등급",
+    "신뢰도",
+    "evidence coverage",
+)
+# 지시 대상이 불분명한 대명사/부사만 포함 (동사/형용사 제외)
+AMBIGUOUS_SHORT_TERMS = ("이거", "그거", "저거", "이 특허", "앞에서", "방금", "이전")
+# 연속 질문 패턴 - 이전 답변 기반으로 이어가야 하는 질문
+CONTINUATION_TERMS = ("더 자세하게", "자세히 알려줘", "더 알려줘", "이어서", "계속해서", "좀 더", "추가로 알려줘")
 
 
 INTENT_SCHEMA: dict[str, Any] = {
@@ -64,25 +84,56 @@ INTENT_SCHEMA: dict[str, Any] = {
 }
 
 
+def _normalize_compound(text: str) -> str:
+    """'물류특허'→'물류 특허' 처럼 한국어 복합명사 앞에 공백 삽입."""
+    for noun in ("특허", "보고서", "원문", "청구항", "평가"):
+        text = re.sub(rf"([가-힣a-zA-Z0-9])({noun})", rf"\1 \2", text)
+    return text
+
+
 def _wants_internal_db_search(text: str) -> bool:
+    norm = _normalize_compound(text)
     return (
-        any(term in text for term in INTERNAL_SEARCH_TERMS)
-        and any(term in text for term in PATENT_DISCOVERY_TERMS)
-        and not any(term in text for term in ("웹", "뉴스", "최근", "최신", "시장", "동향", "외부", "경쟁사", "제품"))
+        any(term in norm for term in INTERNAL_SEARCH_TERMS)
+        and any(term in norm for term in PATENT_DISCOVERY_TERMS)
+        and not any(term in norm for term in ("웹", "뉴스", "최근", "최신", "시장", "동향", "외부", "경쟁사", "제품"))
     )
 
 
+def _is_continuation(text: str) -> bool:
+    """'더 자세하게', '이어서' 등 이전 답변을 이어가는 질문."""
+    return any(term in text for term in CONTINUATION_TERMS)
+
+
 def _is_too_ambiguous(text: str) -> bool:
+    # 연속 질문은 모호하지 않음 - 이전 컨텍스트 사용
+    if _is_continuation(text):
+        return False
     compact = text.strip()
-    return len(compact) <= 8 and any(term in compact for term in AMBIGUOUS_SHORT_TERMS)
+    if len(compact) <= 8 and any(term in compact for term in AMBIGUOUS_SHORT_TERMS):
+        return True
+    has_ambiguous = any(term in compact for term in AMBIGUOUS_SHORT_TERMS)
+    has_hint = any(term in compact for term in ("특허", "보고서", "평가", "원문", "청구항", "물류", "반도체", "nf3", "cmp"))
+    if has_ambiguous and not has_hint:
+        return True
+    return False
 
 
 def _rule_intent(query: str) -> dict[str, Any]:
-    text = query.lower()
+    text = _normalize_compound(query.lower())
     needs_clarification = _is_too_ambiguous(text)
+    is_continuation = _is_continuation(text)
+
+    report_term_question = any(term in text for term in REPORT_TERM_TERMS) and any(
+        term in text for term in ["뭐야", "무슨 뜻", "뜻", "의미", "이란", "설명", "왜", "주의", "보고서"]
+    )
+
     if _wants_internal_db_search(text):
         intent = "general"
         source_plan = ["global_patents", "reviewed_vectorstore", "original", "report"]
+    elif report_term_question:
+        intent = "patent_report"
+        source_plan = ["report", "reviewed_vectorstore", "original"]
     elif any(term in text for term in ["보고서", "평가", "점수", "유지", "포기", "판단"]):
         intent = "patent_report"
         source_plan = ["report", "reviewed_vectorstore"]
@@ -98,7 +149,33 @@ def _rule_intent(query: str) -> dict[str, Any]:
     else:
         intent = "general"
         source_plan = ["reviewed_vectorstore", "original", "report"]
-    needs_web = any(term in text for term in WEB_TERMS) and not _wants_internal_db_search(text)
+
+    # 연속 질문: 이전 컨텍스트 사용, 명확화 불필요
+    if is_continuation:
+        needs_clarification = False
+
+    # 일반 개념 정의 질문: "뭐야/이란" 패턴만, "알려줘" 같은 일반 동사 제외
+    DEFINITION_QUESTION_TERMS = ("뭐야", "뭐예요", "뭐임", "뭔가요", "이란", "무엇인가", "무엇인지", "뭔지")
+    PATENT_CONTEXT_TERMS = (
+        "특허",
+        "보고서",
+        "평가",
+        "원문",
+        "청구항",
+        "물류",
+        "반도체",
+        "nf3",
+        "cmp",
+        *REPORT_TERM_TERMS,
+    )
+    is_definition_q = any(t in text for t in DEFINITION_QUESTION_TERMS)
+    has_patent_context = any(t in text for t in PATENT_CONTEXT_TERMS)
+    is_general_knowledge = is_definition_q and not has_patent_context and not needs_clarification and not is_continuation
+
+    needs_web = (
+        (any(term in text for term in WEB_TERMS) and not _wants_internal_db_search(text))
+        or (is_general_knowledge and not report_term_question)
+    )
     if needs_web:
         if "wiki" not in source_plan:
             source_plan.append("wiki")
@@ -115,7 +192,7 @@ def _rule_intent(query: str) -> dict[str, Any]:
         answer_format = "bullets"
     else:
         answer_format = "text"
-    use_history = any(term in text for term in ["이거", "이 특허", "그거", "앞에서", "방금", "이전", "계속"])
+    use_history = is_continuation or any(term in text for term in ["이거", "이 특허", "그거", "앞에서", "방금", "이전", "계속"])
     return {
         "intent": intent,
         "needs_web": needs_web,
@@ -170,6 +247,9 @@ def _as_source_plan(value: Any, fallback: list[str], *, needs_web: bool) -> list
 def _repair_intent(query: str, result: dict[str, Any]) -> dict[str, Any]:
     text = query.lower()
     repaired = dict(result)
+    report_term_question = any(term in text for term in REPORT_TERM_TERMS) and any(
+        term in text for term in ["뭐야", "무슨 뜻", "뜻", "의미", "이란", "설명", "왜", "주의", "보고서"]
+    )
     if _is_too_ambiguous(text):
         repaired.update(
             {
@@ -192,6 +272,18 @@ def _repair_intent(query: str, result: dict[str, Any]) -> dict[str, Any]:
                 "needs_clarification": False,
                 "clarification_question": "",
                 "reason": f"{repaired.get('reason') or ''} / 내부 DB 검색 요청으로 웹 차단",
+            }
+        )
+    if report_term_question:
+        repaired.update(
+            {
+                "intent": "patent_report",
+                "needs_web": False,
+                "source_plan": ["report", "reviewed_vectorstore", "original"],
+                "search_scope": "internal",
+                "needs_clarification": False,
+                "clarification_question": "",
+                "reason": f"{repaired.get('reason') or ''} / 보고서 용어 설명 요청으로 내부 보고서 근거 우선",
             }
         )
     if repaired.get("needs_clarification"):

@@ -1677,6 +1677,42 @@ def _format_score(value: Any, default: str = "-") -> str:
     return str(value)
 
 
+def _collect_report_score_items(active_report: dict[str, Any]) -> list[dict[str, Any]]:
+    detailed = active_report.get("section_2_detailed_scores") if isinstance(active_report.get("section_2_detailed_scores"), dict) else {}
+    dimensions = detailed.get("dimensions") if isinstance(detailed.get("dimensions"), dict) else {}
+    items: list[dict[str, Any]] = []
+    for dimension, payload in dimensions.items():
+        if not isinstance(payload, dict):
+            continue
+        for item in payload.get("items") or []:
+            if not isinstance(item, dict):
+                continue
+            sources = item.get("sources") if isinstance(item.get("sources"), list) else []
+            items.append(
+                {
+                    "dimension": str(dimension),
+                    "item": item.get("item"),
+                    "score": item.get("score"),
+                    "score_out_of_100": item.get("score_out_of_100"),
+                    "method": item.get("method"),
+                    "strategy": item.get("strategy"),
+                    "confidence": item.get("confidence"),
+                    "judgment_summary": item.get("judgment_summary") or item.get("judgment_basis") or item.get("reason"),
+                    "judgment_basis": item.get("judgment_basis") or item.get("reason"),
+                    "source_count": len(sources),
+                    "sources": [
+                        {
+                            "title": source.get("title"),
+                            "url": source.get("url"),
+                            "snippet": source.get("snippet"),
+                        }
+                        for source in sources[:3]
+                        if isinstance(source, dict)
+                    ],
+                }
+            )
+    return items
+
 def _report_markdown_from_result(title: str, result: dict[str, Any], *, case_id: str) -> str:
     report = result.get("report") if isinstance(result.get("report"), dict) else {}
     valuation = result.get("valuation") if isinstance(result.get("valuation"), dict) else {}
@@ -1686,6 +1722,16 @@ def _report_markdown_from_result(title: str, result: dict[str, Any], *, case_id:
     summary = active_report.get("section_1_summary") if isinstance(active_report.get("section_1_summary"), dict) else {}
     dimension_scores = summary.get("dimension_scores") if isinstance(summary.get("dimension_scores"), dict) else {}
     similar_brief = summary.get("similar_patents_brief") if isinstance(summary.get("similar_patents_brief"), dict) else {}
+    score_items = _collect_report_score_items(active_report)
+    low_score_items = sorted(
+        score_items,
+        key=lambda item: float(item.get("score") if isinstance(item.get("score"), (int, float)) else 99),
+    )[:6]
+    high_score_items = sorted(
+        score_items,
+        key=lambda item: float(item.get("score") if isinstance(item.get("score"), (int, float)) else -1),
+        reverse=True,
+    )[:6]
     verification_issues = verification.get("issues") if isinstance(verification.get("issues"), list) else []
     workflow = {
         "workflow_type": result.get("workflow_type"),
@@ -1747,6 +1793,34 @@ def _report_markdown_from_result(title: str, result: dict[str, Any], *, case_id:
             )
     else:
         lines.append("| - | - | - | - | - |")
+    lines.extend(
+        [
+            "",
+            "## 강점 평가 항목",
+            "",
+        ]
+    )
+    for item in high_score_items:
+        lines.append(
+            f"- {item.get('dimension')} / {item.get('item')}: {_format_score(item.get('score'))}/5 "
+            f"({_format_score(item.get('score_out_of_100'))}/100) - {compact_text(item.get('judgment_summary'), 220)}"
+        )
+    if not high_score_items:
+        lines.append("- 강점 항목이 추출되지 않았습니다.")
+    lines.extend(
+        [
+            "",
+            "## 보완 필요 평가 항목",
+            "",
+        ]
+    )
+    for item in low_score_items:
+        lines.append(
+            f"- {item.get('dimension')} / {item.get('item')}: {_format_score(item.get('score'))}/5 "
+            f"({_format_score(item.get('score_out_of_100'))}/100) - {compact_text(item.get('judgment_summary'), 220)}"
+        )
+    if not low_score_items:
+        lines.append("- 보완 필요 항목이 추출되지 않았습니다.")
     lines.extend(
         [
             "",
@@ -1826,6 +1900,16 @@ def failed_patent_case_report_summary(case_id: str) -> dict[str, Any]:
     verification = data.get("report_verification") if isinstance(data.get("report_verification"), dict) else {}
     similar_brief = summary.get("similar_patents_brief") if isinstance(summary.get("similar_patents_brief"), dict) else {}
     issues = verification.get("issues") if isinstance(verification.get("issues"), list) else []
+    score_items = _collect_report_score_items(active_report)
+    low_score_items = sorted(
+        score_items,
+        key=lambda item: float(item.get("score") if isinstance(item.get("score"), (int, float)) else 99),
+    )[:8]
+    high_score_items = sorted(
+        score_items,
+        key=lambda item: float(item.get("score") if isinstance(item.get("score"), (int, float)) else -1),
+        reverse=True,
+    )[:8]
     return {
         "exists": True,
         "case_id": safe_id,
@@ -1837,6 +1921,9 @@ def failed_patent_case_report_summary(case_id: str) -> dict[str, Any]:
         "patent": patent,
         "summary": summary,
         "dimension_scores": summary.get("dimension_scores") if isinstance(summary.get("dimension_scores"), dict) else {},
+        "score_items": score_items,
+        "low_score_items": low_score_items,
+        "high_score_items": high_score_items,
         "similar_patents_brief": similar_brief,
         "verification": {
             "reliability_grade": verification.get("reliability_grade"),

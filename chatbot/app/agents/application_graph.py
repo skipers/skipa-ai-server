@@ -45,6 +45,26 @@ STRATEGY_TERMS = ("전략", "사업화", "해외", "우선심사", "심사유예
 FORM_TERMS = ("서식", "서류", "준비물", "특허고객번호", "인증서", "전자출원", "제출", "위임장")
 EXTERNAL_TERMS = ("kipris", "kosis", "타빌리", "시장", "동향", "유사", "사업화", "최신", "경쟁사", "통계")
 EVALUATION_TERMS = ("평가", "점수", "등급", "결과", "보고서", "재평가", "신뢰도", "어떻게 나왔", "어떻게 나와")
+FAILED_CASE_DIAGNOSTIC_TERMS = (
+    "원인",
+    "이유",
+    "문제",
+    "약점",
+    "리스크",
+    "위험",
+    "보완",
+    "개선",
+    "극복",
+    "등록받",
+    "등록 가능",
+    "등록하려면",
+    "등록할 수",
+    "뭘 더",
+    "뭐 더",
+    "해야",
+    "어떻게 해야",
+)
+TERM_EXPLANATION_TERMS = ("뭐야", "뭐예요", "뜻", "의미", "이란", "설명", "모르는", "용어")
 NON_PATENT_PACK_TERMS = ("상표", "유사상품", "니스", "nice", "국제상품분류", "디자인")
 GUIDED_TEMPLATE_INTENTS = {"application_procedure", "forms_and_filing", "fees"}
 SOURCE_PLAN_BY_INTENT = {
@@ -95,6 +115,22 @@ def _is_initial_application_question(text: str) -> bool:
     if any(term in text for term in STRATEGY_TERMS):
         return False
     return any(term in text for term in INITIAL_PROCEDURE_TERMS)
+
+
+def _is_failed_case_diagnostic_question(text: str) -> bool:
+    if "등록료" in text or "수수료" in text:
+        return False
+    if _is_initial_application_question(text):
+        return False
+    if any(term in text for term in EVALUATION_TERMS):
+        return True
+    if any(term in text for term in FAILED_CASE_DIAGNOSTIC_TERMS):
+        return True
+    if any(term in text for term in TERM_EXPLANATION_TERMS) and any(
+        term in text for term in ["보고서", "점수", "등급", "무효", "권리", "청구항", "진보성", "신규성", "기재", "리스크"]
+    ):
+        return True
+    return False
 
 
 def _norm(value: Any) -> str:
@@ -229,7 +265,7 @@ def validate_failed_patent_case(state: ApplicationAgentState) -> ApplicationAgen
 
 def _rule_application_intent(query: str) -> dict[str, Any]:
     text = query.lower()
-    if any(term in text for term in EVALUATION_TERMS):
+    if _is_failed_case_diagnostic_question(text):
         intent = "failed_case_evaluation"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in REJECTION_TERMS):
@@ -287,7 +323,7 @@ def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, 
         intent_name = _rule_application_intent(query)["intent"]
         repaired["intent"] = intent_name
     text = query.lower()
-    if any(term in text for term in EVALUATION_TERMS):
+    if _is_failed_case_diagnostic_question(text):
         intent_name = "failed_case_evaluation"
         repaired["intent"] = intent_name
         repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
@@ -334,6 +370,7 @@ Allowed intents: failed_case_evaluation, application_procedure, forms_and_filing
 Rules:
 - If the user asks "처음/최초/순서/절차/준비" around patent filing, use application_procedure unless rejection/failure is explicit.
 - If the user asks how this patent was evaluated, score, grade, report result or reliability, use failed_case_evaluation.
+- If the user asks why it failed, what the problem is, what to improve, what to do for registration, or asks a report term meaning, use failed_case_evaluation.
 - If the user asks about failure factors, rejection, office-action response, risk or feedback, use rejection_response.
 - If the user asks about prior art, novelty, inventive step, KIPRIS, CPC/IPC or similar patents, use prior_art_search.
 - If the user asks about market, commercialization, timing, external trends or statistics, set needs_external=true and include tavily/kosis.
@@ -895,7 +932,41 @@ def _fmt_metric(value: Any, default: str = "-") -> str:
     return str(value)
 
 
-def _failed_case_evaluation_answer(summary: dict[str, Any] | None, hits: list[dict[str, Any]]) -> str:
+def _compact_answer_text(value: Any, *, limit: int = 230) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if len(text) > limit:
+        return text[:limit].rstrip() + "..."
+    return text or "-"
+
+
+def _term_explanation_lines(query: str) -> list[str]:
+    text = _norm(query).lower()
+    glossary = {
+        "무효 가능성": "등록 후에도 선행기술, 기재불비, 신규성/진보성 부족 등으로 특허가 무효가 될 위험입니다. 점수가 높다고 해도 근거 출처가 약하면 검토가 필요합니다.",
+        "권리범위": "청구항이 실제로 보호하는 기술 범위입니다. 너무 좁으면 회피설계가 쉽고, 너무 넓으면 거절/무효 위험이 커집니다.",
+        "권리범위 적절성": "청구항 범위가 발명의 핵심을 충분히 보호하면서도 선행기술과 충돌하지 않는지 보는 항목입니다.",
+        "권리의 구성요소": "청구항을 이루는 필수 기술 요소입니다. 각 요소가 명세서에 뒷받침되고 선행기술과 차별되어야 합니다.",
+        "권리의 추상성": "청구항 표현이 너무 추상적이어서 실시 형태나 기술 구성이 불명확한지 보는 항목입니다.",
+        "침해 발견": "경쟁 제품이나 서비스가 청구항을 사용했는지 실제로 확인하고 입증하기 쉬운지 보는 항목입니다.",
+        "신규성": "선행기술에 동일한 구성이 이미 공개되어 있으면 부족해지는 등록 요건입니다.",
+        "진보성": "선행기술을 조합해 통상의 기술자가 쉽게 생각할 수 있으면 부족해지는 등록 요건입니다.",
+        "기재불비": "명세서나 청구항이 불명확하거나, 발명을 실시할 수 있을 만큼 충분히 설명하지 못한 문제입니다.",
+        "청구항": "특허권의 보호 범위를 정하는 문장입니다. 등록 가능성과 권리 강도는 대부분 청구항 설계에서 갈립니다.",
+        "독립항": "다른 청구항을 인용하지 않고 발명의 핵심 구성을 직접 정의하는 청구항입니다.",
+        "종속항": "독립항에 구체 조건을 추가해 방어 범위를 여러 층으로 만드는 청구항입니다.",
+        "검증 등급": "보고서 내용이 출처, 수치, 근거로 얼마나 뒷받침되는지 자동 검증한 신뢰도 등급입니다.",
+        "evidence coverage": "평가 항목 중 명시 근거가 붙은 비율입니다. 낮으면 점수 자체보다 검증 보강이 먼저 필요합니다.",
+    }
+    lines = []
+    for term, explanation in glossary.items():
+        if term.lower() in text:
+            lines.append(f"- **{term}**: {explanation}")
+    if not lines and any(term in text for term in TERM_EXPLANATION_TERMS):
+        lines.append("- 질문한 용어가 보고서의 특정 항목명이라면, 해당 항목은 보통 `평가 점수`, `판단 근거`, `출처 유무`, `보정 필요성`을 함께 봐야 정확히 해석할 수 있습니다.")
+    return lines
+
+
+def _failed_case_evaluation_answer(summary: dict[str, Any] | None, hits: list[dict[str, Any]], *, query: str = "") -> str:
     if not summary or not summary.get("exists"):
         return "\n".join(
             [
@@ -910,6 +981,9 @@ def _failed_case_evaluation_answer(summary: dict[str, Any] | None, hits: list[di
     dimension_scores = summary.get("dimension_scores") if isinstance(summary.get("dimension_scores"), dict) else {}
     verification = summary.get("verification") if isinstance(summary.get("verification"), dict) else {}
     similar = summary.get("similar_patents_brief") if isinstance(summary.get("similar_patents_brief"), dict) else {}
+    low_items = [item for item in summary.get("low_score_items") or [] if isinstance(item, dict)]
+    high_items = [item for item in summary.get("high_score_items") or [] if isinstance(item, dict)]
+    issues = verification.get("issues") if isinstance(verification.get("issues"), list) else []
     lines = [
         f"## {patent.get('id') or summary.get('case_id')} 평가 결과",
         "",
@@ -923,11 +997,35 @@ def _failed_case_evaluation_answer(summary: dict[str, Any] | None, hits: list[di
         f"- 자동 검증 점수: {_fmt_metric(verification.get('overall_reliability_score'))}",
         f"- 사람 검토 필요: {verification.get('human_review_required')}",
         "",
+        "결론부터 보면, 이 케이스는 보고서 점수만 보면 `B+` 수준으로 평가되지만, 자동 검증 등급이 `D`라서 그대로 의사결정하기에는 위험합니다. 즉, 기술 자체 평가는 나쁘지 않지만 몇몇 고평가 항목의 출처가 약하고 사업화 근거가 부족해 사람 검토와 자료 보강이 필요합니다.",
+        "",
+        "### 핵심 원인 한눈에 보기",
+        "",
+        "1. **실제 거절 사유 원문이 부족합니다.** 의견제출통지서/거절결정서가 없으면 신규성, 진보성, 기재불비 중 무엇이 핵심 문제였는지 확정할 수 없습니다.",
+        "2. **권리성 고평가 항목의 근거가 약합니다.** 무효 가능성, 권리범위 적절성, 권리 구성요소, 권리 추상성, 침해 발견/입증 용이성에서 출처 부족 검증 이슈가 잡혔습니다.",
+        "3. **사업화 근거가 부족합니다.** 사내 적용처, 제품 연결, 매출/시장 근거가 부족하면 사업성 평가는 방어력이 약합니다.",
+        "4. **보고서 점수와 검증 신뢰도가 충돌합니다.** 점수는 B+지만 검증 등급은 D라서, 발표/의사결정에는 보강 근거가 먼저 필요합니다.",
+        "",
+        "### 먼저 해야 할 3가지",
+        "",
+        "1. 의견제출통지서나 거절결정서 원문을 업로드해 실제 거절 조항과 인용문헌을 확인합니다.",
+        "2. 청구항별로 `구성요소 - 선행문헌 대응 - 차별점 - 보정 방향` 표를 만듭니다.",
+        "3. 보고서에서 출처 부족으로 표시된 권리성 항목과 사업화 근거를 보강한 뒤 보고서를 다시 생성합니다.",
+        "",
+    ]
+    term_lines = _term_explanation_lines(query)
+    if term_lines:
+        lines.extend(["### 용어 설명", ""])
+        lines.extend(term_lines)
+        lines.append("")
+    lines.extend(
+        [
         "### 영역별 점수",
         "",
         "| 영역 | 평균 점수(1~5) | 100점 환산 | 등급 | 항목 수 |",
         "| --- | ---: | ---: | --- | ---: |",
-    ]
+        ]
+    )
     if dimension_scores:
         for dimension, score in dimension_scores.items():
             if not isinstance(score, dict):
@@ -950,9 +1048,57 @@ def _failed_case_evaluation_answer(summary: dict[str, Any] | None, hits: list[di
     lines.extend(
         [
             "",
-            "### 해석",
+            "### 왜 이렇게 평가됐는지",
             "",
             str(report_summary.get("overall_opinion") or "종합 의견이 보고서에 없습니다."),
+            "",
+            "보고서상 강하게 본 부분은 다음입니다.",
+        ]
+    )
+    if high_items:
+        for item in high_items[:3]:
+            lines.append(
+                f"- **{item.get('dimension')} / {item.get('item')}**: {_fmt_metric(item.get('score'))}/5. "
+                f"{_compact_answer_text(item.get('judgment_summary'))}"
+            )
+    else:
+        lines.append("- 강점 항목이 보고서에서 구조화되어 추출되지 않았습니다.")
+    lines.extend(["", "보완하거나 주의해야 할 부분은 다음입니다."])
+    if low_items:
+        for item in low_items[:6]:
+            lines.append(
+                f"- **{item.get('dimension')} / {item.get('item')}**: {_fmt_metric(item.get('score'))}/5. "
+                f"{_compact_answer_text(item.get('judgment_summary'))}"
+            )
+    else:
+        lines.append("- 2점 이하의 뚜렷한 저평가 항목은 보고서에서 확인되지 않았습니다. 다만 검증 이슈가 있어 근거 보강은 필요합니다.")
+    lines.extend(
+        [
+            "",
+            "### 무엇이 문제였는지",
+            "",
+            "1. **평가 결과와 검증 결과가 서로 다릅니다.** 종합 평가는 B+지만, 자동 검증 등급은 D입니다. 따라서 점수 자체보다 `왜 그 점수가 나왔는지`를 뒷받침하는 출처를 먼저 보강해야 합니다.",
+            "2. **권리성 고평가 항목 일부에 명시 근거가 약합니다.** 보고서 검증 이슈에서 무효 가능성, 권리범위 적절성, 권리의 구성요소, 권리의 추상성, 침해 발견/입증 용이성 항목에 출처 부족이 표시됐습니다.",
+            "3. **사업화/RAG 근거가 부족합니다.** 사내 사업화 적용처, 실제 제품 연결, 매출/시장 근거가 충분하지 않으면 사업성 점수는 발표나 의사결정에서 방어하기 어렵습니다.",
+            "4. **실제 거절 사유 원문이 없으면 실패 원인은 확정할 수 없습니다.** 의견제출통지서나 거절결정서가 없으면 신규성, 진보성, 기재불비 중 무엇이 핵심 거절 사유였는지 단정하면 안 됩니다.",
+            "",
+            "### 등록 가능성을 높이려면 해야 할 일",
+            "",
+            "| 우선순위 | 해야 할 일 | 이유 | 산출물 |",
+            "| --- | --- | --- | --- |",
+            "| 1 | 의견제출통지서/거절결정서 원문을 같은 케이스 폴더에 추가 | 실제 거절 조항과 인용문헌을 알아야 보정 방향이 정해짐 | 거절이유 요약표, 제출기한 체크 |",
+            "| 2 | 청구항 구성요소 대응표 작성 | 청구항의 각 구성이 선행문헌에 있는지 비교해야 신규성/진보성 판단 가능 | 청구항-선행문헌 매핑표 |",
+            "| 3 | 핵심 차별점 한 줄 정의 | 이 특허는 다중 임계값, 결함 개수 맵, 비교 가능한 시각화가 핵심이므로 차별점을 좁혀야 함 | 독립항 차별 포인트 |",
+            "| 4 | 명세서 지원 근거 표시 | 보정 시 신규사항 추가 금지에 걸리지 않으려면 원 명세서 문단 근거가 필요 | 보정 근거 문단표 |",
+            "| 5 | 종속항 보강 | 독립항이 좁아져도 방어 범위를 유지하려면 실시예/변형예/수치조건을 층화해야 함 | 보정 청구항 초안 |",
+            "| 6 | 보고서 검증 이슈 보완 | B+ 평가를 신뢰하려면 출처 부족 항목과 사업화 근거를 채워야 함 | 보강 근거 파일, 최신 보고서 재생성 |",
+            "",
+            "### 이 특허 기준 보정 방향",
+            "",
+            "- 독립항은 `다수 반도체 이미지에서 결함 위치 정보를 획득 → 결함 개수 맵 생성 → 다중 임계값별 결함 이미지 생성 → 비교 가능한 형태로 시각화` 흐름이 핵심입니다.",
+            "- 선행기술이 단순 결함 맵이나 단일 임계값 시각화라면, `다중 임계값`, `결함 개수별 픽셀값 구분`, `여러 이미지 비교 배열`, `차 이미지 생성`을 차별 포인트로 세워야 합니다.",
+            "- 명세서에는 이 차별점이 결함의 군집/분포/반복 패턴 분석을 쉽게 한다는 효과로 연결되어 있어야 합니다.",
+            "- 등록 목적이라면 독립항은 선행문헌과 겹치는 표현을 줄이고, 종속항에는 그리드 맵, 웨이퍼/다이 이미지, 차 이미지, 임계값 설정 방식 같은 구체 구성을 남기는 방향이 좋습니다.",
             "",
             "### 유사 특허 분석",
             "",
@@ -965,7 +1111,6 @@ def _failed_case_evaluation_answer(summary: dict[str, Any] | None, hits: list[di
             "",
         ]
     )
-    issues = verification.get("issues") if isinstance(verification.get("issues"), list) else []
     if issues:
         for issue in issues[:5]:
             if not isinstance(issue, dict):
@@ -1058,7 +1203,7 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
         }
     intent_name = str(intent.get("intent") or "application_procedure")
     if intent_name == "failed_case_evaluation":
-        answer = _failed_case_evaluation_answer(retrieval.get("case_report_summary"), hits)
+        answer = _failed_case_evaluation_answer(retrieval.get("case_report_summary"), hits, query=state.get("query", ""))
         source_cards = cards_from_application_hits(hits, query=state.get("query", ""))
         result = {
             "query": state.get("query", ""),
