@@ -12,7 +12,10 @@ from .state import ChatAgentState
 
 PATENT_ID_RE = re.compile(r"\b\d{2}-\d{6,8}\b")
 TOKEN_RE = re.compile(r"[A-Za-z0-9]+|[가-힣]+")
-FOLLOWUP_TERMS = ("이거", "이것", "이 특허", "그거", "앞에서", "방금", "이전", "계속", "그 특허")
+FOLLOWUP_TERMS = (
+    "이거", "이것", "이 특허", "그거", "앞에서", "방금", "이전", "계속", "그 특허",
+    "더 자세하게", "자세히", "이어서", "계속해서", "추가로", "좀 더",
+)
 GENERIC_TITLE_TERMS = {
     "방법",
     "시스템",

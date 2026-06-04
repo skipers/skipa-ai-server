@@ -1,39 +1,39 @@
 {
   "scope": "global",
-  "refreshed_at": "2026-06-02T18:02:52",
+  "refreshed_at": "2026-06-04T14:09:05",
   "vector_dimensions": 256,
   "backend": "local_hashed_bow",
   "source": "human_reviewed",
   "document_count": 509,
-  "documents_path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/_global/index/vectorstore/documents.jsonl",
+  "documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/documents.jsonl",
   "source_fingerprints": [
     {
-      "path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-1959619/extracted/all_chunks.jsonl",
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-1959619/extracted/all_chunks.jsonl",
       "size_bytes": 2386424,
       "sha1": "3392c00727187ebd9ed0702fdfc997fe24a9d54d"
     },
     {
-      "path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-1959619/original/input/latest.json",
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-1959619/original/input/latest.json",
       "size_bytes": 22210,
       "sha1": "fa5c8338992f88b202a627212ccc057f20e7ea68"
     },
     {
-      "path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2042318/original/input/latest.json",
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2042318/original/input/latest.json",
       "size_bytes": 29637,
       "sha1": "e5806642877b2570ecfdfd854af2494bb9a3a1ad"
     },
     {
-      "path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042/extracted/all_chunks.jsonl",
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2762042/extracted/all_chunks.jsonl",
       "size_bytes": 1499436,
       "sha1": "e9d9b1b9ab3f7c1fc370881150c80cd01627a9d1"
     },
     {
-      "path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2886381/extracted/all_chunks.jsonl",
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2886381/extracted/all_chunks.jsonl",
       "size_bytes": 2187688,
       "sha1": "8dbc5ff97f4924da0556fbaac493c1a43745239b"
     },
     {
-      "path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/extracted/all_chunks.jsonl",
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2893083/extracted/all_chunks.jsonl",
       "size_bytes": 1634016,
       "sha1": "c687428ea3846cf1e5e5e5918aa2dc59292993eb"
     }

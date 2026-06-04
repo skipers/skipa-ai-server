@@ -37,6 +37,16 @@ def _hybrid_result_allowed(
     allow_web: bool,
     intent: dict[str, Any],
 ) -> tuple[bool, str | None]:
+    # 특수 모드는 source_cards 없어도 통과: 명확화, 웹검색, 특허 검색, 선택 등
+    answer_mode = str(result.get("metrics", {}).get("answer_mode") or "")
+    _passthrough_modes = {
+        "GLOBAL_CLARIFY", "GLOBAL_WEB_SEARCH", "ASK_CLARIFICATION",
+        "PATENT_SELECTION", "GLOBAL_PATENT_DISCOVERY",
+        "GLOBAL_PATENT_EVALUATION", "GLOBAL_CLARIFY_AMBIGUOUS",
+        "GLOBAL_DEFINITION",
+    }
+    if answer_mode in _passthrough_modes:
+        return True, None
     if not source_types:
         return True, None
     allowed = {item.upper() for item in source_types}

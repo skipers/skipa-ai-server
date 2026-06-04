@@ -1,10 +1,10 @@
 {
   "scope": "wiki:global-disabled",
-  "refreshed_at": "2026-06-02T18:02:52",
+  "refreshed_at": "2026-06-04T14:09:05",
   "vector_dimensions": 256,
   "backend": "local_hashed_bow",
   "source": "disabled_patent_local_only",
   "document_count": 0,
-  "documents_path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/_global/wiki/vectorstore/local/documents.jsonl",
+  "documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/wiki/vectorstore/local/documents.jsonl",
   "source_fingerprints": []
 }

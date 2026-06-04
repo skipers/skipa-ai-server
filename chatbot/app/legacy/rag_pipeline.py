@@ -386,6 +386,13 @@ def is_global_patent_discovery_question(question: str) -> bool:
     return "특허" in q and bool(query_terms)
 
 
+def _split_compound_nouns(text: str) -> str:
+    """'물류특허'→'물류 특허' 처럼 한국어 복합명사 분리."""
+    for noun in ("특허", "보고서", "원문", "청구항", "평가", "시스템", "장치", "방법"):
+        text = re.sub(rf"([가-힣a-zA-Z0-9])({noun})", rf"\1 \2", text)
+    return text
+
+
 def discovery_query_terms(question: str) -> List[str]:
     terms: List[str] = []
     stop_terms = {
@@ -437,7 +444,7 @@ def discovery_query_terms(question: str) -> List[str]:
         "공통점",
         "대비",
     }
-    for term in tokens(question):
+    for term in tokens(_split_compound_nouns(question)):
         if len(term) < 2:
             continue
         if is_question_context_token(term):
@@ -1571,12 +1578,14 @@ def call_ollama_model(
     timeout: int = 120,
     temperature: Optional[float] = None,
 ) -> str:
-    if INTENT_PROVIDER == "openai" and model == INTENT_MODEL:
-        result = call_openai_messages(messages=messages, model=INTENT_MODEL, timeout=timeout)
+    if INTENT_PROVIDER == "openai":
+        # INTENT_MODEL이 Ollama 모델명(":"포함)이면 OpenAI 기본 모델로 교정
+        _openai_model = INTENT_MODEL if ":" not in INTENT_MODEL else os.getenv("OPENAI_INTENT_MODEL", "gpt-4.1-mini")
+        result = call_openai_messages(messages=messages, model=_openai_model, timeout=timeout)
         if result.get("ok"):
             return str(result.get("text") or "").strip()
         if not ENABLE_OLLAMA_INTENT_FALLBACK:
-            raise RuntimeError(f"OpenAI intent call failed: {result.get('error')}")
+            raise RuntimeError(f"OpenAI intent call failed (model={_openai_model}): {result.get('error')}")
 
     payload = {
         "model": model,
@@ -1835,10 +1844,52 @@ def run_global_intent_agent(question: str, domain_matches: List[Dict[str, Any]])
         "intent_agent_type": "GLOBAL_ROUTER",
     }
 
+    # 지시어(대명사): 컨텍스트 없으면 CLARIFY
+    AMBIGUOUS_TERMS = ("이거", "이것", "그거", "저거", "이 특허", "앞에서", "방금", "이전", "어떻게 해")
+    # 정의 요청: "뭐야/이란" 패턴만 (알려줘/설명 등 일반 동사 제외)
+    DEFINITION_TERMS = ("뭐야", "뭐예요", "뭐임", "뭔가요", "이란", "무엇인가", "무엇인지", "뭔지")
+    # 연속 질문 패턴
+    CONTINUATION_TERMS = ("더 자세하게", "자세히 알려줘", "더 알려줘", "이어서", "계속해서", "좀 더", "추가로")
+
+    def _normalize_q(text: str) -> str:
+        import re as _re
+        for noun in ("특허", "보고서", "원문", "청구항", "평가"):
+            text = _re.sub(rf"([가-힣a-zA-Z0-9])({noun})", rf"\1 \2", text)
+        return text
+
+    def _is_continuation_q(text: str) -> bool:
+        return any(t in text.lower() for t in CONTINUATION_TERMS)
+
+    def _is_ambiguous_global(text: str) -> bool:
+        q = _normalize_q(text.strip().lower())
+        if _is_continuation_q(q):
+            return False
+        if len(q) <= 10 and any(t in q for t in AMBIGUOUS_TERMS):
+            return True
+        if any(t in q for t in AMBIGUOUS_TERMS) and not domain_matches:
+            return True
+        return False
+
+    def _is_definition_question(text: str) -> bool:
+        q = text.strip().lower()
+        return any(t in q for t in DEFINITION_TERMS)
+
     def fallback(reason: str) -> Tuple[str, Dict[str, Any]]:
-        q = question.lower()
+        q = _normalize_q(question.lower())
         if is_clearly_unrelated_question(question):
             scope = "OUT_OF_SCOPE"
+        elif _is_continuation_q(question):
+            # "더 자세하게", "이어서" 등 → 이전 컨텍스트 기반으로 처리
+            scope = "CLARIFY" if not domain_matches else "GLOBAL_DETAIL"
+        elif _is_ambiguous_global(question):
+            scope = "CLARIFY"
+        elif _is_definition_question(question):
+            if domain_matches:
+                # "cmp가 뭐야?" + 내부 특허 있음 → 특허 내용으로 설명
+                scope = "GLOBAL_DETAIL"
+            else:
+                # "cmd가 뭐야?" + 내부 데이터 없음 → 웹 검색
+                scope = "GLOBAL_WEB"
         elif is_explicit_visual_asset_request(question):
             scope = "GLOBAL_VISUAL"
         elif is_evaluation_question(question):
@@ -1855,7 +1906,7 @@ def run_global_intent_agent(question: str, domain_matches: List[Dict[str, Any]])
             {
                 "intent_agent_used": False,
                 "intent_agent_scope": scope,
-                "intent_agent_confidence": 0.62 if scope != "OUT_OF_SCOPE" else 0.5,
+                "intent_agent_confidence": 0.62 if scope not in ("OUT_OF_SCOPE", "CLARIFY") else 0.5,
                 "intent_agent_reason": reason,
                 "intent_agent_ms": now_ms() - t0,
                 "web_query": question if scope == "GLOBAL_WEB" else "",
@@ -1888,25 +1939,35 @@ def run_global_intent_agent(question: str, domain_matches: List[Dict[str, Any]])
 
 사용자 질문을 단어 트리거가 아니라 의도와 필요한 근거 종류로 분류한다.
 가능한 scope:
-- GLOBAL_WEB: 현재/최신/외부 시장, 산업 동향, 경쟁사, 뉴스, 표준, 시장규모, 성장률, 전망처럼 내부 특허 원문만으로 답하면 안 되고 웹 출처가 필요한 질문
+- CLARIFY: 어떤 특허를 대상으로 하는지 알 수 없어 되물어야 하는 모호한 질문. "이거", "그거", "이 특허" 등 지시어만 있고 대화 이력에서도 특허/범위를 특정할 수 없을 때.
+- GLOBAL_WEB: (1) 현재/최신/외부 시장, 산업 동향, 경쟁사, 뉴스, 표준, 시장규모, 성장률, 전망 등 내부 데이터만으로 답할 수 없는 질문. (2) "cmd가 뭐야?", "API란?", "BM25가 뭐야?" 처럼 내부 특허/보고서와 무관한 일반 기술/개념 정의 질문
 - GLOBAL_DISCOVERY: 전체 인덱스에서 어떤 특허가 있는지, 관련 특허 목록/검색/개수를 묻는 질문
 - GLOBAL_DETAIL: 전체 인덱스에서 특정 또는 단일 후보 특허를 자세히 설명해 달라는 질문
-- GLOBAL_EVALUATION: 평가 보고서 점수, 기술성, 권리성, 시장성, 사업성, 리스크, 평가 결과를 묻는 질문
+- GLOBAL_EVALUATION: 평가 보고서 점수, 기술성, 권리성, 시장성, 사업성, 리스크, 평가 결과, 유지/포기/매각/제각 판단 근거를 묻는 질문
 - GLOBAL_VISUAL: 표, 그림, 도면, 이미지, 다이어그램, 차트를 보여달라는 질문
 - BUSINESS: 검토 요청, 의견 제출, 유지/매각/제각 프로세스, 이력/권한/상태 같은 업무 절차 질문
 - OUT_OF_SCOPE: 특허/기술/시장/업무와 무관한 일반 잡담 또는 생활 질문
 
 중요 규칙:
-1. "물류 시장이 지금 어떻게 되어있는지"처럼 시장의 현재 상태를 묻는 질문은 관련 특허가 매칭되어도 GLOBAL_WEB이다.
-2. "물류 특허 알려줘"는 GLOBAL_DISCOVERY다.
-3. "물류 특허 자세히 알려줘"는 단일 후보가 있으면 GLOBAL_DETAIL이다.
-4. "물류 특허 평가는?"은 GLOBAL_EVALUATION이다.
-5. "보고서 표 보여줘", "원문 도면 보여줘", "다이어그램 보여줘"처럼 내부 문서의 표/그림/도면/이미지를 보여달라는 질문은 GLOBAL_VISUAL이다. 이 경우 외부 웹검색보다 내부 시각자료 검색이 우선이다.
-6. "시장 동향 알려줘"처럼 시장/동향 대상이 없는 질문은 넓은 웹검색으로 보내지 말고 OUT_OF_SCOPE로 두어 되묻기를 유도한다.
-7. 최종 출력은 JSON 하나만 한다.
+1. "이거", "이것", "이 특허", "앞에서", "방금", "이전", "어떻게 해"처럼 지시 대상이 불분명하고 도메인 매칭 후보도 없으면 CLARIFY다. 되물어서 범위를 확인한다.
+2. "물류 시장이 지금 어떻게 되어있는지"처럼 시장의 현재 상태를 묻는 질문은 관련 특허가 매칭되어도 GLOBAL_WEB이다.
+3. "물류 특허 알려줘", "반도체 특허 찾아줘"는 GLOBAL_DISCOVERY다.
+4. "물류 특허 자세히 알려줘"는 단일 후보가 있으면 GLOBAL_DETAIL이다.
+5. "유지 판단 근거", "평가 점수", "기술성/권리성/시장성 점수", "포기/매각 판단 기준" 등 내부 평가보고서를 묻는 질문은 GLOBAL_EVALUATION이다. 절대 GLOBAL_WEB으로 보내지 않는다.
+6. "보고서 표 보여줘", "원문 도면 보여줘"처럼 내부 문서 시각자료 요청은 GLOBAL_VISUAL이다.
+7. "시장 동향 알려줘"처럼 대상이 없는 질문은 CLARIFY로 되묻기를 유도한다.
+8. 도메인 매칭 후보에 특허가 있고 질문에 "유지", "판단", "근거", "포기", "매각", "제각", "평가"가 포함되면 GLOBAL_EVALUATION이다.
+9. 최종 출력은 JSON 하나만 한다.
+
+예시:
+질문: "CMP Pad 물류 관리 시스템의 유지 판단 근거를 알려줘" (도메인 매칭: CMP Pad 특허) → {"scope":"GLOBAL_EVALUATION","confidence":0.95,"reason":"내부 평가보고서의 유지 판단 근거 질문","web_query":"","clarification_question":""}
+질문: "cmp가 뭐야?" (도메인 매칭: CMP Pad 특허) → {"scope":"GLOBAL_DETAIL","confidence":0.9,"reason":"기술 용어 정의 질문, 내부 특허 원문으로 설명 가능","web_query":"","clarification_question":""}
+질문: "cmd가 뭐야?" (도메인 매칭 없음) → {"scope":"GLOBAL_WEB","confidence":0.92,"reason":"내부 데이터 없는 일반 기술 개념 정의","web_query":"cmd 명령어 뜻","clarification_question":""}
+질문: "반도체 CMP 시장 최근 동향 알려줘" → {"scope":"GLOBAL_WEB","confidence":0.9,"reason":"외부 시장 동향 질문","web_query":"반도체 CMP 시장 동향","clarification_question":""}
+질문: "이거 어떻게 해" (도메인 매칭 없음) → {"scope":"CLARIFY","confidence":0.9,"reason":"지시 대상 불명확","web_query":"","clarification_question":"어떤 특허에 대해 질문하시나요? 특허명이나 번호를 알려주시면 정확하게 답변드릴 수 있어요."}
 
 형식:
-{"scope":"GLOBAL_WEB","confidence":0.0,"reason":"짧은 이유","web_query":"웹 검색에 사용할 한국어 검색어"}
+{"scope":"GLOBAL_WEB","confidence":0.0,"reason":"짧은 이유","web_query":"웹 검색에 사용할 한국어 검색어","clarification_question":"CLARIFY일 때만 되물을 질문, 나머지는 빈 문자열"}
 """.strip()
 
     user_prompt = f"""
@@ -1932,6 +1993,7 @@ def run_global_intent_agent(question: str, domain_matches: List[Dict[str, Any]])
         parsed = parse_json_object(raw) or {}
         scope = str(parsed.get("scope") or "").strip().upper()
         if scope not in (
+            "CLARIFY",
             "GLOBAL_WEB",
             "GLOBAL_DISCOVERY",
             "GLOBAL_DETAIL",
@@ -1948,13 +2010,15 @@ def run_global_intent_agent(question: str, domain_matches: List[Dict[str, Any]])
         confidence = max(0.0, min(1.0, confidence))
         if confidence < INTENT_AGENT_MIN_CONFIDENCE:
             return fallback("intent agent confidence below threshold; fallback router used")
+        clarification_question = normalize(str(parsed.get("clarification_question") or ""))[:300]
         metrics.update(
             {
                 "intent_agent_scope": scope,
                 "intent_agent_confidence": round(confidence, 4),
                 "intent_agent_reason": normalize(str(parsed.get("reason") or ""))[:220],
                 "intent_agent_ms": now_ms() - t0,
-                "web_query": normalize(str(parsed.get("web_query") or question))[:260],
+                "web_query": normalize(str(parsed.get("web_query") or (question if scope == "GLOBAL_WEB" else "")))[:260],
+                "clarification_question": clarification_question,
             }
         )
         return scope, metrics
@@ -2880,6 +2944,13 @@ def is_evaluation_question(question: str) -> bool:
             "가치 평가",
             "어떻게 되었",
             "어떻게 됐",
+            "유지 판단",
+            "포기 판단",
+            "매각 판단",
+            "제각 판단",
+            "판단 근거",
+            "유지/포기",
+            "유지/매각",
         )
     )
 
@@ -3427,6 +3498,14 @@ def is_discovery_only_question(question: str) -> bool:
     return any(marker in q for marker in discovery_markers) and not any(
         marker in q for marker in ("자세", "상세", "설명", "개요", "정리")
     )
+
+
+_DEFINITION_TERMS = ("뭐야", "뭐예요", "뭐임", "뭔가요", "이란", "무엇인가", "무엇인지", "뭔지")
+
+
+def is_definition_question(question: str) -> bool:
+    q = question.strip().lower()
+    return any(t in q for t in _DEFINITION_TERMS)
 
 
 def should_promote_global_detail_answer(question: str, patent_groups: List[Dict[str, Any]]) -> bool:
@@ -6451,6 +6530,41 @@ class PatentRAGPipeline:
         global_intent_scope, global_intent_metrics = run_global_intent_agent(question, domain_matches)
         domain_scope_metrics.update(global_intent_metrics)
 
+        if global_intent_scope == "CLARIFY":
+            clarification_q = (
+                global_intent_metrics.get("clarification_question")
+                or "어떤 특허에 대해 질문하시나요? 특허명이나 번호를 알려주시거나, 전체 DB에서 찾아드릴까요?"
+            )
+            metrics = {
+                "scope": "CLARIFY",
+                "patent_id": None,
+                "global_search": True,
+                "patent_hit_count": len(domain_matches),
+                "local_context_count": len(docs),
+                "web_context_count": 0,
+                "confidence_score": 0.0,
+                **retrieval_metrics,
+                "web_search_ms": 0,
+                "llm_ms": 0,
+                "total_ms": now_ms() - total_t0,
+                "answer_mode": "GLOBAL_CLARIFY",
+                "answer_cache_hit": False,
+                "answer_generation_basis": "clarification_needed",
+                "answer_presentation": ["clarification"],
+                "retrieval_quality_score": 0.0,
+                "retrieval_quality_grade": "LOW",
+                "retrieval_quality_label": "낮음",
+                "retrieval_quality_reason": "질문 대상이 불분명해 되묻기 처리합니다.",
+                "search_pass": False,
+                **domain_scope_metrics,
+            }
+            self._log_query(user_id, None, question, "CLARIFY", 0.0, metrics)
+            return {
+                "answer": clarification_q,
+                "source_cards": [],
+                "metrics": metrics if RETURN_PERFORMANCE else {},
+            }
+
         if (
             global_intent_scope == "GLOBAL_WEB"
             and is_generic_external_global_question(question, domain_matches)
@@ -6487,6 +6601,22 @@ class PatentRAGPipeline:
                 "source_cards": [],
                 "metrics": metrics if RETURN_PERFORMANCE else {},
             }
+
+        if (
+            global_intent_scope == "GLOBAL_WEB"
+            and is_evaluation_question(question)
+            and domain_matches
+            and "웹" not in question.lower()
+            and "외부" not in question.lower()
+        ):
+            global_intent_scope = "GLOBAL_EVALUATION"
+            domain_scope_metrics.update(
+                {
+                    "intent_agent_scope": "GLOBAL_EVALUATION",
+                    "intent_agent_reason": "평가/판단 근거 질문은 내부 보고서 검색을 우선하도록 보정",
+                    "intent_agent_override": "EVALUATION_PRIORITY",
+                }
+            )
 
         if (
             global_intent_scope == "GLOBAL_WEB"
@@ -6841,6 +6971,57 @@ class PatentRAGPipeline:
                         "source_cards": evaluation_source_cards,
                         "metrics": metrics if RETURN_PERFORMANCE else {},
                     }
+            if is_definition_question(question) and len(patent_groups) == 1:
+                # "cmp가 뭐야?" 같은 정의 질문 → abstract + background로 간결 답변
+                def_patent_id = str(patent_groups[0].get("patent_id") or "")
+                def_meta = self.load_patent_meta(def_patent_id) if def_patent_id else {}
+                def_title = def_meta.get("title") or def_patent_id
+                reg_no = def_meta.get("registration_number") or def_patent_id
+                # select_patent_overview_docs로 핵심 섹션만 가져옴
+                overview_docs = select_patent_overview_docs(def_patent_id, question)
+                # 요약(abstract)과 배경기술만 사용 - 최대 2개 청크
+                key_docs = [
+                    d for d in overview_docs
+                    if str((d.metadata or {}).get("section_key") or "").upper()
+                    in {"KR_ABSTRACT", "KR_BACKGROUND", "KR_SUMMARY"}
+                ][:2] or overview_docs[:1]
+                _, def_source_cards = format_context(key_docs)
+                key_text = "\n\n".join(d.page_content[:400] for d in key_docs)
+                def_answer = (
+                    f"**{def_title}** 개요 (특허 원문 기반):\n\n"
+                    f"{key_text}\n\n"
+                    f"---\n내부 DB 관련 특허: **{def_title}** (등록번호: {reg_no})"
+                )
+                def_metrics = {
+                    "scope": "GLOBAL",
+                    "patent_id": def_patent_id,
+                    "global_search": True,
+                    "patent_hit_count": 1,
+                    "local_context_count": len(key_docs),
+                    "web_context_count": 0,
+                    "confidence_score": 0.8,
+                    **retrieval_metrics,
+                    "web_search_ms": 0,
+                    "llm_ms": 0,
+                    "total_ms": now_ms() - total_t0,
+                    "answer_mode": "GLOBAL_DEFINITION",
+                    "answer_cache_hit": False,
+                    "answer_generation_basis": "patent_abstract",
+                    "answer_presentation": ["brief_definition"],
+                    "retrieval_quality_score": 0.8,
+                    "retrieval_quality_grade": "GOOD",
+                    "retrieval_quality_label": "양호",
+                    "retrieval_quality_reason": "정의 질문에 특허 요약으로 간결 답변",
+                    "search_pass": True,
+                    **domain_scope_metrics,
+                }
+                self._log_query(user_id, def_patent_id, question, "GLOBAL", 0.8, def_metrics)
+                return {
+                    "answer": def_answer,
+                    "source_cards": def_source_cards,
+                    "metrics": def_metrics if RETURN_PERFORMANCE else {},
+                }
+
             if should_promote_global_detail_answer(question, patent_groups):
                 detail_patent_id = str(patent_groups[0].get("patent_id") or "")
                 overview_docs = select_patent_overview_docs(detail_patent_id, question) if detail_patent_id else []
