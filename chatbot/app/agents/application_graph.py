@@ -23,11 +23,14 @@ from ..rag.config import (
     ANSWER_LLM_TIMEOUT,
     ANSWER_MODEL,
     ANSWER_NUM_PREDICT,
+    ENABLE_OLLAMA_INTENT_FALLBACK,
     INTENT_LLM_TIMEOUT,
     INTENT_MODEL,
     INTENT_NUM_PREDICT,
+    INTENT_PROVIDER,
+    OPENAI_INTENT_MODEL,
 )
-from ..rag.llm import call_ollama
+from ..rag.llm import call_ollama, call_openai_json
 
 
 FOLLOWUP_TERMS = ("이거", "이것", "그거", "앞에서", "방금", "이전", "계속", "그 다음", "그럼", "그러면", "이어서", "다음")
@@ -46,6 +49,34 @@ SOURCE_PLAN_BY_INTENT = {
     "rejection_response": ["notice_forms", "examination_standard", "appeal", "kipris"],
     "fees": ["fee_guide", "official_forms"],
     "application_strategy": ["strategy", "examination_timing", "publication", "kosis", "tavily"],
+}
+APPLICATION_INTENT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "intent": {"type": "string", "enum": sorted(SOURCE_PLAN_BY_INTENT.keys())},
+        "source_plan": {"type": "array", "items": {"type": "string"}},
+        "answer_format": {"type": "string"},
+        "needs_table": {"type": "boolean"},
+        "needs_diagram": {"type": "boolean"},
+        "needs_external": {"type": "boolean"},
+        "confidence": {"type": "number"},
+        "reason": {"type": "string"},
+        "needs_clarification": {"type": "boolean"},
+        "clarification_question": {"type": "string"},
+    },
+    "required": [
+        "intent",
+        "source_plan",
+        "answer_format",
+        "needs_table",
+        "needs_diagram",
+        "needs_external",
+        "confidence",
+        "reason",
+        "needs_clarification",
+        "clarification_question",
+    ],
 }
 
 
@@ -152,6 +183,8 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
         "needs_diagram": needs_diagram,
         "needs_external": any(term in text for term in [*EXTERNAL_TERMS, *REJECTION_TERMS]),
         "method": "rule",
+        "needs_clarification": len(text.strip()) <= 8 and any(term in text for term in FOLLOWUP_TERMS),
+        "clarification_question": "출원 절차, 선행기술조사, 청구항 작성, 거절 대응 중 어느 범위를 기준으로 도와드릴까요?",
     }
 
 
@@ -171,6 +204,11 @@ def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, 
         repaired["intent"] = intent_name
         repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
     repaired["source_plan"] = SOURCE_PLAN_BY_INTENT[intent_name]
+    if repaired.get("needs_clarification"):
+        repaired["needs_external"] = False
+        repaired["source_plan"] = SOURCE_PLAN_BY_INTENT.get(intent_name, SOURCE_PLAN_BY_INTENT["application_procedure"])
+        if not repaired.get("clarification_question"):
+            repaired["clarification_question"] = "어떤 출원 업무 범위를 기준으로 답할까요?"
     explicit_external = any(term in text for term in EXTERNAL_TERMS)
     explicit_rejection = any(term in text for term in REJECTION_TERMS)
     source_plan_needs_external = bool({"kipris", "kosis", "tavily"} & set(repaired.get("source_plan") or []))
@@ -190,7 +228,7 @@ def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, 
 
 def route_application_question(state: ApplicationAgentState) -> ApplicationAgentState:
     fallback = _rule_application_intent(state.get("query", ""))
-    prompt = f"""You are a lightweight intent router for a Korean patent filing assistant.
+    system_prompt = """You are a lightweight intent router for a Korean patent filing assistant.
 Return JSON only with keys: intent, source_plan, answer_format, needs_table, needs_diagram, needs_external.
 Allowed intents: application_procedure, forms_and_filing, drafting_claims, prior_art_search, rejection_response, fees, application_strategy.
 Rules:
@@ -198,15 +236,32 @@ Rules:
 - If the user asks about failure factors, rejection, office-action response, risk or feedback, use rejection_response.
 - If the user asks about prior art, novelty, inventive step, KIPRIS, CPC/IPC or similar patents, use prior_art_search.
 - If the user asks about market, commercialization, timing, external trends or statistics, set needs_external=true and include tavily/kosis.
-Question: {state.get("query", "")}
 """
-    llm = call_ollama(prompt, model=INTENT_MODEL, num_predict=INTENT_NUM_PREDICT, timeout=INTENT_LLM_TIMEOUT)
+    user_prompt = f"Question: {state.get('query', '')}"
+    if INTENT_PROVIDER == "openai":
+        llm = call_openai_json(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            schema=APPLICATION_INTENT_SCHEMA,
+            model=INTENT_MODEL or OPENAI_INTENT_MODEL,
+            timeout=INTENT_LLM_TIMEOUT,
+        )
+    else:
+        llm = {"ok": False, "text": "", "error": "INTENT_PROVIDER is not openai"}
+    if not llm.get("ok") and ENABLE_OLLAMA_INTENT_FALLBACK:
+        llm = call_ollama(
+            f"{system_prompt}\n{user_prompt}",
+            model=INTENT_MODEL,
+            num_predict=INTENT_NUM_PREDICT,
+            timeout=INTENT_LLM_TIMEOUT,
+        )
     intent = dict(fallback)
     if llm.get("ok"):
-        match = re.search(r"\{.*\}", str(llm.get("text") or ""), flags=re.S)
-        if match:
+        parsed_payload = llm.get("json") if isinstance(llm.get("json"), dict) else None
+        match = re.search(r"\{.*\}", str(llm.get("text") or ""), flags=re.S) if parsed_payload is None else None
+        if parsed_payload is not None or match:
             try:
-                parsed = json.loads(match.group(0))
+                parsed = parsed_payload if parsed_payload is not None else json.loads(match.group(0))
                 intent.update(
                     {
                         "intent": parsed.get("intent") or intent["intent"],
@@ -215,7 +270,11 @@ Question: {state.get("query", "")}
                         "needs_table": bool(parsed.get("needs_table", intent["needs_table"])),
                         "needs_diagram": bool(parsed.get("needs_diagram", intent["needs_diagram"])),
                         "needs_external": bool(parsed.get("needs_external", intent.get("needs_external", False))),
+                        "needs_clarification": bool(parsed.get("needs_clarification", intent.get("needs_clarification", False))),
+                        "clarification_question": parsed.get("clarification_question") or intent.get("clarification_question", ""),
                         "method": "llm",
+                        "llm_provider": llm.get("provider") or "ollama",
+                        "llm_model": llm.get("model"),
                     }
                 )
             except json.JSONDecodeError:
@@ -231,7 +290,10 @@ Question: {state.get("query", "")}
 def retrieve_application_external_context(state: ApplicationAgentState) -> ApplicationAgentState:
     intent = state.get("intent") or {}
     query = state.get("query", "")
-    should_search = bool(intent.get("needs_external") or {"kipris", "kosis", "tavily"} & set(intent.get("source_plan") or []))
+    should_search = bool(
+        not intent.get("needs_clarification")
+        and (intent.get("needs_external") or {"kipris", "kosis", "tavily"} & set(intent.get("source_plan") or []))
+    )
     external = {
         "enabled": should_search,
         "connectors": application_external_status(),
@@ -690,6 +752,37 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
     retrieval = state.get("retrieval") or {}
     hits = list(retrieval.get("hits") or [])
     intent = state.get("intent") or {}
+    if intent.get("needs_clarification"):
+        answer = str(intent.get("clarification_question") or "어떤 출원 업무 범위를 기준으로 답할까요?")
+        result = {
+            "query": state.get("query", ""),
+            "patent_id": "patent_application",
+            "answer": answer,
+            "source_cards": [],
+            "metrics": {
+                "engine": "patent_application_langgraph",
+                "intent_agent": intent,
+                "hit_count": 0,
+                "external_context": {"enabled": False, "search_query": None, "web_result_count": 0},
+                "llm_ok": False,
+                "llm_error": "clarification_required",
+                "answer_repaired": True,
+                "answer_strategy": "ask_clarification",
+                "answer_format_plan": intent.get("answer_format"),
+                "source_plan": intent.get("source_plan"),
+            },
+        }
+        result["metrics"]["answer_quality"] = answer_quality_metrics(
+            query=state.get("query", ""),
+            answer=result["answer"],
+            source_cards=[],
+            retrieval_scores=[],
+        )
+        return {
+            **state,
+            "result": result,
+            "trace": _trace(state, "answer_application_question", "success", source_count=0, answer_strategy="ask_clarification"),
+        }
     intent_name = str(intent.get("intent") or "application_procedure")
     prompt = f"""당신은 한국 특허 출원을 도와주는 챗봇입니다.
 반드시 제공된 공식팩/피드백 리포트 근거 안에서 답하고, 부족한 부분은 추가 확인이 필요하다고 말하세요.

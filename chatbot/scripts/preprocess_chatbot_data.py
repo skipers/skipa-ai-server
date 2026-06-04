@@ -5,7 +5,7 @@ Examples:
   scripts/preprocess_chatbot_data.sh
   scripts/preprocess_chatbot_data.sh --mode auto-audit
   scripts/preprocess_chatbot_data.sh --mode application-preprocess
-  scripts/preprocess_chatbot_data.sh --mode application-feedback --opinion-file "data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf"
+  scripts/preprocess_chatbot_data.sh --mode application-feedback --opinion-file "data/patent_application_official_pack/downloads/특허거절의견서.pdf"
   scripts/preprocess_chatbot_data.sh --mode all
   scripts/preprocess_chatbot_data.sh --mode status
 """

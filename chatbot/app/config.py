@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 
 
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 CHATBOT_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = CHATBOT_ROOT.parent
 
@@ -33,21 +35,35 @@ def _resolve_path(raw: str | None, default: Path) -> Path:
 
 _load_env_file(CHATBOT_ROOT / ".env")
 
-DATA_ROOT = _resolve_path(os.getenv("DATA_ROOT") or os.getenv("SKIPA_DATA_ROOT"), PROJECT_ROOT / "data")
+DEFAULT_DATA_ROOT = CHATBOT_ROOT / "data" if (CHATBOT_ROOT / "data").exists() else PROJECT_ROOT / "data"
+DATA_ROOT = _resolve_path(os.getenv("DATA_ROOT") or os.getenv("SKIPA_DATA_ROOT"), DEFAULT_DATA_ROOT)
 PATENTS_ROOT = _resolve_path(os.getenv("PATENTS_ROOT"), DATA_ROOT / "mapped_patent_reports")
 BUSINESS_ROOT = _resolve_path(os.getenv("BUSINESS_ROOT"), DATA_ROOT / "business")
+DEFAULT_PATENT_APPLICATION_ROOT = (
+    DATA_ROOT / "patent_application_official_pack"
+    if (DATA_ROOT / "patent_application_official_pack").exists()
+    else DATA_ROOT / "patent_application_official_pack(1)"
+)
 PATENT_APPLICATION_ROOT = _resolve_path(
     os.getenv("PATENT_APPLICATION_ROOT"),
-    DATA_ROOT / "patent_application_official_pack(1)",
+    DEFAULT_PATENT_APPLICATION_ROOT,
 )
 LOG_ROOT = _resolve_path(os.getenv("LOG_ROOT"), CHATBOT_ROOT / "logs")
 WIKI_AUDITOR_ROOT = _resolve_path(os.getenv("WIKI_AUDITOR_ROOT"), CHATBOT_ROOT / "logs" / "wiki_auditor")
 
 PUBLIC_FILE_BASE_URL = os.getenv("PUBLIC_FILE_BASE_URL", "http://localhost:8000/files")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+OPENAI_INTENT_MODEL = os.getenv("OPENAI_INTENT_MODEL", "gpt-4.1-mini")
+OPENAI_VLM_MODEL = os.getenv("OPENAI_VLM_MODEL", "gpt-4.1-mini")
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
+INTENT_PROVIDER = os.getenv("INTENT_PROVIDER", "openai").lower()
+ENABLE_OLLAMA_INTENT_FALLBACK = os.getenv("ENABLE_OLLAMA_INTENT_FALLBACK", "false").lower() in ("1", "true", "yes")
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "openai" if OPENAI_API_KEY else "huggingface").lower()
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", OPENAI_EMBEDDING_MODEL if EMBEDDING_PROVIDER == "openai" else "BAAI/bge-m3")
 GEN_MODEL = os.getenv("GEN_MODEL", "")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-INTENT_MODEL = os.getenv("INTENT_MODEL", GEN_MODEL or "qwen2.5:1.5b")
+INTENT_MODEL = os.getenv("INTENT_MODEL", OPENAI_INTENT_MODEL if INTENT_PROVIDER == "openai" else GEN_MODEL or "qwen2.5:1.5b")
 ANSWER_MODEL = os.getenv("ANSWER_MODEL", GEN_MODEL or "qwen2.5:1.5b")
 OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.0"))
 INTENT_NUM_PREDICT = int(os.getenv("INTENT_NUM_PREDICT", "220"))

@@ -63,6 +63,24 @@ def answer_question(
     hybrid_retrieval_error: str | None = None
     hybrid_retrieval_rejected: str | None = None
     intent = intent_override or classify_intent(query)
+    if intent.get("needs_clarification"):
+        question = str(intent.get("clarification_question") or "어떤 특허나 데이터 범위를 기준으로 답할까요?")
+        return {
+            "query": query,
+            "patent_id": patent_id,
+            "answer": question,
+            "source_cards": [],
+            "metrics": {
+                "engine": "clarification_router",
+                "intent_agent": intent,
+                "answer_mode": "ASK_CLARIFICATION",
+                "search_pass": False,
+                "fallback_required": False,
+            },
+        }
+    internal_only = intent.get("search_scope") == "internal" or (
+        not intent.get("needs_web") and "web" not in set(intent.get("source_plan") or [])
+    )
     if allow_web or source_types:
         from .legacy_adapter import try_answer_with_legacy
 
@@ -86,7 +104,7 @@ def answer_question(
     local_hits = filter_usable_hits(raw_local_hits, limit=top_k)
     local_result = {**local_result, "hits": local_hits, "raw_hit_count": len(raw_local_hits), "hit_count": len(local_hits)}
 
-    needs_web = allow_web and bool(intent.get("needs_web") or len(local_hits) < 2)
+    needs_web = allow_web and not internal_only and bool(intent.get("needs_web") or len(local_hits) < 2)
     web_result = search_web(query) if needs_web else {"enabled": False, "provider": None, "results": [], "error": None}
     if not allow_web:
         web_result["skipped"] = True

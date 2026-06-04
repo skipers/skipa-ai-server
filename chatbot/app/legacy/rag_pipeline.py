@@ -22,12 +22,25 @@ try:
 except Exception:  # pragma: no cover
     from langchain_community.embeddings import HuggingFaceEmbeddings
 
+try:
+    from langchain_openai import OpenAIEmbeddings
+except Exception:  # pragma: no cover
+    OpenAIEmbeddings = None
+
 from ..config import (
     DATA_ROOT as CONFIG_DATA_ROOT,
+    EMBEDDING_MODEL as CONFIG_EMBEDDING_MODEL,
+    EMBEDDING_PROVIDER as CONFIG_EMBEDDING_PROVIDER,
+    ENABLE_OLLAMA_INTENT_FALLBACK as CONFIG_ENABLE_OLLAMA_INTENT_FALLBACK,
+    INTENT_MODEL as CONFIG_INTENT_MODEL,
+    INTENT_PROVIDER as CONFIG_INTENT_PROVIDER,
+    OPENAI_API_KEY as CONFIG_OPENAI_API_KEY,
+    OPENAI_BASE_URL as CONFIG_OPENAI_BASE_URL,
     PATENTS_ROOT as CONFIG_PATENTS_ROOT,
     PUBLIC_FILE_BASE_URL as CONFIG_PUBLIC_FILE_BASE_URL,
 )
-from .compat import has_current_source_files, load_compatible_patent_meta
+from ..rag.llm import call_openai_messages
+from .compat import load_compatible_patent_meta
 from .ingest import (
     build_business_documents,
     build_patent_documents,
@@ -43,12 +56,20 @@ DATA_ROOT = CONFIG_DATA_ROOT
 PATENTS_ROOT = CONFIG_PATENTS_ROOT
 PUBLIC_FILE_BASE_URL = CONFIG_PUBLIC_FILE_BASE_URL
 
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", CONFIG_EMBEDDING_PROVIDER).lower()
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", CONFIG_EMBEDDING_MODEL)
 EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
 GEN_MODEL = os.getenv("GEN_MODEL", "qwen2.5:1.5b")
 OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.0"))
-INTENT_MODEL = os.getenv("INTENT_MODEL", GEN_MODEL)
+INTENT_PROVIDER = os.getenv("INTENT_PROVIDER", CONFIG_INTENT_PROVIDER).lower()
+INTENT_MODEL = os.getenv("INTENT_MODEL", CONFIG_INTENT_MODEL or GEN_MODEL)
+OPENAI_API_KEY = CONFIG_OPENAI_API_KEY
+OPENAI_BASE_URL = CONFIG_OPENAI_BASE_URL
+ENABLE_OLLAMA_INTENT_FALLBACK = os.getenv(
+    "ENABLE_OLLAMA_INTENT_FALLBACK",
+    "true" if CONFIG_ENABLE_OLLAMA_INTENT_FALLBACK else "false",
+).lower() in ("1", "true", "yes")
 ENABLE_INTENT_AGENT = os.getenv("ENABLE_INTENT_AGENT", "true").lower() in ("1", "true", "yes")
 INTENT_AGENT_TIMEOUT = int(os.getenv("INTENT_AGENT_TIMEOUT", "8"))
 INTENT_AGENT_MIN_CONFIDENCE = float(os.getenv("INTENT_AGENT_MIN_CONFIDENCE", "0.55"))
@@ -1546,6 +1567,13 @@ def call_ollama_model(
     timeout: int = 120,
     temperature: Optional[float] = None,
 ) -> str:
+    if INTENT_PROVIDER == "openai" and model == INTENT_MODEL:
+        result = call_openai_messages(messages=messages, model=INTENT_MODEL, timeout=timeout)
+        if result.get("ok"):
+            return str(result.get("text") or "").strip()
+        if not ENABLE_OLLAMA_INTENT_FALLBACK:
+            raise RuntimeError(f"OpenAI intent call failed: {result.get('error')}")
+
     payload = {
         "model": model,
         "messages": messages,
@@ -1581,6 +1609,48 @@ def parse_json_object(text: str) -> Optional[Dict[str, Any]]:
         return value if isinstance(value, dict) else None
     except Exception:
         return None
+
+
+def _embedding_signature() -> Dict[str, str]:
+    return {"provider": EMBEDDING_PROVIDER, "model": EMBEDDING_MODEL}
+
+
+def _embedding_manifest_path(index_dir: Path) -> Path:
+    return index_dir / "embedding_manifest.json"
+
+
+def _index_matches_embedding(index_dir: Path) -> bool:
+    if not index_dir.exists():
+        return False
+    manifest_path = _embedding_manifest_path(index_dir)
+    if not manifest_path.exists():
+        return EMBEDDING_PROVIDER != "openai"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    signature = _embedding_signature()
+    return manifest.get("provider") == signature["provider"] and manifest.get("model") == signature["model"]
+
+
+def _write_embedding_manifest(index_dir: Path) -> None:
+    try:
+        manifest = {**_embedding_signature(), "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+        _embedding_manifest_path(index_dir).write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _load_existing_patent_documents(patent_dir: Path) -> List[Document]:
+    for rel_path in (
+        Path("extracted/all_chunks.jsonl"),
+        Path("reviewed/approved_documents.jsonl"),
+        Path("index/vectorstore/documents.jsonl"),
+    ):
+        docs = read_documents_jsonl(patent_dir / rel_path)
+        if docs:
+            return docs
+    return []
 
 
 def build_intent_agent_patent_hint(patent_id: Optional[str], patent_meta: Dict[str, Any]) -> str:
@@ -1624,6 +1694,19 @@ def build_intent_agent_patent_hint(patent_id: Optional[str], patent_meta: Dict[s
     return "\n".join(meta_lines)
 
 
+def _fallback_local_intent_scope(question: str, patent_id: Optional[str]) -> Tuple[str, float, str]:
+    q = question.lower()
+    if is_clearly_unrelated_question(question):
+        return "OUT_OF_SCOPE", 0.55, "룰 기반: 특허/업무와 무관한 질문"
+    if any(term in q for term in ("최신", "최근", "뉴스", "외부", "시장 동향", "성장률", "전망", "경쟁사", "표준")):
+        return "PATENT_WEB", 0.64, "룰 기반: 명시적인 외부/최신 정보 요청"
+    if any(term in q for term in ("워크플로우", "검토 요청", "의견 제출", "상태", "권한", "유지", "매각", "제각")):
+        return "BUSINESS", 0.62, "룰 기반: 검토 업무 절차 질문"
+    if patent_id or any(term in q for term in ("특허", "청구항", "보고서", "평가", "리스크", "발명", "원문", "도면")):
+        return "PATENT_LOCAL", 0.62, "룰 기반: 내부 특허 원문/보고서 질문"
+    return "OUT_OF_SCOPE", 0.45, "룰 기반: 답변 범위가 불분명함"
+
+
 def run_intent_agent(
     question: str,
     patent_id: Optional[str],
@@ -1636,8 +1719,17 @@ def run_intent_agent(
     }
 
     if not ENABLE_INTENT_AGENT:
-        metrics.update({"intent_agent_used": False, "intent_agent_ms": 0})
-        return "OUT_OF_SCOPE", metrics
+        scope, confidence, reason = _fallback_local_intent_scope(question, patent_id)
+        metrics.update(
+            {
+                "intent_agent_used": False,
+                "intent_agent_scope": scope,
+                "intent_agent_confidence": round(confidence, 4),
+                "intent_agent_reason": reason,
+                "intent_agent_ms": 0,
+            }
+        )
+        return scope, metrics
 
     patent_hint = build_intent_agent_patent_hint(patent_id, patent_meta)
     system_prompt = """
@@ -1708,15 +1800,16 @@ scope 정의:
         )
         return scope, metrics
     except Exception as exc:
+        scope, confidence, reason = _fallback_local_intent_scope(question, patent_id)
         metrics.update(
             {
-                "intent_agent_scope": "OUT_OF_SCOPE",
-                "intent_agent_confidence": 0.0,
-                "intent_agent_reason": f"intent agent error: {str(exc)[:120]}",
+                "intent_agent_scope": scope,
+                "intent_agent_confidence": round(confidence, 4),
+                "intent_agent_reason": f"{reason}; intent agent error: {str(exc)[:120]}",
                 "intent_agent_ms": now_ms() - t0,
             }
         )
-        return "OUT_OF_SCOPE", metrics
+        return scope, metrics
 
 
 def run_global_intent_agent(question: str, domain_matches: List[Dict[str, Any]]) -> Tuple[str, Dict[str, Any]]:
@@ -5065,10 +5158,21 @@ class PatentRAGPipeline:
     @property
     def embeddings(self):
         if self._embeddings is None:
-            self._embeddings = HuggingFaceEmbeddings(
-                model_name=EMBEDDING_MODEL,
-                model_kwargs={"device": EMBEDDING_DEVICE},
-            )
+            if EMBEDDING_PROVIDER == "openai":
+                if OpenAIEmbeddings is None:
+                    raise RuntimeError("langchain-openai is required when EMBEDDING_PROVIDER=openai")
+                if not OPENAI_API_KEY:
+                    raise RuntimeError("OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai")
+                self._embeddings = OpenAIEmbeddings(
+                    model=EMBEDDING_MODEL,
+                    api_key=OPENAI_API_KEY,
+                    base_url=OPENAI_BASE_URL,
+                )
+            else:
+                self._embeddings = HuggingFaceEmbeddings(
+                    model_name=EMBEDDING_MODEL,
+                    model_kwargs={"device": EMBEDDING_DEVICE},
+                )
         return self._embeddings
 
     def ensure_domain_cards(self, force_rebuild: bool = False) -> List[Document]:
@@ -5176,7 +5280,7 @@ class PatentRAGPipeline:
         index_dir = patent_dir / "index" / "faiss"
         docs_path = patent_dir / "extracted" / "all_chunks.jsonl"
 
-        if index_dir.exists() and docs_path.exists() and not force_rebuild:
+        if _index_matches_embedding(index_dir) and docs_path.exists() and not force_rebuild:
             self.vectorstores[patent_id] = FAISS.load_local(
                 str(index_dir),
                 self.embeddings,
@@ -5187,9 +5291,8 @@ class PatentRAGPipeline:
             self.bm25_by_patent[patent_id] = BM25Index(docs)
             return
 
-        if docs_path.exists() and not has_current_source_files(patent_dir):
-            docs = read_documents_jsonl(docs_path)
-        else:
+        docs = _load_existing_patent_documents(patent_dir)
+        if not docs:
             docs = build_patent_documents(
                 patent_dir=patent_dir,
                 public_file_base_url=PUBLIC_FILE_BASE_URL,
@@ -5202,6 +5305,7 @@ class PatentRAGPipeline:
         index_dir.mkdir(parents=True, exist_ok=True)
         vectorstore = FAISS.from_documents(docs, self.embeddings)
         vectorstore.save_local(str(index_dir))
+        _write_embedding_manifest(index_dir)
         write_documents_jsonl(docs, docs_path)
 
         by_type: Dict[str, List[Document]] = {}
@@ -5222,7 +5326,7 @@ class PatentRAGPipeline:
         index_dir = business_dir / "index" / "faiss"
         docs_path = business_dir / "index" / "all_chunks.jsonl"
 
-        if index_dir.exists() and docs_path.exists() and not force_rebuild:
+        if _index_matches_embedding(index_dir) and docs_path.exists() and not force_rebuild:
             self.business_vectorstore = FAISS.load_local(
                 str(index_dir),
                 self.embeddings,
@@ -5244,6 +5348,7 @@ class PatentRAGPipeline:
         index_dir.mkdir(parents=True, exist_ok=True)
         self.business_vectorstore = FAISS.from_documents(docs, self.embeddings)
         self.business_vectorstore.save_local(str(index_dir))
+        _write_embedding_manifest(index_dir)
         write_documents_jsonl(docs, docs_path)
         self.business_docs = docs
         self.business_bm25 = BM25Index(docs)
@@ -5452,7 +5557,7 @@ class PatentRAGPipeline:
         reviewed_docs_path = global_dir / "index" / "vectorstore" / "documents.jsonl"
 
         load_docs_path = docs_path if docs_path.exists() else reviewed_docs_path
-        if index_dir.exists() and load_docs_path.exists() and not force_rebuild:
+        if _index_matches_embedding(index_dir) and load_docs_path.exists() and not force_rebuild:
             self.global_vectorstore = FAISS.load_local(
                 str(index_dir),
                 self.embeddings,
@@ -5468,7 +5573,7 @@ class PatentRAGPipeline:
         for patent_id in self._iter_patent_ids():
             patent_dir = PATENTS_ROOT / patent_id
             docs_path_for_patent = patent_dir / "extracted" / "all_chunks.jsonl"
-            docs = read_documents_jsonl(docs_path_for_patent)
+            docs = _load_existing_patent_documents(patent_dir)
             if not docs:
                 docs = build_patent_documents(
                     patent_dir=patent_dir,
@@ -5476,13 +5581,19 @@ class PatentRAGPipeline:
                     max_chars=CHUNK_MAX_CHARS,
                     overlap=CHUNK_OVERLAP,
                 )
-                write_documents_jsonl(docs, docs_path_for_patent)
+                if docs:
+                    write_documents_jsonl(docs, docs_path_for_patent)
+            if not docs:
+                continue
             all_docs.extend(docs)
 
             local_index_dir = patent_dir / "index" / "faiss"
-            if not local_index_dir.exists():
-                self.build_or_load_patent_index(patent_id, force_rebuild=True)
-            if local_index_dir.exists():
+            if not _index_matches_embedding(local_index_dir):
+                try:
+                    self.build_or_load_patent_index(patent_id, force_rebuild=True)
+                except Exception:
+                    continue
+            if _index_matches_embedding(local_index_dir):
                 local_store = FAISS.load_local(
                     str(local_index_dir),
                     self.embeddings,
@@ -5502,6 +5613,7 @@ class PatentRAGPipeline:
             merged_vectorstore = FAISS.from_documents(all_docs, self.embeddings)
         self.global_vectorstore = merged_vectorstore
         self.global_vectorstore.save_local(str(index_dir))
+        _write_embedding_manifest(index_dir)
         write_documents_jsonl(all_docs, docs_path)
         self.global_docs = all_docs
         self.global_bm25 = BM25Index(all_docs)

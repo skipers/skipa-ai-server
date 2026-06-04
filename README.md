@@ -56,7 +56,7 @@ skipa-ai-server/
         reports/
     artifacts/            # 로컬 생성 산출물/cache/report
     business/             # 챗봇과 평가 로직이 공유하는 제품/사업화 RAG 데이터
-    patent_application_official_pack(1)/
+    patent_application_official_pack/
       downloads/          # 공식 출원 자료 다운로드/크롤링 결과
       download_report.md  # 다운로드 불가 URL 리포트
       *.md, *.csv, *.json # 출원 절차/거절대응/선행기술 공식 자료팩
@@ -302,7 +302,7 @@ scripts/preprocess_chatbot_data.sh --mode application-preprocess
 
 # 거절의견서/의견서 PDF를 출원 피드백 HTML/Markdown으로 만들고 출원 vectorstore 갱신
 scripts/preprocess_chatbot_data.sh --mode application-feedback \
-  --opinion-file "data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf"
+  --opinion-file "data/patent_application_official_pack/downloads/특허거절의견서.pdf"
 
 # 챗봇 core/wiki refresh와 출원팩 전처리를 함께 실행
 scripts/preprocess_chatbot_data.sh --mode all
@@ -1059,7 +1059,7 @@ flowchart TD
   G --> F[finish_application_answer]
   F --> O[answer + source_cards + quality metrics]
 
-  D[data/patent_application_official_pack(1)] --> IX[index/vectorstore]
+  D[data/patent_application_official_pack] --> IX[index/vectorstore]
   OP[거절의견서/의견서 PDF] --> FB[POST /api/v1/application/feedback/create or upload]
   PR[기존 특허 원본/보고서] --> FB
   FB --> MD[feedback.md]
@@ -1082,17 +1082,17 @@ flowchart TD
 KIPRIS/CPC/IPC 검색 자료를 우선하며, 처음 출원 절차 질문이면 특허로 출원가이드와
 절차 체크리스트를 우선 검색합니다. UI의 `출원 데이터 준비` 버튼은 공식팩 전처리,
 거절의견서 피드백 생성, 출원 index refresh를 한 번에 실행합니다. 다운로드 또는
-크롤링에 실패한 URL은 `data/patent_application_official_pack(1)/download_report.md`에 남습니다.
+크롤링에 실패한 URL은 `data/patent_application_official_pack/download_report.md`에 남습니다.
 실패 요인 분석/거절 대응/사업화/최신 동향처럼 내부 공식팩만으로 부족한 질문은
 `KIPRIS_API_KEY`, `KOSIS_API_KEY`, `TAVILY_API_KEY` 설정 상태를 metrics에 표시하고,
 사용 가능한 외부 근거를 답변의 근거 카드에 함께 붙입니다.
 
-거절의견서 피드백 흐름은 출원 도우미 index에 연결됩니다. 기본 테스트 파일은
-`data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf`이고,
-Swagger에서는 `POST /api/v1/application/feedback/create`,
+거절의견서 피드백 흐름은 출원 도우미 index에 연결됩니다. 실제 거절의견서/의견서 PDF가 있으면
+`data/patent_application_official_pack/downloads/특허거절의견서.pdf`처럼 공식팩 하위에 배치하거나
+Swagger 업로드 API로 전달합니다. Swagger에서는 `POST /api/v1/application/feedback/create`,
 출원 예정/실패 특허 분석 보고서 연결은 `POST /api/v1/application/report/generate`,
 파일 업로드 UI에서는 `POST /api/v1/application/feedback/upload`를 사용합니다. 생성 결과는
-`data/patent_application_official_pack(1)/feedback/<timestamp>_<title>/feedback.md`,
+`data/patent_application_official_pack/feedback/<timestamp>_<title>/feedback.md`,
 `feedback_report.html`, `metadata.json`에 저장되고, `refresh_index=true`이면 바로
 출원 도우미 vectorstore에 반영됩니다. `patent_id` 또는 특허별 `source_report_path`가
 연결되어 있으면 같은 리포트가
@@ -1410,12 +1410,15 @@ GET  /api/v1/wiki/audit-report
 확인할 환경변수:
 
 ```text
-DATA_ROOT=../data
-PATENTS_ROOT=../data/mapped_patent_reports
-PATENT_APPLICATION_ROOT=../data/patent_application_official_pack(1)
-BUSINESS_ROOT=../data/business
+DATA_ROOT=./data
+PATENTS_ROOT=./data/mapped_patent_reports
+PATENT_APPLICATION_ROOT=./data/patent_application_official_pack
+BUSINESS_ROOT=./data/business
 PUBLIC_FILE_BASE_URL=http://localhost:8000/files
-EMBEDDING_MODEL=BAAI/bge-m3
+INTENT_PROVIDER=openai
+INTENT_MODEL=gpt-4.1-mini
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MODEL=text-embedding-3-large
 TOP_K=10
 ```
 

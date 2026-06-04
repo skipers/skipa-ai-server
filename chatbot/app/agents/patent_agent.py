@@ -96,6 +96,14 @@ def _has_wiki_context(state: ChatAgentState) -> bool:
     return bool(filter_usable_hits(wiki_hits, limit=1))
 
 
+def _allows_web_fallback(intent: dict) -> bool:
+    if intent.get("needs_clarification"):
+        return False
+    if intent.get("search_scope") == "internal":
+        return False
+    return bool(intent.get("needs_web") or "web" in set(intent.get("source_plan") or []))
+
+
 def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
     patent_id = state.get("resolved_patent_id") or state.get("patent_id")
     wiki_available = _has_wiki_context(state)
@@ -112,11 +120,12 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
     result.setdefault("metrics", {})["hybrid_retrieval_scope_policy"] = "try_hybrid_then_guard_source_types"
     web_context = dict(state.get("web_context") or {})
     intent = state.get("intent") or {}
-    if _is_low_evidence_answer(result) and not web_context.get("results") and not wiki_available:
+    allow_web_fallback = _allows_web_fallback(intent)
+    if _is_low_evidence_answer(result) and not web_context.get("results") and not wiki_available and allow_web_fallback:
         web_context = search_web(state.get("query", ""))
         web_context["enabled"] = True
         web_context["fallback_reason"] = "answer_evidence_insufficient"
-    elif intent.get("needs_web") and not web_context.get("enabled") and not wiki_available and not web_context.get("skipped"):
+    elif allow_web_fallback and not web_context.get("enabled") and not wiki_available and not web_context.get("skipped"):
         web_context = search_web(state.get("query", ""))
         web_context["enabled"] = True
 

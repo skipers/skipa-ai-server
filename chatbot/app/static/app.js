@@ -779,7 +779,7 @@ async function prepareApplicationData() {
       method: "POST",
       body: JSON.stringify({
         title: "특허거절의견서 기반 출원 피드백",
-        opinion_file_path: "/Users/kgw/skipers-ai/data/patent_application_official_pack(1)/downloads/특허거절의견서.pdf",
+        opinion_file_path: "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/특허거절의견서.pdf",
         reviewer: "browser-ui",
         notes: "UI combined prepare flow",
         refresh_index: true,
