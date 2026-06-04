@@ -1,0 +1,16 @@
+{
+  "scope": "patent:10-2042318",
+  "refreshed_at": "2026-06-02T18:02:51",
+  "vector_dimensions": 256,
+  "backend": "local_hashed_bow",
+  "source": "human_reviewed",
+  "document_count": 1,
+  "documents_path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2042318/index/vectorstore/documents.jsonl",
+  "source_fingerprints": [
+    {
+      "path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2042318/original/input/latest.json",
+      "size_bytes": 29637,
+      "sha1": "e5806642877b2570ecfdfd854af2494bb9a3a1ad"
+    }
+  ]
+}

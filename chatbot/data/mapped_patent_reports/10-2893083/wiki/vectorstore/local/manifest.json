@@ -1,0 +1,16 @@
+{
+  "scope": "wiki:10-2893083",
+  "refreshed_at": "2026-06-02T18:02:52",
+  "vector_dimensions": 256,
+  "backend": "local_hashed_bow",
+  "source": "human_reviewed",
+  "document_count": 1,
+  "documents_path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/wiki/vectorstore/local/documents.jsonl",
+  "source_fingerprints": [
+    {
+      "path": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/wiki/approved_context.md",
+      "size_bytes": 20182,
+      "sha1": "cdcd92f80f0079664d3f16fbd93cc0198d73adfd"
+    }
+  ]
+}
