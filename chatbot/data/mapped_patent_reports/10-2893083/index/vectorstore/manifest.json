@@ -1,16 +1,26 @@
 {
   "scope": "patent:10-2893083",
-  "refreshed_at": "2026-06-04T14:09:05",
+  "refreshed_at": "2026-06-04T17:40:17",
   "vector_dimensions": 256,
   "backend": "local_hashed_bow",
   "source": "human_reviewed",
-  "document_count": 74,
+  "document_count": 76,
   "documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2893083/index/vectorstore/documents.jsonl",
   "source_fingerprints": [
     {
       "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2893083/extracted/all_chunks.jsonl",
       "size_bytes": 1634016,
       "sha1": "c687428ea3846cf1e5e5e5918aa2dc59292993eb"
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2893083/original/input/latest.json",
+      "size_bytes": 777,
+      "sha1": "cec8d4ea484e7e2b7d64eaec647e9666cbd18433"
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2893083/reports/json/latest.json",
+      "size_bytes": 102692,
+      "sha1": "d787def15eb293bfa20b3a3fb2827f6503110408"
     }
   ]
 }

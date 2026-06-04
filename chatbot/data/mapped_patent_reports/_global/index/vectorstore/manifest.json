@@ -1,10 +1,10 @@
 {
   "scope": "global",
-  "refreshed_at": "2026-06-04T14:09:05",
+  "refreshed_at": "2026-06-04T17:40:17",
   "vector_dimensions": 256,
   "backend": "local_hashed_bow",
   "source": "human_reviewed",
-  "document_count": 509,
+  "document_count": 520,
   "documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/documents.jsonl",
   "source_fingerprints": [
     {
@@ -18,9 +18,19 @@
       "sha1": "fa5c8338992f88b202a627212ccc057f20e7ea68"
     },
     {
-      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2042318/original/input/latest.json",
-      "size_bytes": 29637,
-      "sha1": "e5806642877b2570ecfdfd854af2494bb9a3a1ad"
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-1959619/reports/json/latest.json",
+      "size_bytes": 393483,
+      "sha1": "2a480566a59c5bede2a3f6ed43f18ae71033ed35"
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2042318/extracted/all_chunks.jsonl",
+      "size_bytes": 32688,
+      "sha1": "800fb765051c586aa0e92e5113895f2897a6317a"
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2042318/reports/json/latest.json",
+      "size_bytes": 371914,
+      "sha1": "2eefb996776f67474e39a80f48a4cf773a377303"
     },
     {
       "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2762042/extracted/all_chunks.jsonl",
@@ -28,14 +38,39 @@
       "sha1": "e9d9b1b9ab3f7c1fc370881150c80cd01627a9d1"
     },
     {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2762042/original/input/latest.json",
+      "size_bytes": 655,
+      "sha1": "034ae49aeefbc6c304bd6c0d88af1c33346c5c8f"
+    },
+    {
       "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2886381/extracted/all_chunks.jsonl",
       "size_bytes": 2187688,
       "sha1": "8dbc5ff97f4924da0556fbaac493c1a43745239b"
     },
     {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2886381/original/input/latest.json",
+      "size_bytes": 591,
+      "sha1": "2a656a456cc58e2e47fd97d4fb86156be4b1c602"
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2886381/reports/json/latest.json",
+      "size_bytes": 99488,
+      "sha1": "b5746a734a3f297fcf625198e7fbeddc68f1d575"
+    },
+    {
       "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2893083/extracted/all_chunks.jsonl",
       "size_bytes": 1634016,
       "sha1": "c687428ea3846cf1e5e5e5918aa2dc59292993eb"
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2893083/original/input/latest.json",
+      "size_bytes": 777,
+      "sha1": "cec8d4ea484e7e2b7d64eaec647e9666cbd18433"
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2893083/reports/json/latest.json",
+      "size_bytes": 102692,
+      "sha1": "d787def15eb293bfa20b3a3fb2827f6503110408"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "scope": "wiki:10-2886381",
-  "refreshed_at": "2026-06-04T14:09:05",
+  "refreshed_at": "2026-06-04T17:40:17",
   "vector_dimensions": 256,
   "backend": "local_hashed_bow",
   "source": "human_reviewed",
@@ -9,8 +9,8 @@
   "source_fingerprints": [
     {
       "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2886381/wiki/approved_context.md",
-      "size_bytes": 21512,
-      "sha1": "054a47cfb0eea3cfdfdf592a588ec3f99bff86c0"
+      "size_bytes": 22799,
+      "sha1": "287a58a4b71a2f6a1e4954b8d28c43f0066a1dd4"
     }
   ]
 }

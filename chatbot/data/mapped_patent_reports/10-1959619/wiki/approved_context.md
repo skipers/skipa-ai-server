@@ -25,6 +25,9 @@
 ### PATENT_INPUT_JSON
 - 1. latest.json: {"brief_summary": {"개요": "반도체 결함 시각화 방법 및 시스템이 제안된다.", "핵심_내용": "이 방법은 결함 위치로부터 결함 개수 맵을 생성하고, 다중 임계값을 기반으로 결함 이미지를 생성하여 결함의 군집 및 분포 패턴 분석을 용이하게 한다."}, "claims_text": {"claim_1": {"category": "방법", "text": "다수의 반도체 이미지들에서 검출된 결함 위치 정보들을 획득하는 단계; 다수의 임계값들을 설정하는 단계; 결함 위치 정보들을 이용하여, 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하는 단계; 맵에 대해 다수의 임계값들을 각각 적용하여, 결함 개수가 임계값 이상인 셀들은 제1 픽셀 값으로, 결함 개수가 임계값 미만인 셀들은 결함 개수에 따라 각기 다른 픽셀 값으로, 각각 표시하여, 임계값 개수 만큼의 결함 이미 지들을 생성하는 제1 생성단계; 제1 생성단계에서 생성된 결함 이미지들을 비교 가능한 형태로 나열하여 시각화 하는 제1 시각화단계; 맵에 대해 다수의 임계값들을 각각 적용하여, 결함 개수가 임계값 이상인 셀들은 제1 픽셀 값으로, 결함 개수가 임계값 미만인 셀들은 제2 픽셀 값으로, 각각 표시하여, 임계값 개수 만큼의 결함 이미지들을 생
 
+### REPORT_JSON
+- 1. latest.json: {"job_id": "job_20260529_144140_1f1748c7", "result": {"decision": {"confidence": "medium", "low_score_items": [{"dim": "권리성", "item": "출원경과", "reason": "현재로서는 청구된 특허의 출원 경과에 대한 구체적인 정보가 제공되지 않았으며 심사 미청구 또는 출원 준비 중일 가능성이 있습니다. 따라서 권리 안정성이 미비하다고 판단됩니다. 웹 자료에서는 반도체 제조기술 분야의 특허출원 강화 필요성이 제기되고 있지만, 개별 출원의 특허 상태와 연결되는 정보는 없습니다. [참고 자료 2]의 내용을 통해 반도체 분야에서의 특허 경쟁의 중요성이 강조되고 있으나, 이는 직접적인 출원 경과와 무관합니다.", "score": 1}], "overall_average_score": 3.58, "positive_factors": ["권리성 고득점 항목이 확인되었습니다."], "recommendation": "review", "recommendation_label": "추가 검토", "recommended_actions": ["2~3점 항목에 대한 추가 자료를 수집한 뒤 재평가하세요.", "사업부 활용 계획과 권리 리스크를 사람 검토 단계에서 확인하세요."],
+
 ### REPORT_PDF
 - 1. AI 평가 보고서 JSON: latest.json: job_id: job_20260529_144140_1f1748c7 saved_at: 2026-05-31T18:14:25.142792 result.status: success result.workflow_type: langgraph result.elapsed_seconds: 153.81 result.validation.valid: True result.validation.patent_id: 10-1959619 result.validation.title: 반도체 결함 시각화 방법 및 시스템 result.validation.has_claims: True result.validation.has_description: True result.validation.has_market_data: False result.validation.has_kipris_data: False result.decision.recommendation: review result.decision.recommendation_label: 추가 검토 result.decision.confidence: medium result.decision.summary: 유지/포기 단정 전 추가 검토가 필요합니다. result.decision.overall_average_score: 3.58 result
 - 2. AI 평가 보고서 JSON: latest.json: 기술 분야의 특허출원 강화 필요성이 제기되고 있지만, 개별 출원의 특허 상태와 연결되는 정보는 없습니다. [참고 자료 2]의 내용을 통해 반도체 분야에서의 특허 경쟁의 중요성이 강조되고 있으나, 이는 직접적인 출원 경과와 무관합니다. result.decision.review_items_count: 16 result.decision.recommended_actions[1]: 2~3점 항목에 대한 추가 자료를 수집한 뒤 재평가하세요. result.decision.recommended_actions[2]: 사업부 활용 계획과 권리 리스크를 사람 검토 단계에서 확인하세요. 특허번호: 10-1959619 특허명: 반도체 결함 시각화 방법 및 시스템 자동 평가 항목 - [권리성] IP 원천성: 4점. 근거: 심사관인용선행기술 1건, 피인용수 0건 방법: auto - [권리성] 권리의 충실성: 3점. 근거: 청구항 4개, 카테고리 2개, 해외출원 없음 방법: auto - [권리성] 권리행사 제한 가능성: 5점. 근거: 출원인 1명, 심판이력 0건 방법: auto - [시장성] 특허출원 활성도: 3점. 근거: KIPRIS 특허출원 증가율 데이터 없음 → 기본값 방법: auto - [사업성] 매출 성장성: 4점. 근거: KOSIS 전자부품·컴퓨터·통신장비제조업
@@ -36,7 +39,7 @@
 ## 메타정보
 
 - Patent ID: `10-1959619`
-- Audit ID: `20260601_195702_660531`
+- Audit ID: `20260604_174001_165892`
 - Source: human-approved patent/report/wiki corpus
 - Vectorstore policy: 이 wiki 문서는 해당 특허의 단독 wiki vectorstore에만 반영되고 global vectorstore에는 포함되지 않습니다.
 - Excluded data: 감사에서 제외된 finding과 저품질 placeholder 문장은 반영하지 않습니다.

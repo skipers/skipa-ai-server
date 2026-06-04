@@ -22,6 +22,12 @@
 - 5. 도면의 간단한 설명 도면/페이지 이미지: 시각자료 유형: DIAGRAM_PAGE 원본 문서유형: ORIGINAL_PDF 페이지: 7 섹션: 도면의 간단한 설명 도면/페이지 이미지 이미지 파일: extracted/assets/original_pdf/original_p007_diagram_page_01.png 이미지 URL: http://localhost:8000/files/patents/10-2886381/extracted/assets/original_pdf/original_p007_diagram_page_01.png 텍스트 변환/캡션: 페이지 단위 도면/다이어그램 후보입니다. 벡터 드로잉 수: 0. 페이지 문맥: 도면의 간단한 설명 도 1은 기존의 물류 관리 시스템의 설명에 제공된 도면, [0020] 도 2는 본 발명의 일 실시예에 따른 물류 관리 시스템의 설명에 제공된 도면, 도 3은, 본 발명의 일 실시예에 따른 CMP Pad 생산 시설의 설명에 제공된 도면, 도 4 내지 도 5는, 본 발명의 일 실시예에 따른 RTD의 동작 설명에 제공된 흐름도, 도 6은, 본 발명의 일 실시예에 따른 RTD의 구성 설명에 제공된 도면, 도 7은, 본 발명의 일 실시예에 따른 MCS의 구성 설명에 제공된 도면, 도 8은, 본 발명의 일 실시예에 따른 ACS의 구성 설명에 제공된 도면, 도 9는, 본
 - 6. CMP Pad가 적재된 웨이퍼 카세트를 탑재하여 건조 설비(5)까지 이송시키는 1차 이송 공정을 수행할 수 있다. 도면/페이지 이미지: 시각자료 유형: DIAGRAM_PAGE 원본 문서유형: ORIGINAL_PDF 페이지: 8 섹션: CMP Pad가 적재된 웨이퍼 카세트를 탑재하여 건조 설비(5)까지 이송시키는 1차 이송 공정을 수행할 수 있다. 도면/페이지 이미지 이미지 파일: extracted/assets/original_pdf/original_p008_diagram_page_01.png 이미지 URL: http://localhost:8000/files/patents/10-2886381/extracted/assets/original_pdf/original_p008_diagram_page_01.png 텍스트 변환/캡션: 페이지 단위 도면/다이어그램 후보입니다. 벡터 드로잉 수: 0. 페이지 문맥: CMP Pad가 적재된 웨이퍼 카세트를 탑재하여 건조 설비(5)까지 이송시키는 1차 이송 공정을 수행할 수 있다. 또한, 무인이송차량(4)은, 건조 공정이 완료되면, 무인이송차량(4)이 건조 공정이 완료된 CMP Pad가 적재된 웨 [0037] 이퍼 카세트를 탑재하여 언로딩 설비(6)까지 이송시키는 2차 이송 공정을 수행할 수 있다. 건조 설비(5)는, 무인이송차량(4)에 의해 이송된 CMP Pad가 적재된 웨이퍼 카세트가 투입되면 건조 공정을 수행 [0038] 할 수 있다. 언로딩
 
+### PATENT_INPUT_JSON
+- 1. latest.json: {"meta": {"application_number": "10-2023-0089527", "original_pdf": "original.pdf", "patent_id": "10-2886381", "registration_number": "10-2886381", "report_html": "report.html", "source_patent_folder": "data/patents/po000023", "source_patent_id": "po000023", "title": "CMP Pad의 물류 관리 시스템"}, "patent_id": "10-2886381", "restored_at": "2026-06-02T09:35:42+09:00", "restored_from": "/Users/kgw/rag/mapped_patent_reports/10-2886381/metadata.json", "source_format": "legacy_metadata", "title": "CMP Pad의 물류 관리 시스템"}
+
+### REPORT_JSON
+- 1. latest.json: {"job_id": "20260602_restored_legacy_report_html", "patent_id": "10-2886381", "restored_at": "2026-06-02T09:35:42+09:00", "restored_from": "/Users/kgw/rag/mapped_patent_reports/10-2886381/report.html", "result": {"report": {"format": "html", "html": "<!DOCTYPE html>\n<html lang=\"ko\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>IP 가치 평가 보고서 - 제10-2886381호</title>\n<style>\n @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');\n :root {\n --bg:#f3f6f9; --surface:#ffffff; --surface2:#f6f7f9; -
+
 ### REPORT_PDF
 - 1. 평가 요약: IP 가치 평가 보고서 - 제10-2886381호 IP 가치 평가 보고서 · Legal AI1팀 CMP Pad의 물류 관리 시스템 특허번호 제10-2886381호 출원일 . 등록일 . IPC 분류 평가 기준일 2026.05.19 1. 평가 요약 2. 기준별 점수 3. 사내 프로젝트 4. 유사 특허 5. 추가 확인 6. 참고문헌
 - 2. 평가 요약: 01 평가 요약 1.1 종합 점수 종합 69 / 100 기술성 75 / 100 권리성 70 / 100 시장성 및 사업성 60 / 100 1.2
@@ -40,7 +46,7 @@
 ## 메타정보
 
 - Patent ID: `10-2886381`
-- Audit ID: `20260601_195702_660531`
+- Audit ID: `20260604_174001_165892`
 - Source: human-approved patent/report/wiki corpus
 - Vectorstore policy: 이 wiki 문서는 해당 특허의 단독 wiki vectorstore에만 반영되고 global vectorstore에는 포함되지 않습니다.
 - Excluded data: 감사에서 제외된 finding과 저품질 placeholder 문장은 반영하지 않습니다.

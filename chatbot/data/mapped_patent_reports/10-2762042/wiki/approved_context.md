@@ -22,6 +22,9 @@
 - 5. 또한, 원격 제어부(400)는, NF3 가스 생산 설비(10)가 적재된 무인반송차량(100)이 세척 공간 내 기설정된 도착 도면/페이지 이미지: 시각자료 유형: DIAGRAM_PAGE 원본 문서유형: ORIGINAL_PDF 페이지: 8 섹션: 또한, 원격 제어부(400)는, NF3 가스 생산 설비(10)가 적재된 무인반송차량(100)이 세척 공간 내 기설정된 도착 도면/페이지 이미지 이미지 파일: extracted/assets/original_pdf/original_p008_diagram_page_01.png 이미지 URL: http://localhost:8000/files/patents/10-2762042/extracted/assets/original_pdf/original_p008_diagram_page_01.png 텍스트 변환/캡션: 페이지 단위 도면/다이어그램 후보입니다. 벡터 드로잉 수: 0. 페이지 문맥: 또한, 원격 제어부(400)는, NF3 가스 생산 설비(10)가 적재된 무인반송차량(100)이 세척 공간 내 기설정된 도착 [0040] 지점에 도달하면, 센서부(500)를 통해 이를 감지하여 세척부(300)가 세척 작업을 수행하도록 제어할 수 있다. 도 2는, 본 발명의 제1 실시예에 따른 세척부(300)의 구성 설명에 제공된 도면이고, 도 3은, 본 발명의 제1 실 [0041] 시예에 따른 세척부(300)가 개략적으로 도시된 도면이다. 도 2 내지 도 3을 참조하면, 세척부
 - 6. 예를 들면, 프로세서(420)는, 세척 작업이 필요한 NF3 가스 생산 설비(10)의 운송 요청이 수신되면, 운송 작업 도면/페이지 이미지: 시각자료 유형: DIAGRAM_PAGE 원본 문서유형: ORIGINAL_PDF 페이지: 9 섹션: 예를 들면, 프로세서(420)는, 세척 작업이 필요한 NF3 가스 생산 설비(10)의 운송 요청이 수신되면, 운송 작업 도면/페이지 이미지 이미지 파일: extracted/assets/original_pdf/original_p009_diagram_page_01.png 이미지 URL: http://localhost:8000/files/patents/10-2762042/extracted/assets/original_pdf/original_p009_diagram_page_01.png 텍스트 변환/캡션: 페이지 단위 도면/다이어그램 후보입니다. 벡터 드로잉 수: 0. 페이지 문맥: 예를 들면, 프로세서(420)는, 세척 작업이 필요한 NF3 가스 생산 설비(10)의 운송 요청이 수신되면, 운송 작업 [0058] 에 참여할 무인반송차량(100)을 선별하고, 선별된 무인반송차량(100)의 주행 경로를 설정할 수 있다. 그리고 프로세서(420)는, 무인반송차량(100)이 세척 공간의 입구에 도착하면, 센서부(500)를 통해 이를 감지하 [0059] 여 자동문 제어부(200)에 세척 공간의 입구에 설치된 자동문의 개방을 요청할 수 있다. 또한, 프로세서(420)는
 
+### PATENT_INPUT_JSON
+- 1. latest.json: {"meta": {"application_number": "10-2022-0150099", "original_pdf": "original.pdf", "patent_id": "10-2762042", "registration_number": "10-2762042", "report_html": "report.html", "source_patent_folder": "data/patents/po000030", "source_patent_id": "po000030", "title": "NF3 가스 생산 설비 내 이물질 제거 시스템 및 방법"}, "patent_id": "10-2762042", "restored_at": "2026-06-02T09:35:42+09:00", "restored_from": "/Users/kgw/rag/mapped_patent_reports/10-2762042/metadata.json", "source_format": "legacy_metadata", "title": "NF3 가스 생산 설비 내 이물질 제거 시스템 및 방법"}
+
 ### REPORT_PDF
 - 1. 평가 요약: IP 가치 평가 보고서 - 제10-2762042호 IP 가치 평가 보고서 · Legal AI1팀 NF3 가스 생산 설비 내 이물질 제거 시스템 및 방법 특허번호 제10-2762042호 출원일 2022.11.11 등록일 2025.01.24 IPC 분류 C01B21/083, B08B3/02 평가 기준일 2026.05.19 1. 평가 요약 2. 기준별 점수 3. 사내 프로젝트 4. 유사 특허 5. 추가 확인 6. 참고문헌
 - 2. 평가 요약: 01 평가 요약 1.1 종합 점수 종합 72 / 100 기술성 75 / 100 권리성 68 / 100 시장성 및 사업성 80 / 100 1.2
@@ -40,7 +43,7 @@
 ## 메타정보
 
 - Patent ID: `10-2762042`
-- Audit ID: `20260601_195702_660531`
+- Audit ID: `20260604_174001_165892`
 - Source: human-approved patent/report/wiki corpus
 - Vectorstore policy: 이 wiki 문서는 해당 특허의 단독 wiki vectorstore에만 반영되고 global vectorstore에는 포함되지 않습니다.
 - Excluded data: 감사에서 제외된 finding과 저품질 placeholder 문장은 반영하지 않습니다.

@@ -22,6 +22,12 @@
 - 5. 한편, 프로세서(120)는, 트랜잭션 실패 건수가 카운트되면, 트랜잭션 정보를 기반으로 이를 감지하여 Recovery 도면/페이지 이미지: 시각자료 유형: DIAGRAM_PAGE 원본 문서유형: ORIGINAL_PDF 페이지: 8 섹션: 한편, 프로세서(120)는, 트랜잭션 실패 건수가 카운트되면, 트랜잭션 정보를 기반으로 이를 감지하여 Recovery 도면/페이지 이미지 이미지 파일: extracted/assets/original_pdf/original_p008_diagram_page_01.png 이미지 URL: http://localhost:8000/files/patents/10-2893083/extracted/assets/original_pdf/original_p008_diagram_page_01.png 텍스트 변환/캡션: 페이지 단위 도면/다이어그램 후보입니다. 벡터 드로잉 수: 0. 페이지 문맥: 한편, 프로세서(120)는, 트랜잭션 실패 건수가 카운트되면, 트랜잭션 정보를 기반으로 이를 감지하여 Recovery [0040] 작업(메시지의 재전송 작업)이 수행되도록 할 수 있다. 도 2는, 본 발명의 일 실시예에 따른 토폴로지 기반 시스템 상태 및 병목 구간 모니터링 방법의 설명에 제공된 [0041] 흐름도이고, 도 3은, 본 발명의 일 실시예에 따른 토폴로지 타입의 모니터링 화면의 설명에 제공된 도면이다. 본 실시예에 따른 토폴로지 기반 시스템 상태 및 병목 구간 모니터링
 - 6. 청구범위 도면/페이지 이미지: 시각자료 유형: DIAGRAM_PAGE 원본 문서유형: ORIGINAL_PDF 페이지: 9 섹션: 청구범위 도면/페이지 이미지 이미지 파일: extracted/assets/original_pdf/original_p009_diagram_page_01.png 이미지 URL: http://localhost:8000/files/patents/10-2893083/extracted/assets/original_pdf/original_p009_diagram_page_01.png 텍스트 변환/캡션: 페이지 단위 도면/다이어그램 후보입니다. 벡터 드로잉 수: 0. 페이지 문맥: 간 내 노드의 크기가 트랜잭션의 평균 응답 시간 또는 초당 트랜잭션 수가 기설정된 임계 범위를 벗어난 오차 크기에 비례하도록, 노드의 표시 방식을 가변시킬 수 있다. 이를 통해, 관리자가 직관적으로 병목 구간의 발생 여부를 확인할 수 있을 뿐만 아니라, 트랜잭션의 평균 응답 [0056] 시간 또는 초당 트랜잭션 수의 오차 크기를 해당 노드의 크기를 통해 유추할 수 있어, 병목 구간의 정도(심각성)를 직관적으로 파악하도록 할 수 있다. 또한, 모니터링 시스템은, 관리자가 토폴로지 타입의 모니터링 화면 내 메시지 수신 노드(20) 또는 메시지 송신 [0057] 노드(40)에 마우스 포인터를
 
+### PATENT_INPUT_JSON
+- 1. latest.json: {"meta": {"application_number": "10-2022-0180291", "original_pdf": "original.pdf", "patent_id": "10-2893083", "registration_number": "10-2893083", "report_html": "report.html", "source_patent_folder": "data/patents/po000065", "source_patent_id": "po000065", "title": "메시지 지향 미들웨어에서의 토폴로지 기반 시스템 상태 및 병목 구간 모니터링 방법 및 시스템"}, "patent_id": "10-2893083", "restored_at": "2026-06-02T09:35:42+09:00", "restored_from": "/Users/kgw/rag/mapped_patent_reports/10-2893083/metadata.json", "source_format": "legacy_metadata", "title": "메시지 지향 미들웨어에서의 토폴로지 기반 시스템 상태 및 병목 구간 모니터링 방법 및 시스템"}
+
+### REPORT_JSON
+- 1. latest.json: {"job_id": "20260602_restored_legacy_report_html", "patent_id": "10-2893083", "restored_at": "2026-06-02T09:35:42+09:00", "restored_from": "/Users/kgw/rag/mapped_patent_reports/10-2893083/report.html", "result": {"report": {"format": "html", "html": "<!DOCTYPE html>\n<html lang=\"ko\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>IP 가치 평가 보고서 - 제10-2893083호</title>\n<style>\n @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');\n :root {\n --bg:#f3f6f9; --surface:#ffffff; --surface2:#f6f7f9; -
+
 ### REPORT_PDF
 - 1. 평가 요약: IP 가치 평가 보고서 - 제10-2893083호 IP 가치 평가 보고서 · Legal AI1팀 메시지 지향 미들웨어에서의 토폴로지 기반 시스템 상태 및 병목 구간 모니터링 방법 및 시스템 특허번호 제10-2893083호 출원일 . 등록일 . IPC 분류 평가 기준일 2026.05.19 1. 평가 요약 2. 기준별 점수 3. 사내 프로젝트 4. 유사 특허 5. 추가 확인 6. 참고문헌
 - 2. 평가 요약: 01 평가 요약 1.1 종합 점수 종합 65 / 100 기술성 65 / 100 권리성 66 / 100 시장성 및 사업성 60 / 100 1.2
@@ -40,7 +46,7 @@
 ## 메타정보
 
 - Patent ID: `10-2893083`
-- Audit ID: `20260601_195702_660531`
+- Audit ID: `20260604_174001_165892`
 - Source: human-approved patent/report/wiki corpus
 - Vectorstore policy: 이 wiki 문서는 해당 특허의 단독 wiki vectorstore에만 반영되고 global vectorstore에는 포함되지 않습니다.
 - Excluded data: 감사에서 제외된 finding과 저품질 placeholder 문장은 반영하지 않습니다.

@@ -1,6 +1,6 @@
 {
   "scope": "business-disabled",
-  "refreshed_at": "2026-06-04T14:09:05",
+  "refreshed_at": "2026-06-04T17:40:17",
   "vector_dimensions": 256,
   "backend": "local_hashed_bow",
   "source": "disabled_non_core_web_routing",
