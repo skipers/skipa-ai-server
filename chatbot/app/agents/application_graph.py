@@ -12,6 +12,7 @@ from ..application_data import (
     application_external_status,
     application_index_status,
     cards_from_application_hits,
+    failed_patent_case_report_summary,
     failed_patent_case_index_status,
     preferred_application_hits,
     refresh_application_index,
@@ -43,9 +44,11 @@ INITIAL_PROCEDURE_TERMS = ("처음", "최초", "첫", "순서", "절차", "준�
 STRATEGY_TERMS = ("전략", "사업화", "해외", "우선심사", "심사유예", "투자", "라이선스", "시장", "동향")
 FORM_TERMS = ("서식", "서류", "준비물", "특허고객번호", "인증서", "전자출원", "제출", "위임장")
 EXTERNAL_TERMS = ("kipris", "kosis", "타빌리", "시장", "동향", "유사", "사업화", "최신", "경쟁사", "통계")
+EVALUATION_TERMS = ("평가", "점수", "등급", "결과", "보고서", "재평가", "신뢰도", "어떻게 나왔", "어떻게 나와")
 NON_PATENT_PACK_TERMS = ("상표", "유사상품", "니스", "nice", "국제상품분류", "디자인")
 GUIDED_TEMPLATE_INTENTS = {"application_procedure", "forms_and_filing", "fees"}
 SOURCE_PLAN_BY_INTENT = {
+    "failed_case_evaluation": ["failed_case_report", "failed_case_original", "official_pack"],
     "application_procedure": ["application_guide", "process_checklist", "official_pack"],
     "forms_and_filing": ["patent_customer_number", "certificate", "filing_forms"],
     "drafting_claims": ["application_guide", "examination_standard", "strategy"],
@@ -226,7 +229,10 @@ def validate_failed_patent_case(state: ApplicationAgentState) -> ApplicationAgen
 
 def _rule_application_intent(query: str) -> dict[str, Any]:
     text = query.lower()
-    if any(term in text for term in REJECTION_TERMS):
+    if any(term in text for term in EVALUATION_TERMS):
+        intent = "failed_case_evaluation"
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
+    elif any(term in text for term in REJECTION_TERMS):
         intent = "rejection_response"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in FORM_TERMS):
@@ -267,7 +273,7 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
         "answer_format": answer_format,
         "needs_table": needs_table,
         "needs_diagram": needs_diagram,
-        "needs_external": any(term in text for term in [*EXTERNAL_TERMS, *REJECTION_TERMS]),
+        "needs_external": False if intent == "failed_case_evaluation" else any(term in text for term in [*EXTERNAL_TERMS, *REJECTION_TERMS]),
         "method": "rule",
         "needs_clarification": len(text.strip()) <= 8 and any(term in text for term in FOLLOWUP_TERMS),
         "clarification_question": "출원 절차, 선행기술조사, 청구항 작성, 거절 대응 중 어느 범위를 기준으로 도와드릴까요?",
@@ -281,7 +287,11 @@ def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, 
         intent_name = _rule_application_intent(query)["intent"]
         repaired["intent"] = intent_name
     text = query.lower()
-    if any(term in text for term in FORM_TERMS):
+    if any(term in text for term in EVALUATION_TERMS):
+        intent_name = "failed_case_evaluation"
+        repaired["intent"] = intent_name
+        repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
+    elif any(term in text for term in FORM_TERMS):
         intent_name = "forms_and_filing"
         repaired["intent"] = intent_name
         repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
@@ -309,6 +319,8 @@ def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, 
         explicit_external or explicit_rejection
     ):
         repaired["needs_external"] = False
+    if intent_name == "failed_case_evaluation":
+        repaired["needs_external"] = False
     return repaired
 
 
@@ -318,9 +330,10 @@ def route_application_question(state: ApplicationAgentState) -> ApplicationAgent
     fallback = _rule_application_intent(state.get("query", ""))
     system_prompt = """You are a lightweight intent router for a Korean patent filing assistant.
 Return JSON only with keys: intent, source_plan, answer_format, needs_table, needs_diagram, needs_external.
-Allowed intents: application_procedure, forms_and_filing, drafting_claims, prior_art_search, rejection_response, fees, application_strategy.
+Allowed intents: failed_case_evaluation, application_procedure, forms_and_filing, drafting_claims, prior_art_search, rejection_response, fees, application_strategy.
 Rules:
 - If the user asks "처음/최초/순서/절차/준비" around patent filing, use application_procedure unless rejection/failure is explicit.
+- If the user asks how this patent was evaluated, score, grade, report result or reliability, use failed_case_evaluation.
 - If the user asks about failure factors, rejection, office-action response, risk or feedback, use rejection_response.
 - If the user asks about prior art, novelty, inventive step, KIPRIS, CPC/IPC or similar patents, use prior_art_search.
 - If the user asks about market, commercialization, timing, external trends or statistics, set needs_external=true and include tavily/kosis.
@@ -432,6 +445,7 @@ def retrieve_application_context(state: ApplicationAgentState) -> ApplicationAge
     top_k = int(state.get("top_k") or 6)
     intent = state.get("intent") or {}
     preferred_terms = _intent_preference_terms(str(intent.get("intent") or "application_procedure"))
+    intent_name = str(intent.get("intent") or "application_procedure")
     expanded_query = " ".join(
         [
             state.get("retrieval_query") or state.get("query", ""),
@@ -448,13 +462,19 @@ def retrieve_application_context(state: ApplicationAgentState) -> ApplicationAge
         [*preferred_application_hits(preferred_terms, top_k=top_k * 2), *list(official_retrieval.get("hits") or [])]
     )
     case_hits = _dedupe_hits(list(case_retrieval.get("hits") or []))
-    intent_name = str(intent.get("intent") or "application_procedure")
-    if intent_name in {"rejection_response", "prior_art_search", "drafting_claims", "application_strategy"}:
+    if intent_name == "failed_case_evaluation":
+        merged_hits = _dedupe_hits([*case_hits, *official_hits])
+    elif intent_name in {"rejection_response", "prior_art_search", "drafting_claims", "application_strategy"}:
         merged_hits = _dedupe_hits([*case_hits, *official_hits])
     else:
         merged_hits = _dedupe_hits([*official_hits, *case_hits])
     ranked_hits = _rerank_hits_for_intent(_filter_hits_for_intent(merged_hits, intent), intent)
     hits = _limit_repeated_sources(ranked_hits, intent, top_k=top_k)
+    case_report_summary = (
+        failed_patent_case_report_summary(str(state.get("failed_patent_id") or ""))
+        if intent_name == "failed_case_evaluation"
+        else None
+    )
     retrieval = {
         "query": expanded_query,
         "mode": "application_official_plus_selected_failed_case_vectorstores",
@@ -473,6 +493,7 @@ def retrieve_application_context(state: ApplicationAgentState) -> ApplicationAge
             "mode": case_retrieval.get("mode"),
             "hit_count": case_retrieval.get("hit_count"),
         },
+        "case_report_summary": case_report_summary,
         "reranked_for_intent": (state.get("intent") or {}).get("intent"),
     }
     return {
@@ -490,6 +511,7 @@ def retrieve_application_context(state: ApplicationAgentState) -> ApplicationAge
 
 def _intent_preference_terms(intent: str) -> list[str]:
     preferences = {
+        "failed_case_evaluation": ["latest_report", "평가 요약", "Overall score", "overall_score", "dimension_scores", "Verification grade", "report_verification"],
         "application_procedure": ["patent_application_process_guide", "SRC-001", "SRC-016", "출원가이드", "출원 절차", "손쉬운 이용"],
         "forms_and_filing": ["SRC-002", "SRC-003", "SRC-021", "특허고객번호", "인증서", "서식", "서류", "위임장"],
         "drafting_claims": ["SRC-006", "SRC-017", "명세서", "청구항", "청구범위", "심사기준"],
@@ -571,7 +593,9 @@ def _filter_hits_for_intent(hits: list[dict[str, Any]], intent: dict[str, Any]) 
             continue
         is_feedback = role == "rejection_failure_feedback" or "feedback/" in path_text
         is_rejection_doc = is_feedback or any(term in path_text for term in ["거절", "의견", "통지서", "rejection"])
-        if intent_name != "rejection_response" and is_rejection_doc:
+        if intent_name == "failed_case_evaluation" and "latest_report.md" not in path_text and "input/" not in path_text:
+            continue
+        if intent_name not in {"rejection_response", "failed_case_evaluation"} and is_rejection_doc:
             continue
         filtered.append(hit)
     return filtered or hits
@@ -579,8 +603,11 @@ def _filter_hits_for_intent(hits: list[dict[str, Any]], intent: dict[str, Any]) 
 
 def _limit_repeated_sources(hits: list[dict[str, Any]], intent: dict[str, Any], *, top_k: int) -> list[dict[str, Any]]:
     intent_name = str(intent.get("intent") or "application_procedure")
-    max_per_file = 2 if intent_name == "rejection_response" else 1
-    if intent_name in {"application_procedure", "forms_and_filing", "fees", "drafting_claims"}:
+    max_per_file = 3 if intent_name == "failed_case_evaluation" else 2 if intent_name == "rejection_response" else 1
+    if intent_name == "failed_case_evaluation":
+        ordered_hits = [hit for hit in hits if "latest_report.md" in _hit_path_text(hit)]
+        ordered_hits.extend(hit for hit in hits if "latest_report.md" not in _hit_path_text(hit))
+    elif intent_name in {"application_procedure", "forms_and_filing", "fees", "drafting_claims"}:
         ordered_hits = [hit for hit in hits if not _is_structured_metadata_hit(hit)]
         ordered_hits.extend(hit for hit in hits if _is_structured_metadata_hit(hit))
     else:
@@ -637,6 +664,15 @@ def _rerank_hits_for_intent(hits: list[dict[str, Any]], intent: dict[str, Any]) 
                 boost -= 0.65
         elif intent_name == "rejection_response" and role == "rejection_failure_feedback":
             boost += 0.45
+        elif intent_name == "failed_case_evaluation":
+            if "latest_report.md" in rel_path:
+                boost += 1.2
+            if role == "rejection_failure_feedback":
+                boost += 0.35
+            if any(term in haystack for term in ["평가 요약", "overall score", "영역별 점수", "verification grade", "보고서 신뢰도"]):
+                boost += 0.45
+            if file_name.endswith((".json", ".html")):
+                boost -= 0.7
         elif intent_name == "prior_art_search" and role == "prior_art_search":
             boost += 0.35
         if "download" not in rel_path:
@@ -851,6 +887,114 @@ def _fallback_application_answer(query: str, intent: dict[str, Any], hits: list[
     return "\n".join(lines)
 
 
+def _fmt_metric(value: Any, default: str = "-") -> str:
+    if value in (None, ""):
+        return default
+    if isinstance(value, float):
+        return f"{value:.2f}".rstrip("0").rstrip(".")
+    return str(value)
+
+
+def _failed_case_evaluation_answer(summary: dict[str, Any] | None, hits: list[dict[str, Any]]) -> str:
+    if not summary or not summary.get("exists"):
+        return "\n".join(
+            [
+                "## 실패특허 평가 결과",
+                "",
+                "아직 이 실패특허 케이스의 `latest_report.json`이 없습니다.",
+                "먼저 `거절/실패특허 보고서 생성`을 실행하면, 생성된 보고서가 해당 케이스 폴더 전용 vectorstore에 반영되고 그 결과를 기준으로 답변할 수 있습니다.",
+            ]
+        )
+    patent = summary.get("patent") if isinstance(summary.get("patent"), dict) else {}
+    report_summary = summary.get("summary") if isinstance(summary.get("summary"), dict) else {}
+    dimension_scores = summary.get("dimension_scores") if isinstance(summary.get("dimension_scores"), dict) else {}
+    verification = summary.get("verification") if isinstance(summary.get("verification"), dict) else {}
+    similar = summary.get("similar_patents_brief") if isinstance(summary.get("similar_patents_brief"), dict) else {}
+    lines = [
+        f"## {patent.get('id') or summary.get('case_id')} 평가 결과",
+        "",
+        f"- 대상 특허: {patent.get('title') or '-'}",
+        f"- 등록번호: {patent.get('registration_number') or patent.get('id') or '-'}",
+        f"- 보고서 상태: {summary.get('status') or '-'}",
+        f"- 종합 점수: {_fmt_metric(report_summary.get('overall_score'))}/5, {_fmt_metric(report_summary.get('overall_score_out_of_100'))}/100",
+        f"- 종합 등급: {report_summary.get('overall_grade') or '-'}",
+        f"- 보고서상 위험도: {report_summary.get('risk_level') or '-'}",
+        f"- 자동 검증 등급: {verification.get('reliability_grade') or '-'}",
+        f"- 자동 검증 점수: {_fmt_metric(verification.get('overall_reliability_score'))}",
+        f"- 사람 검토 필요: {verification.get('human_review_required')}",
+        "",
+        "### 영역별 점수",
+        "",
+        "| 영역 | 평균 점수(1~5) | 100점 환산 | 등급 | 항목 수 |",
+        "| --- | ---: | ---: | --- | ---: |",
+    ]
+    if dimension_scores:
+        for dimension, score in dimension_scores.items():
+            if not isinstance(score, dict):
+                continue
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        str(dimension),
+                        _fmt_metric(score.get("average_score")),
+                        _fmt_metric(score.get("score_out_of_100")),
+                        str(score.get("grade") or "-"),
+                        _fmt_metric(score.get("item_count")),
+                    ]
+                )
+                + " |"
+            )
+    else:
+        lines.append("| - | - | - | - | - |")
+    lines.extend(
+        [
+            "",
+            "### 해석",
+            "",
+            str(report_summary.get("overall_opinion") or "종합 의견이 보고서에 없습니다."),
+            "",
+            "### 유사 특허 분석",
+            "",
+            f"- 유사 특허 분석 가능 여부: {similar.get('available') if similar else '-'}",
+            f"- 유사 특허 수: {_fmt_metric(similar.get('total') if similar else None)}",
+            f"- 유효/집행 가능 비율: {_fmt_metric(similar.get('enforceable_ratio') if similar else None)}",
+            f"- 평균 유사도: {_fmt_metric(similar.get('avg_similarity') if similar else None)}",
+            "",
+            "### 검증상 주의점",
+            "",
+        ]
+    )
+    issues = verification.get("issues") if isinstance(verification.get("issues"), list) else []
+    if issues:
+        for issue in issues[:5]:
+            if not isinstance(issue, dict):
+                continue
+            item = f" / {issue.get('item')}" if issue.get("item") else ""
+            lines.append(f"- {issue.get('severity') or '-'}: {issue.get('message') or '-'}{item}")
+    else:
+        lines.append("- 주요 검증 이슈가 없습니다.")
+    lines.extend(
+        [
+            "",
+            "### 답변에 사용한 데이터",
+            "",
+            f"- 실패특허 케이스 전용 보고서: {summary.get('markdown_path') or summary.get('report_path')}",
+            "- 케이스 vectorstore 범위: 선택된 실패특허 원본 PDF + 해당 케이스의 latest_report.md",
+        ]
+    )
+    if hits:
+        source_names = []
+        for hit in hits:
+            metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+            name = metadata.get("file_name")
+            if name and name not in source_names:
+                source_names.append(str(name))
+        if source_names:
+            lines.append(f"- 검색 근거: {', '.join(source_names[:4])}")
+    return "\n".join(lines)
+
+
 def _answer_needs_guided_repair(query: str, intent: dict[str, Any], answer: Any) -> bool:
     intent_name = str(intent.get("intent") or "application_procedure")
     if intent_name not in {"application_procedure", "forms_and_filing", "fees", "drafting_claims"}:
@@ -913,6 +1057,43 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
             "trace": _trace(state, "answer_application_question", "success", source_count=0, answer_strategy="ask_clarification"),
         }
     intent_name = str(intent.get("intent") or "application_procedure")
+    if intent_name == "failed_case_evaluation":
+        answer = _failed_case_evaluation_answer(retrieval.get("case_report_summary"), hits)
+        source_cards = cards_from_application_hits(hits, query=state.get("query", ""))
+        result = {
+            "query": state.get("query", ""),
+            "patent_id": f"patent_application:{state.get('failed_patent_id')}",
+            "answer": answer,
+            "source_cards": source_cards,
+            "metrics": {
+                "engine": "patent_application_langgraph",
+                "answer_provider": "deterministic_report_summary",
+                "intent_agent": intent,
+                "failed_patent_id": state.get("failed_patent_id"),
+                "hit_count": retrieval.get("hit_count", 0),
+                "official_hit_count": retrieval.get("official_hit_count", 0),
+                "failed_case_hit_count": retrieval.get("failed_case_hit_count", 0),
+                "external_context": {"enabled": False, "search_query": None, "web_result_count": 0},
+                "llm_ok": True,
+                "llm_error": None,
+                "answer_repaired": False,
+                "answer_strategy": "selected_failed_case_latest_report_summary",
+                "answer_format_plan": intent.get("answer_format"),
+                "source_plan": intent.get("source_plan"),
+                "case_report_summary_exists": bool((retrieval.get("case_report_summary") or {}).get("exists")),
+            },
+        }
+        result["metrics"]["answer_quality"] = answer_quality_metrics(
+            query=state.get("query", ""),
+            answer=result["answer"],
+            source_cards=source_cards,
+            retrieval_scores=[hit.get("score") for hit in hits if isinstance(hit.get("score"), (int, float))],
+        )
+        return {
+            **state,
+            "result": result,
+            "trace": _trace(state, "answer_application_question", "success", source_count=len(result["source_cards"]), answer_strategy="selected_failed_case_latest_report_summary"),
+        }
     prompt = f"""당신은 한국 특허 출원을 도와주는 챗봇입니다.
 반드시 제공된 공식팩/피드백 리포트 근거 안에서 답하고, 부족한 부분은 추가 확인이 필요하다고 말하세요.
 질문 의도: {intent}

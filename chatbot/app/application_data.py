@@ -187,10 +187,47 @@ def _clean_boilerplate(text: str) -> str:
 
 
 def _extract_pdf_text(path: Path) -> tuple[str, str | None]:
+    errors = []
+    try:
+        import pypdf
+
+        try:
+            parts = []
+            with path.open("rb") as file:
+                reader = pypdf.PdfReader(file)
+                for page_index, page in enumerate(reader.pages, 1):
+                    text = (page.extract_text() or "").strip()
+                    if text:
+                        parts.append(f"[page {page_index}]\n{text}")
+            if parts:
+                return "\n\n".join(parts), None
+        except Exception as exc:
+            errors.append(f"pypdf: {type(exc).__name__}: {exc}")
+    except Exception as exc:
+        errors.append(f"pypdf unavailable: {exc}")
+
+    try:
+        import pdfplumber
+
+        try:
+            parts = []
+            with pdfplumber.open(path) as pdf:
+                for page_index, page in enumerate(pdf.pages, 1):
+                    text = (page.extract_text() or "").strip()
+                    if text:
+                        parts.append(f"[page {page_index}]\n{text}")
+            if parts:
+                return "\n\n".join(parts), None
+        except Exception as exc:
+            errors.append(f"pdfplumber: {type(exc).__name__}: {exc}")
+    except Exception as exc:
+        errors.append(f"pdfplumber unavailable: {exc}")
+
     try:
         import fitz
     except Exception as exc:
-        return "", f"PyMuPDF unavailable: {exc}"
+        errors.append(f"PyMuPDF unavailable: {exc}")
+        return "", "; ".join(errors)
     try:
         parts = []
         with fitz.open(str(path)) as pdf:
@@ -200,7 +237,8 @@ def _extract_pdf_text(path: Path) -> tuple[str, str | None]:
                     parts.append(f"[page {page_index}]\n{text}")
         return "\n\n".join(parts), None
     except Exception as exc:
-        return "", f"{type(exc).__name__}: {exc}"
+        errors.append(f"PyMuPDF: {type(exc).__name__}: {exc}")
+        return "", "; ".join(errors)
 
 
 def _xlsx_shared_strings(zf: zipfile.ZipFile) -> list[str]:
@@ -1250,6 +1288,7 @@ def _iter_failed_case_source_files(case_id: str) -> Iterable[Path]:
     case_dir = _failed_case_dir(case_id)
     allowed = {".pdf", ".md", ".txt", ".json", ".html", ".htm"}
     skip_parts = {"index", "__pycache__"}
+    latest_report_markdown = case_dir / "reports" / "latest_report.md"
     for path in sorted(case_dir.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in allowed:
             continue
@@ -1258,6 +1297,12 @@ def _iter_failed_case_source_files(case_id: str) -> Iterable[Path]:
             continue
         if path.name == "metadata.json":
             continue
+        role = _failed_case_file_role(path)
+        if role == "failed_patent_report":
+            if latest_report_markdown.exists() and path.resolve() != latest_report_markdown.resolve():
+                continue
+            if not latest_report_markdown.exists() and not path.name.startswith("latest_report"):
+                continue
         yield path
 
 
@@ -1624,10 +1669,24 @@ def _failed_case_original_pdf(case_id: str) -> Path:
     raise HTTPException(status_code=400, detail=f"{safe_id} 케이스에 보고서 생성용 원본 PDF가 없습니다.")
 
 
+def _format_score(value: Any, default: str = "-") -> str:
+    if value in (None, ""):
+        return default
+    if isinstance(value, float):
+        return f"{value:.2f}".rstrip("0").rstrip(".")
+    return str(value)
+
+
 def _report_markdown_from_result(title: str, result: dict[str, Any], *, case_id: str) -> str:
     report = result.get("report") if isinstance(result.get("report"), dict) else {}
     valuation = result.get("valuation") if isinstance(result.get("valuation"), dict) else {}
     verification = result.get("report_verification") if isinstance(result.get("report_verification"), dict) else {}
+    active_report = report or valuation
+    patent = active_report.get("patent") if isinstance(active_report.get("patent"), dict) else {}
+    summary = active_report.get("section_1_summary") if isinstance(active_report.get("section_1_summary"), dict) else {}
+    dimension_scores = summary.get("dimension_scores") if isinstance(summary.get("dimension_scores"), dict) else {}
+    similar_brief = summary.get("similar_patents_brief") if isinstance(summary.get("similar_patents_brief"), dict) else {}
+    verification_issues = verification.get("issues") if isinstance(verification.get("issues"), list) else []
     workflow = {
         "workflow_type": result.get("workflow_type"),
         "elapsed_seconds": result.get("elapsed_seconds"),
@@ -1641,34 +1700,156 @@ def _report_markdown_from_result(title: str, result: dict[str, Any], *, case_id:
         "",
         "실패특허 원본 PDF를 특허 재평가 에이전트에 전달해 생성한 출원 도우미용 보고서입니다.",
         "",
+        "## 대상 특허",
+        "",
+        f"- Patent ID: {patent.get('id') or '-'}",
+        f"- Title: {patent.get('title') or '-'}",
+        f"- Registration number: {patent.get('registration_number') or '-'}",
+        f"- Application number: {patent.get('application_number') or '-'}",
+        f"- Total claims: {_format_score(patent.get('total_claims'))}",
+        f"- Legal status: {patent.get('legal_status') or '-'}",
+        "",
         "## 평가 요약",
         "",
         f"- Case ID: {case_id}",
         f"- Status: {result.get('status') or '-'}",
         f"- Workflow: {result.get('workflow_type') or '-'}",
         f"- Elapsed seconds: {result.get('elapsed_seconds') or '-'}",
+        f"- Overall score: {_format_score(summary.get('overall_score'))}/5",
+        f"- Overall score out of 100: {_format_score(summary.get('overall_score_out_of_100'))}",
+        f"- Overall grade: {summary.get('overall_grade') or '-'}",
+        f"- Report risk level: {summary.get('risk_level') or '-'}",
         f"- Verification grade: {verification.get('reliability_grade') or '-'}",
-        f"- Verification score: {verification.get('overall_reliability_score') or '-'}",
+        f"- Verification score: {_format_score(verification.get('overall_reliability_score'))}",
         f"- Human review required: {verification.get('human_review_required') if verification else '-'}",
         "",
-        "## 재평가 보고서 핵심 내용",
+        "## 영역별 점수",
         "",
-        compact_text(json.dumps(report or valuation or result, ensure_ascii=False, indent=2), 9000),
-        "",
-        "## 보고서 신뢰도/검증",
-        "",
-        compact_text(json.dumps(verification, ensure_ascii=False, indent=2), 3000) if verification else "검증 결과가 없습니다.",
-        "",
-        "## 워크플로우 메타정보",
-        "",
-        compact_text(json.dumps(workflow, ensure_ascii=False, indent=2), 3000),
-        "",
-        "## 메타정보",
-        "",
-        f"- saved_at: {_now()}",
-        "- vectorstore_scope: selected_failed_patent_case_only",
+        "| 영역 | 평균 점수(1~5) | 100점 환산 | 등급 | 항목 수 |",
+        "| --- | ---: | ---: | --- | ---: |",
     ]
+    if dimension_scores:
+        for dimension, score in dimension_scores.items():
+            if not isinstance(score, dict):
+                continue
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        str(dimension),
+                        _format_score(score.get("average_score")),
+                        _format_score(score.get("score_out_of_100")),
+                        str(score.get("grade") or "-"),
+                        _format_score(score.get("item_count")),
+                    ]
+                )
+                + " |"
+            )
+    else:
+        lines.append("| - | - | - | - | - |")
+    lines.extend(
+        [
+            "",
+            "## 종합 의견",
+            "",
+            str(summary.get("overall_opinion") or "종합 의견이 생성되지 않았습니다."),
+            "",
+            "## 유사 특허 분석 요약",
+            "",
+            f"- Available: {similar_brief.get('available') if similar_brief else '-'}",
+            f"- Total similar patents: {_format_score(similar_brief.get('total') if similar_brief else None)}",
+            f"- Active count: {_format_score(similar_brief.get('active_count') if similar_brief else None)}",
+            f"- Enforceable count: {_format_score(similar_brief.get('enforceable_count') if similar_brief else None)}",
+            f"- Average similarity: {_format_score(similar_brief.get('avg_similarity') if similar_brief else None)}",
+            "",
+            "## 보고서 신뢰도/검증",
+            "",
+            f"- Reliability grade: {verification.get('reliability_grade') or '-'}",
+            f"- Reliability score: {_format_score(verification.get('overall_reliability_score'))}",
+            f"- Verification risk level: {verification.get('risk_level') or '-'}",
+            f"- Evidence coverage: {_format_score(verification.get('evidence_coverage'))}",
+            f"- Source quality score: {_format_score(verification.get('source_quality_score'))}",
+            f"- Numeric integrity: {verification.get('numeric_integrity') or '-'}",
+            f"- Human review required: {verification.get('human_review_required') if verification else '-'}",
+            "",
+            "## 주요 검증 이슈",
+            "",
+        ]
+    )
+    if verification_issues:
+        for issue in verification_issues[:8]:
+            if not isinstance(issue, dict):
+                continue
+            item = issue.get("item")
+            suffix = f" / item: {item}" if item else ""
+            lines.append(f"- [{issue.get('severity') or '-'}] {issue.get('message') or '-'}{suffix}")
+    else:
+        lines.append("- 주요 검증 이슈가 없습니다.")
+    lines.extend(
+        [
+            "",
+            "## 재평가 보고서 원본 요약",
+            "",
+            compact_text(json.dumps(active_report or result, ensure_ascii=False, indent=2), 4500),
+            "",
+            "## 워크플로우 메타정보",
+            "",
+            compact_text(json.dumps(workflow, ensure_ascii=False, indent=2), 3000),
+            "",
+            "## 메타정보",
+            "",
+            f"- saved_at: {_now()}",
+            "- vectorstore_scope: selected_failed_patent_case_only",
+        ]
+    )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def failed_patent_case_report_summary(case_id: str) -> dict[str, Any]:
+    safe_id = _safe_case_id(case_id)
+    report_path = _failed_case_dir(safe_id) / "reports" / "latest_report.json"
+    if not report_path.exists():
+        return {
+            "exists": False,
+            "case_id": safe_id,
+            "report_path": str(report_path),
+            "message": "latest_report.json이 없습니다. 먼저 실패특허 재평가 보고서를 생성하세요.",
+        }
+    data = _read_json(report_path)
+    if not isinstance(data, dict):
+        return {"exists": False, "case_id": safe_id, "report_path": str(report_path), "message": "latest_report.json을 읽을 수 없습니다."}
+    report = data.get("report") if isinstance(data.get("report"), dict) else {}
+    valuation = data.get("valuation") if isinstance(data.get("valuation"), dict) else {}
+    active_report = report or valuation
+    patent = active_report.get("patent") if isinstance(active_report.get("patent"), dict) else {}
+    summary = active_report.get("section_1_summary") if isinstance(active_report.get("section_1_summary"), dict) else {}
+    verification = data.get("report_verification") if isinstance(data.get("report_verification"), dict) else {}
+    similar_brief = summary.get("similar_patents_brief") if isinstance(summary.get("similar_patents_brief"), dict) else {}
+    issues = verification.get("issues") if isinstance(verification.get("issues"), list) else []
+    return {
+        "exists": True,
+        "case_id": safe_id,
+        "report_path": str(report_path),
+        "markdown_path": str(_failed_case_dir(safe_id) / "reports" / "latest_report.md"),
+        "status": data.get("status"),
+        "workflow_type": data.get("workflow_type"),
+        "elapsed_seconds": data.get("elapsed_seconds"),
+        "patent": patent,
+        "summary": summary,
+        "dimension_scores": summary.get("dimension_scores") if isinstance(summary.get("dimension_scores"), dict) else {},
+        "similar_patents_brief": similar_brief,
+        "verification": {
+            "reliability_grade": verification.get("reliability_grade"),
+            "overall_reliability_score": verification.get("overall_reliability_score"),
+            "risk_level": verification.get("risk_level"),
+            "human_review_required": verification.get("human_review_required"),
+            "evidence_coverage": verification.get("evidence_coverage"),
+            "source_quality_score": verification.get("source_quality_score"),
+            "numeric_integrity": verification.get("numeric_integrity"),
+            "summary": verification.get("summary"),
+            "issues": issues[:8],
+        },
+    }
 
 
 def _run_eval_logic_pdf_workflow(
