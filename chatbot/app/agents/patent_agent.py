@@ -73,17 +73,9 @@ def _merge_context_sections(result: dict, state: ChatAgentState, web_context: di
     wiki_hits = list((state.get("wiki_context") or {}).get("hits") or [])
     web_results = list(web_context.get("results") or [])
     has_extra = bool((allow_wiki_supplement and filter_usable_hits(wiki_hits, limit=1)) or web_results)
+    # 내부 근거 없고 외부 근거만 있는 경우 문구 교체 — raw 섹션은 이어붙이지 않음
     if has_extra and any(marker in answer for marker in LOW_EVIDENCE_MARKERS):
-        answer = "내부 원문/보고서 근거가 약해, 현재 확보된 승인 데이터와 웹 근거를 함께 기준으로 답변을 보강합니다."
-
-    wiki_section = _format_hit_section("웹검색 전 내부 wiki 확인", wiki_hits) if allow_wiki_supplement else ""
-    if wiki_section and "내부 wiki/승인 데이터 보강" not in answer:
-        answer = answer.rstrip() + wiki_section
-
-    web_section = _format_web_section(web_results)
-    if web_section and "웹 검색 보강" not in answer:
-        answer = answer.rstrip() + web_section
-
+        answer = "내부 원문/보고서 근거가 충분하지 않아 웹 근거를 중심으로 답변합니다."
     result["answer"] = answer
     return result
 

@@ -1239,32 +1239,30 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
             "result": result,
             "trace": _trace(state, "answer_application_question", "success", source_count=len(result["source_cards"]), answer_strategy="selected_failed_case_latest_report_summary"),
         }
-    prompt = f"""당신은 한국 특허 출원을 도와주는 챗봇입니다.
-반드시 제공된 공식팩/피드백 리포트 근거 안에서 답하고, 부족한 부분은 추가 확인이 필요하다고 말하세요.
-질문 의도: {intent}
-선택된 실패특허 케이스: {state.get("failed_patent_id")}
-사용자 질문: {state.get("query", "")}
-최근 대화:
-{state.get("history_summary") or "-"}
+    prompt = f"""당신은 SKIPA 특허 출원 전문 어시스턴트입니다. 전문 변리사 수준의 간결하고 실용적인 한국어 답변을 제공합니다.
+제공된 공식팩·케이스 근거 안에서만 답변하고, 사실을 창작하지 않습니다.
 
-공식팩 + 선택된 실패특허 케이스 근거:
+질문 의도: {intent_name}
+선택된 실패특허: {state.get("failed_patent_id") or "없음"}
+사용자 질문: {state.get("query", "")}
+대화 맥락: {state.get("history_summary") or "-"}
+
+공식팩 + 케이스 근거:
 {_context_for_prompt(hits)}
 
-외부 보강 근거(KIPRIS/KOSIS/Tavily 연결 상태와 검색 결과):
+외부 보강 근거:
 {_external_context_for_prompt(state.get("external_context") or {})}
 
-답변 요구:
-- 한국어로 구체적인 실행 순서를 제시합니다.
-- 출원 절차, 거절 대응, 선행기술 검색, 실패 요인 분석, 피드백, 다음 액션 중 의도에 맞는 항목을 우선합니다.
-- application_procedure는 처음 출원 준비 순서에만 집중하고, 거절의견서/보정/불복 문장은 중간사건 설명이 필요할 때만 짧게 언급합니다.
-- 실패 요인 질문이면 신규성/진보성/기재불비/청구범위/절차 기한/보정 리스크를 나눠 진단합니다.
-- 실패특허 케이스 근거는 현재 선택된 failed_patent_id 하나의 원본 PDF, 사유서, 생성 보고서만 사용합니다. 다른 failed_patent 폴더의 내용은 절대 섞지 않습니다.
-- feedback/보고서 근거는 rejection_response 또는 실패/거절 질문일 때만 우선 사용합니다.
-- 외부 근거는 공식팩 근거를 보강할 때만 사용하고, KIPRIS/KOSIS/Tavily 중 어떤 경로인지 표시합니다.
-- 부족한 데이터와 추가하면 좋은 데이터도 마지막에 제안합니다.
+답변 규칙:
+- 서론 없이 핵심 답변으로 바로 시작합니다 (1-3문장).
+- 출원 절차: 구체적인 단계와 기한을 포함합니다.
+- 거절 대응: 신규성/진보성/기재불비 유형별로 간결하게 구분합니다.
+- 실패 요인 분석: 핵심 원인 3개 이내로 정리합니다.
+- 실패특허 케이스는 현재 선택된 케이스({state.get("failed_patent_id") or "없음"})의 근거만 사용합니다.
+- 외부 근거는 공식팩 근거를 보강할 때만 사용합니다.
 - 표가 필요하면 Markdown 표를 포함합니다.
 - 다이어그램이 필요하면 Mermaid flowchart를 포함합니다.
-- 마지막에는 확인해야 할 공식 자료명을 짧게 적습니다.
+- 근거가 부족한 부분은 한 문장으로만 언급합니다. "부족한 데이터 제안", "확인해야 할 공식 자료명" 섹션은 추가하지 않습니다.
 """
     use_guided_template = intent_name in GUIDED_TEMPLATE_INTENTS
     if ANSWER_PROVIDER == "openai":
