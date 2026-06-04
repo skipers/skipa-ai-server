@@ -495,6 +495,7 @@ def _evaluate_single_item(
     """항목 1개를 평가하여 점수 딕셔너리를 반환합니다."""
     item_name = item_info["item"]
     strategy  = get_search_strategy(item_name)
+    requires_external_sources = strategy in {"web_search", "hybrid"}
 
     if strategy == "claims_only":
         # B유형: 청구항 텍스트만으로 판단, 웹서치 없음
@@ -548,8 +549,42 @@ def _evaluate_single_item(
         score_val = int(score_val)
     except Exception:
         score_val = 3
+    score_val = max(1, min(5, score_val))
 
-    return {
+    confidence = ""
+    evidence_policy = "not_required"
+    citation_repaired = False
+
+    if requires_external_sources:
+        evidence_policy = "external_source_required"
+        if not cited and web_sources:
+            # 운영 보고서에서는 웹/혼합 전략 항목이 sources 없이 남으면 신뢰도 검증에서
+            # 고위험으로 처리됩니다. LLM이 cited_sources 번호를 빼먹은 경우에는
+            # 프롬프트에 실제 제공된 상위 검색 근거를 보수적으로 연결하고 표시합니다.
+            cited = [web_sources[0]]
+            citation_repaired = True
+            reason = (
+                f"{reason} "
+                "다만 LLM 응답에 cited_sources 번호가 누락되어, "
+                "검색 결과 상위 근거를 보수적으로 연결했습니다."
+            )
+        if not cited:
+            confidence = "낮음"
+            if score_val > 3:
+                score_val = 3
+                reason = (
+                    f"{reason} "
+                    "외부 검증 출처가 없어 해당 항목은 3점 이하로 보수 조정했습니다."
+                )
+        elif citation_repaired and score_val > 3:
+            score_val = 3
+            confidence = "보통"
+            reason = (
+                f"{reason} "
+                "명시 인용이 누락된 보정 근거이므로 3점 이하로 보수 조정했습니다."
+            )
+
+    output = {
         "item":       item_name,
         "dim":        dim,
         "score":      score_val,
@@ -559,7 +594,13 @@ def _evaluate_single_item(
         "strategy":   strategy,
         "patent_id":  patent_id_out,
         "input_file": input_file_out,
+        "evidence_policy": evidence_policy,
     }
+    if confidence:
+        output["confidence"] = confidence
+    if citation_repaired:
+        output["citation_repaired"] = True
+    return output
 
 
 # ──────────────────────────────────────────

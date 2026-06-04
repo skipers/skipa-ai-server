@@ -144,10 +144,15 @@ class ReportVerificationService:
 
             if method == "llm" and strategy != "claims_only" and not sources:
                 metrics["unsupported_claim_count"] += 1
+                severity = "high" if score_value is not None and score_value >= 4 else "medium"
                 issues.append(VerificationIssue(
                     "llm_item_without_source",
-                    "high",
-                    "웹/혼합 전략 LLM 평가 항목에 인용 출처가 없습니다.",
+                    severity,
+                    (
+                        "웹/혼합 전략 LLM 평가 항목에 인용 출처가 없습니다."
+                        if severity == "high"
+                        else "웹/혼합 전략 LLM 평가 항목에 인용 출처가 없어 보수 검토가 필요합니다."
+                    ),
                     location,
                     item=item,
                     dim=dim,
