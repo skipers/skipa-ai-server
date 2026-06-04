@@ -1,0 +1,33 @@
+# IP 가치 평가 보고서 생성기 의존 패키지
+# 설치: pip install -r requirements.txt
+
+# PDF 생성
+reportlab==4.4.10
+
+# 차트 생성 (레이더 차트, 트렌드 그래프)
+matplotlib==3.10.8
+numpy==2.4.4
+
+# 웹 검색 (DuckDuckGo - API 키 불필요)
+duckduckgo-search>=8.1.0
+
+# 한글 폰트 (Ubuntu/Debian 환경)
+# sudo apt-get install -y fonts-nanum
+
+openai>=2.32.0
+python-dotenv>=0.21.0
+requests>=2.31.0
+pandas>=1.5.3
+openpyxl>=3.0.10
+beautifulsoup4>=4.12.0
+selenium>=4.20.0
+webdriver-manager>=4.0.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+langgraph>=0.2.0
+pdfplumber>=0.11.0
+pypdf>=4.0.0
+wcwidth>=0.2.13
+faiss-cpu>=1.8.0
+rank-bm25>=0.2.2

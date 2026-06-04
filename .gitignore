@@ -89,3 +89,4 @@ chatbot/storage/
 chatbot/patents_backup_*/
 chatbot/.DS_Store
 chatbot/data/.DS_Store
+chatbot/data/patent_application_official_pack/failed_patent/

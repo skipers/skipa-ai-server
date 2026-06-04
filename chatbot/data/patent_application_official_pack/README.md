@@ -24,3 +24,22 @@
 3. 특허·실용신안 심사기준
 4. KIPRIS 검색도움말
 5. CEO·연구자를 위한 특허출원 전략
+
+## 실패특허 케이스 관리
+
+출원 도우미 채팅은 실패특허 원본 PDF가 있는 케이스를 먼저 선택해야 시작됩니다.
+케이스는 `failed_patent/{case_id}` 단위로 저장되고, 서로 다른 실패특허는 절대 같은
+vectorstore에 섞지 않습니다.
+
+```text
+failed_patent/{case_id}/
+  input/              # 실패특허 원본 PDF
+  rejection/          # 선택: 거절의견서, 사유서, 사람이 입력한 실패 사유
+  reports/            # 선택: 특허 재평가 API 결과, 피드백 보고서
+  index/vectorstore/  # 해당 실패특허 1건 전용 검색 인덱스
+  metadata.json
+```
+
+답변은 항상 공용 공식팩 vectorstore와 현재 선택한 `failed_patent/{case_id}` 전용
+vectorstore만 함께 사용합니다. 새 재평가 보고서가 생성되면 같은 케이스의 `reports/`에
+저장한 뒤 그 케이스 index만 refresh합니다.

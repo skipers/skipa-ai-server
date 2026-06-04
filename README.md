@@ -280,6 +280,13 @@ GET  /api/v1/application/external/status
 POST /api/v1/application/preprocess
 POST /api/v1/application/feedback/create
 POST /api/v1/application/feedback/upload
+GET  /api/v1/application/failed-patents
+GET  /api/v1/application/failed-patents/{case_id}
+POST /api/v1/application/failed-patents/create
+POST /api/v1/application/failed-patents/upload
+POST /api/v1/application/failed-patents/{case_id}/index/refresh
+POST /api/v1/application/failed-patents/{case_id}/report/save
+POST /api/v1/application/failed-patents/{case_id}/chat
 POST /api/v1/application/sources/download
 GET  /api/v1/application/sources/download-report
 POST /api/v1/application/report/generate
@@ -303,6 +310,20 @@ scripts/preprocess_chatbot_data.sh --mode application-preprocess
 # 거절의견서/의견서 PDF를 출원 피드백 HTML/Markdown으로 만들고 출원 vectorstore 갱신
 scripts/preprocess_chatbot_data.sh --mode application-feedback \
   --opinion-file "data/patent_application_official_pack/downloads/특허거절의견서.pdf"
+
+# 실패특허 원본 PDF로 케이스 생성 + 해당 케이스 전용 vectorstore 갱신
+scripts/preprocess_chatbot_data.sh --mode application-case \
+  --original-pdf "data/mapped_patent_reports/10-2893083/original.pdf" \
+  --opinion-text "거절 사유 또는 실패 원인을 여기에 입력"
+
+# 선택 실패특허 케이스 1건만 재색인
+scripts/preprocess_chatbot_data.sh --mode application-case-refresh \
+  --case-id "failed_20260604_153000"
+
+# 재평가 API에서 받은 보고서를 선택 실패특허 폴더에 저장하고 케이스 전용 vectorstore 갱신
+scripts/preprocess_chatbot_data.sh --mode application-case-report \
+  --case-id "failed_20260604_153000" \
+  --report-path "eval_logic/data/api_test/output/reports/10-0000000.json"
 
 # 챗봇 core/wiki refresh와 출원팩 전처리를 함께 실행
 scripts/preprocess_chatbot_data.sh --mode all
@@ -1060,19 +1081,18 @@ flowchart TD
   F --> O[answer + source_cards + quality metrics]
 
   D[data/patent_application_official_pack] --> IX[index/vectorstore]
-  OP[거절의견서/의견서 PDF] --> FB[POST /api/v1/application/feedback/create or upload]
-  PR[기존 특허 원본/보고서] --> FB
-  FB --> MD[feedback.md]
-  FB --> HTML[feedback_report.html]
-  MD --> IX
-  HTML --> UI[UI에서 HTML 보고서 열기]
+  OP[실패특허 원본 PDF + 선택 사유서] --> CASE[failed_patent/{case_id}]
+  CASE --> CIX[failed_patent/{case_id}/index/vectorstore]
+  CASE --> CR[reports/재평가 보고서]
+  CR --> CIX
   BTN[UI 출원 데이터 준비 버튼] --> PP[POST /api/v1/application/preprocess]
-  BTN --> FB
   BTN --> RF[POST /api/v1/application/index/refresh]
-  RP[POST /api/v1/application/report/generate] --> FB
+  UP[POST /api/v1/application/failed-patents/upload] --> CASE
+  RP[POST /api/v1/application/failed-patents/{case_id}/report/save] --> CR
   PP --> IX
   RF --> IX
   R -. searches .-> IX
+  R -. selected case only .-> CIX
   I -. routes .-> P[procedure/forms/claims/prior-art/rejection/fees/strategy]
   E -. uses .-> EXT[KIPRIS/KOSIS/Tavily status + web evidence]
 ```
@@ -1080,25 +1100,26 @@ flowchart TD
 출원 도우미는 기존 특허별 가치평가 챗봇과 분리된 라우팅을 사용합니다. 질문이
 거절이유 대응이면 의견제출통지서/보정/심판 근거를 우선하고, 선행기술 질문이면
 KIPRIS/CPC/IPC 검색 자료를 우선하며, 처음 출원 절차 질문이면 특허로 출원가이드와
-절차 체크리스트를 우선 검색합니다. UI의 `출원 데이터 준비` 버튼은 공식팩 전처리,
-거절의견서 피드백 생성, 출원 index refresh를 한 번에 실행합니다. 다운로드 또는
+절차 체크리스트를 우선 검색합니다. 출원 도우미 채팅은 먼저 실패특허 원본 PDF가 있는
+`failed_patent_id`를 선택해야 시작됩니다. UI의 `출원 데이터 준비` 버튼은 공식팩 전처리와
+공용 출원 index refresh를 실행하고, 실패특허 원본/사유서/생성 보고서는
+`data/patent_application_official_pack/failed_patent/{case_id}` 아래의 독립 폴더와
+전용 vectorstore에서 관리합니다. 여러 실패특허가 쌓여도 답변은 공용 공식팩 vectorstore와
+현재 선택한 실패특허 1건의 vectorstore만 함께 참조합니다. 다운로드 또는
 크롤링에 실패한 URL은 `data/patent_application_official_pack/download_report.md`에 남습니다.
 실패 요인 분석/거절 대응/사업화/최신 동향처럼 내부 공식팩만으로 부족한 질문은
 `KIPRIS_API_KEY`, `KOSIS_API_KEY`, `TAVILY_API_KEY` 설정 상태를 metrics에 표시하고,
 사용 가능한 외부 근거를 답변의 근거 카드에 함께 붙입니다.
 
-거절의견서 피드백 흐름은 출원 도우미 index에 연결됩니다. 실제 거절의견서/의견서 PDF가 있으면
-`data/patent_application_official_pack/downloads/특허거절의견서.pdf`처럼 공식팩 하위에 배치하거나
-Swagger 업로드 API로 전달합니다. Swagger에서는 `POST /api/v1/application/feedback/create`,
-출원 예정/실패 특허 분석 보고서 연결은 `POST /api/v1/application/report/generate`,
-파일 업로드 UI에서는 `POST /api/v1/application/feedback/upload`를 사용합니다. 생성 결과는
-`data/patent_application_official_pack/feedback/<timestamp>_<title>/feedback.md`,
-`feedback_report.html`, `metadata.json`에 저장되고, `refresh_index=true`이면 바로
-출원 도우미 vectorstore에 반영됩니다. `patent_id` 또는 특허별 `source_report_path`가
-연결되어 있으면 같은 리포트가
-`data/mapped_patent_reports/<patent_id>/reports/application_feedback/latest.md`와
-`latest.html`에도 저장되어 특허 챗봇/보고서 데이터와 동일한 특허 폴더에서 관리됩니다.
-이후 `/api/v1/application/chat`에서
+실패특허 케이스 흐름은 출원 도우미 index와 분리됩니다. Swagger/UI에서는
+`POST /api/v1/application/failed-patents/upload`로 실패특허 원본 PDF를 반드시 업로드하고,
+사유서/거절의견서는 선택 파일이나 텍스트로 같이 넣습니다. 생성 결과는
+`data/patent_application_official_pack/failed_patent/{case_id}/input`,
+`rejection`, `reports`, `index/vectorstore`로 나뉘어 저장됩니다. 재평가 로직에서 생성된
+보고서 JSON/Markdown/HTML은 `POST /api/v1/application/failed-patents/{case_id}/report/save`
+또는 CLI `--mode application-case-report`로 같은 케이스의 `reports` 폴더에 저장하고,
+해당 케이스 vectorstore만 다시 갱신합니다. 이후 `/api/v1/application/chat` 또는
+`/api/v1/application/failed-patents/{case_id}/chat`에서
 “거절이유”, “실패 요인”, “보정 전략”, “의견서 대응” 질문을 하면 이 피드백 리포트와
 공식팩, 필요한 경우 외부 KIPRIS/KOSIS/Tavily 근거를 함께 사용합니다.
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from ..agents.application_graph import application_graph_mermaid, run_application_agent
 from ..agents.graph import chat_graph_mermaid, run_chat_agent
@@ -15,9 +15,14 @@ from ..application_data import (
     application_external_status,
     application_index_status,
     create_application_feedback_report,
+    create_failed_patent_case,
     download_application_sources,
+    failed_patent_case_index_status,
+    list_failed_patent_cases,
     preprocess_application_pack,
     refresh_application_index,
+    refresh_failed_patent_case_index,
+    save_failed_patent_case_report,
 )
 from ..config import PATENT_APPLICATION_ROOT
 from ..config import (
@@ -46,6 +51,8 @@ from ..schemas import (
     FeedbackRequest,
     PatentApplicationChatRequest,
     PatentApplicationDownloadRequest,
+    PatentApplicationFailedCaseCreateRequest,
+    PatentApplicationFailedCaseReportSaveRequest,
     PatentApplicationFeedbackRequest,
     PatentApplicationPreprocessRequest,
     PreprocessRunRequest,
@@ -474,6 +481,72 @@ def post_application_feedback_upload(
     )
 
 
+@application_router.get("/failed-patents", summary="출원 도우미 실패특허 케이스 목록")
+def get_application_failed_patents() -> dict:
+    return list_failed_patent_cases()
+
+
+@application_router.get("/failed-patents/{case_id}", summary="실패특허 케이스 파일/index 상태")
+def get_application_failed_patent(case_id: str) -> dict:
+    return failed_patent_case_index_status(case_id)
+
+
+@application_router.post("/failed-patents/create", summary="서버 로컬 PDF 경로로 실패특허 케이스 생성")
+def post_application_failed_patent_create(request: PatentApplicationFailedCaseCreateRequest) -> dict:
+    return create_failed_patent_case(
+        case_id=request.case_id,
+        title=request.title,
+        original_pdf_path=request.original_pdf_path,
+        rejection_reason_text=request.rejection_reason_text,
+        rejection_file_path=request.rejection_file_path,
+        reviewer=request.reviewer,
+        notes=request.notes,
+        refresh_index=request.refresh_index,
+    )
+
+
+@application_router.post("/failed-patents/upload", summary="실패특허 원본 PDF와 선택 사유서를 업로드하고 케이스 전용 vectorstore 생성")
+def post_application_failed_patent_upload(
+    original_pdf: UploadFile = File(..., description="채팅을 시작하기 위해 반드시 필요한 실패특허 원본 PDF"),
+    rejection_file: UploadFile | None = File(None, description="선택: 거절의견서/사유서 PDF/문서"),
+    case_id: str | None = Form(None),
+    title: str | None = Form(None),
+    rejection_reason_text: str | None = Form(None),
+    reviewer: str | None = Form(None),
+    notes: str | None = Form(None),
+    refresh_index: bool = Form(True),
+) -> dict:
+    if not (original_pdf.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="original_pdf는 실패특허 원본 PDF 파일이어야 합니다.")
+    rejection_bytes = rejection_file.file.read() if rejection_file is not None else None
+    rejection_name = rejection_file.filename if rejection_file is not None else None
+    return create_failed_patent_case(
+        case_id=case_id,
+        title=title or original_pdf.filename,
+        original_pdf_bytes=original_pdf.file.read(),
+        original_pdf_filename=original_pdf.filename,
+        rejection_reason_text=rejection_reason_text,
+        rejection_file_bytes=rejection_bytes,
+        rejection_file_filename=rejection_name,
+        reviewer=reviewer,
+        notes=notes,
+        refresh_index=refresh_index,
+    )
+
+
+@application_router.post("/failed-patents/{case_id}/index/refresh", summary="선택 실패특허 1건의 전용 vectorstore만 갱신")
+def post_application_failed_patent_index_refresh(case_id: str) -> dict:
+    return refresh_failed_patent_case_index(case_id)
+
+
+@application_router.post("/failed-patents/{case_id}/report/save", summary="특허 재평가 API 결과를 해당 실패특허 폴더에 저장하고 전용 vectorstore 갱신")
+def post_application_failed_patent_report_save(
+    case_id: str,
+    request: PatentApplicationFailedCaseReportSaveRequest,
+) -> dict:
+    return save_failed_patent_case_report(case_id, **request.model_dump())
+
+
 @application_router.post("/sources/download", summary="특허 출원 공식 자료 다운로드/크롤링")
 def post_application_sources_download(request: PatentApplicationDownloadRequest) -> dict:
     return download_application_sources(
@@ -499,6 +572,19 @@ def post_application_chat(request: PatentApplicationChatRequest) -> dict:
     return run_application_agent(
         request.question,
         user_id=request.user_id,
+        failed_patent_id=request.failed_patent_id,
+        chat_history=request.chat_history,
+        top_k=request.top_k,
+        refresh_index=request.refresh_index,
+    )
+
+
+@application_router.post("/failed-patents/{case_id}/chat", response_model=AnswerResponse, summary="선택 실패특허 케이스 기준 출원 도우미 챗봇")
+def post_application_failed_patent_chat(case_id: str, request: PatentApplicationChatRequest) -> dict:
+    return run_application_agent(
+        request.question,
+        user_id=request.user_id,
+        failed_patent_id=case_id,
         chat_history=request.chat_history,
         top_k=request.top_k,
         refresh_index=request.refresh_index,

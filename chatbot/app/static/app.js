@@ -5,6 +5,7 @@ const state = {
   mermaid: "",
   chatHistory: [],
   applicationHistory: [],
+  applicationCases: [],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -34,11 +35,12 @@ const workflowGraphInfo = {
   application: {
     title: "특허 출원 도우미 워크플로우",
     endpoint: "/api/v1/application/chat/mermaid",
-    summary: "공식 출원 자료팩을 기반으로 출원 절차, 선행기술조사, 명세서/청구항, 거절대응, 수수료/서식 질문을 별도 라우팅하고, 필요한 경우 KIPRIS/KOSIS/Tavily 보강 근거를 붙입니다.",
+    summary: "실패특허 원본 PDF가 있는 케이스를 먼저 선택한 뒤, 공용 공식팩 vectorstore와 선택 케이스 전용 vectorstore를 함께 검색합니다. 여러 실패특허가 있어도 답변에는 선택된 케이스 하나만 섞입니다.",
     steps: [
       ["resolve_application_history", "후속 질문이면 이전 질문/답변을 검색 질의에 반영"],
+      ["validate_failed_patent_case", "failed_patent_id와 원본 PDF, 케이스 전용 vectorstore 상태 확인"],
       ["route_application_question", "출원 의도, 외부 보강 필요 여부, 표/다이어그램 답변 형식 판단"],
-      ["retrieve_application_context", "공식팩 vectorstore에서 관련 공식 문서 검색"],
+      ["retrieve_application_context", "공용 공식팩 vectorstore와 선택 실패특허 vectorstore를 분리 검색 후 병합"],
       ["retrieve_application_external_context", "선행기술/시장/최신 동향이 필요하면 외부 보강 검색"],
       ["answer_application_question", "출원 절차, 실패 요인, 피드백, 다음 액션을 근거 기반으로 생성"],
       ["finish_application_answer", "근거 카드, 품질 지표, agent trace 정리"],
@@ -94,6 +96,24 @@ async function api(path, options = {}) {
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
+  });
+  const text = await response.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { raw: text };
+  }
+  if (!response.ok) {
+    throw new Error(typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail || data));
+  }
+  return data;
+}
+
+async function apiForm(path, formData) {
+  const response = await fetch(path, {
+    method: "POST",
+    body: formData,
   });
   const text = await response.text();
   let data;
@@ -445,6 +465,30 @@ function renderPatentOptions() {
   select.value = "__all__";
 }
 
+function renderApplicationCases(selectedId = null) {
+  const select = $("applicationCaseSelect");
+  if (!select) return;
+  const current = selectedId || select.value;
+  select.innerHTML = `<option value="">케이스를 업로드하거나 선택하세요</option>`;
+  state.applicationCases.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.case_id;
+    const count = item.document_count ?? 0;
+    option.textContent = `${item.case_id} · ${item.title || item.case_id} · 문서 ${count}개`;
+    select.appendChild(option);
+  });
+  if (current && state.applicationCases.some((item) => item.case_id === current)) {
+    select.value = current;
+  }
+}
+
+async function loadApplicationCases(selectedId = null) {
+  const data = await api("/api/v1/application/failed-patents");
+  state.applicationCases = data.items || [];
+  renderApplicationCases(selectedId);
+  return data;
+}
+
 function showTab(tabId) {
   document.querySelectorAll(".tab-button").forEach((button) => {
     button.classList.toggle("active", button.dataset.tab === tabId);
@@ -618,6 +662,10 @@ async function loadBaseData() {
   state.patents = patents.items || [];
   renderPatentOptions();
   renderDataCards();
+  loadApplicationCases().catch(() => {
+    state.applicationCases = [];
+    renderApplicationCases();
+  });
   const vector = status.vectorstore_status || config.vectorstore || {};
   const engine = config.rag_engine?.available ? "Hybrid Retrieval" : "fallback";
   setStatus(`특허 ${config.patent_count ?? state.patents.length}개 · 문서 ${vector.global?.document_count ?? "-"}개 · ${engine}`);
@@ -775,21 +823,12 @@ async function prepareApplicationData() {
       method: "POST",
       body: JSON.stringify({ refresh_index: true }),
     });
-    const feedback = await api("/api/v1/application/feedback/create", {
-      method: "POST",
-      body: JSON.stringify({
-        title: "특허거절의견서 기반 출원 피드백",
-        opinion_file_path: "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/특허거절의견서.pdf",
-        reviewer: "browser-ui",
-        notes: "UI combined prepare flow",
-        refresh_index: true,
-      }),
-    });
     const refresh = await api("/api/v1/application/index/refresh", { method: "POST" });
+    const cases = await loadApplicationCases();
     setStatus(`출원 데이터 준비 완료 · 파일 ${preprocess.active_file_count ?? 0}개 · index ${refresh.document_count ?? 0}개`);
     showModal(
       "출원 데이터 준비",
-      `${feedback.html_url ? `<p><a href="${escapeHtml(feedback.html_url)}" target="_blank" rel="noreferrer">피드백 HTML 리포트 열기</a></p>` : ""}${jsonBlock({ preprocess, feedback, refresh })}`,
+      jsonBlock({ preprocess, refresh, failed_patent_cases: cases }),
     );
   } finally {
     setBusy(button, false);
@@ -798,6 +837,7 @@ async function prepareApplicationData() {
 
 async function showApplicationStatus() {
   const status = await api("/api/v1/application/status");
+  await loadApplicationCases();
   setStatus(`출원 도우미 · index ${status.index_exists ? "있음" : "없음"} · 문서 ${status.document_count ?? 0}개 · 다운로드 실패 ${status.download_report?.failure_count ?? 0}건`);
   showModal("출원 도우미 상태", jsonBlock(status));
 }
@@ -853,9 +893,45 @@ async function ask() {
   }
 }
 
+async function uploadFailedPatentCase() {
+  const pdfInput = $("failedPatentPdfInput");
+  const rejectionInput = $("failedPatentRejectionInput");
+  const pdf = pdfInput.files?.[0];
+  if (!pdf) {
+    setStatus("실패특허 원본 PDF를 먼저 선택하세요.");
+    return;
+  }
+  const button = $("uploadFailedPatentButton");
+  setBusy(button, true, "업로드 중");
+  try {
+    const formData = new FormData();
+    formData.append("original_pdf", pdf);
+    const rejection = rejectionInput.files?.[0];
+    if (rejection) formData.append("rejection_file", rejection);
+    const title = $("failedPatentTitleInput").value.trim();
+    if (title) formData.append("title", title);
+    formData.append("reviewer", "browser-ui");
+    formData.append("refresh_index", "true");
+    const result = await apiForm("/api/v1/application/failed-patents/upload", formData);
+    await loadApplicationCases(result.case_id);
+    pdfInput.value = "";
+    rejectionInput.value = "";
+    setStatus(`실패특허 케이스 생성 완료 · ${result.case_id} · 문서 ${result.index?.document_count ?? 0}개`);
+    showModal("실패특허 케이스", jsonBlock(result));
+  } finally {
+    setBusy(button, false);
+  }
+}
+
 async function askApplication() {
   const text = $("applicationQuestion").value.trim();
   if (!text) return;
+  const caseId = $("applicationCaseSelect").value;
+  if (!caseId) {
+    appendMessage("먼저 실패특허 원본 PDF를 업로드하거나 기존 케이스를 선택하세요.", "assistant", false, "applicationMessages");
+    setStatus("출원 도우미는 실패특허 케이스 선택 후 질문할 수 있습니다.");
+    return;
+  }
   appendMessage(text, "user", false, "applicationMessages");
   $("applicationQuestion").value = "";
   const button = $("sendApplicationButton");
@@ -867,6 +943,7 @@ async function askApplication() {
       body: JSON.stringify({
         question: text,
         user_id: "browser-ui",
+        failed_patent_id: caseId,
         chat_history: state.applicationHistory,
         top_k: 6,
         refresh_index: false,
@@ -876,7 +953,7 @@ async function askApplication() {
     appendAnswerMeta(data.metrics || {}, data.source_cards || [], "applicationMessages");
     appendSources(data.source_cards || [], "applicationMessages");
     focusAnswerStart(pending);
-    rememberHistory("application", text, data.answer, { patent_id: "patent_application" });
+    rememberHistory("application", text, data.answer, { patent_id: "patent_application", failed_patent_id: caseId });
     setStatus(`출원 답변 완료 · 근거 ${(data.source_cards || []).length}개`);
   } catch (error) {
     pending.textContent = `요청 실패: ${error.message}`;
@@ -904,6 +981,11 @@ function bindEvents() {
   $("loadIngestionWorkflowButton").addEventListener("click", () => loadIngestionWorkflow().catch((error) => setStatus(error.message)));
   $("prepareApplicationButton").addEventListener("click", () => prepareApplicationData().catch((error) => setStatus(error.message)));
   $("applicationStatusButton").addEventListener("click", () => showApplicationStatus().catch((error) => setStatus(error.message)));
+  $("uploadFailedPatentButton").addEventListener("click", () => uploadFailedPatentCase().catch((error) => setStatus(error.message)));
+  $("applicationCaseSelect").addEventListener("change", () => {
+    state.applicationHistory = [];
+    setStatus($("applicationCaseSelect").value ? `출원 케이스 선택 · ${$("applicationCaseSelect").value}` : "출원 케이스를 선택하세요");
+  });
   $("sendButton").addEventListener("click", ask);
   $("sendApplicationButton").addEventListener("click", askApplication);
   $("question").addEventListener("keydown", (event) => {

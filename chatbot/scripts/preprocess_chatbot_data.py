@@ -6,6 +6,8 @@ Examples:
   scripts/preprocess_chatbot_data.sh --mode auto-audit
   scripts/preprocess_chatbot_data.sh --mode application-preprocess
   scripts/preprocess_chatbot_data.sh --mode application-feedback --opinion-file "data/patent_application_official_pack/downloads/특허거절의견서.pdf"
+  scripts/preprocess_chatbot_data.sh --mode application-case --original-pdf "failed.pdf" --rejection-file "notice.pdf"
+  scripts/preprocess_chatbot_data.sh --mode application-case-refresh --case-id "failed_20260604"
   scripts/preprocess_chatbot_data.sh --mode all
   scripts/preprocess_chatbot_data.sh --mode status
 """
@@ -39,6 +41,9 @@ def main() -> int:
             "normalize-wiki",
             "application-preprocess",
             "application-feedback",
+            "application-case",
+            "application-case-refresh",
+            "application-case-report",
             "application-status",
             "all",
         ],
@@ -61,6 +66,11 @@ def main() -> int:
     parser.add_argument("--opinion-file", default=None, help="Rejection opinion or office action PDF/document path.")
     parser.add_argument("--opinion-text", default=None, help="Inline rejection opinion text.")
     parser.add_argument("--source-report", default=None, help="Existing generated patent report path to connect.")
+    parser.add_argument("--case-id", default=None, help="Patent application failed-case ID.")
+    parser.add_argument("--original-pdf", default=None, help="Failed patent original PDF path for application-case mode.")
+    parser.add_argument("--rejection-file", default=None, help="Optional rejection notice/reason file path for application-case mode.")
+    parser.add_argument("--report-path", default=None, help="Generated re-evaluation report path to save into a failed case.")
+    parser.add_argument("--report-text", default=None, help="Generated report text/markdown to save into a failed case.")
     parser.add_argument("--reviewer", default="cli", help="Feedback report reviewer name.")
     parser.add_argument("--notes", default=None, help="Optional notes for feedback metadata.")
     args = parser.parse_args()
@@ -75,8 +85,13 @@ def main() -> int:
     from chatbot.app.application_data import (
         application_external_status,
         application_index_status,
+        create_failed_patent_case,
         create_application_feedback_report,
+        failed_patent_case_index_status,
+        list_failed_patent_cases,
         preprocess_application_pack,
+        refresh_failed_patent_case_index,
+        save_failed_patent_case_report,
     )
 
     if args.mode == "status":
@@ -90,7 +105,14 @@ def main() -> int:
         )
         return 0
     if args.mode == "application-status":
-        _print_json({"status": "ok", "application": application_index_status(), "external": application_external_status()})
+        _print_json(
+            {
+                "status": "ok",
+                "application": application_index_status(),
+                "failed_patent_cases": list_failed_patent_cases(),
+                "external": application_external_status(),
+            }
+        )
         return 0
     if args.mode == "application-preprocess":
         _print_json(preprocess_application_pack(refresh_index=True))
@@ -105,6 +127,40 @@ def main() -> int:
                 source_report_path=args.source_report,
                 reviewer=args.reviewer,
                 notes=args.notes,
+                refresh_index=True,
+            )
+        )
+        return 0
+    if args.mode == "application-case":
+        if not args.original_pdf:
+            raise SystemExit("--original-pdf is required for --mode application-case")
+        _print_json(
+            create_failed_patent_case(
+                case_id=args.case_id,
+                title=args.title,
+                original_pdf_path=args.original_pdf,
+                rejection_reason_text=args.opinion_text,
+                rejection_file_path=args.rejection_file,
+                reviewer=args.reviewer,
+                notes=args.notes,
+                refresh_index=True,
+            )
+        )
+        return 0
+    if args.mode == "application-case-refresh":
+        if not args.case_id:
+            raise SystemExit("--case-id is required for --mode application-case-refresh")
+        _print_json(refresh_failed_patent_case_index(args.case_id))
+        return 0
+    if args.mode == "application-case-report":
+        if not args.case_id:
+            raise SystemExit("--case-id is required for --mode application-case-report")
+        _print_json(
+            save_failed_patent_case_report(
+                args.case_id,
+                title=args.title,
+                report_text=args.report_text,
+                source_report_path=args.report_path,
                 refresh_index=True,
             )
         )

@@ -709,15 +709,32 @@ footer button {
 }
 
 .application-footer {
-  grid-template-columns: minmax(190px, 260px) 1fr auto;
-  align-items: start;
+  grid-template-columns: 1fr auto;
+  align-items: end;
 }
 
-.application-footer .button-row button {
+.application-footer .button-row,
+.application-case-row {
+  grid-column: 1 / -1;
+}
+
+.application-footer .button-row button,
+.application-case-row button {
   height: 30px;
   min-height: 30px;
   padding: 0 10px;
   font-size: 12px;
+}
+
+.application-case-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(180px, 1.1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.application-case-row input[type="file"] {
+  padding: 6px 8px;
 }
 
 .data-grid {
@@ -851,6 +868,10 @@ footer button {
   }
 
   .application-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .application-case-row {
     grid-template-columns: 1fr;
   }
 }

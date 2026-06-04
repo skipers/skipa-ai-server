@@ -58,6 +58,27 @@
             <button id="prepareApplicationButton" type="button">출원 데이터 준비</button>
             <button id="applicationStatusButton" type="button">상태</button>
           </div>
+          <div class="application-case-row">
+            <label>
+              실패특허 케이스
+              <select id="applicationCaseSelect">
+                <option value="">케이스를 업로드하거나 선택하세요</option>
+              </select>
+            </label>
+            <label>
+              원본 PDF
+              <input id="failedPatentPdfInput" type="file" accept="application/pdf,.pdf" />
+            </label>
+            <label>
+              사유서 선택
+              <input id="failedPatentRejectionInput" type="file" />
+            </label>
+            <label>
+              케이스 제목
+              <input id="failedPatentTitleInput" type="text" placeholder="예: CMP Pad 출원 실패 케이스" />
+            </label>
+            <button id="uploadFailedPatentButton" type="button">케이스 업로드</button>
+          </div>
           <textarea id="applicationQuestion" placeholder="특허 출원 관련 질문을 입력하세요">처음 특허 출원할 때 어떤 순서로 준비해야 해?</textarea>
           <button id="sendApplicationButton" type="button">전송</button>
         </footer>

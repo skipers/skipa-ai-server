@@ -28,6 +28,10 @@ class ChatRequest(BaseModel):
 class PatentApplicationChatRequest(BaseModel):
     question: str = Field(..., min_length=1, description="특허 출원 도우미 질문")
     user_id: str | None = Field(None, description="질문자 식별자")
+    failed_patent_id: str | None = Field(
+        None,
+        description="출원 도우미가 참조할 실패특허 케이스 ID. 없으면 채팅이 시작되지 않고 업로드/선택을 요청",
+    )
     chat_history: list[dict[str, Any]] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
     top_k: int = Field(6, ge=1, le=20, description="공식팩 근거 검색 개수")
     refresh_index: bool = Field(False, description="질문 전 출원 공식팩 인덱스를 다시 생성")
@@ -53,6 +57,25 @@ class PatentApplicationFeedbackRequest(BaseModel):
     reviewer: str | None = Field(None, description="검토자")
     notes: str | None = Field(None, description="추가 메모")
     refresh_index: bool = Field(True, description="피드백 생성 후 출원 도우미 vectorstore refresh")
+
+
+class PatentApplicationFailedCaseCreateRequest(BaseModel):
+    case_id: str | None = Field(None, description="직접 지정할 실패특허 케이스 ID. 비우면 제목/시간 기반 자동 생성")
+    title: str | None = Field(None, description="실패특허 케이스 제목")
+    original_pdf_path: str = Field(..., description="서버 로컬 실패특허 원본 PDF 경로")
+    rejection_reason_text: str | None = Field(None, description="거절/실패 사유 텍스트. 선택")
+    rejection_file_path: str | None = Field(None, description="서버 로컬 거절의견서/사유서 파일 경로. 선택")
+    reviewer: str | None = Field(None, description="등록자/검토자")
+    notes: str | None = Field(None, description="케이스 메모")
+    refresh_index: bool = Field(True, description="생성 후 해당 실패특허 케이스 전용 vectorstore 갱신")
+
+
+class PatentApplicationFailedCaseReportSaveRequest(BaseModel):
+    title: str | None = Field(None, description="저장할 재평가/피드백 보고서 제목")
+    report: dict[str, Any] | None = Field(None, description="특허 재평가 API 결과 JSON")
+    report_text: str | None = Field(None, description="보고서 Markdown/요약 텍스트")
+    source_report_path: str | None = Field(None, description="이미 생성된 서버 로컬 보고서 파일 경로")
+    refresh_index: bool = Field(True, description="보고서 저장 후 해당 실패특허 케이스 전용 vectorstore 갱신")
 
 
 class PreprocessRunRequest(BaseModel):

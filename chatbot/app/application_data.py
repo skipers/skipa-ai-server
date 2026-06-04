@@ -25,7 +25,7 @@ import xml.etree.ElementTree as ET
 
 from fastapi import HTTPException
 
-from .config import DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT
+from .config import DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT, PROJECT_ROOT
 from .rag.quality import compact_text
 from .rag.source_card_utils import enrich_source_card
 
@@ -134,6 +134,10 @@ def _manifest_path() -> Path:
 
 def _feedback_root() -> Path:
     return PATENT_APPLICATION_ROOT / "feedback"
+
+
+def _failed_patent_root() -> Path:
+    return PATENT_APPLICATION_ROOT / "failed_patent"
 
 
 def _download_dir() -> Path:
@@ -264,7 +268,7 @@ def _iter_source_files() -> Iterable[Path]:
     if not PATENT_APPLICATION_ROOT.exists():
         return
     allowed = {".md", ".txt", ".csv", ".json", ".html", ".htm", ".pdf", ".xlsx", ".do", ".jsp", ".bin"}
-    skip_parts = {"index", "__pycache__", "readable", "named", "raw", "preprocessed"}
+    skip_parts = {"index", "__pycache__", "readable", "named", "raw", "preprocessed", "failed_patent"}
     generated_names = {
         "download_manifest.json",
         "download_report.md",
@@ -502,14 +506,20 @@ def _safe_pack_path(path_value: str | None) -> Path | None:
     if raw_path.is_absolute():
         path = raw_path.resolve()
     else:
-        project_root = DATA_ROOT.resolve().parent
+        project_root = PROJECT_ROOT.resolve()
         candidates = [
             (project_root / raw_path).resolve(),
             (PATENT_APPLICATION_ROOT / raw_path).resolve(),
             raw_path.resolve(),
         ]
         path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
-    allowed_roots = [PATENT_APPLICATION_ROOT.resolve(), PATENTS_ROOT.resolve(), DATA_ROOT.resolve()]
+    project_root = PROJECT_ROOT.resolve()
+    allowed_roots = [
+        PATENT_APPLICATION_ROOT.resolve(),
+        PATENTS_ROOT.resolve(),
+        DATA_ROOT.resolve(),
+        (project_root / "eval_logic").resolve(),
+    ]
     if not any(str(path).startswith(str(root)) for root in allowed_roots):
         raise HTTPException(status_code=400, detail=f"허용되지 않은 경로입니다: {path}")
     if not path.exists() or not path.is_file():
@@ -816,6 +826,7 @@ def application_index_status() -> dict[str, Any]:
     manifest = _read_json(_manifest_path()) or {}
     report = application_download_report()
     feedback_files = sorted(_feedback_root().glob("*/feedback.md")) if _feedback_root().exists() else []
+    failed_cases = list_failed_patent_cases() if _failed_patent_root().exists() else {"root": str(_failed_patent_root()), "count": 0, "items": []}
     return {
         "root": str(PATENT_APPLICATION_ROOT),
         "root_exists": PATENT_APPLICATION_ROOT.exists(),
@@ -829,6 +840,7 @@ def application_index_status() -> dict[str, Any]:
             "count": len(feedback_files),
             "latest": str(feedback_files[-1]) if feedback_files else None,
         },
+        "failed_patent_cases": failed_cases,
         "download_report": {
             "exists": report.get("exists"),
             "success_count": report.get("success_count"),
@@ -948,6 +960,479 @@ def cards_from_application_hits(hits: list[dict[str, Any]], *, query: str | None
             )
         )
     return cards
+
+
+def _safe_case_id(value: Any | None = None) -> str:
+    if value in (None, ""):
+        value = f"failed_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+    cleaned = re.sub(r"[^0-9A-Za-z가-힣_.-]+", "_", _norm(value)).strip("._-")
+    return cleaned[:96] or f"failed_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+
+def _safe_file_name(value: Any, default: str) -> str:
+    name = Path(str(value or default)).name
+    cleaned = re.sub(r"[^0-9A-Za-z가-힣_.() -]+", "_", _norm(name)).strip(" ._-")
+    return cleaned[:160] or default
+
+
+def _failed_case_dir(case_id: str, *, must_exist: bool = True) -> Path:
+    safe_id = _safe_case_id(case_id)
+    case_dir = (_failed_patent_root() / safe_id).resolve()
+    root = _failed_patent_root().resolve()
+    if not str(case_dir).startswith(str(root)):
+        raise HTTPException(status_code=400, detail=f"허용되지 않은 failed_patent_id입니다: {case_id}")
+    if must_exist and not case_dir.exists():
+        raise HTTPException(status_code=404, detail=f"실패특허 케이스를 찾을 수 없습니다: {safe_id}")
+    return case_dir
+
+
+def _case_metadata_path(case_id: str) -> Path:
+    return _failed_case_dir(case_id) / "metadata.json"
+
+
+def _case_index_dir(case_id: str) -> Path:
+    return _failed_case_dir(case_id) / "index" / "vectorstore"
+
+
+def _case_documents_path(case_id: str) -> Path:
+    return _case_index_dir(case_id) / "documents.jsonl"
+
+
+def _case_manifest_path(case_id: str) -> Path:
+    return _case_index_dir(case_id) / "manifest.json"
+
+
+def _read_case_metadata(case_id: str) -> dict[str, Any]:
+    metadata = _read_json(_case_metadata_path(case_id))
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _write_case_metadata(case_id: str, metadata: dict[str, Any]) -> None:
+    metadata["case_id"] = _safe_case_id(case_id)
+    metadata["updated_at"] = _now()
+    _write_json(_case_metadata_path(case_id), metadata)
+
+
+def _failed_case_file_role(path: Path) -> str:
+    relative_parts = {part.lower() for part in path.parts}
+    name = _norm(path.name).lower()
+    if "input" in relative_parts:
+        return "failed_patent_original"
+    if "reports" in relative_parts or "report" in name or "보고서" in name:
+        return "failed_patent_report"
+    if "rejection" in relative_parts or any(term in name for term in ["거절", "의견", "통지", "사유", "rejection", "opinion"]):
+        return "failed_patent_rejection_reason"
+    return "failed_patent_reference"
+
+
+def _failed_case_source_type(path: Path) -> str:
+    role = _failed_case_file_role(path)
+    suffix = path.suffix.lower().lstrip(".") or "text"
+    mapping = {
+        "failed_patent_original": "FAILED_PATENT_ORIGINAL_PDF" if suffix == "pdf" else f"FAILED_PATENT_ORIGINAL_{suffix.upper()}",
+        "failed_patent_rejection_reason": f"FAILED_PATENT_REJECTION_{suffix.upper()}",
+        "failed_patent_report": f"FAILED_PATENT_REPORT_{suffix.upper()}",
+        "failed_patent_reference": f"FAILED_PATENT_REFERENCE_{suffix.upper()}",
+    }
+    return mapping.get(role, f"FAILED_PATENT_{suffix.upper()}")
+
+
+def _iter_failed_case_source_files(case_id: str) -> Iterable[Path]:
+    case_dir = _failed_case_dir(case_id)
+    allowed = {".pdf", ".md", ".txt", ".json", ".html", ".htm"}
+    skip_parts = {"index", "__pycache__"}
+    for path in sorted(case_dir.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in allowed:
+            continue
+        rel_parts = path.relative_to(case_dir).parts
+        if any(part in skip_parts for part in rel_parts):
+            continue
+        if path.name == "metadata.json":
+            continue
+        yield path
+
+
+def _case_has_original_pdf(case_id: str) -> bool:
+    case_dir = _failed_case_dir(case_id)
+    input_dir = case_dir / "input"
+    return any(path.is_file() and path.suffix.lower() == ".pdf" for path in input_dir.glob("*.pdf"))
+
+
+def create_failed_patent_case(
+    *,
+    title: str | None = None,
+    case_id: str | None = None,
+    original_pdf_path: str | None = None,
+    original_pdf_bytes: bytes | None = None,
+    original_pdf_filename: str | None = None,
+    rejection_reason_text: str | None = None,
+    rejection_file_path: str | None = None,
+    rejection_file_bytes: bytes | None = None,
+    rejection_file_filename: str | None = None,
+    reviewer: str | None = None,
+    notes: str | None = None,
+    refresh_index: bool = True,
+) -> dict[str, Any]:
+    safe_id = _safe_case_id(case_id or title)
+    root = _failed_patent_root()
+    case_dir = root / safe_id
+    if case_dir.exists() and not case_id:
+        safe_id = _safe_case_id(f"{safe_id}_{datetime.now().strftime('%H%M%S_%f')}")
+        case_dir = root / safe_id
+    input_dir = case_dir / "input"
+    rejection_dir = case_dir / "rejection"
+    reports_dir = case_dir / "reports"
+    for directory in (input_dir, rejection_dir, reports_dir):
+        directory.mkdir(parents=True, exist_ok=True)
+
+    if original_pdf_bytes is None and not original_pdf_path:
+        raise HTTPException(status_code=400, detail="실패특허 원본 PDF가 필요합니다.")
+
+    original_target: Path | None = None
+    if original_pdf_bytes is not None:
+        safe_name = _safe_file_name(original_pdf_filename, "failed_patent_original.pdf")
+        if not safe_name.lower().endswith(".pdf"):
+            safe_name += ".pdf"
+        original_target = input_dir / safe_name
+        original_target.write_bytes(original_pdf_bytes)
+    elif original_pdf_path:
+        source = _safe_pack_path(original_pdf_path)
+        if not source or source.suffix.lower() != ".pdf":
+            raise HTTPException(status_code=400, detail="실패특허 원본은 PDF 파일이어야 합니다.")
+        original_target = input_dir / _safe_file_name(source.name, "failed_patent_original.pdf")
+        if source.resolve() != original_target.resolve():
+            shutil.copy2(source, original_target)
+
+    rejection_target: Path | None = None
+    if rejection_file_bytes is not None:
+        safe_name = _safe_file_name(rejection_file_filename, "rejection_reason.txt")
+        rejection_target = rejection_dir / safe_name
+        rejection_target.write_bytes(rejection_file_bytes)
+    elif rejection_file_path:
+        source = _safe_pack_path(rejection_file_path)
+        if source:
+            rejection_target = rejection_dir / _safe_file_name(source.name, "rejection_reason")
+            if source.resolve() != rejection_target.resolve():
+                shutil.copy2(source, rejection_target)
+
+    rejection_text_path: Path | None = None
+    if rejection_reason_text and rejection_reason_text.strip():
+        rejection_text_path = rejection_dir / "rejection_reason.md"
+        rejection_text_path.write_text(
+            "\n".join(
+                [
+                    f"# {title or safe_id} 거절/실패 사유",
+                    "",
+                    "## 질문/답변",
+                    "",
+                    rejection_reason_text.strip(),
+                    "",
+                    "## 메타정보",
+                    "",
+                    f"- case_id: {safe_id}",
+                    f"- created_at: {_now()}",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    metadata = _read_json_object(case_dir / "metadata.json")
+    metadata.update(
+        {
+            "case_id": safe_id,
+            "title": title or metadata.get("title") or safe_id,
+            "created_at": metadata.get("created_at") or _now(),
+            "reviewer": reviewer,
+            "notes": notes,
+            "original_pdf_path": str(original_target) if original_target else metadata.get("original_pdf_path"),
+            "rejection_file_path": str(rejection_target) if rejection_target else metadata.get("rejection_file_path"),
+            "rejection_text_path": str(rejection_text_path) if rejection_text_path else metadata.get("rejection_text_path"),
+            "reports_dir": str(reports_dir),
+        }
+    )
+    _write_case_metadata(safe_id, metadata)
+    index_result = refresh_failed_patent_case_index(safe_id) if refresh_index else failed_patent_case_index_status(safe_id)
+    metadata["index"] = index_result
+    _write_case_metadata(safe_id, metadata)
+    return {
+        "status": "created",
+        "case_id": safe_id,
+        "case_dir": str(case_dir),
+        "metadata_path": str(_case_metadata_path(safe_id)),
+        "original_pdf_path": str(original_target) if original_target else metadata.get("original_pdf_path"),
+        "rejection_file_path": str(rejection_target) if rejection_target else metadata.get("rejection_file_path"),
+        "rejection_text_path": str(rejection_text_path) if rejection_text_path else metadata.get("rejection_text_path"),
+        "index": index_result,
+        "metadata": metadata,
+    }
+
+
+def refresh_failed_patent_case_index(case_id: str) -> dict[str, Any]:
+    safe_id = _safe_case_id(case_id)
+    case_dir = _failed_case_dir(safe_id)
+    if not _case_has_original_pdf(safe_id):
+        raise HTTPException(status_code=400, detail=f"{safe_id} 케이스에 실패특허 원본 PDF가 없습니다.")
+    docs = []
+    errors = []
+    source_files = list(_iter_failed_case_source_files(safe_id) or [])
+    for path in source_files:
+        text, error = _read_source_text(path)
+        if error:
+            errors.append({"path": str(path), "error": error})
+        role = _failed_case_file_role(path)
+        for chunk_index, chunk in enumerate(_chunk_text(text), 1):
+            metadata = {
+                "source_type": _failed_case_source_type(path),
+                "source_path": str(path),
+                "relative_source_path": _safe_relative(path),
+                "file_name": path.name,
+                "application_role": "rejection_failure_feedback" if role in {"failed_patent_rejection_reason", "failed_patent_report"} else role,
+                "failed_patent_role": role,
+                "failed_patent_id": safe_id,
+                "chunk_index": chunk_index,
+                "text_hash": _hash_text(chunk),
+                "assistant_scope": "patent_application_failed_case",
+            }
+            doc_id_seed = f"application_failed_case:{safe_id}:{path}:{chunk_index}:{metadata['text_hash']}"
+            docs.append(
+                {
+                    "doc_id": hashlib.sha1(doc_id_seed.encode("utf-8")).hexdigest(),
+                    "page_content": chunk,
+                    "metadata": metadata,
+                    "vector": _vectorize(chunk),
+                }
+            )
+
+    output_dir = _case_index_dir(safe_id)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    docs_path = _case_documents_path(safe_id)
+    manifest_path = _case_manifest_path(safe_id)
+    tmp_docs = output_dir / "documents.jsonl.tmp"
+    tmp_manifest = output_dir / "manifest.json.tmp"
+    with tmp_docs.open("w", encoding="utf-8") as file:
+        for doc in docs:
+            file.write(json.dumps(doc, ensure_ascii=False, sort_keys=True) + "\n")
+    fingerprints = [
+        {"path": str(path), "size_bytes": path.stat().st_size, "sha1": _hash_file(path)}
+        for path in source_files
+        if path.exists()
+    ]
+    manifest = {
+        "scope": "patent_application_failed_case",
+        "case_id": safe_id,
+        "case_dir": str(case_dir),
+        "backend": "local_hashed_bow",
+        "vector_dimensions": VECTOR_DIMENSIONS,
+        "refreshed_at": _now(),
+        "document_count": len(docs),
+        "source_file_count": len(source_files),
+        "source_roles": dict(sorted(Counter(_failed_case_file_role(path) for path in source_files).items())),
+        "documents_path": str(docs_path),
+        "source_fingerprints": fingerprints,
+        "errors": errors,
+        "is_isolated_case_index": True,
+    }
+    tmp_manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_docs.replace(docs_path)
+    tmp_manifest.replace(manifest_path)
+    metadata = _read_case_metadata(safe_id)
+    metadata["index"] = manifest
+    _write_case_metadata(safe_id, metadata)
+    return {
+        "status": "refreshed",
+        "scope": "patent_application_failed_case",
+        "case_id": safe_id,
+        "document_count": len(docs),
+        "source_file_count": len(source_files),
+        "manifest_path": str(manifest_path),
+        "documents_path": str(docs_path),
+        "errors": errors,
+    }
+
+
+def failed_patent_case_index_status(case_id: str) -> dict[str, Any]:
+    safe_id = _safe_case_id(case_id)
+    case_dir = _failed_case_dir(safe_id)
+    metadata = _read_case_metadata(safe_id)
+    manifest = _read_json(_case_manifest_path(safe_id)) or {}
+    files = [
+        {
+            "path": str(path),
+            "relative_path": str(path.relative_to(case_dir)),
+            "file_name": path.name,
+            "role": _failed_case_file_role(path),
+            "source_type": _failed_case_source_type(path),
+            "size_bytes": path.stat().st_size,
+        }
+        for path in _iter_failed_case_source_files(safe_id)
+    ]
+    return {
+        "case_id": safe_id,
+        "case_dir": str(case_dir),
+        "metadata": metadata,
+        "has_original_pdf": _case_has_original_pdf(safe_id),
+        "index_exists": _case_documents_path(safe_id).exists(),
+        "document_count": manifest.get("document_count"),
+        "source_file_count": manifest.get("source_file_count"),
+        "source_roles": manifest.get("source_roles"),
+        "manifest": manifest,
+        "files": files,
+    }
+
+
+def list_failed_patent_cases() -> dict[str, Any]:
+    root = _failed_patent_root()
+    root.mkdir(parents=True, exist_ok=True)
+    items = []
+    for case_dir in sorted((path for path in root.iterdir() if path.is_dir()), key=lambda path: path.name):
+        case_id = case_dir.name
+        try:
+            status = failed_patent_case_index_status(case_id)
+        except Exception as exc:
+            items.append({"case_id": case_id, "case_dir": str(case_dir), "error": str(exc)})
+            continue
+        metadata = status.get("metadata") if isinstance(status.get("metadata"), dict) else {}
+        items.append(
+            {
+                "case_id": case_id,
+                "title": metadata.get("title") or case_id,
+                "case_dir": str(case_dir),
+                "created_at": metadata.get("created_at"),
+                "updated_at": metadata.get("updated_at"),
+                "has_original_pdf": status.get("has_original_pdf"),
+                "index_exists": status.get("index_exists"),
+                "document_count": status.get("document_count"),
+                "source_file_count": status.get("source_file_count"),
+            }
+        )
+    return {"root": str(root), "count": len(items), "items": items}
+
+
+def _iter_failed_case_index_docs(case_id: str) -> Iterable[dict[str, Any]]:
+    path = _case_documents_path(case_id)
+    if not path.exists():
+        return
+    with path.open(encoding="utf-8") as file:
+        for line in file:
+            if not line.strip():
+                continue
+            try:
+                doc = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(doc, dict):
+                yield doc
+
+
+def search_failed_patent_case_index(case_id: str, query: str, *, top_k: int = 6) -> dict[str, Any]:
+    safe_id = _safe_case_id(case_id)
+    if not _case_documents_path(safe_id).exists():
+        refresh_failed_patent_case_index(safe_id)
+    query_vector = _vectorize(query)
+    scored = []
+    for doc in _iter_failed_case_index_docs(safe_id) or []:
+        vector = doc.get("vector") if isinstance(doc.get("vector"), dict) else {}
+        score = _dot(query_vector, {str(key): float(value) for key, value in vector.items()})
+        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        role = str(metadata.get("failed_patent_role") or "")
+        if role == "failed_patent_original":
+            score += 0.08
+        elif role in {"failed_patent_rejection_reason", "failed_patent_report"}:
+            score += 0.14
+        if score <= 0:
+            continue
+        scored.append((score, doc))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    hits = []
+    for score, doc in scored[:top_k]:
+        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        text = str(doc.get("page_content") or "")
+        hits.append(
+            {
+                "patent_id": f"patent_application_failed_case:{safe_id}",
+                "score": round(score, 6),
+                "excerpt": text[:500],
+                "page_content": text,
+                "metadata": metadata,
+            }
+        )
+    return {
+        "query": query,
+        "mode": "patent_application_failed_case_vectorstore",
+        "patent_id": f"patent_application_failed_case:{safe_id}",
+        "failed_patent_id": safe_id,
+        "top_k": top_k,
+        "hit_count": len(hits),
+        "hits": hits,
+    }
+
+
+def save_failed_patent_case_report(
+    case_id: str,
+    *,
+    title: str | None = None,
+    report: dict[str, Any] | None = None,
+    report_text: str | None = None,
+    source_report_path: str | None = None,
+    refresh_index: bool = True,
+) -> dict[str, Any]:
+    safe_id = _safe_case_id(case_id)
+    case_dir = _failed_case_dir(safe_id)
+    reports_dir = case_dir / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base = _slug(title or "failed_patent_report")
+
+    saved_paths: list[str] = []
+    if source_report_path:
+        source = _safe_pack_path(source_report_path)
+        if source:
+            target = reports_dir / _safe_file_name(source.name, f"{stamp}_{base}{source.suffix}")
+            if source.resolve() != target.resolve():
+                shutil.copy2(source, target)
+            saved_paths.append(str(target))
+    if report is not None:
+        json_path = reports_dir / f"{stamp}_{base}.json"
+        _write_json(json_path, report)
+        saved_paths.append(str(json_path))
+    if report_text and report_text.strip():
+        markdown_path = reports_dir / f"{stamp}_{base}.md"
+        markdown = "\n".join(
+            [
+                f"# {title or '실패특허 재평가 보고서'}",
+                "",
+                report_text.strip(),
+                "",
+                "## 메타정보",
+                "",
+                f"- case_id: {safe_id}",
+                f"- saved_at: {_now()}",
+            ]
+        )
+        markdown_path.write_text(markdown + "\n", encoding="utf-8")
+        html_path = reports_dir / f"{stamp}_{base}.html"
+        html_path.write_text(_html_page(title or "실패특허 재평가 보고서", markdown), encoding="utf-8")
+        saved_paths.extend([str(markdown_path), str(html_path)])
+    if not saved_paths:
+        raise HTTPException(status_code=400, detail="저장할 보고서 내용이나 source_report_path가 필요합니다.")
+
+    metadata = _read_case_metadata(safe_id)
+    reports = metadata.setdefault("reports", [])
+    if isinstance(reports, list):
+        reports.append({"title": title or "실패특허 재평가 보고서", "saved_at": _now(), "paths": saved_paths})
+        del reports[:-50]
+    metadata["latest_report_paths"] = saved_paths
+    _write_case_metadata(safe_id, metadata)
+    index_result = refresh_failed_patent_case_index(safe_id) if refresh_index else failed_patent_case_index_status(safe_id)
+    return {
+        "status": "saved",
+        "case_id": safe_id,
+        "case_dir": str(case_dir),
+        "saved_paths": saved_paths,
+        "index": index_result,
+        "metadata": _read_case_metadata(safe_id),
+    }
 
 
 def _declared_sources() -> list[dict[str, Any]]:

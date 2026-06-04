@@ -12,9 +12,12 @@ from ..application_data import (
     application_external_status,
     application_index_status,
     cards_from_application_hits,
+    failed_patent_case_index_status,
     preferred_application_hits,
     refresh_application_index,
+    refresh_failed_patent_case_index,
     search_application_index,
+    search_failed_patent_case_index,
 )
 from ..rag.evaluation import answer_quality_metrics
 from ..rag.sources import cards_from_web
@@ -98,6 +101,9 @@ def _norm(value: Any) -> str:
 class ApplicationAgentState(TypedDict, total=False):
     query: str
     user_id: str | None
+    failed_patent_id: str | None
+    failed_patent_status: dict[str, Any]
+    case_valid: bool
     chat_history: list[dict[str, Any]]
     top_k: int
     refresh_index: bool
@@ -136,6 +142,85 @@ def resolve_application_history(state: ApplicationAgentState) -> ApplicationAgen
         "history_summary": history_summary,
         "retrieval_query": retrieval_query,
         "trace": _trace(state, "resolve_application_history", "success", history_count=len(history)),
+    }
+
+
+def _case_required_result(state: ApplicationAgentState, message: str, *, error: str) -> dict[str, Any]:
+    return {
+        "query": state.get("query", ""),
+        "patent_id": "patent_application",
+        "answer": message,
+        "source_cards": [],
+        "metrics": {
+            "engine": "patent_application_langgraph",
+            "requires_failed_patent": True,
+            "failed_patent_id": state.get("failed_patent_id"),
+            "llm_ok": False,
+            "llm_error": error,
+            "answer_strategy": "require_failed_patent_case_before_chat",
+            "application_workflow": "case_upload_required -> official_pack_index + selected_case_index -> intent_router -> answer",
+        },
+    }
+
+
+def validate_failed_patent_case(state: ApplicationAgentState) -> ApplicationAgentState:
+    case_id = _norm(state.get("failed_patent_id")).strip()
+    if not case_id:
+        result = _case_required_result(
+            state,
+            "특허 출원 도우미 채팅을 시작하려면 먼저 실패특허 원본 PDF를 업로드하고 `failed_patent_id`를 선택해야 합니다. 사유서/거절의견서는 선택이지만, 있으면 같은 케이스 폴더에 함께 저장해 더 정확하게 답변합니다.",
+            error="failed_patent_id_required",
+        )
+        return {
+            **state,
+            "case_valid": False,
+            "result": result,
+            "trace": _trace(state, "validate_failed_patent_case", "blocked", reason="failed_patent_id_required"),
+        }
+    try:
+        status = failed_patent_case_index_status(case_id)
+        if not status.get("has_original_pdf"):
+            result = _case_required_result(
+                {**state, "failed_patent_id": case_id},
+                f"`{case_id}` 케이스에 실패특허 원본 PDF가 없습니다. 원본 PDF를 먼저 업로드한 뒤 다시 질문해 주세요.",
+                error="failed_patent_original_pdf_required",
+            )
+            return {
+                **state,
+                "failed_patent_id": case_id,
+                "failed_patent_status": status,
+                "case_valid": False,
+                "result": result,
+                "trace": _trace(state, "validate_failed_patent_case", "blocked", reason="original_pdf_missing"),
+            }
+        if state.get("refresh_index") or not status.get("index_exists"):
+            refresh_failed_patent_case_index(case_id)
+            status = failed_patent_case_index_status(case_id)
+    except Exception as exc:
+        result = _case_required_result(
+            {**state, "failed_patent_id": case_id},
+            f"`{case_id}` 실패특허 케이스를 찾거나 인덱싱할 수 없습니다. 케이스 목록에서 ID를 다시 확인해 주세요.",
+            error=f"{type(exc).__name__}: {exc}",
+        )
+        return {
+            **state,
+            "failed_patent_id": case_id,
+            "case_valid": False,
+            "result": result,
+            "trace": _trace(state, "validate_failed_patent_case", "blocked", reason="case_status_error"),
+        }
+    return {
+        **state,
+        "failed_patent_id": str(status.get("case_id") or case_id),
+        "failed_patent_status": status,
+        "case_valid": True,
+        "trace": _trace(
+            state,
+            "validate_failed_patent_case",
+            "success",
+            failed_patent_id=status.get("case_id") or case_id,
+            case_document_count=status.get("document_count"),
+        ),
     }
 
 
@@ -228,6 +313,8 @@ def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, 
 
 
 def route_application_question(state: ApplicationAgentState) -> ApplicationAgentState:
+    if state.get("result"):
+        return state
     fallback = _rule_application_intent(state.get("query", ""))
     system_prompt = """You are a lightweight intent router for a Korean patent filing assistant.
 Return JSON only with keys: intent, source_plan, answer_format, needs_table, needs_diagram, needs_external.
@@ -296,6 +383,8 @@ Rules:
 
 
 def retrieve_application_external_context(state: ApplicationAgentState) -> ApplicationAgentState:
+    if state.get("result"):
+        return state
     intent = state.get("intent") or {}
     query = state.get("query", "")
     should_search = bool(
@@ -333,6 +422,8 @@ def retrieve_application_external_context(state: ApplicationAgentState) -> Appli
 
 
 def retrieve_application_context(state: ApplicationAgentState) -> ApplicationAgentState:
+    if state.get("result"):
+        return state
     if state.get("refresh_index"):
         refresh_application_index(force=True)
     status = application_index_status()
@@ -347,15 +438,43 @@ def retrieve_application_context(state: ApplicationAgentState) -> ApplicationAge
             " ".join(preferred_terms),
         ]
     )
-    retrieval = search_application_index(expanded_query, top_k=max(top_k * 5, 20))
-    merged_hits = _dedupe_hits(
-        [*preferred_application_hits(preferred_terms, top_k=top_k * 2), *list(retrieval.get("hits") or [])]
+    official_retrieval = search_application_index(expanded_query, top_k=max(top_k * 5, 20))
+    case_retrieval = search_failed_patent_case_index(
+        str(state.get("failed_patent_id") or ""),
+        expanded_query,
+        top_k=max(top_k * 4, 16),
     )
+    official_hits = _dedupe_hits(
+        [*preferred_application_hits(preferred_terms, top_k=top_k * 2), *list(official_retrieval.get("hits") or [])]
+    )
+    case_hits = _dedupe_hits(list(case_retrieval.get("hits") or []))
+    intent_name = str(intent.get("intent") or "application_procedure")
+    if intent_name in {"rejection_response", "prior_art_search", "drafting_claims", "application_strategy"}:
+        merged_hits = _dedupe_hits([*case_hits, *official_hits])
+    else:
+        merged_hits = _dedupe_hits([*official_hits, *case_hits])
     ranked_hits = _rerank_hits_for_intent(_filter_hits_for_intent(merged_hits, intent), intent)
     hits = _limit_repeated_sources(ranked_hits, intent, top_k=top_k)
-    retrieval["hits"] = hits
-    retrieval["hit_count"] = len(hits)
-    retrieval["reranked_for_intent"] = (state.get("intent") or {}).get("intent")
+    retrieval = {
+        "query": expanded_query,
+        "mode": "application_official_plus_selected_failed_case_vectorstores",
+        "patent_id": "patent_application",
+        "failed_patent_id": state.get("failed_patent_id"),
+        "top_k": top_k,
+        "hit_count": len(hits),
+        "hits": hits,
+        "official_hit_count": len(official_hits),
+        "failed_case_hit_count": len(case_hits),
+        "official": {
+            "mode": official_retrieval.get("mode"),
+            "hit_count": official_retrieval.get("hit_count"),
+        },
+        "failed_case": {
+            "mode": case_retrieval.get("mode"),
+            "hit_count": case_retrieval.get("hit_count"),
+        },
+        "reranked_for_intent": (state.get("intent") or {}).get("intent"),
+    }
     return {
         **state,
         "retrieval": retrieval,
@@ -757,6 +876,8 @@ def _answer_needs_guided_repair(query: str, intent: dict[str, Any], answer: Any)
 
 
 def answer_application_question(state: ApplicationAgentState) -> ApplicationAgentState:
+    if state.get("result"):
+        return state
     retrieval = state.get("retrieval") or {}
     hits = list(retrieval.get("hits") or [])
     intent = state.get("intent") or {}
@@ -795,11 +916,12 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
     prompt = f"""당신은 한국 특허 출원을 도와주는 챗봇입니다.
 반드시 제공된 공식팩/피드백 리포트 근거 안에서 답하고, 부족한 부분은 추가 확인이 필요하다고 말하세요.
 질문 의도: {intent}
+선택된 실패특허 케이스: {state.get("failed_patent_id")}
 사용자 질문: {state.get("query", "")}
 최근 대화:
 {state.get("history_summary") or "-"}
 
-공식팩/피드백 근거:
+공식팩 + 선택된 실패특허 케이스 근거:
 {_context_for_prompt(hits)}
 
 외부 보강 근거(KIPRIS/KOSIS/Tavily 연결 상태와 검색 결과):
@@ -810,7 +932,8 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
 - 출원 절차, 거절 대응, 선행기술 검색, 실패 요인 분석, 피드백, 다음 액션 중 의도에 맞는 항목을 우선합니다.
 - application_procedure는 처음 출원 준비 순서에만 집중하고, 거절의견서/보정/불복 문장은 중간사건 설명이 필요할 때만 짧게 언급합니다.
 - 실패 요인 질문이면 신규성/진보성/기재불비/청구범위/절차 기한/보정 리스크를 나눠 진단합니다.
-- feedback 폴더 근거는 rejection_response 또는 실패/거절 질문일 때만 우선 사용합니다.
+- 실패특허 케이스 근거는 현재 선택된 failed_patent_id 하나의 원본 PDF, 사유서, 생성 보고서만 사용합니다. 다른 failed_patent 폴더의 내용은 절대 섞지 않습니다.
+- feedback/보고서 근거는 rejection_response 또는 실패/거절 질문일 때만 우선 사용합니다.
 - 외부 근거는 공식팩 근거를 보강할 때만 사용하고, KIPRIS/KOSIS/Tavily 중 어떤 경로인지 표시합니다.
 - 부족한 데이터와 추가하면 좋은 데이터도 마지막에 제안합니다.
 - 표가 필요하면 Markdown 표를 포함합니다.
@@ -841,14 +964,17 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
         source_cards.extend(cards_from_web(external_results[:5], start_index=len(source_cards) + 1, query=state.get("query", "")))
     result = {
         "query": state.get("query", ""),
-        "patent_id": "patent_application",
+        "patent_id": f"patent_application:{state.get('failed_patent_id')}",
         "answer": str(answer or ""),
         "source_cards": source_cards,
         "metrics": {
             "engine": "patent_application_langgraph",
             "answer_provider": ANSWER_PROVIDER,
             "intent_agent": intent,
+            "failed_patent_id": state.get("failed_patent_id"),
             "hit_count": retrieval.get("hit_count", 0),
+            "official_hit_count": retrieval.get("official_hit_count", 0),
+            "failed_case_hit_count": retrieval.get("failed_case_hit_count", 0),
             "external_context": {
                 "enabled": bool((state.get("external_context") or {}).get("enabled")),
                 "search_query": (state.get("external_context") or {}).get("search_query"),
@@ -881,7 +1007,7 @@ def finish_application_answer(state: ApplicationAgentState) -> ApplicationAgentS
     metrics = dict(result.get("metrics") or {})
     trace = _trace(state, "finish_application_answer", "success")
     metrics["agent_trace"] = trace
-    metrics["application_workflow"] = "history -> intent_router -> official_pack_retrieval -> external_enrichment -> guided_answer"
+    metrics["application_workflow"] = "failed_case_validation -> history -> intent_router -> official_pack_vectorstore + selected_failed_case_vectorstore -> external_enrichment -> guided_answer"
     metrics["answer_has_diagram"] = "```mermaid" in str(result.get("answer") or "")
     result["metrics"] = metrics
     return {**state, "result": result, "trace": trace}
@@ -889,6 +1015,7 @@ def finish_application_answer(state: ApplicationAgentState) -> ApplicationAgentS
 
 def _sequential(state: ApplicationAgentState) -> ApplicationAgentState:
     state = resolve_application_history(state)
+    state = validate_failed_patent_case(state)
     state = route_application_question(state)
     state = retrieve_application_context(state)
     state = retrieve_application_external_context(state)
@@ -902,13 +1029,15 @@ def build_application_graph() -> Any:
 
         graph = StateGraph(ApplicationAgentState)
         graph.add_node("resolve_application_history", resolve_application_history)
+        graph.add_node("validate_failed_patent_case", validate_failed_patent_case)
         graph.add_node("route_application_question", route_application_question)
         graph.add_node("retrieve_application_context", retrieve_application_context)
         graph.add_node("retrieve_application_external_context", retrieve_application_external_context)
         graph.add_node("answer_application_question", answer_application_question)
         graph.add_node("finish_application_answer", finish_application_answer)
         graph.set_entry_point("resolve_application_history")
-        graph.add_edge("resolve_application_history", "route_application_question")
+        graph.add_edge("resolve_application_history", "validate_failed_patent_case")
+        graph.add_edge("validate_failed_patent_case", "route_application_question")
         graph.add_edge("route_application_question", "retrieve_application_context")
         graph.add_edge("retrieve_application_context", "retrieve_application_external_context")
         graph.add_edge("retrieve_application_external_context", "answer_application_question")
@@ -926,6 +1055,7 @@ def run_application_agent(
     query: str,
     *,
     user_id: str | None = None,
+    failed_patent_id: str | None = None,
     chat_history: list[dict[str, Any]] | None = None,
     top_k: int = 6,
     refresh_index: bool = False,
@@ -933,6 +1063,7 @@ def run_application_agent(
     state: ApplicationAgentState = {
         "query": query,
         "user_id": user_id,
+        "failed_patent_id": failed_patent_id,
         "chat_history": chat_history or [],
         "top_k": top_k,
         "refresh_index": refresh_index,
@@ -945,20 +1076,24 @@ def run_application_agent(
 def application_graph_mermaid() -> str:
     return """flowchart TD
   A[사용자 질문] --> B[대화 이력 반영]
-  B --> C[Ollama 경량 LLM 의도 라우팅]
-  C --> D{질문 유형}
-  D -- 출원 절차/서식/수수료 --> E[공식팩 문서 검색]
-  D -- 청구항/명세서 작성 --> E
-  D -- 거절/실패 요인/피드백 --> F[피드백/의견서 리포트 검색]
-  D -- 선행기술/시장/최신 동향 --> E
-
-  E --> G{외부 보강 필요?}
-  F --> G
-  G -- KIPRIS/KOSIS/Tavily 필요 --> H[외부 근거 보강]
-  G -- 공식팩/피드백 충분 --> I[외부 검색 생략]
-
-  H --> J[OpenAI 상용 서비스형 답변 생성]
+  B --> C{failed_patent_id 있음?}
+  C -- 없음 --> C1[원본 PDF 업로드/케이스 선택 요청]
+  C -- 있음 --> C2{케이스 원본 PDF 있음?}
+  C2 -- 없음 --> C1
+  C2 -- 있음 --> D[선택 케이스 전용 vectorstore 확인/갱신]
+  D --> E[Ollama 경량 LLM 의도 라우팅]
+  E --> F{질문 유형}
+  F -- 출원 절차/서식/수수료 --> G[공용 공식팩 vectorstore 검색]
+  F -- 청구항/명세서/선행기술 --> H[공식팩 + 선택 케이스 원문 검색]
+  F -- 거절/실패 요인/피드백 --> I[선택 케이스 원본/사유서/보고서 검색]
+  G --> J[검색 결과 병합/재랭킹]
+  H --> J
   I --> J
-  J --> K[표/다이어그램/체크리스트 형식화]
-  K --> L[근거 카드 + 품질 지표 + HTML 리포트 링크]
+  J --> K{외부 보강 필요?}
+  K -- KIPRIS/KOSIS/Tavily 필요 --> L[외부 근거 보강]
+  K -- 내부 근거 충분 --> M[외부 검색 생략]
+  L --> N[OpenAI 상용 서비스형 답변 생성]
+  M --> N
+  N --> O[표/다이어그램/체크리스트 형식화]
+  O --> P[근거 카드 + 품질 지표 + 케이스 ID]
 """
