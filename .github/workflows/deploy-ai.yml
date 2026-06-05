@@ -1,10 +1,9 @@
-name: Deploy AI Backend
+name: Deploy AI
 
 on:
   push:
     branches:
       - main
-      - dev
   workflow_dispatch:
 
 permissions:
@@ -20,20 +19,19 @@ jobs:
       PROJECT: skala26a-ai2
       IMAGE_NAME: skipa-ai
       INFRA_REPO: skipers/skipa-infra
-      INFRA_PATH: k8s/ai-backend
+      INFRA_PATH: k8s/ai
 
     steps:
-      - name: Checkout repository
+      - name: Checkout AI repository
         uses: actions/checkout@v4
 
       - name: Set image variables
         run: |
           SHORT_SHA=${GITHUB_SHA::7}
-          BRANCH=${GITHUB_REF_NAME}
-          echo "IMAGE_TAG=${BRANCH}-${SHORT_SHA}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=dev-${SHORT_SHA}" >> $GITHUB_ENV
           echo "IMAGE_REPOSITORY=${REGISTRY}/${PROJECT}/${IMAGE_NAME}" >> $GITHUB_ENV
-          echo "IMAGE=${REGISTRY}/${PROJECT}/${IMAGE_NAME}:${BRANCH}-${SHORT_SHA}" >> $GITHUB_ENV
-          echo "LATEST_IMAGE=${REGISTRY}/${PROJECT}/${IMAGE_NAME}:${BRANCH}-latest" >> $GITHUB_ENV
+          echo "IMAGE=${REGISTRY}/${PROJECT}/${IMAGE_NAME}:dev-${SHORT_SHA}" >> $GITHUB_ENV
+          echo "LATEST_IMAGE=${REGISTRY}/${PROJECT}/${IMAGE_NAME}:dev-latest" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -49,6 +47,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
           platforms: linux/amd64
           push: true
           tags: |
@@ -67,7 +66,7 @@ jobs:
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/
 
-      - name: Update image tag in kustomization
+      - name: Update AI image tag in kustomization
         working-directory: skipa-infra/${{ env.INFRA_PATH }}
         run: |
           kustomize edit set image "${IMAGE_REPOSITORY}=${IMAGE_REPOSITORY}:${IMAGE_TAG}"
@@ -84,6 +83,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add "${{ env.INFRA_PATH }}/kustomization.yml"
-          git commit -m "ci: update ai-backend image tag to ${IMAGE_TAG} [skip ci]"
+          git add "${INFRA_PATH}/kustomization.yml"
+          git commit -m "ci: update ai image tag to ${IMAGE_TAG} [skip ci]"
           git push origin main
