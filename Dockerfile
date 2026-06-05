@@ -19,7 +19,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     ENABLE_OLLAMA_INTENT_FALLBACK=false \
     ENABLE_WEB_SEARCH=true \
     NIGHTLY_REINDEX_SCHEDULE="0 0 * * *" \
-    WIKI_ROOT=/app/chatbot/data/wiki
+    WIKI_ROOT=/app/chatbot/data/wiki \
+    PRE_EVAL_ROOT=/app/chatbot/data/pre_application_cases
 
 WORKDIR /app
 
@@ -69,6 +70,7 @@ RUN mkdir -p \
     /app/chatbot/logs/wiki_auditor \
     /app/chatbot/data \
     /app/chatbot/data/wiki/_global \
+    /app/chatbot/data/pre_application_cases \
     /app/eval_logic/data/runtime_artifacts \
     /models/huggingface \
     /tmp/matplotlib \

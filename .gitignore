@@ -95,3 +95,4 @@ chatbot/data/wiki/**/vectorstore/
 chatbot/data/wiki/**/web_search_data/
 chatbot/data/wiki/**/approved_context.md
 chatbot/data/wiki/**/draft_index.json
+chatbot/data/pre_application_cases/

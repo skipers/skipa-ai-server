@@ -6,6 +6,8 @@ const state = {
   chatHistory: [],
   applicationHistory: [],
   applicationCases: [],
+  preEvalCaseId: null,
+  preEvalHistory: [],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -343,7 +345,7 @@ function appendMessage(text, className, rich = false, containerId = "messages") 
 }
 
 function rememberHistory(kind, question, answer, extra = {}) {
-  const key = kind === "application" ? "applicationHistory" : "chatHistory";
+  const key = kind === "application" ? "applicationHistory" : kind === "preEval" ? "preEvalHistory" : "chatHistory";
   state[key].push({ question, answer: String(answer || "").slice(0, 3000), ...extra });
   state[key] = state[key].slice(-6);
 }
@@ -1061,6 +1063,157 @@ async function askApplication() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Pre-eval tab
+// ---------------------------------------------------------------------------
+
+async function startPreEval() {
+  const button = $("preEvalStartButton");
+  const patentName = ($("preEvalPatentName").value || "").trim();
+  const techDesc = ($("preEvalTechDesc").value || "").trim();
+  if (!patentName || !techDesc) {
+    setStatus("특허명과 기술 설명은 필수입니다.");
+    return;
+  }
+  const claimInputs = document.querySelectorAll(".preval-claim-input");
+  const claims = [...claimInputs].map((el) => el.value.trim()).filter(Boolean);
+  const body = {
+    patentName: patentName,
+    technologyDescription: techDesc,
+    claims: claims,
+    relatedBusiness: ($("preEvalBusiness").value || "").trim(),
+    targetCountries: ($("preEvalCountries").value || "").split(/[,\n;]/).map((s) => s.trim()).filter(Boolean),
+    enable_llm: $("preEvalEnableLlm").checked,
+    run_web_search: $("preEvalRunWebSearch").checked,
+  };
+  setBusy(button, true, "평가 중...");
+  appendPreEvalMessage("평가를 시작합니다. 잠시 기다려 주세요…", "assistant");
+  try {
+    const result = await api("/api/v1/pre-eval/evaluate", { method: "POST", body: JSON.stringify(body) });
+    state.preEvalCaseId = result.case_id;
+    state.preEvalHistory = [];
+    renderPreEvalResult(result);
+    $("preEvalQuestion").disabled = false;
+    $("preEvalSendButton").disabled = false;
+    $("preEvalQuestion").focus();
+    setStatus(`사전평가 완료 · 등급 ${result.overall_grade} · ${result.overall_score_out_of_100}점`);
+    appendPreEvalMessage(
+      `평가가 완료됐습니다 (등급: **${result.overall_grade}** / ${result.overall_score_out_of_100}점).\n\n평가 결과에 대해 질문해 보세요. 예: "가장 보완이 필요한 부분이 어디인가요?"`,
+      "assistant"
+    );
+  } catch (error) {
+    appendPreEvalMessage(`평가 실패: ${error.message}`, "assistant");
+    setStatus(`평가 실패: ${error.message}`);
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+function renderPreEvalResult(result) {
+  const panel = $("preEvalResultPanel");
+  panel.style.display = "";
+  $("preEvalResultTitle").textContent = result.patent_title || "평가 결과";
+  $("preEvalResultSummary").textContent =
+    `등급: ${result.overall_grade || "-"}  /  ${result.overall_score_out_of_100 || "-"}점  · Case ID: ${result.case_id || "-"}`;
+  const badges = $("preEvalDimensionBadges");
+  badges.innerHTML = "";
+  const report = result.result || {};
+  const dims = report.dimensions || [];
+  dims.forEach((dim) => {
+    const grade = dim.score_out_of_100 >= 70 ? "approved" : dim.score_out_of_100 >= 50 ? "" : "review";
+    badges.innerHTML += chip(`${dim.label || dim.key}: ${dim.score_out_of_100}점`, grade);
+  });
+  $("preEvalViewReportButton").onclick = () => showModal("사전평가 보고서", jsonBlock(report));
+  $("preEvalViewReportButton").dataset.caseId = result.case_id;
+}
+
+async function loadPreEvalCases() {
+  const button = $("preEvalLoadCasesButton");
+  setBusy(button, true, "불러오는 중");
+  try {
+    const data = await api("/api/v1/pre-eval/cases");
+    const list = $("preEvalCaseList");
+    const items = data.items || [];
+    if (!items.length) {
+      list.innerHTML = `<div class="empty">평가 이력이 없습니다.</div>`;
+      return;
+    }
+    list.innerHTML = "";
+    items.slice(0, 20).forEach((item) => {
+      const row = document.createElement("article");
+      row.className = "finding";
+      row.innerHTML = `
+        <button type="button" style="text-align:left;width:100%;">
+          <strong>${escapeHtml(item.patent_title || item.case_id)}</strong>
+          <div class="chip-row">
+            ${chip(`등급 ${item.overall_grade || "-"}`, item.overall_grade && item.overall_grade[0] === "A" ? "approved" : item.overall_grade && item.overall_grade[0] === "C" ? "review" : "")}
+            ${chip(`${item.overall_score_out_of_100 || "-"}점`)}
+            ${chip(item.created_at ? item.created_at.slice(0, 10) : "-")}
+          </div>
+        </button>`;
+      row.querySelector("button").addEventListener("click", () => selectPreEvalCase(item));
+      list.appendChild(row);
+    });
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function selectPreEvalCase(item) {
+  state.preEvalCaseId = item.case_id;
+  state.preEvalHistory = [];
+  $("preEvalQuestion").disabled = false;
+  $("preEvalSendButton").disabled = false;
+  // Render result panel from case status
+  try {
+    const status = await api(`/api/v1/pre-eval/cases/${encodeURIComponent(item.case_id)}`);
+    renderPreEvalResult({ ...status, result: {}, patent_title: status.patent_title, case_id: status.case_id });
+    appendPreEvalMessage(
+      `케이스 **${escapeHtml(item.patent_title || item.case_id)}** 를 선택했습니다. 이 평가 결과에 대해 질문하세요.`,
+      "assistant"
+    );
+  } catch (e) {
+    appendPreEvalMessage(`케이스 선택 실패: ${e.message}`, "assistant");
+  }
+  setStatus(`사전평가 케이스 선택 · ${item.patent_title || item.case_id}`);
+}
+
+function appendPreEvalMessage(text, role) {
+  return appendMessage(text, role, false, "preEvalMessages");
+}
+
+async function askPreEval() {
+  const text = ($("preEvalQuestion").value || "").trim();
+  if (!text || !state.preEvalCaseId) return;
+  appendPreEvalMessage(text, "user");
+  $("preEvalQuestion").value = "";
+  const button = $("preEvalSendButton");
+  setBusy(button, true, "생성 중");
+  const pending = appendPreEvalMessage("답변을 생성 중입니다…", "assistant");
+  try {
+    const data = await api(`/api/v1/pre-eval/cases/${encodeURIComponent(state.preEvalCaseId)}/chat`, {
+      method: "POST",
+      body: JSON.stringify({
+        question: text,
+        user_id: "browser-ui",
+        chat_history: state.preEvalHistory,
+        top_k: 8,
+      }),
+    });
+    await renderAnswerProgressively(pending, data.answer || "");
+    appendAnswerMeta(data.metrics || {}, data.source_cards || [], "preEvalMessages");
+    appendSources(data.source_cards || [], "preEvalMessages");
+    focusAnswerStart(pending);
+    rememberHistory("preEval", text, data.answer, { pre_eval_case_id: state.preEvalCaseId });
+    setStatus(`사전평가 답변 완료 · 근거 ${(data.source_cards || []).length}개`);
+  } catch (error) {
+    pending.textContent = `요청 실패: ${error.message}`;
+  } finally {
+    setBusy(button, false);
+    $("preEvalQuestion").focus();
+  }
+}
+
 function bindEvents() {
   document.querySelectorAll(".tab-button").forEach((button) => {
     button.addEventListener("click", () => showTab(button.dataset.tab));
@@ -1089,6 +1242,17 @@ function bindEvents() {
   });
   $("sendButton").addEventListener("click", ask);
   $("sendApplicationButton").addEventListener("click", askApplication);
+  $("preEvalStartButton").addEventListener("click", () => startPreEval().catch((error) => setStatus(error.message)));
+  $("preEvalLoadCasesButton").addEventListener("click", () => loadPreEvalCases().catch((error) => setStatus(error.message)));
+  $("preEvalSendButton").addEventListener("click", askPreEval);
+  $("preEvalAddClaim").addEventListener("click", () => {
+    const container = $("preEvalClaimsContainer");
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:6px;";
+    row.innerHTML = `<textarea class="preval-claim-input" rows="2" placeholder="청구항 내용을 입력하세요." style="flex:1;"></textarea>
+      <button type="button" class="icon-btn" onclick="this.closest('div').remove()" title="삭제">−</button>`;
+    container.appendChild(row);
+  });
   $("question").addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
     event.preventDefault();
@@ -1098,6 +1262,11 @@ function bindEvents() {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
     event.preventDefault();
     askApplication();
+  });
+  $("preEvalQuestion").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    askPreEval();
   });
   document.querySelectorAll("[data-flow]").forEach((button) => {
     button.addEventListener("click", () => {

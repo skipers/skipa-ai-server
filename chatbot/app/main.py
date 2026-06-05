@@ -9,7 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import BUSINESS_ROOT, DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT
+from .config import BUSINESS_ROOT, DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT, PRE_EVAL_ROOT
+from .routers.pre_eval import router as pre_eval_router
 from .routers.chatbot import (
     agent_router,
     application_router,
@@ -40,6 +41,10 @@ app = FastAPI(
         {"name": "agent", "description": "Agent query alias"},
         {"name": "wiki", "description": "Wiki audit API"},
         {"name": "application", "description": "특허 출원 도우미 API"},
+        {
+            "name": "pre-eval",
+            "description": "출원 전 사전평가 챗봇. 특허명·기술설명·청구항을 입력하면 AI가 사전평가 보고서를 생성하고, 보고서 전용 vectorstore로 채팅합니다.",
+        },
     ],
 )
 
@@ -58,6 +63,7 @@ app.include_router(legacy_rag_router)
 app.include_router(agent_router)
 app.include_router(wiki_router)
 app.include_router(application_router)
+app.include_router(pre_eval_router)
 
 if STATIC_ROOT.exists():
     app.mount("/ui/static", StaticFiles(directory=str(STATIC_ROOT)), name="ui_static")
@@ -73,6 +79,9 @@ if BUSINESS_ROOT.exists():
 
 if PATENT_APPLICATION_ROOT.exists():
     app.mount("/files/application", StaticFiles(directory=str(PATENT_APPLICATION_ROOT)), name="application_files")
+
+if PRE_EVAL_ROOT.exists():
+    app.mount("/files/pre-eval", StaticFiles(directory=str(PRE_EVAL_ROOT)), name="pre_eval_files")
 
 
 @app.get("/", tags=["system"], summary="챗봇 API 루트")
