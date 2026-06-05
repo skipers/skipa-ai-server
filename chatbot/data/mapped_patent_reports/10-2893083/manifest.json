@@ -1,0 +1,29 @@
+{
+  "patent_id": "10-2893083",
+  "title": "메시지 지향 미들웨어에서의 토폴로지 기반 시스템 상태 및 병목 구간 모니터링 방법 및 시스템",
+  "updated_at": "2026-06-02T09:35:42+09:00",
+  "paths": {
+    "patent_dir": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083",
+    "original": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/original",
+    "latest_input": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/original/input/latest.json",
+    "latest_original_pdf": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/original/pdf/latest.pdf",
+    "latest_report_json": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/reports/json/latest.json",
+    "wiki": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/wiki",
+    "extracted": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/extracted",
+    "index": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/index",
+    "reports": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/reports",
+    "latest_report_html": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2893083/reports/html/latest.html"
+  },
+  "history": [
+    {
+      "at": "2026-05-31T18:14:25",
+      "type": "workspace_registered"
+    },
+    {
+      "at": "2026-06-02T09:35:42+09:00",
+      "type": "legacy_source_files_restored",
+      "source": "/Users/kgw/rag/mapped_patent_reports/10-2893083",
+      "report_source": "/Users/kgw/rag/mapped_patent_reports/10-2893083/report.html"
+    }
+  ]
+}

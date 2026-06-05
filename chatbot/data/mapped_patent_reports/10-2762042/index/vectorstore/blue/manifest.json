@@ -1,0 +1,31 @@
+{
+  "scope": "patent:10-2762042",
+  "refreshed_at": "2026-06-05T11:50:04",
+  "vector_dimensions": 256,
+  "backend": "local_hashed_bow",
+  "source": "human_reviewed",
+  "document_count": 75,
+  "source_fingerprints": [
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2762042/extracted/all_chunks.jsonl",
+      "size_bytes": 1499436,
+      "sha1": "e9d9b1b9ab3f7c1fc370881150c80cd01627a9d1"
+    },
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2762042/original/input/latest.json",
+      "size_bytes": 655,
+      "sha1": "034ae49aeefbc6c304bd6c0d88af1c33346c5c8f"
+    }
+  ],
+  "documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2762042/index/vectorstore/blue/documents.jsonl",
+  "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2762042/index/vectorstore/blue/manifest.json",
+  "active_slot": "blue",
+  "previous_active_slot": "green",
+  "rotation": {
+    "strategy": "blue_green",
+    "active_slot": "blue",
+    "previous_active_slot": "green",
+    "activated_at": "2026-06-05T11:50:04",
+    "standby_slot": "green"
+  }
+}
