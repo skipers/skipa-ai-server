@@ -26,8 +26,10 @@ htmlcov/
 # Secrets and local environment files
 .env
 .env.*
+!.env.example
 eval_logic/.env
 eval_logic/.env.*
+!eval_logic/.env.example
 
 
 # Logs and local runtime files
@@ -78,6 +80,7 @@ eval_logic/.git/
 # Chatbot local/runtime files
 chatbot/.env
 chatbot/.env.*
+!chatbot/.env.example
 chatbot/.venv/
 chatbot/logs/
 chatbot/tmp/
