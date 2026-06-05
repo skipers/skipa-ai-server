@@ -5,8 +5,6 @@ on:
     branches:
       - main
       - dev
-  schedule:
-    - cron: "0 15 * * *"   # 매일 00:00 KST (UTC 15:00) — nightly reindex
   workflow_dispatch:
 
 permissions:
@@ -15,7 +13,6 @@ permissions:
 jobs:
   build-and-update-manifest:
     name: Build, Push, and Update Manifest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     env:
@@ -90,18 +87,3 @@ jobs:
           git add "${{ env.INFRA_PATH }}/kustomization.yml"
           git commit -m "ci: update ai-backend image tag to ${IMAGE_TAG} [skip ci]"
           git push origin main
-
-  nightly-reindex:
-    name: Nightly Reindex (00:00 KST)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Call nightly reindex endpoint
-        run: |
-          curl -X POST "${{ secrets.CHATBOT_API_URL }}/api/v1/chatbot/preprocess/run" \
-            -H "Content-Type: application/json" \
-            -d '{"mode": "nightly_reindex"}' \
-            --fail \
-            --silent \
-            --show-error

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -21,10 +25,49 @@ from .routers.chatbot import (
     wiki_router,
 )
 
+logger = logging.getLogger(__name__)
+
+KST = timezone(timedelta(hours=9))
+
+
+def _seconds_until_midnight_kst() -> float:
+    """현재 시각부터 다음 KST 자정까지 남은 초."""
+    now = datetime.now(KST)
+    midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return (midnight - now).total_seconds()
+
+
+async def _nightly_reindex_loop() -> None:
+    """매일 00:00 KST 에 nightly_reindex_all 을 실행하는 백그라운드 태스크."""
+    while True:
+        wait = _seconds_until_midnight_kst()
+        logger.info("nightly reindex 스케줄: %.0f초 후 (다음 KST 자정)", wait)
+        await asyncio.sleep(wait)
+        try:
+            from .vectorstore import nightly_reindex_all
+            logger.info("nightly reindex 시작")
+            result = nightly_reindex_all()
+            logger.info("nightly reindex 완료: status=%s", result.get("status"))
+        except Exception as exc:
+            logger.error("nightly reindex 실패: %s", exc)
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    task = asyncio.create_task(_nightly_reindex_loop())
+    logger.info("nightly reindex 스케줄러 시작 (매일 00:00 KST)")
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
 
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(
+    lifespan=lifespan,
     title="SKIPA Chatbot API",
     description=(
         "Swagger에서 챗봇 데이터 연결, 특허별 원문/보고서/wiki/index 상태, "
