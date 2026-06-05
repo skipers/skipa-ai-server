@@ -1,0 +1,5 @@
+{
+  "provider": "openai",
+  "model": "text-embedding-3-large",
+  "updated_at": "2026-06-04T14:09:05+0900"
+}

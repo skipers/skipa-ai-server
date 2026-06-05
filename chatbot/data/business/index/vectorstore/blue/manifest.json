@@ -1,0 +1,20 @@
+{
+  "scope": "business-disabled",
+  "refreshed_at": "2026-06-05T10:56:35",
+  "vector_dimensions": 256,
+  "backend": "local_hashed_bow",
+  "source": "disabled_non_core_web_routing",
+  "document_count": 0,
+  "source_fingerprints": [],
+  "documents_path": "/Users/kgw/skipers-ai/chatbot/data/business/index/vectorstore/blue/documents.jsonl",
+  "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/business/index/vectorstore/blue/manifest.json",
+  "active_slot": "blue",
+  "previous_active_slot": "green",
+  "rotation": {
+    "strategy": "blue_green",
+    "active_slot": "blue",
+    "previous_active_slot": "green",
+    "activated_at": "2026-06-05T10:56:35",
+    "standby_slot": "green"
+  }
+}

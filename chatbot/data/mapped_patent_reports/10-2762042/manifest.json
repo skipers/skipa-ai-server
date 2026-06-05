@@ -1,0 +1,29 @@
+{
+  "patent_id": "10-2762042",
+  "title": "NF3 가스 생산 설비 내 이물질 제거 시스템 및 방법",
+  "updated_at": "2026-06-02T09:35:42+09:00",
+  "paths": {
+    "patent_dir": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042",
+    "original": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042/original",
+    "latest_input": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042/original/input/latest.json",
+    "latest_original_pdf": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042/original/pdf/latest.pdf",
+    "latest_report_json": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042/reports/json/latest.json",
+    "wiki": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042/wiki",
+    "extracted": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042/extracted",
+    "index": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042/index",
+    "reports": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042/reports",
+    "latest_report_html": "/Users/kgw/skipers-ai/data/mapped_patent_reports/10-2762042/reports/html/latest.html"
+  },
+  "history": [
+    {
+      "at": "2026-05-31T18:14:25",
+      "type": "workspace_registered"
+    },
+    {
+      "at": "2026-06-02T09:35:42+09:00",
+      "type": "legacy_source_files_restored",
+      "source": "/Users/kgw/rag/mapped_patent_reports/10-2762042",
+      "report_source": "/Users/kgw/rag/output2/patent_10_2762042_output.json"
+    }
+  ]
+}
