@@ -79,17 +79,8 @@ class PatentApplicationFailedCaseReportSaveRequest(BaseModel):
 
 
 class PatentApplicationFailedCaseReportGenerateRequest(BaseModel):
-    title: str | None = Field(None, description="생성할 실패특허 재평가 보고서 제목")
-    enable_market: bool = Field(True, description="KOSIS/시장성 평가 활성화")
-    enable_auto: bool = Field(True, description="규칙 기반 자동 점수 활성화")
-    enable_llm: bool = Field(True, description="LLM 평가 활성화")
-    enable_pdf_metadata_extraction: bool = Field(True, description="PDF 메타데이터 추출 활성화")
-    enable_business_rag: bool = Field(True, description="사업화 RAG 분석 활성화")
-    enable_similar_analysis: bool = Field(True, description="유사 특허 분석 활성화")
-    similar_use_llm: bool = Field(True, description="유사 특허 비교 요약에 LLM 사용")
-    rag_top_k: int | None = Field(5, ge=1, le=20, description="사업화 RAG 검색 top_k")
-    fail_on_validation_error: bool = Field(True, description="입력 검증 실패 시 보고서 생성 중단")
-    enable_human_review: bool = Field(False, description="위험/저신뢰 단계 Human-in-the-loop 중단 활성화")
+    title: str | None = Field(None, description="생성할 출원 전 사전평가 보고서 제목")
+    enable_llm: bool = Field(True, description="LLM 종합 코멘트 생성 활성화 (false면 규칙 기반 fallback)")
     refresh_index: bool = Field(True, description="보고서 생성 후 해당 실패특허 케이스 전용 vectorstore 갱신")
 
 

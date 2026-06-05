@@ -1866,6 +1866,64 @@ def _report_markdown_from_result(title: str, result: dict[str, Any], *, case_id:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _report_markdown_from_preval_result(title: str, result: dict[str, Any], *, case_id: str) -> str:
+    """Generate a Markdown summary for a pre_application_valuation result."""
+    overall = result.get("overall") if isinstance(result.get("overall"), dict) else {}
+    dimensions = result.get("dimensions") if isinstance(result.get("dimensions"), list) else []
+    recommendations = result.get("recommendations") if isinstance(result.get("recommendations"), list) else []
+    comments = result.get("comments") if isinstance(result.get("comments"), list) else []
+    frontend = result.get("frontend_summary") if isinstance(result.get("frontend_summary"), dict) else {}
+    ipc = result.get("ai_classification") if isinstance(result.get("ai_classification"), dict) else {}
+    lines = [
+        f"# {title}",
+        "",
+        "## 평가 개요",
+        "",
+        f"- Case ID: {case_id}",
+        f"- 특허명: {result.get('patent_title') or '-'}",
+        f"- Evaluation ID: {result.get('evaluation_id') or '-'}",
+        f"- 평가일시: {result.get('evaluated_at') or '-'}",
+        f"- 워크플로우: {result.get('workflow_type') or 'pre_application_valuation'}",
+        f"- AI 분류 IPC: {ipc.get('ipc') or '-'}  분야: {ipc.get('field') or '-'}",
+        "",
+        "## 종합 점수",
+        "",
+        f"- 종합 등급: **{overall.get('grade') or '-'}**",
+        f"- 종합 점수(100점): {_format_score(overall.get('score_out_of_100'))}",
+        f"- 평균 점수(1~5): {_format_score(overall.get('score'))}",
+        "",
+        f"> {overall.get('comment') or '종합 의견이 생성되지 않았습니다.'}",
+        "",
+        "## 영역별 점수",
+        "",
+        "| 영역 | 평균(1~5) | 100점 환산 |",
+        "| --- | ---: | ---: |",
+    ]
+    for dim in dimensions:
+        lines.append(f"| {dim.get('label') or dim.get('key') or '-'} | {_format_score(dim.get('average_score'))} | {_format_score(dim.get('score_out_of_100'))} |")
+    if not dimensions:
+        lines.append("| - | - | - |")
+    lines.extend(["", "## 영역별 코멘트", ""])
+    for comment in comments:
+        lines.append(f"- **{comment.get('dimension') or '-'}**: {comment.get('comment') or ''}")
+    if not comments:
+        lines.append("- 코멘트가 없습니다.")
+    lines.extend(["", "## 개선 권고사항", ""])
+    for rec in recommendations:
+        lines.append(f"- {rec}")
+    if not recommendations:
+        lines.append("- 권고사항이 없습니다.")
+    lines.extend(["", "## 강점/약점 영역", "",
+        f"- 강점: {frontend.get('strongest_dimension') or '-'}",
+        f"- 약점: {frontend.get('weakest_dimension') or '-'}",
+        "",
+        "## 메타정보", "",
+        f"- saved_at: {_now()}",
+        "- vectorstore_scope: selected_failed_patent_case_only",
+    ])
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def failed_patent_case_report_summary(case_id: str) -> dict[str, Any]:
     safe_id = _safe_case_id(case_id)
     report_path = _failed_case_dir(safe_id) / "reports" / "latest_report.json"
@@ -1879,6 +1937,12 @@ def failed_patent_case_report_summary(case_id: str) -> dict[str, Any]:
     data = _read_json(report_path)
     if not isinstance(data, dict):
         return {"exists": False, "case_id": safe_id, "report_path": str(report_path), "message": "latest_report.json을 읽을 수 없습니다."}
+
+    # pre_application_valuation 결과 포맷 감지
+    if str(data.get("schema_version") or "").startswith("pre-application-valuation"):
+        return _preval_report_summary(safe_id, report_path, data)
+
+    # 기존 eval_logic 포맷
     report = data.get("report") if isinstance(data.get("report"), dict) else {}
     valuation = data.get("valuation") if isinstance(data.get("valuation"), dict) else {}
     active_report = report or valuation
@@ -1926,6 +1990,142 @@ def failed_patent_case_report_summary(case_id: str) -> dict[str, Any]:
     }
 
 
+def _preval_report_summary(safe_id: str, report_path: Path, data: dict[str, Any]) -> dict[str, Any]:
+    """Build report summary from a pre_application_valuation result."""
+    overall = data.get("overall") if isinstance(data.get("overall"), dict) else {}
+    dimensions = data.get("dimensions") if isinstance(data.get("dimensions"), list) else []
+    frontend = data.get("frontend_summary") if isinstance(data.get("frontend_summary"), dict) else {}
+    ipc = data.get("ai_classification") if isinstance(data.get("ai_classification"), dict) else {}
+    recommendations = data.get("recommendations") if isinstance(data.get("recommendations"), list) else []
+    comments = data.get("comments") if isinstance(data.get("comments"), list) else []
+    score_items = [
+        {
+            "dimension": str(item.get("dimension") or item.get("key") or ""),
+            "item": str(item.get("name") or item.get("item") or ""),
+            "score": float(item.get("average_score") or item.get("score") or 0),
+            "score_out_of_100": float(item.get("score_out_of_100") or 0),
+            "judgment_summary": str(item.get("comment") or item.get("judgment_summary") or ""),
+        }
+        for item in (data.get("score_items") or [])
+        if isinstance(item, dict)
+    ]
+    dimension_scores = {
+        dim.get("key") or dim.get("label"): {
+            "average_score": dim.get("average_score"),
+            "score_out_of_100": dim.get("score_out_of_100"),
+            "grade": dim.get("grade"),
+        }
+        for dim in dimensions
+        if isinstance(dim, dict)
+    }
+    return {
+        "exists": True,
+        "case_id": safe_id,
+        "report_path": str(report_path),
+        "markdown_path": str(_failed_case_dir(safe_id) / "reports" / "latest_report.md"),
+        "schema_version": data.get("schema_version"),
+        "status": data.get("status"),
+        "workflow_type": data.get("workflow_type"),
+        "patent_title": data.get("patent_title"),
+        "evaluated_at": data.get("evaluated_at"),
+        "summary": {
+            "overall_score": overall.get("score"),
+            "overall_score_out_of_100": overall.get("score_out_of_100"),
+            "overall_grade": overall.get("grade"),
+            "overall_comment": overall.get("comment"),
+            "strongest_dimension": frontend.get("strongest_dimension"),
+            "weakest_dimension": frontend.get("weakest_dimension"),
+            "ipc": ipc.get("ipc"),
+            "ipc_field": ipc.get("field"),
+        },
+        "dimension_scores": dimension_scores,
+        "score_items": score_items,
+        "recommendations": recommendations,
+        "comments": comments,
+        "verification": {},
+    }
+
+
+def _build_preval_request(patent_input: dict[str, Any]) -> dict[str, Any]:
+    """Convert extracted patent_input dict to PreApplicationValuationRequest kwargs."""
+    meta = patent_input.get("meta") if isinstance(patent_input.get("meta"), dict) else {}
+    spec = patent_input.get("specification") if isinstance(patent_input.get("specification"), dict) else {}
+    title = str(meta.get("title") or patent_input.get("patent_id") or "").strip() or "미제목 특허"
+    # Build technology_description from specification sections
+    tech_parts = [
+        spec.get("technical_field") or "",
+        spec.get("background_art") or "",
+        spec.get("problem_to_solve") or "",
+        spec.get("solution") or "",
+    ]
+    tech_description = "\n\n".join(part.strip() for part in tech_parts if str(part).strip())
+    if not tech_description:
+        tech_description = str(patent_input.get("description_summary") or "")[:4000]
+    # Claims: already a list or raw text
+    raw_claims = patent_input.get("claims_text")
+    if isinstance(raw_claims, list):
+        claims = [str(c).strip() for c in raw_claims if str(c).strip()]
+    elif isinstance(raw_claims, str) and raw_claims.strip():
+        claims = [line.strip() for line in raw_claims.splitlines() if line.strip()]
+    else:
+        claims = []
+    related_business = str(spec.get("advantageous_effects") or "")[:2000]
+    return {
+        "patentName": title,
+        "technologyDescription": tech_description or title,
+        "claims": claims,
+        "relatedBusiness": related_business,
+        "targetCountries": [],
+    }
+
+
+def _run_pre_application_valuation(
+    patent_input: dict[str, Any],
+    *,
+    enable_llm: bool = True,
+) -> dict[str, Any]:
+    """Run pre_application_valuation.service.evaluate_pre_application on patent_input."""
+    preval_root = PROJECT_ROOT / "pre_application_valuation"
+    if not preval_root.exists():
+        raise HTTPException(status_code=500, detail=f"pre_application_valuation 모듈을 찾을 수 없습니다: {preval_root}")
+    inserted = False
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+        inserted = True
+    try:
+        from pre_application_valuation.service import evaluate_pre_application
+        from pre_application_valuation.schemas import PreApplicationValuationRequest
+
+        if not enable_llm:
+            import pre_application_valuation.llm_comment as _llm_mod
+            original_fn = _llm_mod.generate_llm_overall_comment
+            _llm_mod.generate_llm_overall_comment = lambda *args, **kwargs: {
+                "overall_comment": kwargs.get("fallback_comment", args[3] if len(args) > 3 else ""),
+                "source": "fallback",
+                "model": None,
+            }
+
+        request_data = _build_preval_request(patent_input)
+        result = evaluate_pre_application(PreApplicationValuationRequest.model_validate(request_data))
+        result["workflow_type"] = "pre_application_valuation"
+        result["status"] = "completed"
+
+        if not enable_llm:
+            _llm_mod.generate_llm_overall_comment = original_fn
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"출원 전 사전평가 보고서 생성 실패: {type(exc).__name__}: {exc}") from exc
+    finally:
+        if inserted:
+            try:
+                sys.path.remove(str(PROJECT_ROOT))
+            except ValueError:
+                pass
+
+
 def _run_eval_logic_pdf_workflow(
     source_pdf: Path,
     options: dict[str, Any] | None = None,
@@ -1968,35 +2168,16 @@ def generate_failed_patent_case_report(
     if not status.get("has_original_pdf"):
         raise HTTPException(status_code=400, detail=f"{safe_id} 케이스에 실패특허 원본 PDF가 없습니다.")
     source_pdf = _failed_case_original_pdf(safe_id)
-    default_options = {
-        "enable_market": True,
-        "enable_auto": True,
-        "enable_llm": True,
-        "enable_pdf_metadata_extraction": True,
-        "enable_business_rag": True,
-        "enable_similar_analysis": True,
-        "similar_use_llm": True,
-        "rag_top_k": 5,
-        "fail_on_validation_error": True,
-        "enable_human_review": False,
-    }
-    if options:
-        default_options.update({key: value for key, value in options.items() if value is not None})
-    auto_disabled: dict[str, str] = {}
-    if default_options.get("enable_business_rag") and not _module_available("rank_bm25"):
-        default_options["enable_business_rag"] = False
-        auto_disabled["enable_business_rag"] = "rank_bm25 dependency is not installed"
-    report_title = title or f"{safe_id} 실패특허 재평가 보고서"
+    enable_llm = True
+    if options and options.get("enable_llm") is False:
+        enable_llm = False
+    report_title = title or f"{safe_id} 출원 전 사전평가 보고서"
     patent_input = _patent_input_from_pdf(source_pdf)
-    if patent_input.get("patent_id") and patent_input.get("meta", {}).get("title"):
-        default_options["enable_pdf_metadata_extraction"] = False
-    result = _run_eval_logic_pdf_workflow(source_pdf, default_options, patent_input=patent_input)
+    result = _run_pre_application_valuation(patent_input, enable_llm=enable_llm)
     result.setdefault("artifacts", {})
-    result["artifacts"]["chatbot_pre_extracted_input"] = patent_input
-    result["artifacts"]["chatbot_pre_extracted_from_pdf"] = str(source_pdf)
-    if auto_disabled:
-        result["artifacts"]["chatbot_auto_disabled_options"] = auto_disabled
-    markdown = _report_markdown_from_result(report_title, result, case_id=safe_id)
+    result["artifacts"]["source_pdf"] = str(source_pdf)
+    result["artifacts"]["case_id"] = safe_id
+    markdown = _report_markdown_from_preval_result(report_title, result, case_id=safe_id)
     saved = save_failed_patent_case_report(
         safe_id,
         title=report_title,
@@ -2008,10 +2189,10 @@ def generate_failed_patent_case_report(
     metadata["latest_report_generation"] = {
         "generated_at": _now(),
         "source_pdf_path": str(source_pdf),
-        "options": default_options,
+        "enable_llm": enable_llm,
         "status": result.get("status"),
         "workflow_type": result.get("workflow_type"),
-        "report_verification": result.get("report_verification"),
+        "overall_grade": result.get("overall", {}).get("grade"),
         "saved_paths": saved.get("saved_paths"),
     }
     _write_case_metadata(safe_id, metadata)
@@ -2021,8 +2202,8 @@ def generate_failed_patent_case_report(
         "source_pdf_path": str(source_pdf),
         "report_status": result.get("status"),
         "workflow_type": result.get("workflow_type"),
-        "elapsed_seconds": result.get("elapsed_seconds"),
-        "report_verification": result.get("report_verification"),
+        "overall_grade": result.get("overall", {}).get("grade"),
+        "overall_score_out_of_100": result.get("overall", {}).get("score_out_of_100"),
         "saved_paths": saved.get("saved_paths"),
         "index": saved.get("index"),
         "metadata_path": str(_case_metadata_path(safe_id)),
