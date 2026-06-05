@@ -26,10 +26,9 @@ htmlcov/
 # Secrets and local environment files
 .env
 .env.*
-!.env.example
 eval_logic/.env
 eval_logic/.env.*
-!eval_logic/.env.example
+
 
 # Logs and local runtime files
 *.log
@@ -53,17 +52,15 @@ tempCodeRunnerFile.py
 # Do not put secrets in api_test JSON files.
 
 # Generated artifacts, caches, crawled pages, vector indexes, and reports
-data/artifacts/
-data/business_rag/index/
-data/business_rag/processed/
-data/business_rag/raw/
-data/business/index/vectorstore/
-data/patent_application_official_pack(1)/index/
-data/mapped_patent_reports/**/index/vectorstore/
-data/mapped_patent_reports/**/wiki/approved_context.md
-data/mapped_patent_reports/**/wiki/web_search_drafts/
-data/mapped_patent_reports/**/wiki/vectorstore/local/
-data/mapped_patent_reports/**/reviewed/
+chatbot/data/business/index/
+chatbot/data/mapped_patent_reports/**/index/
+chatbot/data/mapped_patent_reports/**/extracted/
+chatbot/data/mapped_patent_reports/**/reviewed/
+chatbot/data/patent_application_official_pack/index/
+chatbot/data/patent_application_official_pack/downloads/
+eval_logic/resources/business_rag/index/
+eval_logic/resources/business_rag/processed/
+eval_logic/resources/business_rag/raw/
 eval_logic/artifacts/
 eval_logic/src/artifacts/
 eval_logic/resources/business_rag/index/
@@ -81,7 +78,6 @@ eval_logic/.git/
 # Chatbot local/runtime files
 chatbot/.env
 chatbot/.env.*
-!chatbot/.env.example
 chatbot/.venv/
 chatbot/logs/
 chatbot/tmp/
