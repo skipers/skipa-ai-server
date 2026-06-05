@@ -23,6 +23,7 @@ from typing import Any, Iterable
 from fastapi import HTTPException
 
 from .config import BUSINESS_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT
+from .index_rotation import active_documents_path, active_manifest_path, rotation_status, write_rotating_index
 from .rag.quality import is_usable_evidence, preprocess_evidence_text
 
 
@@ -115,8 +116,12 @@ def _safe_relative(path: Path, base: Path = PROJECT_ROOT) -> str:
         return str(path)
 
 
+def _utf8_safe(value: Any) -> str:
+    return str(value or "").encode("utf-8", errors="ignore").decode("utf-8", errors="ignore")
+
+
 def _hash_text(text: str) -> str:
-    return hashlib.sha1(text.encode("utf-8", errors="ignore")).hexdigest()
+    return hashlib.sha1(_utf8_safe(text).encode("utf-8", errors="ignore")).hexdigest()
 
 
 def _hash_file(path: Path) -> str:
@@ -150,9 +155,9 @@ def _dot(left: dict[str, float], right: dict[str, float]) -> float:
 
 def _json_text(value: Any) -> str:
     try:
-        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+        return _utf8_safe(json.dumps(value, ensure_ascii=False, sort_keys=True))
     except TypeError:
-        return str(value)
+        return _utf8_safe(value)
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -184,7 +189,7 @@ def _read_jsonl(path: Path) -> Iterable[tuple[int, dict[str, Any]]]:
 
 
 def _truncate(text: str) -> str:
-    text = " ".join(str(text or "").split())
+    text = " ".join(_utf8_safe(text).split())
     return text[:MAX_TEXT_CHARS]
 
 
@@ -471,20 +476,13 @@ def collect_patent_documents(patent_id: str, *, use_reviewed: bool = True) -> li
 
 
 def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: str, source: str = "unknown") -> dict[str, Any]:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    docs_path = output_dir / "documents.jsonl"
-    manifest_path = output_dir / "manifest.json"
-    tmp_docs_path = output_dir / "documents.jsonl.tmp"
-    tmp_manifest_path = output_dir / "manifest.json.tmp"
     source_paths: set[Path] = set()
-    with tmp_docs_path.open("w", encoding="utf-8") as file:
-        for doc in docs:
-            if doc.get("page_content") and not doc.get("vector"):
-                doc["vector"] = _vectorize(str(doc.get("page_content") or ""))
-            file.write(json.dumps(doc, ensure_ascii=False, sort_keys=True) + "\n")
-            source_path = Path(str(doc.get("metadata", {}).get("source_path", "")))
-            if source_path.exists():
-                source_paths.add(source_path)
+    for doc in docs:
+        if doc.get("page_content") and not doc.get("vector"):
+            doc["vector"] = _vectorize(str(doc.get("page_content") or ""))
+        source_path = Path(str(doc.get("metadata", {}).get("source_path", "")))
+        if source_path.exists():
+            source_paths.add(source_path)
     source_fingerprints = [
         {
             "path": str(source_path),
@@ -500,17 +498,18 @@ def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: s
         "backend": "local_hashed_bow",
         "source": source,
         "document_count": len(docs),
-        "documents_path": str(docs_path),
         "source_fingerprints": source_fingerprints,
     }
-    tmp_manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp_docs_path.replace(docs_path)
-    tmp_manifest_path.replace(manifest_path)
+    rotation = write_rotating_index(output_dir, docs, manifest)
     return {
         "scope": scope,
         "document_count": len(docs),
-        "manifest_path": str(manifest_path),
-        "documents_path": str(docs_path),
+        "manifest_path": rotation["manifest_path"],
+        "documents_path": rotation["documents_path"],
+        "active_slot": rotation["active_slot"],
+        "previous_active_slot": rotation["previous_active_slot"],
+        "legacy_manifest_path": rotation["legacy_manifest_path"],
+        "legacy_documents_path": rotation["legacy_documents_path"],
     }
 
 
@@ -575,8 +574,10 @@ def vectorstore_status() -> dict[str, Any]:
     patent_status = []
     for patent_id in _patent_ids():
         patent_dir = PATENTS_ROOT / patent_id
-        manifest_path = patent_dir / "index" / "vectorstore" / "manifest.json"
-        wiki_manifest_path = patent_dir / "wiki" / "vectorstore" / "local" / "manifest.json"
+        core_root = patent_dir / "index" / "vectorstore"
+        wiki_root = patent_dir / "wiki" / "vectorstore" / "local"
+        manifest_path = active_manifest_path(core_root)
+        wiki_manifest_path = active_manifest_path(wiki_root)
         manifest = _read_json(manifest_path)
         wiki_manifest = _read_json(wiki_manifest_path)
         reviewed_path = _reviewed_docs_path(patent_id)
@@ -587,9 +588,11 @@ def vectorstore_status() -> dict[str, Any]:
                 "document_count": manifest.get("document_count", 0),
                 "refreshed_at": manifest.get("refreshed_at"),
                 "manifest_path": str(manifest_path),
+                "rotation": rotation_status(core_root),
                 "wiki_vectorstore_exists": wiki_manifest_path.exists(),
                 "wiki_document_count": wiki_manifest.get("document_count", 0),
                 "wiki_manifest_path": str(wiki_manifest_path),
+                "wiki_rotation": rotation_status(wiki_root),
                 "wiki_markdown_path": str(patent_dir / "wiki" / "approved_context.md")
                 if (patent_dir / "wiki" / "approved_context.md").exists()
                 else None,
@@ -597,10 +600,13 @@ def vectorstore_status() -> dict[str, Any]:
                 "approved_markdown_path": str(_reviewed_md_path(patent_id)) if _reviewed_md_path(patent_id).exists() else None,
             }
         )
-    global_manifest = _read_json(PATENTS_ROOT / "_global" / "index" / "vectorstore" / "manifest.json")
-    global_wiki_manifest = _read_json(PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local" / "manifest.json")
+    global_root = PATENTS_ROOT / "_global" / "index" / "vectorstore"
+    global_wiki_root = PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local"
+    global_manifest = _read_json(active_manifest_path(global_root))
+    global_wiki_manifest = _read_json(active_manifest_path(global_wiki_root))
     return {
         "backend": "local_hashed_bow",
+        "rotation_policy": "blue_green; readers use active_slot.json and writers build the standby slot before switching",
         "core_source_types": sorted(CORE_SEARCH_SOURCE_TYPES),
         "core_policy": "patent/report only; visual, wiki, business and other auxiliary data are excluded from core vectorstores",
         "global": {
@@ -608,14 +614,16 @@ def vectorstore_status() -> dict[str, Any]:
             "document_count": global_manifest.get("document_count", 0),
             "refreshed_at": global_manifest.get("refreshed_at"),
             "source": global_manifest.get("source"),
-            "manifest_path": str(PATENTS_ROOT / "_global" / "index" / "vectorstore" / "manifest.json"),
+            "manifest_path": str(active_manifest_path(global_root)),
+            "rotation": rotation_status(global_root),
         },
         "global_wiki": {
             "exists": bool(global_wiki_manifest),
             "document_count": global_wiki_manifest.get("document_count", 0),
             "source": global_wiki_manifest.get("source"),
             "policy": "disabled; wiki is patent-local only",
-            "manifest_path": str(PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local" / "manifest.json"),
+            "manifest_path": str(active_manifest_path(global_wiki_root)),
+            "rotation": rotation_status(global_wiki_root),
         },
         "patents": patent_status,
     }
@@ -625,13 +633,10 @@ def _vector_documents_path(*, patent_id: str | None, source_types: set[str] | No
     requested = set(source_types or [])
     if requested and requested <= WIKI_SEARCH_SOURCE_TYPES:
         if patent_id:
-            return PATENTS_ROOT / patent_id / "wiki" / "vectorstore" / "local" / "documents.jsonl"
-        return PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local" / "documents.jsonl"
-    return (
-        PATENTS_ROOT / patent_id / "index" / "vectorstore" / "documents.jsonl"
-        if patent_id
-        else PATENTS_ROOT / "_global" / "index" / "vectorstore" / "documents.jsonl"
-    )
+            return active_documents_path(PATENTS_ROOT / patent_id / "wiki" / "vectorstore" / "local")
+        return active_documents_path(PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local")
+    root = PATENTS_ROOT / patent_id / "index" / "vectorstore" if patent_id else PATENTS_ROOT / "_global" / "index" / "vectorstore"
+    return active_documents_path(root)
 
 
 def _iter_vector_documents(patent_id: str | None, source_types: set[str] | None = None) -> Iterable[dict[str, Any]]:
@@ -1202,6 +1207,64 @@ def auto_audit_apply_and_refresh(*, refresh_vectorstore: bool = True) -> dict[st
         }
     )
     return {"audit": audit, "apply_result": result}
+
+
+def nightly_reindex_all() -> dict[str, Any]:
+    """Run the Kubernetes CronJob reindex workflow once.
+
+    This is intentionally one-shot. Kubernetes should schedule it at midnight
+    with a CronJob, while the chatbot/eval pods keep serving from the current
+    active blue/green slot until this job finishes and switches the pointer.
+    """
+
+    started_at = _now()
+    wiki_result = auto_audit_apply_and_refresh(refresh_vectorstore=True)
+
+    application_result: dict[str, Any] | None = None
+    failed_case_results: list[dict[str, Any]] = []
+    try:
+        from .application_data import (
+            list_failed_patent_cases,
+            preprocess_application_pack,
+            refresh_failed_patent_case_index,
+        )
+
+        application_result = preprocess_application_pack(refresh_index=True)
+        cases = list_failed_patent_cases()
+        for item in cases.get("items") or []:
+            case_id = item.get("case_id") if isinstance(item, dict) else None
+            if not case_id:
+                continue
+            if item.get("has_original_pdf") is False:
+                failed_case_results.append(
+                    {"case_id": case_id, "status": "skipped", "reason": "missing_original_pdf"}
+                )
+                continue
+            try:
+                failed_case_results.append(refresh_failed_patent_case_index(str(case_id)))
+            except Exception as exc:
+                failed_case_results.append(
+                    {"case_id": case_id, "status": "error", "error": f"{type(exc).__name__}: {exc}"}
+                )
+    except Exception as exc:
+        application_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+
+    result = {
+        "status": "completed",
+        "workflow": "nightly_blue_green_reindex",
+        "started_at": started_at,
+        "finished_at": _now(),
+        "schedule_hint": "Kubernetes CronJob: 0 0 * * *",
+        "wiki_auto_audit": wiki_result,
+        "application_pack": application_result,
+        "failed_patent_cases": failed_case_results,
+        "vectorstore_status": vectorstore_status(),
+    }
+    log_path = WIKI_AUDITOR_ROOT / "nightly_reindex.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(result, ensure_ascii=False, sort_keys=True) + "\n")
+    return result
 
 
 def audit_and_refresh_vectorstores(*, refresh_vectorstore: bool = False) -> dict[str, Any]:

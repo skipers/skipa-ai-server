@@ -45,6 +45,18 @@ docker run --rm \
   skipa-ai:latest eval-logic
 ```
 
+Kubernetes CronJob 또는 로컬 수동 재색인은 같은 이미지에서 `nightly-reindex` args로 실행합니다.
+
+```bash
+docker run --rm \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+  -v "$PWD/chatbot/data:/app/chatbot/data" \
+  -v "$PWD/chatbot/logs:/app/chatbot/logs" \
+  -v "$PWD/eval_logic/data:/app/eval_logic/data" \
+  skipa-ai:latest nightly-reindex
+```
+
 접속 주소:
 
 ```text
@@ -115,10 +127,16 @@ chatbot/data/
       reports/json/
       extracted/
       index/vectorstore/
+        active_slot.json
+        blue/
+        green/
       wiki/
         approved_context.md
         web_search_drafts/
         vectorstore/
+          active_slot.json
+          blue/
+          green/
 
   patent_application_official_pack/
     downloads/
@@ -127,12 +145,18 @@ chatbot/data/
     patent_rejection_notice_original_sources.md
     prior_art_search_workflow.md
     index/vectorstore/
+      active_slot.json
+      blue/
+      green/
     failed_patent/
       <registration_number>_failed/
         input/
         rejection/
         reports/
         index/vectorstore/
+          active_slot.json
+          blue/
+          green/
         metadata.json
 ```
 
@@ -143,6 +167,8 @@ chatbot/data/
 - 출원 도우미 공용 공식팩 index에는 `downloads/`와 4개 guide Markdown만 들어갑니다.
 - 실패특허 case index에는 현재 선택한 실패특허 원본, 선택 사유서, 최신 보고서만 들어갑니다.
 - 다른 실패특허 또는 다른 특허의 데이터가 한 case vectorstore에 섞이면 안 됩니다.
+- 모든 챗봇 vectorstore는 `blue`/`green` 두 slot으로 운영됩니다. refresh는 standby slot에 먼저 쓰고 `active_slot.json`을 전환하므로, 재색인 중에도 기존 active index로 답변할 수 있습니다.
+- 자동 감사는 `default_action=exclude`와 `severity=medium/high review` 후보를 낮은 품질/주의 데이터로 제외하고, 남은 승인 데이터만 각 특허 폴더의 `reviewed/`와 `wiki/approved_context.md`에 저장합니다.
 
 ## 특허 챗봇 workflow
 
@@ -230,6 +256,13 @@ POST /api/v1/wiki/audit-auto-refresh
 GET  /api/v1/wiki/agent/mermaid
 ```
 
+전체 자동 감사/blue-green 재색인:
+
+```text
+POST /api/v1/chatbot/preprocess/run
+body: {"mode":"nightly_reindex"}
+```
+
 ## CLI
 
 ```bash
@@ -243,6 +276,9 @@ bash chatbot/scripts/preprocess_chatbot_data.sh --mode refresh
 
 # wiki 자동 감사 후 승인 데이터만 반영
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode auto-audit
+
+# Kubernetes CronJob에서 매일 00:00 실행할 전체 작업
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode nightly-reindex
 
 # 출원 공식팩 전처리 + index 갱신
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode application-preprocess

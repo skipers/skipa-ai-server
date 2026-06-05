@@ -75,7 +75,7 @@ from ..store import (
     search_chunks,
     wiki_audit_report,
 )
-from ..vectorstore import normalize_wiki_context_files, refresh_vectorstores, run_audit, vectorstore_status
+from ..vectorstore import nightly_reindex_all, normalize_wiki_context_files, refresh_vectorstores, run_audit, vectorstore_status
 
 
 router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
@@ -188,6 +188,8 @@ def post_preprocess_run(request: PreprocessRunRequest) -> dict:
         result["audit"] = run_audit()
     elif request.mode == "application_preprocess":
         result["application"] = preprocess_application_pack(refresh_index=request.refresh_application)
+    elif request.mode == "nightly_reindex":
+        result["nightly_reindex"] = nightly_reindex_all()
     elif request.mode == "all":
         result["wiki_normalize"] = normalize_wiki_context_files()
         result["vectorstore"] = refresh_vectorstores(use_reviewed=True)

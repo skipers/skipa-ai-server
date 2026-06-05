@@ -204,15 +204,16 @@ def wiki_audit_graph_mermaid() -> str:
   B -- review --> E[사람 검토용 감사 Markdown 로드]
   B -- apply --> F[사람이 제외한 finding 적용]
   B -- auto_refresh --> G[주의/나쁜 데이터 자동 제외]
-  B -- refresh --> H[승인 데이터만 vectorstore 재생성]
+  B -- refresh --> H[승인 데이터만 standby slot 재생성]
 
   D --> I[감사 리포트 저장]
   E --> C
   F --> J[approved_context.md 재작성]
   G --> J
   J --> H
-  H --> K[특허별 wiki vectorstore 갱신]
+  H --> K[blue/green active_slot 전환]
+  K --> W[특허별 wiki vectorstore 최신본 사용]
   I --> C
-  K --> C
+  W --> C
   C --> L[Swagger/UI 결과 반환]
 """

@@ -22,12 +22,15 @@ case "$service" in
       --app-dir /app/eval_logic/src \
       "$@"
     ;;
+  nightly-reindex|reindex-once)
+    exec python /app/chatbot/scripts/preprocess_chatbot_data.py --mode nightly-reindex "$@"
+    ;;
   bash|sh|python|uvicorn)
     exec "$service" "$@"
     ;;
   *)
     echo "Unknown APP_SERVICE or command: $service" >&2
-    echo "Use one of: chatbot, eval-logic, bash, sh, python, uvicorn" >&2
+    echo "Use one of: chatbot, eval-logic, nightly-reindex, bash, sh, python, uvicorn" >&2
     exit 64
     ;;
 esac

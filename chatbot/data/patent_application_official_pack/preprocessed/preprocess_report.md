@@ -1,8 +1,8 @@
 # Patent Application Pack Preprocess Report
 
-- Generated at: 2026-06-04T14:28:44
+- Generated at: 2026-06-05T11:01:55
 - Active files: 10
-- Vectorstore documents: 1229
+- Vectorstore documents: 1233
 
 ## Roles
 - application_procedure: 3
@@ -16,13 +16,13 @@
 - 산업별 출원/시장 통계: 사업화 가능성, 출원 타이밍, 시장성 질문에는 KOSIS 산업 통계와 출원 추세가 필요합니다. (KOSIS, KIPRIS 통계, Tavily 보강 검색)
 
 ## Active Files
-- application_procedure / 13.2026 지식재산권의 손쉬운 이용.pdf / chunks~98
-- prior_art_search / CPC 매뉴얼 2020.pdf / chunks~39
-- application_procedure / IP정보 활용 길라잡이.pdf / chunks~10
-- examination_standard / PCT 국제조사 및 국제예비심사 가이드라인.pdf / chunks~255
-- examination_standard / 기술분야별 심사실무가이드 2026.03.pdf / chunks~651
-- examination_standard / 출원방식심사기준.pdf / chunks~170
+- application_procedure / 13.2026 지식재산권의 손쉬운 이용.pdf / chunks~101
+- prior_art_search / CPC 매뉴얼 2020.pdf / chunks~38
+- application_procedure / IP정보 활용 길라잡이.pdf / chunks~4
+- examination_standard / PCT 국제조사 및 국제예비심사 가이드라인.pdf / chunks~252
+- examination_standard / 기술분야별 심사실무가이드 2026.03.pdf / chunks~655
+- examination_standard / 출원방식심사기준.pdf / chunks~175
 - application_procedure / patent_application_process_guide.md / chunks~2
 - rejection_failure_feedback / patent_rejection_failure_response.md / chunks~2
-- rejection_failure_feedback / patent_rejection_notice_original_sources.md / chunks~1
-- prior_art_search / prior_art_search_workflow.md / chunks~1
+- rejection_failure_feedback / patent_rejection_notice_original_sources.md / chunks~2
+- prior_art_search / prior_art_search_workflow.md / chunks~2

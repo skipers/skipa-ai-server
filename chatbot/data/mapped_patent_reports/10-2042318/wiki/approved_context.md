@@ -9,13 +9,10 @@
 ### PATENT_INPUT_JSON
 - 1. latest.json: {"brief_summary": {"개요": "스마트 팩토리의 레이아웃을 체계적으로 설계하는 방법과 시스템이 제안된다.", "핵심_내용": "레이아웃 타입 선정, 블럭 및 라인 생성과 배치를 통해 자동 설계가 가능하며, 설계의 적정성을 확보할 수 있다."}, "claims_text": {"claim_1": {"category": "방법", "text": "스마트 팩토리의 레이아웃 타입을 선정하는 단계; 블럭들을 생성하여, 선정된 타입의 레이아웃에 배치하는 블럭 설계단계; 라인들을 생성하여, 블럭들에 배치하는 라인 설계단계; 및 선정 단계, 블럭 설계단계 및 라인 설계단계를 수행하여 설계된 레이아웃들을 평가하는 단계;를 포함하고, 선정단계는, 생산 제품 종류수와 생산량의 관계를 기초로, 다수의 레이아웃 타입들 중 하나를 선정하며, 블럭 설계단계는, 레이아웃을 다수의 영역들로 분할하고, 블럭들의 필요에 따라 영역들을 할당하여 블럭들을 배치하되, 블럭들의 가로와 세로 길이 차는 작아지고 블럭들의 전체 면적이 커지도록, 블럭들을 배치하고, 선정단계에서 제1 레이아웃 타입이 선정되면, 제1 레이아웃 타입에 매칭된 제1 블럭 생성 기법을 이용하여 블럭 들을 생성하고, 선정단계에서 제2 레이아웃 타입이 선정되면, 제2 레이아웃 타입에 매칭된 제2 블럭 생성
 
-### REPORT_JSON
-- 1. latest.json: {"job_id": "job_20260529_145534_f316ffa6", "result": {"decision": {"confidence": "medium", "low_score_items": [], "overall_average_score": 3.72, "positive_factors": ["권리성 고득점 항목이 확인되었습니다."], "recommendation": "maintain", "recommendation_label": "유지", "recommended_actions": ["핵심 청구항과 사업 적용 가능성을 중심으로 유지 근거를 보강하세요.", "유사 특허 대비 차별 포인트를 정리해 포트폴리오 활용 방안을 검토하세요."], "review_items_count": 13, "risk_factors": ["사업화 현황이 미진행 또는 미진행 추정입니다."], "summary": "현재 평가 결과 기준으로 유지가 우선 권고됩니다."}, "elapsed_seconds": 233.32, "errors": [], "human_review_pending": null, "human_reviews": [{"details": {"confidence": "medium", "recommendation": "maintain", "recommended_acti
-
 ## 메타정보
 
 - Patent ID: `10-2042318`
-- Audit ID: `20260605_100255_140381`
+- Audit ID: `20260605_105931_353560`
 - Source: human-approved patent/report/wiki corpus
 - Vectorstore policy: 이 wiki 문서는 해당 특허의 단독 wiki vectorstore에만 반영되고 global vectorstore에는 포함되지 않습니다.
 - Excluded data: 감사에서 제외된 finding과 저품질 placeholder 문장은 반영하지 않습니다.

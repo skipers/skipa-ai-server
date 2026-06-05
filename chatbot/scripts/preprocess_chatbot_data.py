@@ -9,6 +9,7 @@ Examples:
   scripts/preprocess_chatbot_data.sh --mode application-case --original-pdf "failed.pdf" --rejection-file "notice.pdf"
   scripts/preprocess_chatbot_data.sh --mode application-case-refresh --case-id "failed_20260604"
   scripts/preprocess_chatbot_data.sh --mode application-case-generate --case-id "failed_20260604"
+  scripts/preprocess_chatbot_data.sh --mode nightly-reindex
   scripts/preprocess_chatbot_data.sh --mode all
   scripts/preprocess_chatbot_data.sh --mode status
 """
@@ -47,6 +48,7 @@ def main() -> int:
             "application-case-generate",
             "application-case-report",
             "application-status",
+            "nightly-reindex",
             "all",
         ],
         default="refresh",
@@ -55,6 +57,7 @@ def main() -> int:
             "audit=audit only, normalize-wiki=rewrite approved wiki markdown, "
             "application-preprocess=preprocess application pack, all=chatbot refresh+application preprocess, "
             "application-feedback=create rejection/opinion feedback HTML and refresh application index, "
+            "nightly-reindex=auto-audit wiki and blue/green refresh for every chatbot index, "
             "status=show status"
         ),
     )
@@ -79,6 +82,7 @@ def main() -> int:
 
     from chatbot.app.vectorstore import (
         auto_audit_apply_and_refresh,
+        nightly_reindex_all,
         normalize_wiki_context_files,
         refresh_vectorstores,
         run_audit,
@@ -116,6 +120,9 @@ def main() -> int:
                 "external": application_external_status(),
             }
         )
+        return 0
+    if args.mode == "nightly-reindex":
+        _print_json(nightly_reindex_all())
         return 0
     if args.mode == "application-preprocess":
         _print_json(preprocess_application_pack(refresh_index=True))

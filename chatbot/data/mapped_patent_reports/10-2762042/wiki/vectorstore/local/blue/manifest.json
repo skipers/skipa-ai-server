@@ -1,0 +1,26 @@
+{
+  "scope": "wiki:10-2762042",
+  "refreshed_at": "2026-06-05T10:56:35",
+  "vector_dimensions": 256,
+  "backend": "local_hashed_bow",
+  "source": "human_reviewed",
+  "document_count": 2,
+  "source_fingerprints": [
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2762042/wiki/approved_context.md",
+      "size_bytes": 21434,
+      "sha1": "72e8bf340c1f1528b9d6323c4bc3573f5bcfd895"
+    }
+  ],
+  "documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2762042/wiki/vectorstore/local/blue/documents.jsonl",
+  "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2762042/wiki/vectorstore/local/blue/manifest.json",
+  "active_slot": "blue",
+  "previous_active_slot": "green",
+  "rotation": {
+    "strategy": "blue_green",
+    "active_slot": "blue",
+    "previous_active_slot": "green",
+    "activated_at": "2026-06-05T10:56:35",
+    "standby_slot": "green"
+  }
+}

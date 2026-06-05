@@ -100,6 +100,7 @@ class PreprocessRunRequest(BaseModel):
         "auto_audit_refresh",
         "audit",
         "application_preprocess",
+        "nightly_reindex",
         "all",
     ] = Field("refresh_vectorstore", description="실행할 전처리/리프레시 작업")
     use_reviewed: bool = Field(True, description="vectorstore refresh 시 승인 데이터만 사용할지 여부")

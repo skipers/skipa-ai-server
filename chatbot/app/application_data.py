@@ -28,6 +28,7 @@ import xml.etree.ElementTree as ET
 from fastapi import HTTPException
 
 from .config import DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT, PROJECT_ROOT
+from .index_rotation import active_documents_path, active_manifest_path, rotation_status, write_rotating_index
 from .rag.quality import compact_text
 from .rag.source_card_utils import enrich_source_card
 
@@ -75,8 +76,12 @@ APPLICATION_OFFICIAL_GUIDE_FILES = {
 }
 
 
+def _utf8_safe(value: Any) -> str:
+    return str(value or "").encode("utf-8", errors="ignore").decode("utf-8", errors="ignore")
+
+
 def _norm(value: Any) -> str:
-    return unicodedata.normalize("NFC", str(value or ""))
+    return unicodedata.normalize("NFC", _utf8_safe(value))
 
 
 def _now() -> str:
@@ -117,7 +122,7 @@ def _dot(left: dict[str, float], right: dict[str, float]) -> float:
 
 
 def _hash_text(text: str) -> str:
-    return hashlib.sha1(text.encode("utf-8", errors="ignore")).hexdigest()
+    return hashlib.sha1(_utf8_safe(text).encode("utf-8", errors="ignore")).hexdigest()
 
 
 def _hash_file(path: Path) -> str:
@@ -133,11 +138,11 @@ def _index_dir() -> Path:
 
 
 def _documents_path() -> Path:
-    return _index_dir() / "documents.jsonl"
+    return active_documents_path(_index_dir())
 
 
 def _manifest_path() -> Path:
-    return _index_dir() / "manifest.json"
+    return active_manifest_path(_index_dir())
 
 
 def _feedback_root() -> Path:
@@ -763,7 +768,7 @@ def create_application_feedback_report(
 
 
 def _chunk_text(text: str, *, size: int = 1800, overlap: int = 220) -> list[str]:
-    compact = re.sub(r"\s+", " ", text or "").strip()
+    compact = re.sub(r"\s+", " ", _utf8_safe(text)).strip()
     if not compact:
         return []
     chunks = []
@@ -832,15 +837,6 @@ def refresh_application_index(*, force: bool = True) -> dict[str, Any]:
                 }
             )
 
-    output_dir = _index_dir()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    docs_path = _documents_path()
-    manifest_path = _manifest_path()
-    tmp_docs = output_dir / "documents.jsonl.tmp"
-    tmp_manifest = output_dir / "manifest.json.tmp"
-    with tmp_docs.open("w", encoding="utf-8") as file:
-        for doc in docs:
-            file.write(json.dumps(doc, ensure_ascii=False, sort_keys=True) + "\n")
     fingerprints = [
         {"path": str(path), "size_bytes": path.stat().st_size, "sha1": _hash_file(path)}
         for path in source_files
@@ -854,20 +850,19 @@ def refresh_application_index(*, force: bool = True) -> dict[str, Any]:
         "document_count": len(docs),
         "source_file_count": len(source_files),
         "source_roles": dict(sorted(Counter(_application_file_role(path) for path in source_files).items())),
-        "documents_path": str(docs_path),
         "source_fingerprints": fingerprints,
         "errors": errors,
     }
-    tmp_manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp_docs.replace(docs_path)
-    tmp_manifest.replace(manifest_path)
+    rotation = write_rotating_index(_index_dir(), docs, manifest)
     return {
         "status": "refreshed",
         "scope": "patent_application",
         "document_count": len(docs),
         "source_file_count": len(source_files),
-        "manifest_path": str(manifest_path),
-        "documents_path": str(docs_path),
+        "manifest_path": rotation["manifest_path"],
+        "documents_path": rotation["documents_path"],
+        "active_slot": rotation["active_slot"],
+        "previous_active_slot": rotation["previous_active_slot"],
         "errors": errors,
     }
 
@@ -884,6 +879,7 @@ def application_index_status() -> dict[str, Any]:
         "document_count": manifest.get("document_count"),
         "source_file_count": manifest.get("source_file_count"),
         "source_roles": manifest.get("source_roles"),
+        "rotation": rotation_status(_index_dir()),
         "manifest": manifest,
         "feedback": {
             "root": str(_feedback_root()),
@@ -1045,11 +1041,11 @@ def _case_index_dir(case_id: str) -> Path:
 
 
 def _case_documents_path(case_id: str) -> Path:
-    return _case_index_dir(case_id) / "documents.jsonl"
+    return active_documents_path(_case_index_dir(case_id))
 
 
 def _case_manifest_path(case_id: str) -> Path:
-    return _case_index_dir(case_id) / "manifest.json"
+    return active_manifest_path(_case_index_dir(case_id))
 
 
 def _read_case_metadata(case_id: str) -> dict[str, Any]:
@@ -1492,15 +1488,6 @@ def refresh_failed_patent_case_index(case_id: str) -> dict[str, Any]:
                 }
             )
 
-    output_dir = _case_index_dir(safe_id)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    docs_path = _case_documents_path(safe_id)
-    manifest_path = _case_manifest_path(safe_id)
-    tmp_docs = output_dir / "documents.jsonl.tmp"
-    tmp_manifest = output_dir / "manifest.json.tmp"
-    with tmp_docs.open("w", encoding="utf-8") as file:
-        for doc in docs:
-            file.write(json.dumps(doc, ensure_ascii=False, sort_keys=True) + "\n")
     fingerprints = [
         {"path": str(path), "size_bytes": path.stat().st_size, "sha1": _hash_file(path)}
         for path in source_files
@@ -1516,16 +1503,13 @@ def refresh_failed_patent_case_index(case_id: str) -> dict[str, Any]:
         "document_count": len(docs),
         "source_file_count": len(source_files),
         "source_roles": dict(sorted(Counter(_failed_case_file_role(path) for path in source_files).items())),
-        "documents_path": str(docs_path),
         "source_fingerprints": fingerprints,
         "errors": errors,
         "is_isolated_case_index": True,
     }
-    tmp_manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp_docs.replace(docs_path)
-    tmp_manifest.replace(manifest_path)
+    rotation = write_rotating_index(_case_index_dir(safe_id), docs, manifest)
     metadata = _read_case_metadata(safe_id)
-    metadata["index"] = manifest
+    metadata["index"] = {**manifest, "active_slot": rotation["active_slot"], "manifest_path": rotation["manifest_path"]}
     _write_case_metadata(safe_id, metadata)
     return {
         "status": "refreshed",
@@ -1533,8 +1517,10 @@ def refresh_failed_patent_case_index(case_id: str) -> dict[str, Any]:
         "case_id": safe_id,
         "document_count": len(docs),
         "source_file_count": len(source_files),
-        "manifest_path": str(manifest_path),
-        "documents_path": str(docs_path),
+        "manifest_path": rotation["manifest_path"],
+        "documents_path": rotation["documents_path"],
+        "active_slot": rotation["active_slot"],
+        "previous_active_slot": rotation["previous_active_slot"],
         "errors": errors,
     }
 
@@ -1564,6 +1550,7 @@ def failed_patent_case_index_status(case_id: str) -> dict[str, Any]:
         "document_count": manifest.get("document_count"),
         "source_file_count": manifest.get("source_file_count"),
         "source_roles": manifest.get("source_roles"),
+        "rotation": rotation_status(_case_index_dir(safe_id)),
         "manifest": manifest,
         "files": files,
     }

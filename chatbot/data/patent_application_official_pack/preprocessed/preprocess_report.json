@@ -1,6 +1,6 @@
 {
   "status": "preprocessed",
-  "generated_at": "2026-06-04T14:28:44",
+  "generated_at": "2026-06-05T11:01:55",
   "root": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack",
   "active_file_count": 10,
   "roles": {
@@ -12,10 +12,12 @@
   "index": {
     "status": "refreshed",
     "scope": "patent_application",
-    "document_count": 1229,
+    "document_count": 1233,
     "source_file_count": 10,
-    "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/manifest.json",
-    "documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/documents.jsonl",
+    "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/green/manifest.json",
+    "documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/green/documents.jsonl",
+    "active_slot": "green",
+    "previous_active_slot": "blue",
     "errors": []
   },
   "active_files": [
@@ -26,8 +28,8 @@
       "role": "application_procedure",
       "suffix": ".pdf",
       "size_bytes": 31198191,
-      "text_char_count": 165580,
-      "chunk_estimate": 98,
+      "text_char_count": 172895,
+      "chunk_estimate": 101,
       "usable": true,
       "error": null
     },
@@ -38,8 +40,8 @@
       "role": "prior_art_search",
       "suffix": ".pdf",
       "size_bytes": 5035724,
-      "text_char_count": 63263,
-      "chunk_estimate": 39,
+      "text_char_count": 62102,
+      "chunk_estimate": 38,
       "usable": true,
       "error": null
     },
@@ -50,8 +52,8 @@
       "role": "application_procedure",
       "suffix": ".pdf",
       "size_bytes": 15614567,
-      "text_char_count": 14809,
-      "chunk_estimate": 10,
+      "text_char_count": 5554,
+      "chunk_estimate": 4,
       "usable": true,
       "error": null
     },
@@ -62,8 +64,8 @@
       "role": "examination_standard",
       "suffix": ".pdf",
       "size_bytes": 3101309,
-      "text_char_count": 413340,
-      "chunk_estimate": 255,
+      "text_char_count": 404135,
+      "chunk_estimate": 252,
       "usable": true,
       "error": null
     },
@@ -74,8 +76,8 @@
       "role": "examination_standard",
       "suffix": ".pdf",
       "size_bytes": 24213255,
-      "text_char_count": 1054932,
-      "chunk_estimate": 651,
+      "text_char_count": 1063423,
+      "chunk_estimate": 655,
       "usable": true,
       "error": null
     },
@@ -86,8 +88,8 @@
       "role": "examination_standard",
       "suffix": ".pdf",
       "size_bytes": 49923025,
-      "text_char_count": 269161,
-      "chunk_estimate": 170,
+      "text_char_count": 278112,
+      "chunk_estimate": 175,
       "usable": true,
       "error": null
     },
@@ -97,8 +99,8 @@
       "file_name": "patent_application_process_guide.md",
       "role": "application_procedure",
       "suffix": ".md",
-      "size_bytes": 5351,
-      "text_char_count": 2608,
+      "size_bytes": 6516,
+      "text_char_count": 3221,
       "chunk_estimate": 2,
       "usable": true,
       "error": null
@@ -109,8 +111,8 @@
       "file_name": "patent_rejection_failure_response.md",
       "role": "rejection_failure_feedback",
       "suffix": ".md",
-      "size_bytes": 4876,
-      "text_char_count": 2302,
+      "size_bytes": 6418,
+      "text_char_count": 3101,
       "chunk_estimate": 2,
       "usable": true,
       "error": null
@@ -121,9 +123,9 @@
       "file_name": "patent_rejection_notice_original_sources.md",
       "role": "rejection_failure_feedback",
       "suffix": ".md",
-      "size_bytes": 3367,
-      "text_char_count": 1593,
-      "chunk_estimate": 1,
+      "size_bytes": 4534,
+      "text_char_count": 2221,
+      "chunk_estimate": 2,
       "usable": true,
       "error": null
     },
@@ -133,9 +135,9 @@
       "file_name": "prior_art_search_workflow.md",
       "role": "prior_art_search",
       "suffix": ".md",
-      "size_bytes": 3167,
-      "text_char_count": 1684,
-      "chunk_estimate": 1,
+      "size_bytes": 4460,
+      "text_char_count": 2262,
+      "chunk_estimate": 2,
       "usable": true,
       "error": null
     }
