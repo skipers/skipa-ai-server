@@ -143,7 +143,6 @@ def patent_summary(patent_dir: Path) -> dict[str, Any]:
         "has_latest_pdf": latest_pdf.exists(),
         "has_latest_report": latest_report.exists(),
         "has_patent_index": (patent_dir / "index" / "faiss" / "index.faiss").exists(),
-        "has_wiki_index": (patent_dir / "wiki" / "vectorstore" / "faiss" / "index.faiss").exists(),
         "has_local_vectorstore": (patent_dir / "index" / "vectorstore" / "manifest.json").exists(),
         "chunk_count": _count_lines(all_chunks),
         "report_json_count": _count_files(patent_dir / "reports" / "json", "*.json"),
@@ -173,7 +172,6 @@ def patent_detail(patent_id: str, include_files: bool = True) -> dict[str, Any]:
         "latest_report": _file_summary(patent_dir / "reports" / "json" / "latest.json"),
         "all_chunks": _file_summary(patent_dir / "extracted" / "all_chunks.jsonl"),
         "patent_index": _file_summary(patent_dir / "index" / "faiss" / "index.faiss"),
-        "wiki_index": _file_summary(patent_dir / "wiki" / "vectorstore" / "faiss" / "index.faiss"),
         "local_vectorstore": _file_summary(patent_dir / "index" / "vectorstore" / "manifest.json"),
     }
     if include_files:

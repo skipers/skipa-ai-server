@@ -1,6 +1,6 @@
 {
   "scope": "patent:10-1959619",
-  "refreshed_at": "2026-06-05T10:59:31",
+  "refreshed_at": "2026-06-05T11:50:04",
   "vector_dimensions": 256,
   "backend": "local_hashed_bow",
   "source": "human_reviewed",
@@ -17,15 +17,15 @@
       "sha1": "fa5c8338992f88b202a627212ccc057f20e7ea68"
     }
   ],
-  "documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-1959619/index/vectorstore/green/documents.jsonl",
-  "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-1959619/index/vectorstore/green/manifest.json",
-  "active_slot": "green",
-  "previous_active_slot": "blue",
+  "documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-1959619/index/vectorstore/blue/documents.jsonl",
+  "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-1959619/index/vectorstore/blue/manifest.json",
+  "active_slot": "blue",
+  "previous_active_slot": "green",
   "rotation": {
     "strategy": "blue_green",
-    "active_slot": "green",
-    "previous_active_slot": "blue",
-    "activated_at": "2026-06-05T10:59:31",
-    "standby_slot": "blue"
+    "active_slot": "blue",
+    "previous_active_slot": "green",
+    "activated_at": "2026-06-05T11:50:04",
+    "standby_slot": "green"
   }
 }

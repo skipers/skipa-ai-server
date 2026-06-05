@@ -1,6 +1,6 @@
 {
   "scope": "patent:10-2893083",
-  "refreshed_at": "2026-06-05T10:59:31",
+  "refreshed_at": "2026-06-05T11:44:49",
   "vector_dimensions": 256,
   "backend": "local_hashed_bow",
   "source": "human_reviewed",
@@ -30,7 +30,7 @@
     "strategy": "blue_green",
     "active_slot": "green",
     "previous_active_slot": "blue",
-    "activated_at": "2026-06-05T10:59:31",
+    "activated_at": "2026-06-05T11:44:49",
     "standby_slot": "blue"
   }
 }

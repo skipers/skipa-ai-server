@@ -14,8 +14,8 @@ const workflowText = {
   audit: "LangGraph wiki audit agent가 특허 원문, 보고서 JSON, chunk, wiki 데이터를 스캔해서 EMPTY/OCR_NOISE/SECRET/DUPLICATE 같은 나쁜 데이터 후보를 찾습니다.",
   review: "감사 결과는 audit.json과 review.md로 저장됩니다. 사람은 finding별 excerpt와 metadata를 보고 제외할 항목을 확정합니다.",
   apply: "선택한 finding_id에 연결된 문서만 제외하고 나머지를 approved_context.md와 approved_documents.jsonl로 저장합니다.",
-  vectorstore: "승인된 approved_documents.jsonl을 기준으로 원문/보고서 core vectorstore와 특허별 wiki vectorstore를 분리해서 다시 만듭니다.",
-  query: "질문이 들어오면 가벼운 의도 판단 뒤 특허 원문/보고서를 core로 검색합니다. 최신/시장/경쟁사처럼 web 필요 질문일 때만 특허별 wiki gate를 먼저 확인하고, 없으면 웹 근거를 붙입니다.",
+  vectorstore: "승인된 approved_documents.jsonl을 기준으로 원문/보고서 core vectorstore와 분야별 wiki vectorstore를 각각 재빌드합니다. wiki는 특허별이 아닌 기술 분야(소프트웨어_IT, 화학_소재 등) 단위로 관리됩니다.",
+  query: "질문이 들어오면 가벼운 의도 판단 뒤 특허 원문/보고서를 core로 검색합니다. 최신/시장/경쟁사처럼 web 필요 질문일 때만 해당 분야(topic) wiki gate를 먼저 확인하고, 없으면 웹 근거를 붙입니다.",
 };
 
 const workflowGraphInfo = {
@@ -26,7 +26,7 @@ const workflowGraphInfo = {
     steps: [
       ["resolve_history_context", "이전 대화와 선택 특허를 현재 질문 맥락으로 정리"],
       ["route_question", "의도, 웹검색 필요 여부, 표/다이어그램 필요 여부 판단"],
-      ["retrieve_wiki_context", "web 필요 질문일 때만 감사 후 승인된 특허별 wiki vectorstore 근거 검색"],
+      ["retrieve_wiki_context", "web 필요 질문일 때만 해당 특허의 기술 분야(topic) wiki vectorstore 근거 검색"],
       ["retrieve_web_context", "wiki 근거가 없고 최신성/외부 정보가 필요할 때만 웹 근거 수집"],
       ["answer_from_patent_context", "특허 원문/보고서 core vectorstore와 wiki/web 보강 근거로 답변 생성"],
       ["finish_answer", "근거 카드, 성능 지표, 워크플로우 trace 반환"],
@@ -52,7 +52,7 @@ const workflowGraphInfo = {
   wiki: {
     title: "Wiki 감사/승인 워크플로우",
     endpoint: "/api/v1/wiki/agent/mermaid",
-    summary: "wiki와 특허/보고서 데이터를 감사하고, 나쁜 데이터 후보를 제외한 승인 Markdown/JSONL만 vectorstore에 반영합니다.",
+    summary: "wiki와 특허/보고서 데이터를 감사하고, 나쁜 데이터 후보를 제외한 승인 Markdown/JSONL만 분야별 wiki vectorstore에 반영합니다. wiki는 기술 분야(소프트웨어_IT / 화학_소재 / 반도체_전자 등)별 폴더로 관리되며 00시 자동 재빌드됩니다.",
     steps: [
       ["route_request", "audit/review/apply/refresh/status 모드 분기"],
       ["run_audit", "EMPTY, OCR_NOISE, SECRET, DUPLICATE 등 품질 규칙 검사"],
@@ -65,7 +65,7 @@ const workflowGraphInfo = {
   ingestion: {
     title: "전처리/RAG 재색인 워크플로우",
     endpoint: "/api/v1/patent-chat/ingestion/mermaid",
-    summary: "특허별/전체 인덱스를 재생성하고 승인 vectorstore 갱신 시 원문/보고서 core와 특허별 wiki를 분리합니다.",
+    summary: "특허별/전체 인덱스를 재생성하고 승인 vectorstore 갱신 시 원문/보고서 core vectorstore와 분야별 wiki vectorstore를 각각 구성합니다.",
     steps: [
       ["inspect_request", "요청 scope와 특허 ID, Hybrid Retrieval 엔진 상태 확인"],
       ["run_reindex", "scope에 따라 특허별/global/business 인덱스 생성"],
@@ -845,6 +845,66 @@ async function showApplicationStatus() {
   showModal("출원 도우미 상태", jsonBlock(status));
 }
 
+async function loadTopicWiki() {
+  const button = $("loadTopicsButton");
+  setBusy(button, true, "불러오는 중");
+  try {
+    const data = await api("/api/v1/wiki/topics");
+    renderTopicWiki(data);
+    setStatus(`wiki 분야 ${data.active_count ?? 0}개 활성`);
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function refreshTopicWiki() {
+  const button = $("refreshTopicsButton");
+  setBusy(button, true, "재빌드 중");
+  try {
+    const result = await api("/api/v1/wiki/topics/refresh", { method: "POST" });
+    setStatus(`wiki 재빌드 완료 · 분야 ${result.topic_wiki_vectorstores?.length ?? 0}개`);
+    showModal("Wiki 재빌드 결과", jsonBlock(result));
+    loadTopicWiki().catch(() => {});
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+function renderTopicWiki(data) {
+  const grid = $("topicGrid");
+  if (!grid) return;
+  const topics = data.topics || [];
+  $("topicWikiSummary").textContent = `분야 ${topics.length}개 정의 · 활성 ${data.active_count ?? 0}개 (web_search_data 또는 approved_context.md 있음)`;
+  grid.innerHTML = "";
+  if (!topics.length) {
+    grid.innerHTML = `<div class="empty">분야 정보가 없습니다.</div>`;
+    return;
+  }
+  topics.forEach((topic) => {
+    const article = document.createElement("article");
+    article.className = "data-card";
+    const slot = topic.rotation?.active_slot || "-";
+    const standby = topic.rotation?.standby_slot || "-";
+    article.innerHTML = `
+      <h3>${escapeHtml(topic.topic)}</h3>
+      <p>문서 ${escapeHtml(topic.document_count ?? 0)}개 · draft ${escapeHtml(topic.draft_count ?? 0)}개 · 갱신 ${escapeHtml(topic.refreshed_at ? topic.refreshed_at.slice(0, 16) : "없음")}</p>
+      <div class="chip-row">
+        ${chip(topic.approved_md_exists ? "approved_context.md ✓" : "approved 없음", topic.approved_md_exists ? "approved" : "review")}
+        ${chip(topic.vectorstore_exists ? `VS ✓ (${slot}→${standby})` : "VS 없음", topic.vectorstore_exists ? "approved" : "review")}
+        ${chip(topic.has_data ? "활성" : "대기", topic.has_data ? "approved" : "")}
+      </div>
+      <div class="data-actions">
+        <button type="button" data-action="detail">상세</button>
+      </div>
+    `;
+    article.querySelector('[data-action="detail"]').addEventListener("click", async () => {
+      const detail = await api(`/api/v1/wiki/topics/${encodeURIComponent(topic.topic)}`);
+      showModal(`${topic.topic} wiki 상태`, jsonBlock(detail));
+    });
+    grid.appendChild(article);
+  });
+}
+
 async function refreshApprovedVectorstore() {
   const button = $("refreshApprovedVectorstoreButton");
   setBusy(button, true, "갱신 중");
@@ -1008,6 +1068,8 @@ function bindEvents() {
   $("reloadButton").addEventListener("click", () => loadBaseData().catch((error) => setStatus(error.message)));
   $("loadDataButton").addEventListener("click", () => loadBaseData().catch((error) => setStatus(error.message)));
   $("refreshApprovedVectorstoreButton").addEventListener("click", () => refreshApprovedVectorstore().catch((error) => setStatus(error.message)));
+  $("loadTopicsButton").addEventListener("click", () => loadTopicWiki().catch((error) => setStatus(error.message)));
+  $("refreshTopicsButton").addEventListener("click", () => refreshTopicWiki().catch((error) => setStatus(error.message)));
   $("reindexButton").addEventListener("click", () => reindexSelected().catch((error) => setStatus(error.message)));
   $("globalReindexButton").addEventListener("click", () => checkGlobalIndex().catch((error) => setStatus(error.message)));
   $("runAuditButton").addEventListener("click", () => runAudit().catch((error) => setStatus(error.message)));

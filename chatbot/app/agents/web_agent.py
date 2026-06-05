@@ -6,10 +6,10 @@ from datetime import datetime
 import hashlib
 import json
 
-from ..config import PATENTS_ROOT
 from ..rag.quality import compact_text, filter_usable_hits, preprocess_evidence_text
 from ..rag.web_answers import search_web
 from ..vectorstore import auto_approve_web_draft, is_duplicate_web_query
+from ..wiki.topics import get_patent_topic, topic_draft_dir
 from .state import ChatAgentState
 
 
@@ -27,7 +27,8 @@ def _archive_web_results(state: ChatAgentState, result: dict) -> str | None:
     if not results:
         return None
     patent_id = state.get("resolved_patent_id") or state.get("patent_id") or "_global"
-    wiki_dir = PATENTS_ROOT / patent_id / "wiki" / "web_search_drafts"
+    topic = get_patent_topic(patent_id) if patent_id != "_global" else "_general"
+    wiki_dir = topic_draft_dir(topic)
     wiki_dir.mkdir(parents=True, exist_ok=True)
     path = wiki_dir / (datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".md")
     query = str(state.get("query") or "")
@@ -66,6 +67,7 @@ def _archive_web_results(state: ChatAgentState, result: dict) -> str | None:
             "",
             f"- Provider: {result.get('provider') or 'unknown'}",
             f"- Patent ID: `{patent_id}`",
+            f"- Topic: `{topic}`",
             f"- Created at: {datetime.now().isoformat(timespec='seconds')}",
             "",
             "### Raw JSON",

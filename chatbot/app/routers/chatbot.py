@@ -76,6 +76,15 @@ from ..store import (
     wiki_audit_report,
 )
 from ..vectorstore import nightly_reindex_all, normalize_wiki_context_files, refresh_vectorstores, run_audit, vectorstore_status
+from ..wiki.topics import (
+    TOPIC_SLUGS,
+    all_active_topic_slugs,
+    get_patent_topic,
+    reclassify_all_patents,
+    topic_approved_md,
+    topic_draft_dir,
+    topic_vectorstore_root,
+)
 
 
 router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
@@ -412,6 +421,110 @@ def post_wiki_audit_auto_refresh() -> dict:
     if isinstance(apply_result, dict):
         apply_result["agent_trace"] = result.get("trace", [])
     return apply_result
+
+
+@wiki_router.get("/topics", summary="분야별 wiki vectorstore 목록 및 상태")
+def get_wiki_topics() -> dict:
+    """분야(topic) 목록과 각 분야의 approved_context.md 존재 여부, vectorstore 문서 수를 반환합니다."""
+    from ..index_rotation import active_manifest_path, rotation_status
+    from ..vectorstore import _read_json
+
+    active = all_active_topic_slugs()
+    topics = []
+    for slug in TOPIC_SLUGS:
+        vs_root = topic_vectorstore_root(slug)
+        vs_manifest = _read_json(active_manifest_path(vs_root))
+        approved = topic_approved_md(slug)
+        draft_dir = topic_draft_dir(slug)
+        draft_count = sum(1 for f in draft_dir.rglob("*.md") if f.is_file()) if draft_dir.exists() else 0
+        topics.append(
+            {
+                "topic": slug,
+                "has_data": slug in active,
+                "approved_md_exists": approved.exists(),
+                "draft_count": draft_count,
+                "vectorstore_exists": active_manifest_path(vs_root).exists(),
+                "document_count": vs_manifest.get("document_count", 0),
+                "refreshed_at": vs_manifest.get("refreshed_at"),
+                "rotation": rotation_status(vs_root),
+                "paths": {
+                    "web_search_data": str(draft_dir),
+                    "approved_md": str(approved),
+                    "vectorstore": str(vs_root),
+                },
+            }
+        )
+    return {"topics": topics, "active_count": len(active), "predefined_slugs": TOPIC_SLUGS}
+
+
+@wiki_router.get("/topics/{topic_slug}", summary="특정 분야 wiki 상태 조회")
+def get_wiki_topic_detail(topic_slug: str) -> dict:
+    """특정 분야의 approved_context.md 내용 미리보기와 최근 draft 목록을 반환합니다."""
+    from fastapi import HTTPException
+
+    if "/" in topic_slug or "\\" in topic_slug:
+        raise HTTPException(status_code=400, detail="잘못된 topic_slug입니다.")
+    from ..index_rotation import active_manifest_path, rotation_status
+    from ..vectorstore import _read_json
+
+    vs_root = topic_vectorstore_root(topic_slug)
+    vs_manifest = _read_json(active_manifest_path(vs_root))
+    approved = topic_approved_md(topic_slug)
+    draft_dir = topic_draft_dir(topic_slug)
+    drafts = []
+    if draft_dir.exists():
+        for f in sorted(draft_dir.rglob("*.md"), reverse=True)[:10]:
+            drafts.append({"name": f.name, "size_bytes": f.stat().st_size, "path": str(f)})
+    preview = ""
+    if approved.exists():
+        text = approved.read_text(encoding="utf-8", errors="ignore")
+        preview = text[:2000] + ("…" if len(text) > 2000 else "")
+    return {
+        "topic": topic_slug,
+        "approved_md_exists": approved.exists(),
+        "approved_md_preview": preview,
+        "approved_md_path": str(approved),
+        "recent_drafts": drafts,
+        "vectorstore_exists": active_manifest_path(vs_root).exists(),
+        "document_count": vs_manifest.get("document_count", 0),
+        "refreshed_at": vs_manifest.get("refreshed_at"),
+        "rotation": rotation_status(vs_root),
+    }
+
+
+@wiki_router.post("/topics/refresh", summary="분야별 wiki vectorstore 전체 재빌드 (blue/green)")
+def post_wiki_topics_refresh() -> dict:
+    """모든 분야의 wiki vectorstore를 blue/green 방식으로 재빌드합니다. 자정 nightly_reindex에 포함됩니다."""
+    result = refresh_vectorstores(use_reviewed=True)
+    return {
+        "status": "refreshed",
+        "topic_wiki_vectorstores": result.get("topic_wiki_vectorstores", []),
+        "global_wiki_vectorstore": result.get("global_wiki_vectorstore", {}),
+        "refreshed_at": result.get("refreshed_at"),
+    }
+
+
+@wiki_router.post("/topics/reclassify", summary="전체 특허 분야 재분류 (새 폴더 자동 생성)")
+def post_reclassify_topics() -> dict:
+    """모든 특허 제목을 다시 분석해 분야를 재할당합니다.
+    기존 predefined 분야에 들어가지 못하면 제목에서 새 분야 slug를 추출해 WIKI_ROOT에 폴더를 만듭니다.
+    """
+    result = reclassify_all_patents()
+    from collections import Counter
+    counts = dict(Counter(result.values()))
+    return {"status": "reclassified", "patent_count": len(result), "topic_counts": counts, "mapping": result}
+
+
+@wiki_router.get("/topics/{topic_slug}/patent", summary="특허 → 분야 매핑 조회")
+def get_patent_topic_mapping(patent_id: str = Query(..., description="매핑을 확인할 특허 ID")) -> dict:
+    """patent_id가 어떤 분야에 속하는지 반환합니다."""
+    topic = get_patent_topic(patent_id)
+    return {
+        "patent_id": patent_id,
+        "topic": topic,
+        "vectorstore_path": str(topic_vectorstore_root(topic)),
+        "approved_md_path": str(topic_approved_md(topic)),
+    }
 
 
 @wiki_router.post("/agent/run", summary="Wiki LangGraph agent 직접 실행")

@@ -22,7 +22,7 @@ from typing import Any, Iterable
 
 from fastapi import HTTPException
 
-from .config import BUSINESS_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT
+from .config import BUSINESS_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT, WIKI_ROOT
 from .index_rotation import active_documents_path, active_manifest_path, rotation_status, write_rotating_index
 from .rag.quality import is_usable_evidence, preprocess_evidence_text
 
@@ -320,6 +320,23 @@ def _wiki_documents(patent_id: str, wiki_root: Path) -> Iterable[dict[str, Any]]
                 yield doc
 
 
+def _topic_wiki_documents(topic_slug: str) -> Iterable[dict[str, Any]]:
+    """Yield approved wiki documents for a topic from WIKI_ROOT/{topic}/approved_context.md."""
+    from .wiki.topics import topic_approved_md
+    approved_md = topic_approved_md(topic_slug)
+    if not approved_md.exists():
+        return
+    doc = _document(
+        patent_id=f"_wiki_{topic_slug}",
+        text=approved_md.read_text(encoding="utf-8", errors="ignore"),
+        source_path=approved_md,
+        source_type="WIKI",
+        metadata={"title": f"{topic_slug} wiki", "file_name": approved_md.name, "topic": topic_slug},
+    )
+    if doc:
+        yield doc
+
+
 def _application_feedback_documents(patent_id: str, patent_dir: Path) -> Iterable[dict[str, Any]]:
     feedback_root = patent_dir / "reports" / "application_feedback"
     latest_md = feedback_root / "latest.md"
@@ -391,7 +408,8 @@ def _load_reviewed_documents(patent_id: str) -> list[dict[str, Any]]:
 
 
 def normalize_wiki_context_files() -> dict[str, Any]:
-    """Rewrite existing approved wiki contexts into the current Q/A/metadata format."""
+    """Rewrite approved wiki contexts from reviewed docs into topic-based approved_context.md."""
+    from .wiki.topics import get_patent_topic, topic_approved_md, topic_vectorstore_root
 
     updated = []
     for patent_id in _patent_ids():
@@ -399,7 +417,6 @@ def normalize_wiki_context_files() -> dict[str, Any]:
         if not reviewed_path.exists():
             continue
         reviewed_dir = PATENTS_ROOT / patent_id / "reviewed"
-        wiki_dir = PATENTS_ROOT / patent_id / "wiki"
         manifest = _read_json(reviewed_dir / "manifest.json")
         audit_id = str(manifest.get("audit_id") or "unknown")
         approved_at = str(manifest.get("approved_at") or _now())
@@ -414,18 +431,23 @@ def normalize_wiki_context_files() -> dict[str, Any]:
                 continue
             docs.append(doc)
 
-        wiki_dir.mkdir(parents=True, exist_ok=True)
-        wiki_md_path = wiki_dir / "approved_context.md"
+        topic = get_patent_topic(patent_id)
+        wiki_md_path = topic_approved_md(topic)
+        wiki_md_path.parent.mkdir(parents=True, exist_ok=True)
         wiki_markdown = _wiki_markdown_from_approved_docs(patent_id, docs, audit_id=audit_id)
-        wiki_md_path.write_text(wiki_markdown, encoding="utf-8")
+        # Append to topic-level file rather than overwriting
+        with wiki_md_path.open("a", encoding="utf-8") as f:
+            f.write(wiki_markdown)
+
         wiki_doc = _document(
-            patent_id=patent_id,
+            patent_id=f"_wiki_{topic}",
             text=wiki_markdown,
             source_path=wiki_md_path,
             source_type="WIKI",
             metadata={
-                "title": f"{patent_id} 감사 승인 Wiki Context",
+                "title": f"{topic} 감사 승인 Wiki Context",
                 "file_name": wiki_md_path.name,
+                "topic": topic,
                 "human_review_source": "approved_context",
                 "human_review_status": "approved",
                 "human_review_audit_id": audit_id,
@@ -444,6 +466,7 @@ def normalize_wiki_context_files() -> dict[str, Any]:
         updated.append(
             {
                 "patent_id": patent_id,
+                "topic": topic,
                 "wiki_markdown_path": str(wiki_md_path),
                 "approved_documents_path": str(reviewed_path),
                 "document_count": len(docs),
@@ -471,7 +494,6 @@ def collect_patent_documents(patent_id: str, *, use_reviewed: bool = True) -> li
             docs.append(doc)
 
     docs.extend(_application_feedback_documents(patent_id, patent_dir) or [])
-    docs.extend(_wiki_documents(patent_id, patent_dir / "wiki") or [])
     return docs
 
 
@@ -514,8 +536,9 @@ def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: s
 
 
 def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
+    from .wiki.topics import all_active_topic_slugs, topic_vectorstore_root
+
     patent_results = []
-    patent_wiki_results = []
     global_docs: list[dict[str, Any]] = []
     excluded_by_policy: dict[str, int] = defaultdict(int)
     source = "human_reviewed" if use_reviewed else "raw"
@@ -524,7 +547,6 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
         patent_dir = PATENTS_ROOT / patent_id
         docs = collect_patent_documents(patent_id, use_reviewed=use_reviewed)
         core_docs = [doc for doc in docs if _is_core_search_doc(doc)]
-        patent_wiki_docs = [doc for doc in docs if _is_approved_wiki_doc(doc)]
         for doc in docs:
             if not _is_core_search_doc(doc) and not _is_wiki_doc(doc):
                 excluded_by_policy[_source_type(doc) or "UNKNOWN"] += 1
@@ -532,25 +554,34 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
         patent_results.append(
             _write_vectorstore(patent_dir / "index" / "vectorstore", core_docs, scope=f"patent:{patent_id}", source=source)
         )
-        patent_wiki_results.append(
-            _write_vectorstore(patent_dir / "wiki" / "vectorstore" / "local", patent_wiki_docs, scope=f"wiki:{patent_id}", source=source)
-        )
 
     business_docs = _business_documents()
     for doc in business_docs:
         excluded_by_policy[_source_type(doc) or "BUSINESS"] += 1
-    business_result = _write_vectorstore(
+    _write_vectorstore(
         BUSINESS_ROOT / "index" / "vectorstore",
         [],
         scope="business-disabled",
         source="disabled_non_core_web_routing",
     )
     global_result = _write_vectorstore(PATENTS_ROOT / "_global" / "index" / "vectorstore", global_docs, scope="global", source=source)
+
+    # Build per-topic wiki vectorstores (blue/green)
+    topic_wiki_results = []
+    all_wiki_docs: list[dict[str, Any]] = []
+    for topic_slug in all_active_topic_slugs():
+        topic_docs = list(_topic_wiki_documents(topic_slug))
+        all_wiki_docs.extend(topic_docs)
+        topic_wiki_results.append(
+            _write_vectorstore(topic_vectorstore_root(topic_slug), topic_docs, scope=f"wiki:{topic_slug}", source=source)
+        )
+
+    # Global wiki = merge of all topic wikis
     global_wiki_result = _write_vectorstore(
-        PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local",
-        [],
-        scope="wiki:global-disabled",
-        source="disabled_patent_local_only",
+        WIKI_ROOT / "_global" / "vectorstore",
+        all_wiki_docs,
+        scope="wiki:global",
+        source=source,
     )
 
     return {
@@ -559,27 +590,25 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
         "source": source,
         "patent_count": len(patent_results),
         "patent_vectorstores": patent_results,
-        "patent_wiki_vectorstores": patent_wiki_results,
-        "business_vectorstore": business_result,
+        "topic_wiki_vectorstores": topic_wiki_results,
         "global_vectorstore": global_result,
         "global_wiki_vectorstore": global_wiki_result,
         "core_source_types": sorted(CORE_SEARCH_SOURCE_TYPES),
         "excluded_from_core_search": dict(sorted(excluded_by_policy.items())),
-        "wiki_policy": "wiki documents are stored only in each patent's wiki/vectorstore/local and are checked before web search",
-        "web_policy": "non-core data is excluded from core vectorstores; questions without original/report/wiki evidence should route to web search",
+        "wiki_policy": "wiki is topic-based: WIKI_ROOT/{topic_slug}/vectorstore with blue/green rotation",
+        "web_policy": "non-core data is excluded from core vectorstores; questions without original/report/wiki evidence route to web search",
     }
 
 
 def vectorstore_status() -> dict[str, Any]:
+    from .wiki.topics import all_active_topic_slugs, topic_vectorstore_root, topic_approved_md
+
     patent_status = []
     for patent_id in _patent_ids():
         patent_dir = PATENTS_ROOT / patent_id
         core_root = patent_dir / "index" / "vectorstore"
-        wiki_root = patent_dir / "wiki" / "vectorstore" / "local"
         manifest_path = active_manifest_path(core_root)
-        wiki_manifest_path = active_manifest_path(wiki_root)
         manifest = _read_json(manifest_path)
-        wiki_manifest = _read_json(wiki_manifest_path)
         reviewed_path = _reviewed_docs_path(patent_id)
         patent_status.append(
             {
@@ -589,26 +618,37 @@ def vectorstore_status() -> dict[str, Any]:
                 "refreshed_at": manifest.get("refreshed_at"),
                 "manifest_path": str(manifest_path),
                 "rotation": rotation_status(core_root),
-                "wiki_vectorstore_exists": wiki_manifest_path.exists(),
-                "wiki_document_count": wiki_manifest.get("document_count", 0),
-                "wiki_manifest_path": str(wiki_manifest_path),
-                "wiki_rotation": rotation_status(wiki_root),
-                "wiki_markdown_path": str(patent_dir / "wiki" / "approved_context.md")
-                if (patent_dir / "wiki" / "approved_context.md").exists()
-                else None,
                 "has_human_reviewed_source": reviewed_path.exists(),
                 "approved_markdown_path": str(_reviewed_md_path(patent_id)) if _reviewed_md_path(patent_id).exists() else None,
             }
         )
+
+    topic_status = []
+    for topic_slug in all_active_topic_slugs():
+        vs_root = topic_vectorstore_root(topic_slug)
+        vs_manifest = _read_json(active_manifest_path(vs_root))
+        approved = topic_approved_md(topic_slug)
+        topic_status.append(
+            {
+                "topic": topic_slug,
+                "vectorstore_exists": active_manifest_path(vs_root).exists(),
+                "document_count": vs_manifest.get("document_count", 0),
+                "refreshed_at": vs_manifest.get("refreshed_at"),
+                "approved_md_exists": approved.exists(),
+                "approved_md_path": str(approved),
+                "rotation": rotation_status(vs_root),
+            }
+        )
+
     global_root = PATENTS_ROOT / "_global" / "index" / "vectorstore"
-    global_wiki_root = PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local"
+    global_wiki_root = WIKI_ROOT / "_global" / "vectorstore"
     global_manifest = _read_json(active_manifest_path(global_root))
     global_wiki_manifest = _read_json(active_manifest_path(global_wiki_root))
     return {
         "backend": "local_hashed_bow",
         "rotation_policy": "blue_green; readers use active_slot.json and writers build the standby slot before switching",
         "core_source_types": sorted(CORE_SEARCH_SOURCE_TYPES),
-        "core_policy": "patent/report only; visual, wiki, business and other auxiliary data are excluded from core vectorstores",
+        "core_policy": "patent/report only; wiki is topic-based in WIKI_ROOT/{topic}/vectorstore",
         "global": {
             "exists": bool(global_manifest),
             "document_count": global_manifest.get("document_count", 0),
@@ -621,10 +661,11 @@ def vectorstore_status() -> dict[str, Any]:
             "exists": bool(global_wiki_manifest),
             "document_count": global_wiki_manifest.get("document_count", 0),
             "source": global_wiki_manifest.get("source"),
-            "policy": "disabled; wiki is patent-local only",
+            "policy": "merged wiki from all topic vectorstores",
             "manifest_path": str(active_manifest_path(global_wiki_root)),
             "rotation": rotation_status(global_wiki_root),
         },
+        "topic_wiki": topic_status,
         "patents": patent_status,
     }
 
@@ -633,8 +674,10 @@ def _vector_documents_path(*, patent_id: str | None, source_types: set[str] | No
     requested = set(source_types or [])
     if requested and requested <= WIKI_SEARCH_SOURCE_TYPES:
         if patent_id:
-            return active_documents_path(PATENTS_ROOT / patent_id / "wiki" / "vectorstore" / "local")
-        return active_documents_path(PATENTS_ROOT / "_global" / "wiki" / "vectorstore" / "local")
+            from .wiki.topics import get_patent_topic, topic_vectorstore_root
+            topic = get_patent_topic(patent_id)
+            return active_documents_path(topic_vectorstore_root(topic))
+        return active_documents_path(WIKI_ROOT / "_global" / "vectorstore")
     root = PATENTS_ROOT / patent_id / "index" / "vectorstore" if patent_id else PATENTS_ROOT / "_global" / "index" / "vectorstore"
     return active_documents_path(root)
 
@@ -1035,25 +1078,29 @@ def _write_approved_files(
             else:
                 approved_docs.append(doc)
 
+        from .wiki.topics import get_patent_topic, topic_approved_md, topic_vectorstore_root
+
         reviewed_dir = PATENTS_ROOT / patent_id / "reviewed"
-        wiki_dir = PATENTS_ROOT / patent_id / "wiki"
         reviewed_dir.mkdir(parents=True, exist_ok=True)
-        wiki_dir.mkdir(parents=True, exist_ok=True)
         docs_path = reviewed_dir / "approved_documents.jsonl"
         md_path = reviewed_dir / "approved_context.md"
-        wiki_md_path = wiki_dir / "approved_context.md"
         manifest_path = reviewed_dir / "manifest.json"
 
+        topic = get_patent_topic(patent_id)
+        wiki_md_path = topic_approved_md(topic)
+        wiki_md_path.parent.mkdir(parents=True, exist_ok=True)
         wiki_markdown = _wiki_markdown_from_approved_docs(patent_id, approved_docs, audit_id=str(audit["audit_id"]))
-        wiki_md_path.write_text(wiki_markdown, encoding="utf-8")
+        with wiki_md_path.open("a", encoding="utf-8") as f:
+            f.write(wiki_markdown)
         wiki_doc = _document(
-            patent_id=patent_id,
+            patent_id=f"_wiki_{topic}",
             text=wiki_markdown,
             source_path=wiki_md_path,
             source_type="WIKI",
             metadata={
-                "title": f"{patent_id} 감사 승인 Wiki Context",
+                "title": f"{topic} 감사 승인 Wiki Context",
                 "file_name": wiki_md_path.name,
+                "topic": topic,
                 "human_review_source": "approved_context",
             },
         )
@@ -1112,7 +1159,7 @@ def _write_approved_files(
             "approved_document_count": len(approved_docs),
             "excluded_document_count": len(excluded_docs),
             "approved_markdown_path": str(md_path),
-            "wiki_markdown_path": str(wiki_md_path),
+            "topic_wiki_markdown_path": str(wiki_md_path),
             "approved_documents_path": str(docs_path),
         }
         md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -1354,33 +1401,33 @@ WIKI_AUTO_APPROVE_MIN_RESULTS = 1
 WIKI_DRAFT_DEDUP_HOURS = 20
 
 
-def _draft_index_path(patent_id: str) -> Path:
-    return PATENTS_ROOT / patent_id / "wiki" / "web_search_drafts" / "draft_index.json"
-
-
-def _read_draft_index(patent_id: str) -> dict[str, Any]:
-    path = _draft_index_path(patent_id)
+def _read_draft_index(topic_slug: str) -> dict[str, Any]:
+    from .wiki.topics import topic_draft_index_path
+    path = topic_draft_index_path(topic_slug)
     if not path.exists():
-        return {"patent_id": patent_id, "drafts": []}
+        return {"topic": topic_slug, "drafts": []}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return {"patent_id": patent_id, "drafts": []}
-    return data if isinstance(data, dict) else {"patent_id": patent_id, "drafts": []}
+        return {"topic": topic_slug, "drafts": []}
+    return data if isinstance(data, dict) else {"topic": topic_slug, "drafts": []}
 
 
-def _write_draft_index(patent_id: str, index: dict[str, Any]) -> None:
-    path = _draft_index_path(patent_id)
+def _write_draft_index(topic_slug: str, index: dict[str, Any]) -> None:
+    from .wiki.topics import topic_draft_index_path
+    path = topic_draft_index_path(topic_slug)
     path.parent.mkdir(parents=True, exist_ok=True)
     index["updated_at"] = _now()
     path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def is_duplicate_web_query(patent_id: str, query_hash: str) -> bool:
-    """True if the same query hash was searched for this patent within WIKI_DRAFT_DEDUP_HOURS."""
+    """True if the same query hash was searched for this patent's topic within WIKI_DRAFT_DEDUP_HOURS."""
     from datetime import datetime, timedelta
+    from .wiki.topics import get_patent_topic
 
-    index = _read_draft_index(patent_id)
+    topic = get_patent_topic(patent_id)
+    index = _read_draft_index(topic)
     cutoff = (datetime.now() - timedelta(hours=WIKI_DRAFT_DEDUP_HOURS)).isoformat()
     for draft in index.get("drafts", []):
         if draft.get("query_hash") == query_hash and draft.get("created_at", "") >= cutoff:
@@ -1389,13 +1436,17 @@ def is_duplicate_web_query(patent_id: str, query_hash: str) -> bool:
 
 
 def get_patent_draft_stats(patent_id: str) -> dict[str, Any]:
-    """Return counts of pending / auto-approved web search drafts for a patent."""
-    index = _read_draft_index(patent_id)
+    """Return counts of pending / auto-approved web search drafts for a patent's topic."""
+    from .wiki.topics import get_patent_topic
+
+    topic = get_patent_topic(patent_id)
+    index = _read_draft_index(topic)
     drafts = index.get("drafts", [])
     pending = sum(1 for d in drafts if d.get("status") == "pending")
     auto_approved = sum(1 for d in drafts if d.get("status") == "auto_approved")
     return {
         "patent_id": patent_id,
+        "topic": topic,
         "total_drafts": len(drafts),
         "pending_review": pending,
         "auto_approved": auto_approved,
@@ -1410,16 +1461,24 @@ def auto_approve_web_draft(
     query: str,
     results: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Promote high-quality web results to the patent's wiki vectorstore without human review.
+    """Promote high-quality web results to the topic wiki vectorstore without human review.
 
     If avg relevance >= WIKI_AUTO_APPROVE_MIN_RELEVANCE, content is appended to
-    wiki/approved_context.md and the patent's wiki vectorstore is refreshed immediately.
+    WIKI_ROOT/{topic}/approved_context.md and the topic vectorstore is refreshed.
     Low-quality drafts are recorded as pending for the normal audit cycle.
     _global patent and empty result lists are always skipped.
     """
+    from .wiki.topics import (
+        get_patent_topic,
+        topic_approved_md,
+        topic_vectorstore_root,
+        topic_wiki_root,
+    )
+
     if patent_id in {"_global", ""} or not results:
         return {"auto_approved": False, "reason": "skipped_global_or_empty"}
 
+    topic = get_patent_topic(patent_id)
     query_hash = hashlib.sha1(query.encode("utf-8")).hexdigest()[:12]
 
     relevance_scores = [
@@ -1429,12 +1488,14 @@ def auto_approve_web_draft(
     avg_relevance = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0.0
     result_count = len(results)
 
-    index = _read_draft_index(patent_id)
+    index = _read_draft_index(topic)
     drafts: list[dict[str, Any]] = index.get("drafts", [])
 
     draft_entry: dict[str, Any] = {
         "query_hash": query_hash,
         "query": query,
+        "patent_id": patent_id,
+        "topic": topic,
         "created_at": _now(),
         "draft_file": Path(draft_path).name if draft_path else "",
         "result_count": result_count,
@@ -1452,6 +1513,7 @@ def auto_approve_web_draft(
             "",
             f"## 자동 승인 웹 근거 — {_now()[:10]}",
             "",
+            f"- 특허: {patent_id}  분야: {topic}",
             f"- 질문: {query}",
             f"- 평균 관련도: {avg_relevance:.2f} (기준 ≥ {WIKI_AUTO_APPROVE_MIN_RELEVANCE})",
             f"- 결과 수: {result_count}",
@@ -1470,18 +1532,16 @@ def auto_approve_web_draft(
                 lines.append(f"- 매칭 키워드: {', '.join(str(t) for t in matched)}")
             lines.extend(["", snippet or "", ""])
 
-        wiki_dir = PATENTS_ROOT / patent_id / "wiki"
-        wiki_dir.mkdir(parents=True, exist_ok=True)
-        approved_md = wiki_dir / "approved_context.md"
+        approved_md = topic_approved_md(topic)
+        approved_md.parent.mkdir(parents=True, exist_ok=True)
         with approved_md.open("a", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
 
-        patent_dir = PATENTS_ROOT / patent_id
-        wiki_docs = list(_wiki_documents(patent_id, wiki_dir))
+        topic_docs = list(_topic_wiki_documents(topic))
         _write_vectorstore(
-            patent_dir / "wiki" / "vectorstore" / "local",
-            wiki_docs,
-            scope=f"wiki:{patent_id}",
+            topic_vectorstore_root(topic),
+            topic_docs,
+            scope=f"wiki:{topic}",
             source="auto_approved_web",
         )
 
@@ -1490,10 +1550,11 @@ def auto_approve_web_draft(
 
     drafts.append(draft_entry)
     index["drafts"] = drafts
-    _write_draft_index(patent_id, index)
+    _write_draft_index(topic, index)
 
     return {
         "auto_approved": can_auto_approve,
+        "topic": topic,
         "avg_relevance": round(avg_relevance, 4),
         "result_count": result_count,
         "reason": "high_relevance" if can_auto_approve else f"low_relevance ({avg_relevance:.2f} < {WIKI_AUTO_APPROVE_MIN_RELEVANCE})",

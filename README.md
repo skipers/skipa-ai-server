@@ -12,7 +12,7 @@
 - 가벼운 LLM 의도 라우팅 기반 특허 챗봇
 - OpenAI 기반 의도 분류, 답변 생성, embedding 설정 지원
 - FAISS + BM25 + RRF 기반 hybrid retrieval
-- 특허별 wiki gate, Tavily/web 검색 보강, 감사 후 승인 데이터만 wiki vectorstore 반영
+- **분야별 wiki gate**: 웹검색 결과를 특허별이 아닌 기술 분야(소프트웨어_IT / 화학_소재 / 반도체_전자 등) 폴더로 관리하고, 감사 후 승인 데이터만 분야별 wiki vectorstore에 반영. Tavily/web 검색 보강 포함. blue/green rotation + 매일 00시 자동 재빌드.
 - 특허 출원 공식팩 기반 출원 도우미 챗봇
 - 실패특허 원본 PDF 업로드, 선택 거절사유 업로드, 재평가 보고서 생성, 케이스별 vectorstore 분리
 - Swagger UI와 브라우저 UI를 통한 기능 테스트
@@ -52,12 +52,12 @@ flowchart TB
     AANS["출원 답변 생성<br>절차/서식/청구항/거절대응/등록전략"]
   end
 
-  subgraph WIKI[wiki 감사]
-    DRAFT["web_search_drafts<br>임시 Markdown"]
+  subgraph WIKI[wiki 감사 - 분야별]
+    DRAFT["web_search_data<br>분야 폴더 임시 Markdown"]
     AUDIT["run_audit<br>나쁜 데이터 후보 판별"]
     REVIEW["사람 검토/자동 제외"]
-    APPROVED[approved_context.md]
-    WIDX[wiki vectorstore refresh]
+    APPROVED["approved_context.md<br>분야별"]
+    WIDX["wiki vectorstore refresh<br>blue/green per topic"]
   end
 
   subgraph DATA[데이터]
@@ -67,7 +67,7 @@ flowchart TB
     REPS[reports/json]
     EXT[extracted/all_chunks.jsonl]
     IDX[index/vectorstore]
-    WDATA[wiki/vectorstore]
+    WIKID["wiki/<br>소프트웨어_IT / 화학_소재 / ..."]
     APROOT[patent_application_official_pack]
     FAILED["failed_patent<br>registration_failed/"]
     EDATA["eval_logic/data<br>samples/resources/api_test/runtime_artifacts"]
@@ -90,7 +90,7 @@ flowchart TB
   CORE --> EXT
   CORE --> IDX
   PROUTER -->|외부정보 필요| WGATE
-  WGATE --> WDATA
+  WGATE --> WIKID
   WGATE -->|충분하면 wiki 답변| ANSWER
   WGATE -->|부족하면| WEB
   WEB --> DRAFT
@@ -109,15 +109,15 @@ flowchart TB
   FCASE --> AANS
   WEB --> AANS
 
-  DRAFT --> AUDIT --> REVIEW --> APPROVED --> WIDX --> WDATA
+  DRAFT --> AUDIT --> REVIEW --> APPROVED --> WIDX --> WIKID
 
   CDATA --> MP
   CDATA --> APROOT
+  CDATA --> WIKID
   MP --> ORIG
   MP --> REPS
   MP --> EXT
   MP --> IDX
-  MP --> WDATA
   APROOT --> FAILED
 ```
 
@@ -168,12 +168,25 @@ skipers-ai/
         wiki_graph.py        # wiki 감사 workflow
       legacy/                # rag.zip 기반 hybrid retrieval 복구 코드
       rag/                   # 현재 데이터 구조와 legacy RAG adapter
+      wiki/
+        topics.py            # 특허 제목 → 기술 분야 분류, topic 경로 헬퍼
+        web_archive.py       # wiki 파일 목록 유틸
       static/                # /ui 화면
     data/
       README.md
       mapped_patent_reports/
       business/
       patent_application_official_pack/
+      wiki/                  # 분야별 wiki vectorstore (WIKI_ROOT)
+        _patent_topics.json  # {patent_id: topic_slug} 캐시
+        소프트웨어_IT/
+        화학_소재/
+        반도체_전자/
+        바이오_의료/
+        기계_제조/
+        에너지_환경/
+        _general/
+        _global/             # 전체 분야 병합 wiki vectorstore
     docs/
       CHATBOT_ARCHITECTURE_AND_USAGE.md
     scripts/
@@ -199,14 +212,31 @@ chatbot/data/mapped_patent_reports/<patent_id>/
   extracted/
     all_chunks.jsonl        # 원문/보고서 chunk
   index/
-    vectorstore/            # 원문+보고서 core vectorstore
-      active_slot.json      # 현재 서비스가 읽는 blue/green slot 포인터
+    vectorstore/            # 원문+보고서 core vectorstore (blue/green)
+      active_slot.json
       blue/
       green/
-  wiki/
-    approved_context.md     # 감사 후 승인된 wiki
-    web_search_drafts/      # 웹검색 임시 draft
-    vectorstore/            # web 검색 전 gate 전용
+```
+
+wiki는 특허별이 아닌 **기술 분야별** 공유 폴더로 관리합니다:
+
+```text
+chatbot/data/wiki/                       ← WIKI_ROOT
+  _patent_topics.json                    # {patent_id: topic_slug} 자동 캐시
+  소프트웨어_IT/
+    web_search_data/                     # 웹검색 raw draft (시간순 .md 파일)
+    approved_context.md                  # 감사/자동 승인된 wiki 본문
+    draft_index.json                     # 중복 검색 dedup 인덱스
+    vectorstore/                         # blue/green vectorstore
+      active_slot.json
+      blue/
+      green/
+  화학_소재/
+    (동일 구조)
+  반도체_전자/ 바이오_의료/ 기계_제조/ 에너지_환경/ _general/
+    (동일 구조)
+  _global/
+    vectorstore/                         # 전체 분야 병합 wiki vectorstore
       active_slot.json
       blue/
       green/
@@ -215,11 +245,12 @@ chatbot/data/mapped_patent_reports/<patent_id>/
 중요한 규칙:
 
 - 원문/보고서 질문은 `index/vectorstore`를 먼저 사용합니다.
-- wiki는 core vectorstore에 섞지 않고 `wiki/vectorstore`로만 관리합니다.
-- wiki는 외부정보가 필요한 질문에서 web 검색 전에만 gate로 사용합니다.
-- web 검색 draft는 감사/승인 전까지 답변용 vectorstore에 바로 들어가지 않습니다.
+- wiki는 core vectorstore에 섞지 않고 `WIKI_ROOT/{topic}/vectorstore`로만 관리합니다.
+- 특허가 어느 분야인지는 제목 키워드 매칭으로 자동 결정하고 `_patent_topics.json`에 캐시합니다.
+- wiki gate: 외부정보 필요 질문 → 해당 특허의 분야 wiki 먼저 검색 → 없으면 web 검색으로 넘어갑니다.
+- web 검색 결과는 해당 특허의 분야 `web_search_data/` 에 저장됩니다. 관련도 임계값 이상이면 `approved_context.md`에 자동 추가하고 분야 vectorstore를 즉시 재빌드합니다.
 - vectorstore는 blue/green 두 slot을 사용합니다. refresh는 standby slot에 먼저 완성본을 쓰고 `active_slot.json`만 전환하므로, 재색인 중에도 기존 active index를 계속 사용할 수 있습니다.
-- 자동 감사는 `default_action=exclude` 또는 `severity=medium/high review` 후보를 낮은 품질/주의 데이터로 보고 제외한 뒤, 남은 데이터만 특허별 `reviewed/`와 `wiki/approved_context.md`에 저장합니다.
+- 매일 00:00 CronJob이 모든 분야 wiki vectorstore를 재빌드합니다 (`nightly_reindex_all`).
 
 ### 특허 출원 도우미 데이터
 
@@ -504,6 +535,7 @@ http://127.0.0.1:8001/docs
 DATA_ROOT=/Users/kgw/skipers-ai/chatbot/data
 PATENTS_ROOT=/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports
 PATENT_APPLICATION_ROOT=/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack
+WIKI_ROOT=/Users/kgw/skipers-ai/chatbot/data/wiki   # 생략 시 DATA_ROOT/wiki 자동 사용
 
 INTENT_PROVIDER=openai
 OPENAI_INTENT_MODEL=gpt-4.1-mini
@@ -601,14 +633,23 @@ GET  /api/v1/patent-chat/ingestion/mermaid
 
 `/api/v1/rag`와 `/rag`는 호환 alias입니다. 기능 기준 이름은 `patent-chat`입니다.
 
-### wiki 감사
+### wiki 감사 및 분야별 vectorstore
 
 ```text
+# 분야별 wiki vectorstore 관리
+GET  /api/v1/wiki/topics                     분야 목록 및 vectorstore 상태
+GET  /api/v1/wiki/topics/{topic_slug}        특정 분야 상세 (approved_context 미리보기, 최근 draft)
+POST /api/v1/wiki/topics/refresh             모든 분야 wiki vectorstore 재빌드 (blue/green)
+GET  /api/v1/wiki/topics/{topic_slug}/patent?patent_id=X   특허 → 분야 매핑 확인
+
+# 데이터 감사 (품질 검사 → 사람 검토 → 승인)
 POST /api/v1/wiki/audit
 GET  /api/v1/wiki/audit-review
 GET  /api/v1/wiki/audit-report
 POST /api/v1/wiki/audit-apply
 POST /api/v1/wiki/audit-auto-refresh
+
+# LangGraph agent 직접 실행
 POST /api/v1/wiki/agent/run
 GET  /api/v1/wiki/agent/mermaid
 ```
@@ -682,15 +723,23 @@ supervisor
  -> 공식팩 index + 선택 case index + web 검색으로 답변
 ```
 
-### wiki 감사
+### wiki 감사 (분야별)
 
 ```text
-web_search_drafts 생성
- -> audit로 나쁜 데이터 후보 추출
+웹검색 결과 → WIKI_ROOT/{topic}/web_search_data/ 저장
+ ├─ 관련도 ≥ 0.50 → approved_context.md 자동 추가 + 분야 vectorstore 즉시 재빌드
+ └─ 관련도 < 0.50 → pending 상태로 draft_index.json에 기록
+
+audit 실행 → 나쁜 데이터 후보 추출
  -> 사람 검토 또는 자동 제외
  -> approved_context.md 저장
- -> wiki vectorstore refresh
- -> 다음 외부정보 질문에서 wiki gate로 사용
+ -> WIKI_ROOT/{topic}/vectorstore 재빌드 (blue/green)
+
+매일 00:00 CronJob (nightly_reindex_all)
+ -> 모든 분야 wiki vectorstore 재빌드
+ -> WIKI_ROOT/_global/vectorstore 병합 재빌드
+
+다음 외부정보 질문에서 해당 분야 wiki gate로 사용
 ```
 
 ## 전처리와 재색인 명령

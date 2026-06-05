@@ -90,3 +90,8 @@ chatbot/patents_backup_*/
 chatbot/.DS_Store
 chatbot/data/.DS_Store
 chatbot/data/patent_application_official_pack/failed_patent/
+# Topic-based wiki runtime data (vectorstore, drafts, approved content)
+chatbot/data/wiki/**/vectorstore/
+chatbot/data/wiki/**/web_search_data/
+chatbot/data/wiki/**/approved_context.md
+chatbot/data/wiki/**/draft_index.json

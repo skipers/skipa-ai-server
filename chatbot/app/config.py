@@ -50,6 +50,7 @@ PATENT_APPLICATION_ROOT = _resolve_path(
 )
 LOG_ROOT = _resolve_path(os.getenv("LOG_ROOT"), CHATBOT_ROOT / "logs")
 WIKI_AUDITOR_ROOT = _resolve_path(os.getenv("WIKI_AUDITOR_ROOT"), CHATBOT_ROOT / "logs" / "wiki_auditor")
+WIKI_ROOT = _resolve_path(os.getenv("WIKI_ROOT"), DATA_ROOT / "wiki")
 
 PUBLIC_FILE_BASE_URL = os.getenv("PUBLIC_FILE_BASE_URL", "http://localhost:8000/files")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

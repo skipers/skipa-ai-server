@@ -18,7 +18,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     EMBEDDING_MODEL=text-embedding-3-large \
     ENABLE_OLLAMA_INTENT_FALLBACK=false \
     ENABLE_WEB_SEARCH=true \
-    NIGHTLY_REINDEX_SCHEDULE="0 0 * * *"
+    NIGHTLY_REINDEX_SCHEDULE="0 0 * * *" \
+    WIKI_ROOT=/app/chatbot/data/wiki
 
 WORKDIR /app
 
@@ -67,6 +68,7 @@ COPY . /app
 RUN mkdir -p \
     /app/chatbot/logs/wiki_auditor \
     /app/chatbot/data \
+    /app/chatbot/data/wiki/_global \
     /app/eval_logic/data/runtime_artifacts \
     /models/huggingface \
     /tmp/matplotlib \

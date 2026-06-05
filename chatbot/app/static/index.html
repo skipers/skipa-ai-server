@@ -126,7 +126,7 @@
             <div class="tool-head">
               <div>
                 <h2>데이터 보기</h2>
-                <p id="dataSummary">특허 원문, 보고서 JSON, wiki, index 상태를 불러옵니다.</p>
+                <p id="dataSummary">특허 원문, 보고서 JSON, index 상태를 불러옵니다.</p>
               </div>
               <div class="button-row">
                 <button id="loadDataButton" type="button">데이터</button>
@@ -137,6 +137,22 @@
             </div>
             <div id="dataGrid" class="data-grid">
               <div class="empty">데이터를 불러오는 중입니다.</div>
+            </div>
+          </section>
+
+          <section class="tool-card">
+            <div class="tool-head">
+              <div>
+                <h2>분야별 Wiki Vectorstore</h2>
+                <p id="topicWikiSummary">분야(기술 분야)별 wiki 데이터와 blue/green vectorstore 상태입니다. 00시 자동 재빌드됩니다.</p>
+              </div>
+              <div class="button-row">
+                <button id="loadTopicsButton" type="button">분야 목록</button>
+                <button id="refreshTopicsButton" type="button">Wiki 재빌드</button>
+              </div>
+            </div>
+            <div id="topicGrid" class="data-grid">
+              <div class="empty">분야 목록 버튼을 눌러 로드하세요.</div>
             </div>
           </section>
         </div>
