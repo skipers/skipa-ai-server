@@ -1,4 +1,4 @@
-name: Nightly Reindex (Wiki + Vectorstore)
+name: Nightly Reindex (00:00 KST)
 
 on:
   schedule:
@@ -10,30 +10,15 @@ permissions:
 
 jobs:
   nightly-reindex:
-    name: Run Nightly Reindex Job
+    name: Trigger Nightly Reindex via REST API
     runs-on: ubuntu-latest
 
-    env:
-      REGISTRY: amdp-registry.skala-ai.com
-      PROJECT: skala26a-ai2
-      IMAGE_NAME: skipa-ai
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Login to Harbor
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.HARBOR_USERNAME }}
-          password: ${{ secrets.HARBOR_PASSWORD }}
-
-      - name: Run nightly reindex
+      - name: Call nightly reindex endpoint
         run: |
-          docker run --rm \
-            -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
-            -e TAVILY_API_KEY="${{ secrets.TAVILY_API_KEY }}" \
-            -e DATA_ROOT=/app/chatbot/data \
-            ${{ env.REGISTRY }}/${{ env.PROJECT }}/${{ env.IMAGE_NAME }}:main-latest \
-            nightly-reindex
+          curl -X POST "${{ secrets.CHATBOT_API_URL }}/api/v1/chatbot/preprocess/run" \
+            -H "Content-Type: application/json" \
+            -d '{"mode": "nightly_reindex"}' \
+            --fail \
+            --silent \
+            --show-error
