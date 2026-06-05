@@ -85,7 +85,7 @@ def run_chat_agent(
 def chat_graph_mermaid() -> str:
     return """flowchart TD
   A[질문 입력] --> B[대화 이력/선택 특허 정리]
-  B --> C[Ollama 경량 LLM 의도 파악]
+  B --> C[OpenAI 경량 LLM 의도 파악]
   C --> D{외부 정보가 필요한가?}
 
   D -- 아니오 --> E[특허 원문/보고서 core vectorstore 검색]

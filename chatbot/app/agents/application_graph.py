@@ -466,7 +466,7 @@ Rules:
                         "needs_clarification": bool(parsed.get("needs_clarification", intent.get("needs_clarification", False))),
                         "clarification_question": parsed.get("clarification_question") or intent.get("clarification_question", ""),
                         "method": "llm",
-                        "llm_provider": llm.get("provider") or "ollama",
+                        "llm_provider": llm.get("provider") or INTENT_PROVIDER,
                         "llm_model": llm.get("model"),
                     }
                 )
@@ -1460,7 +1460,7 @@ def application_graph_mermaid() -> str:
   C2 -- 없음 --> C1
   C2 -- 있음 --> D[선택 케이스 전용 vectorstore 확인/갱신]
   RV --> D
-  D --> E[Ollama 경량 LLM 의도 라우팅]
+  D --> E[OpenAI 경량 LLM 의도 라우팅]
   E --> F{질문 유형}
   F -- 출원 절차/서식/수수료 --> G[공용 공식팩 vectorstore 검색]
   F -- 청구항/명세서/선행기술 --> H[공식팩 + 선택 케이스 원문 검색]

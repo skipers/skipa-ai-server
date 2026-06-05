@@ -1,6 +1,6 @@
 {
-  "audit_id": "20260604_174001_165892",
-  "approved_at": "2026-06-04T17:40:08",
+  "audit_id": "20260605_100255_140381",
+  "approved_at": "2026-06-05T10:03:01",
   "reviewer": "demo-user",
   "notes": "browser-ui",
   "excluded_finding_ids": [
@@ -31,7 +31,6 @@
     "840d5cad17ebefe0",
     "8518d5f920d41c55",
     "86e0609c043d12a5",
-    "897edbc33218a1c8",
     "8f141df595604402",
     "9445c415c6fc4365",
     "97d028a85137b07a",
@@ -97,12 +96,11 @@
     "e79dc4d3eac392ae9f5ca56ab030696850012fbb",
     "ef9968a0a590d2d3aaba730d3723b9e8bdca6ccc",
     "f535f0b600bc34fc261b0c79097b8d6d1b169326",
-    "f83e75914b1bdd36bcb9fecf7c41970d1295ed42",
     "fd4ac94f82133fe186425e0a994f63fbfd171ad2",
     "ffec0d5c292df8699acde95c2bc80b6ac6b8874d"
   ],
-  "approved_document_count": 4,
-  "excluded_document_count": 2,
+  "approved_document_count": 5,
+  "excluded_document_count": 1,
   "approved_markdown_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2042318/reviewed/approved_context.md",
   "wiki_markdown_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2042318/wiki/approved_context.md",
   "approved_documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/10-2042318/reviewed/approved_documents.jsonl"

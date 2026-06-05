@@ -1,4 +1,4 @@
-"""Small Ollama client used by the chatbot agent."""
+"""LLM clients used by the chatbot agent."""
 
 from __future__ import annotations
 

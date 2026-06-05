@@ -10,7 +10,7 @@
 - 보고서 생성 후 자동 신뢰도 검증(`verify_report`) 및 `report_verification` 제공
 - 특허별 원문 PDF, 표준 input JSON, 보고서 JSON, chunk, vectorstore 통합 관리
 - 가벼운 LLM 의도 라우팅 기반 특허 챗봇
-- OpenAI 답변 생성, Ollama 의도 분류, OpenAI embedding 설정 지원
+- OpenAI 기반 의도 분류, 답변 생성, embedding 설정 지원
 - FAISS + BM25 + RRF 기반 hybrid retrieval
 - 특허별 wiki gate, Tavily/web 검색 보강, 감사 후 승인 데이터만 wiki vectorstore 반영
 - 특허 출원 공식팩 기반 출원 도우미 챗봇
@@ -258,40 +258,44 @@ eval_logic/data/runtime_artifacts/graphs/
 
 ## 실행 방법
 
-### Docker Compose 전체 실행
-
-챗봇 UI/API, eval_logic 보고서 API, Ollama 의도분류 모델을 한 번에 띄우는 권장 실행 방식입니다.
+### Docker Image 빌드
 
 ```bash
 cd /Users/kgw/skipers-ai
-cp docker.env.example .env
+docker build -t skipa-ai:latest .
 ```
 
-`.env`에서 실제 키를 채웁니다.
+기본 이미지는 Kubernetes 배포를 기준으로 합니다.
 
-```env
-OPENAI_API_KEY=...
-TAVILY_API_KEY=...
-KIPRIS_API_KEY=...
-KOSIS_API_KEY=...
-```
+- Ollama를 포함하지 않습니다.
+- 기본 의도 분류는 OpenAI를 사용합니다.
+- 기본 답변 생성은 OpenAI를 사용합니다.
+- 기본 embedding은 OpenAI `text-embedding-3-large`를 사용합니다.
+- `chatbot`과 `eval_logic`은 같은 이미지에서 실행하고, Kubernetes `command` 또는 `args`로 서비스만 선택합니다.
 
-전체 스택 실행:
+로컬 HuggingFace embedding과 BERTScore 패키지까지 이미지에 넣으려면 build arg를 켭니다. 이 옵션은 `torch` 계열 패키지를 포함하므로 이미지가 많이 커집니다.
 
 ```bash
-docker compose up --build
+docker build \
+  --build-arg INSTALL_LOCAL_EMBEDDINGS=true \
+  -t skipa-ai:local-embeddings .
 ```
 
-기본 Docker 이미지는 `EMBEDDING_PROVIDER=openai` 기준입니다. HuggingFace 로컬 embedding과 BERTScore 패키지까지 이미지에 넣으려면 `.env`에서 아래 값을 켭니다. 이 경우 `torch` 계열 패키지가 함께 설치되어 이미지가 매우 커집니다.
+### Docker Image 로컬 검증
 
-```env
-INSTALL_LOCAL_EMBEDDINGS=true
-```
-
-백그라운드 실행:
+챗봇 서버:
 
 ```bash
-docker compose up --build -d
+docker run --rm \
+  -p 8001:8001 \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+  -e KIPRIS_API_KEY="$KIPRIS_API_KEY" \
+  -e KOSIS_API_KEY="$KOSIS_API_KEY" \
+  -v "$PWD/chatbot/data:/app/chatbot/data" \
+  -v "$PWD/chatbot/logs:/app/chatbot/logs" \
+  -v "$PWD/eval_logic/data:/app/eval_logic/data" \
+  skipa-ai:latest chatbot
 ```
 
 접속 주소:
@@ -299,43 +303,85 @@ docker compose up --build -d
 ```text
 챗봇 UI      http://127.0.0.1:8001/ui
 챗봇 Swagger http://127.0.0.1:8001/docs
+```
+
+eval_logic 보고서 서버:
+
+```bash
+docker run --rm \
+  -p 8000:8000 \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+  -e KIPRIS_API_KEY="$KIPRIS_API_KEY" \
+  -e KOSIS_API_KEY="$KOSIS_API_KEY" \
+  -v "$PWD/eval_logic/data:/app/eval_logic/data" \
+  -v "$PWD/chatbot/data:/app/chatbot/data" \
+  skipa-ai:latest eval-logic
+```
+
+접속 주소:
+
+```text
 보고서 Swagger http://127.0.0.1:8000/docs
 ```
 
-Ollama는 기본적으로 Compose 내부 네트워크에서만 열립니다. 챗봇은 `ollama:11434`로 접근하므로 로컬 PC의 기존 Ollama와 포트가 충돌하지 않습니다.
-
-상태 확인:
+health 확인:
 
 ```bash
-docker compose ps
 curl http://127.0.0.1:8001/health
 curl http://127.0.0.1:8000/health
 ```
 
-이미 로컬에서 8000 또는 8001 서버가 떠 있으면 `.env`에서 포트를 바꿔 실행합니다.
+### Kubernetes 실행 기준
 
-```env
-CHATBOT_PORT=18001
-EVAL_LOGIC_PORT=18000
+같은 이미지에서 두 Deployment를 나눠 띄웁니다.
+
+챗봇 컨테이너:
+
+```yaml
+containers:
+  - name: chatbot
+    image: your-registry/skipa-ai:latest
+    args: ["chatbot"]
+    ports:
+      - containerPort: 8001
+    env:
+      - name: OPENAI_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: skipa-ai-secrets
+            key: OPENAI_API_KEY
+      - name: TAVILY_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: skipa-ai-secrets
+            key: TAVILY_API_KEY
 ```
 
-이 경우 접속 주소는 `http://127.0.0.1:18001/ui`, `http://127.0.0.1:18000/docs`가 됩니다.
+eval_logic 컨테이너:
 
-중지:
-
-```bash
-docker compose down
+```yaml
+containers:
+  - name: eval-logic
+    image: your-registry/skipa-ai:latest
+    args: ["eval-logic"]
+    ports:
+      - containerPort: 8000
+    env:
+      - name: OPENAI_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: skipa-ai-secrets
+            key: OPENAI_API_KEY
 ```
 
-데이터는 이미지 안에 굽지 않고 아래 로컬 폴더를 컨테이너에 mount합니다.
+Kubernetes에서는 아래 경로를 PVC 또는 object storage 동기화 대상으로 잡습니다.
 
 ```text
-./chatbot/data       -> /app/chatbot/data
-./chatbot/logs       -> /app/chatbot/logs
-./eval_logic/data    -> /app/eval_logic/data
+/app/chatbot/data
+/app/chatbot/logs
+/app/eval_logic/data
 ```
-
-따라서 로컬에서 만든 특허 원문, 보고서, wiki, 출원 공식팩, 실패특허 case, vectorstore 상태가 Docker 실행에서도 그대로 유지됩니다.
 
 ### eval_logic 보고서 서버
 
@@ -390,9 +436,8 @@ DATA_ROOT=/Users/kgw/skipers-ai/chatbot/data
 PATENTS_ROOT=/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports
 PATENT_APPLICATION_ROOT=/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack
 
-INTENT_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-INTENT_MODEL=qwen2.5:1.5b
+INTENT_PROVIDER=openai
+OPENAI_INTENT_MODEL=gpt-4.1-mini
 
 ANSWER_PROVIDER=openai
 OPENAI_API_KEY=...
@@ -546,7 +591,7 @@ supervisor
 ```text
 질문
  -> chat_history 반영
- -> Ollama 기반 가벼운 의도 분류
+ -> OpenAI 기반 가벼운 의도 분류
  -> 원문/보고서 검색 또는 wiki gate 또는 web 검색 결정
  -> OpenAI 답변 생성
  -> 표/다이어그램/체크리스트 형식화

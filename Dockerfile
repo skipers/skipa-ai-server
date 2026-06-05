@@ -7,7 +7,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HF_HOME=/models/huggingface \
     TRANSFORMERS_CACHE=/models/huggingface \
     MPLCONFIGDIR=/tmp/matplotlib \
-    KMP_DUPLICATE_LIB_OK=TRUE
+    KMP_DUPLICATE_LIB_OK=TRUE \
+    INTENT_PROVIDER=openai \
+    ANSWER_PROVIDER=openai \
+    EMBEDDING_PROVIDER=openai \
+    OPENAI_INTENT_MODEL=gpt-4.1-mini \
+    OPENAI_ANSWER_MODEL=gpt-4.1 \
+    OPENAI_VLM_MODEL=gpt-4.1-mini \
+    OPENAI_EMBEDDING_MODEL=text-embedding-3-large \
+    EMBEDDING_MODEL=text-embedding-3-large \
+    ENABLE_OLLAMA_INTENT_FALLBACK=false \
+    ENABLE_WEB_SEARCH=true
 
 WORKDIR /app
 
@@ -58,8 +68,10 @@ RUN mkdir -p \
     /app/chatbot/data \
     /app/eval_logic/data/runtime_artifacts \
     /models/huggingface \
-    /tmp/matplotlib
+    /tmp/matplotlib \
+  && chmod +x /app/docker/entrypoint.sh
 
 EXPOSE 8000 8001
 
-CMD ["python", "-m", "uvicorn", "chatbot.app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
+CMD ["chatbot"]

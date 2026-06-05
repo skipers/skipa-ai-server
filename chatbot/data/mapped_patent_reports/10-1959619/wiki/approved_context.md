@@ -39,7 +39,7 @@
 ## 메타정보
 
 - Patent ID: `10-1959619`
-- Audit ID: `20260604_174001_165892`
+- Audit ID: `20260605_100255_140381`
 - Source: human-approved patent/report/wiki corpus
 - Vectorstore policy: 이 wiki 문서는 해당 특허의 단독 wiki vectorstore에만 반영되고 global vectorstore에는 포함되지 않습니다.
 - Excluded data: 감사에서 제외된 finding과 저품질 placeholder 문장은 반영하지 않습니다.

@@ -12,14 +12,37 @@
 
 ## 실행
 
-### Docker Compose
+### Docker Image
 
-루트에서 전체 스택을 실행합니다. 챗봇, eval_logic, Ollama가 함께 뜹니다.
+루트에서 Kubernetes 배포용 이미지를 빌드합니다.
 
 ```bash
 cd /Users/kgw/skipers-ai
-cp docker.env.example .env
-docker compose up --build
+docker build -t skipa-ai:latest .
+```
+
+챗봇 서버 로컬 검증:
+
+```bash
+docker run --rm \
+  -p 8001:8001 \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+  -v "$PWD/chatbot/data:/app/chatbot/data" \
+  -v "$PWD/chatbot/logs:/app/chatbot/logs" \
+  -v "$PWD/eval_logic/data:/app/eval_logic/data" \
+  skipa-ai:latest chatbot
+```
+
+eval_logic 보고서 서버는 같은 이미지에서 `eval-logic` args로 실행합니다.
+
+```bash
+docker run --rm \
+  -p 8000:8000 \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -v "$PWD/eval_logic/data:/app/eval_logic/data" \
+  -v "$PWD/chatbot/data:/app/chatbot/data" \
+  skipa-ai:latest eval-logic
 ```
 
 접속 주소:
@@ -30,11 +53,9 @@ Swagger http://127.0.0.1:8001/docs
 Health  http://127.0.0.1:8001/health
 ```
 
-Docker 실행 시 `chatbot/data`, `chatbot/logs`, `eval_logic/data`는 로컬 폴더를 그대로 mount합니다. 그래서 로컬에서 만든 특허별 vectorstore, wiki 승인 데이터, 출원 공식팩, 실패특허 case가 컨테이너에서도 같은 경로 계약으로 동작합니다.
+Docker 실행 시 `chatbot/data`, `chatbot/logs`, `eval_logic/data`는 외부 volume으로 mount합니다. Kubernetes에서는 이 경로를 PVC 또는 object storage 동기화 대상으로 잡으면 됩니다.
 
-기본 Docker 이미지는 OpenAI embedding을 사용합니다. 로컬 HuggingFace embedding과 BERTScore까지 필요하면 루트 `.env`에서 `INSTALL_LOCAL_EMBEDDINGS=true`로 빌드합니다. 이 옵션은 `torch` 계열 패키지를 포함하므로 이미지가 많이 커집니다.
-
-로컬에서 이미 8001 포트를 쓰고 있으면 루트 `.env`에서 `CHATBOT_PORT=18001`처럼 바꿔 실행합니다.
+기본 Docker 이미지는 OpenAI 의도 분류, OpenAI 답변 생성, OpenAI embedding을 사용합니다. Ollama는 포함하지 않습니다. 로컬 HuggingFace embedding과 BERTScore까지 필요하면 `--build-arg INSTALL_LOCAL_EMBEDDINGS=true`로 빌드합니다. 이 옵션은 `torch` 계열 패키지를 포함하므로 이미지가 많이 커집니다.
 
 ### 로컬 실행
 
@@ -68,9 +89,8 @@ DATA_ROOT=/Users/kgw/skipers-ai/chatbot/data
 PATENTS_ROOT=/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports
 PATENT_APPLICATION_ROOT=/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack
 
-INTENT_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-INTENT_MODEL=qwen2.5:1.5b
+INTENT_PROVIDER=openai
+OPENAI_INTENT_MODEL=gpt-4.1-mini
 
 ANSWER_PROVIDER=openai
 OPENAI_API_KEY=...
@@ -82,7 +102,7 @@ TAVILY_API_KEY=...
 ENABLE_WEB_SEARCH=true
 ```
 
-의도 파악은 가벼운 Ollama 모델을 우선 사용하고, 답변 생성은 OpenAI 모델을 사용하도록 설계되어 있습니다. Ollama가 실패하면 설정에 따라 규칙 기반 fallback이 동작할 수 있습니다.
+의도 파악, 답변 생성, embedding은 모두 OpenAI 기준으로 동작합니다. OpenAI 키가 없거나 호출이 실패하면 일부 경로는 규칙 기반 fallback으로 내려갈 수 있습니다.
 
 ## 데이터 구조
 
@@ -129,7 +149,7 @@ chatbot/data/
 ```mermaid
 flowchart TD
   Q[질문] --> H[chat_history 반영]
-  H --> I[Ollama 의도 분류]
+  H --> I[OpenAI 의도 분류]
   I --> R{검색 경로}
   R -->|원문/청구항/보고서/평가| CORE[core vectorstore]
   R -->|최신/시장/외부자료| WIKI[특허별 wiki gate]

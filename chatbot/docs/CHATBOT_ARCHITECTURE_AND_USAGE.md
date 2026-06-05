@@ -124,7 +124,7 @@ flowchart TB
 ```mermaid
 flowchart TD
   Q[질문 입력] --> H[chat_history 요약/반영]
-  H --> I[가벼운 LLM 의도 분류<br/>기본: Ollama]
+  H --> I[가벼운 LLM 의도 분류<br/>기본: OpenAI]
   I --> C{의도/범위}
   C -->|청구항/명세서/기술내용| CORE[원문 chunk 검색]
   C -->|평가/유지/리스크/점수| REPORT[보고서 chunk 검색]

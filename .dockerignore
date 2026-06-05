@@ -6,7 +6,6 @@
 .env
 .env.*
 !.env.example
-!docker.env.example
 chatbot/.env
 chatbot/.env.*
 eval_logic/.env
@@ -39,4 +38,3 @@ eval_logic/data/api_test/input/pdf/
 eval_logic/data/api_test/input/extracted/
 eval_logic/data/api_test/output/reports/
 eval_logic/data/legacy_artifacts/
-
