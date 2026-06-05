@@ -22,12 +22,21 @@ def _avg_relevance(results: list) -> float:
     return sum(scores) / len(scores) if scores else 0.0
 
 
-def _archive_web_results(state: ChatAgentState, result: dict) -> str | None:
+def _archive_web_results(state: ChatAgentState, result: dict) -> tuple[str | None, str]:
     results = result.get("results") or []
     if not results:
-        return None
+        return None, "_general"
     patent_id = state.get("resolved_patent_id") or state.get("patent_id") or "_global"
-    topic = get_patent_topic(patent_id) if patent_id != "_global" else "_general"
+    # pre-eval case IDs look like "20260605_161436_특허명..." — derive topic from the name part
+    import re as _re
+    _preval_match = _re.match(r"^\d{8}_\d{6}_(.+)$", patent_id)
+    if _preval_match:
+        from ..wiki.topics import classify_title_to_topic
+        topic = classify_title_to_topic(_preval_match.group(1).replace("_", " "))
+    elif patent_id != "_global":
+        topic = get_patent_topic(patent_id)
+    else:
+        topic = "_general"
     wiki_dir = topic_draft_dir(topic)
     wiki_dir.mkdir(parents=True, exist_ok=True)
     path = wiki_dir / (datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".md")
@@ -78,7 +87,7 @@ def _archive_web_results(state: ChatAgentState, result: dict) -> str | None:
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return str(path)
+    return str(path), topic
 
 
 def retrieve_web_context(state: ChatAgentState) -> ChatAgentState:
@@ -118,7 +127,7 @@ def retrieve_web_context(state: ChatAgentState) -> ChatAgentState:
                 }
             else:
                 result = search_web(query)
-                archive_path = _archive_web_results(state, result)
+                archive_path, archived_topic = _archive_web_results(state, result)
                 if archive_path:
                     result["wiki_draft_path"] = archive_path
                 results = result.get("results") or []
@@ -128,6 +137,7 @@ def retrieve_web_context(state: ChatAgentState) -> ChatAgentState:
                         draft_path=archive_path,
                         query=query,
                         results=results,
+                        topic_override=archived_topic,
                     )
                     result["wiki_auto_approve"] = auto_approve_result
 

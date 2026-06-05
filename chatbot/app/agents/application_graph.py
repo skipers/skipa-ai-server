@@ -505,7 +505,22 @@ def retrieve_application_external_context(state: ApplicationAgentState) -> Appli
         elif intent.get("intent") == "application_strategy":
             search_query = f"{query} KOSIS 시장 통계 특허 출원 전략 사업화"
         external["search_query"] = search_query
-        external["web"] = search_web(search_query)
+        web_result = search_web(search_query)
+        external["web"] = web_result
+        # Save to topic wiki (same pipeline as patent chatbot)
+        web_results = web_result.get("results") or []
+        if web_results:
+            try:
+                from ..vectorstore import auto_approve_web_draft
+                auto_approve_web_draft(
+                    "_application",
+                    draft_path=None,
+                    query=search_query,
+                    results=web_results,
+                    topic_override="특허출원_절차",
+                )
+            except Exception:
+                pass
     return {
         **state,
         "external_context": external,

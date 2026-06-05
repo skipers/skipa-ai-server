@@ -1460,6 +1460,7 @@ def auto_approve_web_draft(
     draft_path: str | None,
     query: str,
     results: list[dict[str, Any]],
+    topic_override: str | None = None,
 ) -> dict[str, Any]:
     """Promote high-quality web results to the topic wiki vectorstore without human review.
 
@@ -1467,6 +1468,7 @@ def auto_approve_web_draft(
     WIKI_ROOT/{topic}/approved_context.md and the topic vectorstore is refreshed.
     Low-quality drafts are recorded as pending for the normal audit cycle.
     _global patent and empty result lists are always skipped.
+    topic_override forces a specific topic slug regardless of patent_id mapping.
     """
     from .wiki.topics import (
         get_patent_topic,
@@ -1478,7 +1480,7 @@ def auto_approve_web_draft(
     if patent_id in {"_global", ""} or not results:
         return {"auto_approved": False, "reason": "skipped_global_or_empty"}
 
-    topic = get_patent_topic(patent_id)
+    topic = topic_override or get_patent_topic(patent_id)
     query_hash = hashlib.sha1(query.encode("utf-8")).hexdigest()[:12]
 
     relevance_scores = [
