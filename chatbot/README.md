@@ -12,6 +12,32 @@
 
 ## 실행
 
+### Docker Compose
+
+루트에서 전체 스택을 실행합니다. 챗봇, eval_logic, Ollama가 함께 뜹니다.
+
+```bash
+cd /Users/kgw/skipers-ai
+cp docker.env.example .env
+docker compose up --build
+```
+
+접속 주소:
+
+```text
+UI      http://127.0.0.1:8001/ui
+Swagger http://127.0.0.1:8001/docs
+Health  http://127.0.0.1:8001/health
+```
+
+Docker 실행 시 `chatbot/data`, `chatbot/logs`, `eval_logic/data`는 로컬 폴더를 그대로 mount합니다. 그래서 로컬에서 만든 특허별 vectorstore, wiki 승인 데이터, 출원 공식팩, 실패특허 case가 컨테이너에서도 같은 경로 계약으로 동작합니다.
+
+기본 Docker 이미지는 OpenAI embedding을 사용합니다. 로컬 HuggingFace embedding과 BERTScore까지 필요하면 루트 `.env`에서 `INSTALL_LOCAL_EMBEDDINGS=true`로 빌드합니다. 이 옵션은 `torch` 계열 패키지를 포함하므로 이미지가 많이 커집니다.
+
+로컬에서 이미 8001 포트를 쓰고 있으면 루트 `.env`에서 `CHATBOT_PORT=18001`처럼 바꿔 실행합니다.
+
+### 로컬 실행
+
 루트에서 실행합니다.
 
 ```bash

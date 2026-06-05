@@ -258,6 +258,85 @@ eval_logic/data/runtime_artifacts/graphs/
 
 ## 실행 방법
 
+### Docker Compose 전체 실행
+
+챗봇 UI/API, eval_logic 보고서 API, Ollama 의도분류 모델을 한 번에 띄우는 권장 실행 방식입니다.
+
+```bash
+cd /Users/kgw/skipers-ai
+cp docker.env.example .env
+```
+
+`.env`에서 실제 키를 채웁니다.
+
+```env
+OPENAI_API_KEY=...
+TAVILY_API_KEY=...
+KIPRIS_API_KEY=...
+KOSIS_API_KEY=...
+```
+
+전체 스택 실행:
+
+```bash
+docker compose up --build
+```
+
+기본 Docker 이미지는 `EMBEDDING_PROVIDER=openai` 기준입니다. HuggingFace 로컬 embedding과 BERTScore 패키지까지 이미지에 넣으려면 `.env`에서 아래 값을 켭니다. 이 경우 `torch` 계열 패키지가 함께 설치되어 이미지가 매우 커집니다.
+
+```env
+INSTALL_LOCAL_EMBEDDINGS=true
+```
+
+백그라운드 실행:
+
+```bash
+docker compose up --build -d
+```
+
+접속 주소:
+
+```text
+챗봇 UI      http://127.0.0.1:8001/ui
+챗봇 Swagger http://127.0.0.1:8001/docs
+보고서 Swagger http://127.0.0.1:8000/docs
+```
+
+Ollama는 기본적으로 Compose 내부 네트워크에서만 열립니다. 챗봇은 `ollama:11434`로 접근하므로 로컬 PC의 기존 Ollama와 포트가 충돌하지 않습니다.
+
+상태 확인:
+
+```bash
+docker compose ps
+curl http://127.0.0.1:8001/health
+curl http://127.0.0.1:8000/health
+```
+
+이미 로컬에서 8000 또는 8001 서버가 떠 있으면 `.env`에서 포트를 바꿔 실행합니다.
+
+```env
+CHATBOT_PORT=18001
+EVAL_LOGIC_PORT=18000
+```
+
+이 경우 접속 주소는 `http://127.0.0.1:18001/ui`, `http://127.0.0.1:18000/docs`가 됩니다.
+
+중지:
+
+```bash
+docker compose down
+```
+
+데이터는 이미지 안에 굽지 않고 아래 로컬 폴더를 컨테이너에 mount합니다.
+
+```text
+./chatbot/data       -> /app/chatbot/data
+./chatbot/logs       -> /app/chatbot/logs
+./eval_logic/data    -> /app/eval_logic/data
+```
+
+따라서 로컬에서 만든 특허 원문, 보고서, wiki, 출원 공식팩, 실패특허 case, vectorstore 상태가 Docker 실행에서도 그대로 유지됩니다.
+
 ### eval_logic 보고서 서버
 
 ```bash

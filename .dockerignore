@@ -1,0 +1,42 @@
+.git/
+.DS_Store
+**/.DS_Store
+
+# Local secrets and virtual environments
+.env
+.env.*
+!.env.example
+!docker.env.example
+chatbot/.env
+chatbot/.env.*
+eval_logic/.env
+eval_logic/.env.*
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+
+# Runtime logs/caches
+logs/
+chatbot/logs/
+chatbot/tmp/
+chatbot/storage/
+eval_logic/.pytest_cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.wdm/
+
+# Generated vectorstores and runtime artifacts are mounted from host in compose.
+chatbot/data/**/index/vectorstore/
+chatbot/data/**/wiki/vectorstore/
+chatbot/data/**/reviewed/
+chatbot/data/**/web_search_drafts/
+chatbot/data/patent_application_official_pack/failed_patent/
+eval_logic/data/runtime_artifacts/
+eval_logic/data/api_test/input/uploads/
+eval_logic/data/api_test/input/pdf/
+eval_logic/data/api_test/input/extracted/
+eval_logic/data/api_test/output/reports/
+eval_logic/data/legacy_artifacts/
+
