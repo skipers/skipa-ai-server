@@ -247,12 +247,11 @@ def search_pre_eval_vectorstore(case_id: str, query: str, top_k: int = 8) -> dic
         except Exception:
             continue
         text = str(doc.get("page_content") or "")
-        if not is_usable_evidence(text):
+        if len(text.strip()) < 10:
             continue
         vec = doc.get("vector") if isinstance(doc.get("vector"), dict) else {}
         score = _dot(query_vec, {str(k): float(v) for k, v in vec.items()})
-        if score > 0:
-            scored.append((score, doc))
+        scored.append((score, doc))
     scored.sort(key=lambda p: p[0], reverse=True)
     hits = []
     for score, doc in scored[:top_k]:

@@ -8,20 +8,26 @@ case's own vectorstore.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, TypedDict
+from typing import Any
 
 from ..rag.llm import call_openai_prompt
-from ..rag.config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT, ANSWER_PROVIDER
+from ..rag.config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT
 from ..rag.evaluation import answer_quality_metrics
 from ..rag.quality import compact_text, filter_usable_hits
 from ..rag.sources import cards_from_hits, cards_from_web
 from ..rag.web_answers import search_web
+from typing import Any, TypedDict
+
 from .history_agent import resolve_history_context
 from .merge_agent import finish_answer
 from .router_agent import route_question
 from .state import ChatAgentState
 from .web_agent import retrieve_web_context
 from .wiki_context_agent import retrieve_wiki_context
+
+
+class PreEvalAgentState(ChatAgentState, total=False):
+    pre_eval_hits: list[dict[str, Any]]
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +54,7 @@ def retrieve_pre_eval_context(state: ChatAgentState) -> ChatAgentState:
         "case_id": case_id,
         "hit_count": result.get("hit_count", 0),
     })
-    return {**state, "_pre_eval_hits": result.get("hits", []), "trace": trace}
+    return {**state, "pre_eval_hits": result.get("hits", []), "trace": trace}
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +71,7 @@ _SYSTEM_PROMPT = """당신은 출원 전 특허 사전평가 결과를 설명하
 def answer_pre_eval_question(state: ChatAgentState) -> ChatAgentState:
     """Generate answer from pre-eval case vectorstore hits + wiki/web context."""
     query = state.get("query") or ""
-    pre_eval_hits = list(state.get("_pre_eval_hits") or [])
+    pre_eval_hits = list(state.get("pre_eval_hits") or [])
     intent = state.get("intent") or {}
     wiki_hits = filter_usable_hits(list((state.get("wiki_context") or {}).get("hits") or []), limit=3)
     web_context = dict(state.get("web_context") or {})
@@ -100,13 +106,15 @@ def answer_pre_eval_question(state: ChatAgentState) -> ChatAgentState:
     )
 
     try:
-        answer = call_openai_prompt(
+        llm_result = call_openai_prompt(
             prompt,
             model=ANSWER_MODEL,
-            provider=ANSWER_PROVIDER,
             timeout=ANSWER_LLM_TIMEOUT,
-            max_tokens=ANSWER_NUM_PREDICT,
+            max_output_tokens=ANSWER_NUM_PREDICT,
         )
+        answer = str(llm_result.get("text") or "") if isinstance(llm_result, dict) else str(llm_result)
+        if not answer:
+            answer = "답변을 생성하지 못했습니다. 사전평가 보고서를 확인해 주세요."
     except Exception as exc:
         answer = f"답변 생성 실패: {exc}"
 
@@ -165,7 +173,7 @@ def build_pre_eval_graph() -> Any:
     try:
         from langgraph.graph import END, StateGraph
 
-        graph = StateGraph(ChatAgentState)
+        graph = StateGraph(PreEvalAgentState)
         graph.add_node("resolve_history_context", resolve_history_context)
         graph.add_node("route_question", route_question)
         graph.add_node("retrieve_pre_eval_context", retrieve_pre_eval_context)
@@ -198,7 +206,7 @@ def run_pre_eval_chat_agent(
     top_k: int = 8,
 ) -> dict[str, Any]:
     """Run the pre-eval chat agent for a specific evaluation case."""
-    state: ChatAgentState = {
+    state: PreEvalAgentState = {
         "query": query,
         "patent_id": case_id,          # reuse patent_id slot for case routing
         "user_id": user_id,
