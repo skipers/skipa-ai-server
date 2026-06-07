@@ -390,7 +390,71 @@ def search_patent_evidence(
     for q in queries:
         raw.extend(_call_tavily(q, max_results=2, days=days))
 
-    return _deduplicate_and_rank(raw, max_results)
+    results = _deduplicate_and_rank(raw, max_results)
+
+    # Save to shared wiki (PROJECT_ROOT/data/wiki/{topic}/)
+    if results:
+        try:
+            _save_to_wiki(patent_title, item, queries, results)
+        except Exception as _wiki_err:
+            print(f"  [Wiki 저장 스킵] {_wiki_err}")
+
+    return results
+
+
+def _save_to_wiki(patent_title: str, item: str, queries: list[str], results: list[dict]) -> None:
+    """eval_logic 웹검색 결과를 chatbot의 공유 wiki에 저장합니다."""
+    import sys
+    from pathlib import Path
+    from datetime import datetime
+
+    # chatbot 모듈 경로 추가
+    project_root = ROOT_DIR.parent if ROOT_DIR.name == "eval_logic" else ROOT_DIR.parent
+    chatbot_app = project_root / "chatbot" / "app"
+    if not chatbot_app.exists():
+        return
+
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    from chatbot.app.wiki.topics import classify_title_to_topic, topic_draft_dir
+    from chatbot.app.vectorstore import auto_approve_web_draft
+
+    topic = classify_title_to_topic(patent_title)
+    draft_dir = topic_draft_dir(topic)
+    draft_dir.mkdir(parents=True, exist_ok=True)
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    draft_path = draft_dir / f"eval_logic_{stamp}.md"
+    lines = [
+        "# eval_logic Web Search Draft",
+        f"- Patent: {patent_title}",
+        f"- Item: {item}",
+        f"- Topic: {topic}",
+        f"- Queries: {', '.join(queries)}",
+        "",
+    ]
+    for idx, r in enumerate(results, 1):
+        lines.extend([f"### {idx}. {r.get('title','')}", f"- URL: {r.get('url','')}", "", str(r.get("content") or r.get("snippet", "")), ""])
+    draft_path.write_text("\n".join(lines), encoding="utf-8")
+
+    # web results를 chatbot 형식으로 변환
+    chat_results = [
+        {
+            "title": r.get("title", ""),
+            "url": r.get("url", ""),
+            "snippet": r.get("content") or r.get("snippet", ""),
+            "relevance": {"score": float(r.get("score", 0.5)), "matched_terms": []},
+        }
+        for r in results
+    ]
+    auto_approve_web_draft(
+        f"_eval_{patent_title[:20]}",
+        draft_path=str(draft_path),
+        query=f"{patent_title} {item}",
+        results=chat_results,
+        topic_override=topic,
+    )
 
 
 def needs_web_search(item: str) -> bool:
