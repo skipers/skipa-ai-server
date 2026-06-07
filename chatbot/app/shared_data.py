@@ -286,9 +286,12 @@ def search_shared_vectorstore(query: str, top_k: int = 8) -> dict[str, Any]:
 
     return {
         "query": query,
+        "patent_id": None,
+        "top_k": top_k,
         "hit_count": len(hits),
         "hits": hits,
         "mode": "shared_vectorstore",
+        "source_types": [SHARED_PATENT_SOURCE_TYPE, SHARED_REPORT_SOURCE_TYPE],
         "documents_path": str(docs_path),
     }
 
