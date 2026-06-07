@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
-from .config import SHARED_DATA_ROOT
+from .config import PROJECT_ROOT, SHARED_DATA_ROOT
 from .index_rotation import active_documents_path, active_manifest_path, rotation_status, write_rotating_index
 
 
@@ -25,6 +25,16 @@ TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
 # Source types for shared data
 SHARED_PATENT_SOURCE_TYPE = "SHARED_PATENT"
 SHARED_REPORT_SOURCE_TYPE = "SHARED_REPORT"
+SHARED_CORE_SOURCE_TYPES = frozenset({SHARED_PATENT_SOURCE_TYPE, SHARED_REPORT_SOURCE_TYPE})
+_SOURCE_TYPE_ALIASES: dict[str, set[str]] = {
+    "ORIGINAL_PDF": {SHARED_PATENT_SOURCE_TYPE},
+    "PATENT_INPUT_JSON": {SHARED_PATENT_SOURCE_TYPE},
+    "SHARED_PATENT": {SHARED_PATENT_SOURCE_TYPE},
+    "REPORT_PDF": {SHARED_REPORT_SOURCE_TYPE},
+    "REPORT_JSON": {SHARED_REPORT_SOURCE_TYPE},
+    "APPLICATION_FEEDBACK_REPORT": {SHARED_REPORT_SOURCE_TYPE},
+    "SHARED_REPORT": {SHARED_REPORT_SOURCE_TYPE},
+}
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +74,55 @@ def _doc_id(patent_id: str, suffix: str) -> str:
     return hashlib.sha1(seed.encode()).hexdigest()[:16]
 
 
+def _safe_relative(path: Path, base: Path = PROJECT_ROOT) -> str:
+    try:
+        return str(path.resolve().relative_to(base.resolve()))
+    except Exception:
+        return str(path)
+
+
+def _iso_mtime(path: Path) -> str | None:
+    try:
+        return datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds")
+    except OSError:
+        return None
+
+
+def _file_summary(path: Path) -> dict[str, Any]:
+    exists = path.exists()
+    return {
+        "path": str(path),
+        "relative_path": _safe_relative(path),
+        "exists": exists,
+        "size_bytes": path.stat().st_size if exists and path.is_file() else None,
+        "modified_at": _iso_mtime(path) if exists else None,
+    }
+
+
+def _shared_patent_dir(patent_id: str) -> Path | None:
+    if not patent_id or "/" in patent_id or "\\" in patent_id:
+        return None
+    folder = SHARED_DATA_ROOT / patent_id
+    if not folder.is_dir():
+        return None
+    if not ((folder / "parsed.json").exists() or (folder / "report.json").exists()):
+        return None
+    return folder
+
+
+def _normalize_shared_source_types(source_types: set[str] | None) -> set[str]:
+    if source_types is None:
+        return set(SHARED_CORE_SOURCE_TYPES)
+    normalized: set[str] = set()
+    for source_type in source_types:
+        normalized.update(_SOURCE_TYPE_ALIASES.get(str(source_type), set()))
+    return normalized
+
+
+def is_shared_patent_id(patent_id: str | None) -> bool:
+    return bool(patent_id and _shared_patent_dir(str(patent_id)))
+
+
 # ---------------------------------------------------------------------------
 # Patent folder listing
 # ---------------------------------------------------------------------------
@@ -88,13 +147,126 @@ def shared_patent_summary(patent_id: str) -> dict[str, Any]:
     meta = patent.get("meta") if isinstance(patent.get("meta"), dict) else {}
     brief = parsed.get("brief_summary") if isinstance(parsed.get("brief_summary"), dict) else {}
     has_report = (folder / "report.json").exists()
+    all_chunks_estimate = len(_parsed_to_docs(patent_id, parsed)) + len(_report_to_docs(patent_id, _read_json(folder / "report.json")))
     return {
         "patent_id": patent_id,
         "title": meta.get("title") or patent.get("title") or patent_id,
+        "patent_dir": str(folder),
+        "relative_path": _safe_relative(folder),
+        "updated_at": max(
+            [value for value in [_iso_mtime(folder / "parsed.json"), _iso_mtime(folder / "report.json")] if value],
+            default=None,
+        ),
+        "data_origin": "shared_project_data",
         "has_parsed": (folder / "parsed.json").exists(),
         "has_report": has_report,
         "has_pdf": (folder / "patent.pdf").exists(),
+        "has_manifest": False,
+        "has_latest_input": (folder / "parsed.json").exists(),
+        "has_latest_pdf": (folder / "patent.pdf").exists(),
+        "has_latest_report": has_report,
+        "has_patent_index": False,
+        "has_local_vectorstore": active_manifest_path(SHARED_VECTORSTORE_ROOT).exists(),
+        "chunk_count": all_chunks_estimate,
+        "report_json_count": 1 if has_report else 0,
+        "asset_count": 0,
+        "manifest_path": None,
         "brief": brief.get("개요") or brief.get("핵심_내용") or "",
+    }
+
+
+def shared_patent_detail(patent_id: str, include_files: bool = True) -> dict[str, Any]:
+    folder = _shared_patent_dir(patent_id)
+    if folder is None:
+        raise FileNotFoundError(patent_id)
+    detail = shared_patent_summary(patent_id)
+    parsed = _read_json(folder / "parsed.json")
+    report = _read_json(folder / "report.json")
+    detail["manifest"] = {
+        "patent_id": patent_id,
+        "title": detail.get("title"),
+        "data_origin": "shared_project_data",
+        "paths": {
+            "parsed_json": str(folder / "parsed.json"),
+            "report_json": str(folder / "report.json"),
+            "patent_pdf": str(folder / "patent.pdf"),
+        },
+    }
+    detail["paths"] = {
+        "latest_input": _file_summary(folder / "parsed.json"),
+        "latest_pdf": _file_summary(folder / "patent.pdf"),
+        "latest_report": _file_summary(folder / "report.json"),
+        "all_chunks": _file_summary(active_documents_path(SHARED_VECTORSTORE_ROOT)),
+        "patent_index": _file_summary(SHARED_VECTORSTORE_ROOT),
+        "local_vectorstore": _file_summary(active_manifest_path(SHARED_VECTORSTORE_ROOT)),
+    }
+    detail["parsed_summary"] = {
+        "keys": sorted(parsed.keys()) if isinstance(parsed, dict) else [],
+        "report_keys": sorted(report.keys()) if isinstance(report, dict) else [],
+    }
+    if include_files:
+        detail["files"] = shared_list_files(patent_id, limit=300)
+    return detail
+
+
+def shared_list_files(patent_id: str, limit: int = 300) -> list[dict[str, Any]]:
+    folder = _shared_patent_dir(patent_id)
+    if folder is None:
+        raise FileNotFoundError(patent_id)
+    files = []
+    for path in sorted(folder.rglob("*")):
+        if path.is_file():
+            files.append(_file_summary(path))
+        if len(files) >= limit:
+            break
+    return files
+
+
+def shared_latest_json(patent_id: str, kind: str) -> dict[str, Any]:
+    folder = _shared_patent_dir(patent_id)
+    if folder is None:
+        raise FileNotFoundError(patent_id)
+    if kind == "input":
+        path = folder / "parsed.json"
+    elif kind == "report":
+        path = folder / "report.json"
+    else:
+        raise ValueError(kind)
+    if not path.exists():
+        raise FileNotFoundError(path)
+    return {"path": _file_summary(path), "data": _read_json(path)}
+
+
+def shared_patent_chunks(
+    patent_id: str,
+    *,
+    offset: int = 0,
+    limit: int = 20,
+    source_types: set[str] | None = None,
+) -> dict[str, Any]:
+    folder = _shared_patent_dir(patent_id)
+    if folder is None:
+        raise FileNotFoundError(patent_id)
+    allowed = _normalize_shared_source_types(source_types)
+    docs = _parsed_to_docs(patent_id, _read_json(folder / "parsed.json"))
+    docs.extend(_report_to_docs(patent_id, _read_json(folder / "report.json")))
+    items = []
+    matched = 0
+    for index, doc in enumerate(docs, 1):
+        meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        if allowed and meta.get("source_type") not in allowed:
+            continue
+        if matched >= offset and len(items) < limit:
+            items.append({**doc, "_line_no": index, "_chunk_file": str(active_documents_path(SHARED_VECTORSTORE_ROOT))})
+        matched += 1
+    return {
+        "path": _file_summary(active_documents_path(SHARED_VECTORSTORE_ROOT)),
+        "offset": offset,
+        "limit": limit,
+        "matched_count": matched,
+        "items": items,
+        "patent_id": patent_id,
+        "chunk_file": "shared_docs",
     }
 
 
@@ -191,6 +363,31 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
         if d:
             docs.append(d)
 
+    # Current eval_logic report structure used by PROJECT_ROOT/data/{patent_id}/report.json
+    for key, label in [
+        ("meta", "보고서 메타정보"),
+        ("auto_scores", "자동 평가 점수"),
+        ("llm_scores", "LLM 평가 점수"),
+        ("llm_sources", "LLM 평가 근거"),
+        ("evidence", "평가 근거"),
+        ("market_growth", "시장 성장성"),
+        ("summary", "종합 평가 요약"),
+        ("legal", "법적 상태"),
+    ]:
+        sec = active.get(key)
+        if isinstance(sec, dict) and sec:
+            d = _make(json.dumps(sec, ensure_ascii=False), label)
+            if d:
+                docs.append(d)
+        elif isinstance(sec, list) and sec:
+            d = _make(json.dumps(sec, ensure_ascii=False), label)
+            if d:
+                docs.append(d)
+        elif isinstance(sec, str) and sec.strip():
+            d = _make(sec, label)
+            if d:
+                docs.append(d)
+
     # Each section text
     for key, label in [
         ("section_2_technology", "기술성평가"),
@@ -208,6 +405,38 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
                 docs.append(d)
         elif isinstance(sec, str) and sec.strip():
             d = _make(sec, label)
+            if d:
+                docs.append(d)
+
+    known = {
+        "section_1_summary",
+        "section_2_technology",
+        "section_3_rights",
+        "section_4_business",
+        "section_5_market",
+        "section_6_similar",
+        "section_7_opinion",
+        "schema_version",
+        "patent_id",
+        "title",
+        "meta",
+        "legal",
+        "auto_scores",
+        "llm_scores",
+        "llm_sources",
+        "evidence",
+        "market_growth",
+        "summary",
+    }
+    for key, sec in active.items():
+        if key in known:
+            continue
+        if isinstance(sec, (dict, list)) and sec:
+            d = _make(json.dumps(sec, ensure_ascii=False), f"보고서_{key}")
+            if d:
+                docs.append(d)
+        elif isinstance(sec, str) and sec.strip():
+            d = _make(sec, f"보고서_{key}")
             if d:
                 docs.append(d)
 
@@ -249,27 +478,68 @@ def build_shared_vectorstore() -> dict[str, Any]:
     }
 
 
-def search_shared_vectorstore(query: str, top_k: int = 8) -> dict[str, Any]:
+def search_shared_vectorstore(
+    query: str,
+    top_k: int = 8,
+    *,
+    patent_id: str | None = None,
+    source_types: set[str] | None = None,
+) -> dict[str, Any]:
     """Search the shared patent vectorstore."""
     docs_path = active_documents_path(SHARED_VECTORSTORE_ROOT)
     if not docs_path.exists():
         return {"query": query, "hit_count": 0, "hits": [], "mode": "shared_vectorstore"}
 
-    q_tokens = _tokens(query)
     q_vec = _vectorize(query)
+    if not q_vec:
+        return {"query": query, "hit_count": 0, "hits": [], "mode": "shared_vectorstore", "patent_id": patent_id}
+    allowed_source_types = _normalize_shared_source_types(source_types)
 
     def _dot(a: dict, b: dict) -> float:
         return sum(a.get(k, 0.0) * v for k, v in b.items())
 
+    def _fallback_priority(doc: dict[str, Any]) -> tuple[int, int]:
+        meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        source_type = str(meta.get("source_type") or "")
+        section = str(meta.get("section_title") or "")
+        query_text = query.lower()
+        priority = 50
+        if any(term in query_text for term in ("평가", "점수", "보고서", "리스크", "유지", "사업", "시장")):
+            if source_type == SHARED_REPORT_SOURCE_TYPE:
+                priority -= 30
+            if any(term in section for term in ("종합", "평가", "점수", "근거", "시장", "LLM")):
+                priority -= 15
+        if any(term in query_text for term in ("원문", "청구항", "발명", "효과", "해결")):
+            if source_type == SHARED_PATENT_SOURCE_TYPE:
+                priority -= 30
+            if any(term in section for term in ("청구항", "발명", "효과", "해결")):
+                priority -= 15
+        return (priority, len(str(doc.get("page_content") or "")) * -1)
+
     scored: list[tuple[float, dict]] = []
+    fallback_docs: list[dict[str, Any]] = []
     for line in docs_path.open(encoding="utf-8"):
         try:
             doc = json.loads(line)
         except Exception:
             continue
+        meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        if patent_id and str(meta.get("patent_id") or "") != patent_id:
+            continue
+        if allowed_source_types and str(meta.get("source_type") or "") not in allowed_source_types:
+            continue
+        fallback_docs.append(doc)
         vec = doc.get("vector") if isinstance(doc.get("vector"), dict) else {}
         score = _dot(q_vec, {str(k): float(v) for k, v in vec.items()})
+        if score <= 0:
+            continue
         scored.append((score, doc))
+
+    if not scored and patent_id and fallback_docs:
+        scored = [
+            (0.000001, doc)
+            for doc in sorted(fallback_docs, key=_fallback_priority)[:top_k]
+        ]
 
     scored.sort(key=lambda p: p[0], reverse=True)
     hits = []
@@ -286,12 +556,12 @@ def search_shared_vectorstore(query: str, top_k: int = 8) -> dict[str, Any]:
 
     return {
         "query": query,
-        "patent_id": None,
+        "patent_id": patent_id,
         "top_k": top_k,
         "hit_count": len(hits),
         "hits": hits,
         "mode": "shared_vectorstore",
-        "source_types": [SHARED_PATENT_SOURCE_TYPE, SHARED_REPORT_SOURCE_TYPE],
+        "source_types": sorted(allowed_source_types),
         "documents_path": str(docs_path),
     }
 

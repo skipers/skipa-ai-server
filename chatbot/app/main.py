@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import BUSINESS_ROOT, DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT, PRE_EVAL_ROOT
+from .config import BUSINESS_ROOT, DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT, PRE_EVAL_ROOT, SHARED_DATA_ROOT
 from .routers.pre_eval import router as pre_eval_router
 from .routers.chatbot import (
     agent_router,
@@ -125,6 +125,9 @@ if PATENT_APPLICATION_ROOT.exists():
 
 if PRE_EVAL_ROOT.exists():
     app.mount("/files/pre-eval", StaticFiles(directory=str(PRE_EVAL_ROOT)), name="pre_eval_files")
+
+if SHARED_DATA_ROOT.exists():
+    app.mount("/files/shared", StaticFiles(directory=str(SHARED_DATA_ROOT)), name="shared_data_files")
 
 
 @app.get("/", tags=["system"], summary="챗봇 API 루트")

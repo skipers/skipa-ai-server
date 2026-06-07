@@ -1,0 +1,4 @@
+no,title,source_id,kind,size_bytes,size,raw_file,readable_file,named_file,open_method,url
+1,특허로 특허출원가이드,SRC-001,html,121799,118.9 KB,SRC-001_8496909b50.do,SRC-001_8496909b50.html,001_SRC-001_특허로 특허출원가이드.html,HTML 웹페이지: 브라우저로 열기,https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do
+2,특허고객번호부여신청,SRC-002,html,198711,194.1 KB,SRC-002_8c45815116.do,SRC-002_8c45815116.html,002_SRC-002_특허고객번호부여신청.html,HTML 웹페이지: 브라우저로 열기,https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do
+3,인증서 사용등록,SRC-003,html,107461,104.9 KB,SRC-003_4c6db459ee.do,SRC-003_4c6db459ee.html,003_SRC-003_인증서 사용등록.html,HTML 웹페이지: 브라우저로 열기,https://patent.go.kr/smart/jsp/ka/pki/kipocertmgr/KCertMgrView.do

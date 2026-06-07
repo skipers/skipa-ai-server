@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-06-07T16:01:08",
+  "case_id": "10-1959619_failed",
+  "total": 10,
+  "success": 10,
+  "failed": 0,
+  "zero_source_count": 0,
+  "clarification_count": 0,
+  "avg_source_count": 6.0,
+  "intents": {
+    "이 실패 특허의 평가가 어떻게 나왔고 무엇을 고쳐야 해?": "failed_case_evaluation",
+    "거절 대응을 위해 먼저 확인할 청구항과 보정 방향을 알려줘": "drafting_claims",
+    "이 특허가 등록되려면 어떤 차별점을 더 강조해야 해?": "failed_case_evaluation",
+    "보고서 기준으로 가장 위험한 항목과 보강 자료를 알려줘": "failed_case_evaluation",
+    "선행기술조사는 어떤 키워드와 IPC/CPC로 해야 해?": "prior_art_search",
+    "의견서와 보정서를 쓸 때 신규사항 추가를 피하려면 어떻게 해야 해?": "failed_case_evaluation",
+    "청구항별 차별점 표를 만들어줘": "drafting_claims",
+    "실패 원인을 신규성 진보성 기재요건으로 나눠서 알려줘": "failed_case_evaluation",
+    "사업부 관점에서 이 특허를 다시 출원하거나 보정할 가치가 있어?": "failed_case_evaluation",
+    "출원 실패 보고서를 바탕으로 다음 액션아이템을 정리해줘": "failed_case_evaluation"
+  }
+}

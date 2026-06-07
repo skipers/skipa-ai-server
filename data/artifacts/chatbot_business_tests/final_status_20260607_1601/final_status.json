@@ -1,0 +1,1305 @@
+{
+  "generated_at": "2026-06-07T16:01:24",
+  "results": [
+    {
+      "name": "health",
+      "method": "GET",
+      "path": "/health",
+      "status_code": 200,
+      "ok": true,
+      "payload": {
+        "status": "ok",
+        "data_root": "/Users/kgw/skipers-ai/chatbot/data",
+        "patents_root": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports",
+        "patents_root_exists": true,
+        "patent_application_root": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack",
+        "patent_application_root_exists": true
+      }
+    },
+    {
+      "name": "patents",
+      "method": "GET",
+      "path": "/api/v1/chatbot/patents",
+      "status_code": 200,
+      "ok": true,
+      "payload": {
+        "count": 10,
+        "items": [
+          {
+            "patent_id": "10-1959619",
+            "title": "반도체 결함 시각화 방법 및 시스템",
+            "patent_dir": "/Users/kgw/skipers-ai/data/10-1959619",
+            "relative_path": "data/10-1959619",
+            "updated_at": "2026-06-07T15:17:03",
+            "data_origin": "shared_project_data",
+            "has_parsed": true,
+            "has_report": true,
+            "has_pdf": true,
+            "has_manifest": false,
+            "has_latest_input": true,
+            "has_latest_pdf": true,
+            "has_latest_report": true,
+            "has_patent_index": false,
+            "has_local_vectorstore": true,
+            "chunk_count": 16,
+            "report_json_count": 1,
+            "asset_count": 0,
+            "manifest_path": null,
+            "brief": "반도체 결함 시각화 방법 및 시스템이 제안된다."
+          },
+          {
+            "patent_id": "10-1959627",
+            "title": "실제 반도체 제조물을 복제한 가상 반도체 제조물 제공 방법 및 시스템",
+            "patent_dir": "/Users/kgw/skipers-ai/data/10-1959627",
+            "relative_path": "data/10-1959627",
+            "updated_at": "2026-06-07T15:17:03",
+            "data_origin": "shared_project_data",
+            "has_parsed": true,
+            "has_report": true,
+            "has_pdf": true,
+            "has_manifest": false,
+            "has_latest_input": true,
+            "has_latest_pdf": true,
+            "has_latest_report": true,
+            "has_patent_index": false,
+            "has_local_vectorstore": true,
+            "chunk_count": 17,
+            "report_json_count": 1,
+            "asset_count": 0,
+            "manifest_path": null,
+            "brief": "실제 반도체 제조물을 복제한 가상 반도체 제조물 제공 방법 및 시스템이 제안된다."
+          },
+          {
+            "patent_id": "10-2042318",
+            "title": "스마트 팩토리 레이아웃 설계 방법 및 시스템",
+            "patent_dir": "/Users/kgw/skipers-ai/data/10-2042318",
+            "relative_path": "data/10-2042318",
+            "updated_at": "2026-06-07T15:17:03",
+            "data_origin": "shared_project_data",
+            "has_parsed": true,
+            "has_report": true,
+            "has_pdf": true,
+            "has_manifest": false,
+            "has_latest_input": true,
+            "has_latest_pdf": true,
+            "has_latest_report": true,
+            "has_patent_index": false,
+            "has_local_vectorstore": true,
+            "chunk_count": 17,
+            "report_json_count": 1,
+            "asset_count": 0,
+            "manifest_path": null,
+            "brief": "스마트 팩토리의 레이아웃을 자동으로 설계하는 방법과 시스템이 제안된다."
+          },
+          {
+            "patent_id": "10-2142205",
+            "title": "설명 가능한 인공지능 모델링 및 시뮬레이션 시스템 및 방법",
+            "patent_dir": "/Users/kgw/skipers-ai/data/10-2142205",
+            "relative_path": "data/10-2142205",
+            "updated_at": "2026-06-07T15:17:03",
+            "data_origin": "shared_project_data",
+            "has_parsed": true,
+            "has_report": true,
+            "has_pdf": true,
+            "has_manifest": false,
+            "has_latest_input": true,
+            "has_latest_pdf": true,
+            "has_latest_report": true,
+            "has_patent_index": false,
+            "has_local_vectorstore": true,
+            "chunk_count": 17,
+            "report_json_count": 1,
+            "asset_count": 0,
+            "manifest_path": null,
+            "brief": "설명 가능한 인공지능 모델링 및 시뮬레이션 시스템과 방법을 제공한다."
+          },
+          {
+            "patent_id": "10-2663094",
+            "title": "단일 엔드포인트를 이용한 AI 모델 운영 장치 및 방법",
+            "patent_dir": "/Users/kgw/skipers-ai/data/10-2663094",
+            "relative_path": "data/10-2663094",
+            "updated_at": "2026-06-07T15:17:03",
+            "data_origin": "shared_project_data",
+            "has_parsed": true,
+            "has_report": true,
+            "has_pdf": true,
+            "has_manifest": false,
+            "has_latest_input": true,
+            "has_latest_pdf": true,
+            "has_latest_report": true,
+            "has_patent_index": false,
+            "has_local_vectorstore": true,
+            "chunk_count": 15,
+            "report_json_count": 1,
+            "asset_count": 0,
+            "manifest_path": null,
+            "brief": "단일 엔드포인트를 이용한 AI 모델 운영 장치 및 방법"
+          },
+          {
+            "patent_id": "10-2686678",
+            "title": "이상치 제거를 위한 금융시장 데이터 처리 방법 및 시스템",
+            "patent_dir": "/Users/kgw/skipers-ai/data/10-2686678",
+            "relative_path": "data/10-2686678",
+            "updated_at": "2026-06-07T15:17:03",
+            "data_origin": "shared_project_data",
+            "has_parsed": true,
+            "has_report": true,
+            "has_pdf": true,
+            "has_manifest": false,
+            "has_latest_input": true,
+            "has_latest_pdf": true,
+            "has_latest_report": true,
+            "has_patent_index": false,
+            "has_local_vectorstore": true,
+            "chunk_count": 15,
+            "report_json_count": 1,
+            "asset_count": 0,
+            "manifest_path": null,
+            "brief": "이상치 제거를 위한 금융시장 데이터 처리 방법 및 시스템"
+          },
+          {
+            "patent_id": "10-2737902",
+            "title": "예측 근거를 함께 제시하는 인공지능 모델 기반 금융시장 예측 방법 및 시스템",
+            "patent_dir": "/Users/kgw/skipers-ai/data/10-2737902",
+            "relative_path": "data/10-2737902",
+            "updated_at": "2026-06-07T15:17:03",
+            "data_origin": "shared_project_data",
+            "has_parsed": true,
+            "has_report": true,
+            "has_pdf": true,
+            "has_manifest": false,
+            "has_latest_input": true,
+            "has_latest_pdf": true,
+            "has_latest_report": true,
+            "has_patent_index": false,
+            "has_local_vectorstore": true,
+            "chunk_count": 15,
+            "report_json_count": 1,
+            "asset_count": 0,
+            "manifest_path": null,
+            "brief": "예측 근거를 함께 제시하는 인공지능 모델 기반 금융시장 예측 방법 및 시스템"
+          },
+          {
+            "patent_id": "10-2753879",
+            "title": "주식 시장 예측을 위한 비정형 데이터 분석 방법 및 시스템",
+            "patent_dir": "/Users/kgw/skipers-ai/data/10-2753879",
+            "relative_path": "data/10-2753879",
+            "updated_at": "2026-06-07T15:17:03",
+            "data_origin": "shared_project_data",
+            "has_parsed": true,
+            "has_report": true,
+            "has_pdf": true,
+            "has_manifest": false,
+            "has_latest_input": true,
+            "has_latest_pdf": true,
+            "has_latest_report": true,
+            "has_patent_index": false,
+            "has_local_vectorstore": true,
+            "chunk_count": 15,
+            "report_json_count": 1,
+            "asset_count": 0,
+            "manifest_path": null,
+            "brief": "주식 시장 예측을 위한 비정형 데이터 분석 방법 및 시스템"
+          },
+          {
+            "patent_id": "10-2762042",
+            "title": "NF3 가스 생산 설비 내 이물질 제거 시스템 및 방법",
+            "patent_dir": "/Users/kgw/skipers-ai/data/10-2762042",
+            "relative_path": "data/10-2762042",
+            "updated_at": "2026-06-07T15:17:03",
+            "data_origin": "shared_project_data",
+            "has_parsed": true,
+            "has_report": true,
+            "has_pdf": true,
+            "has_manifest": false,
+            "has_latest_input": true,
+            "has_latest_pdf": true,
+            "has_latest_report": true,
+            "has_patent_index": false,
+            "has_local_vectorstore": true,
+            "chunk_count": 15,
+            "report_json_count": 1,
+            "asset_count": 0,
+            "manifest_path": null,
+            "brief": "NF3 가스 생산 설비 내 이물질 제거 시스템 및 방법"
+          },
+          {
+            "patent_id": "10-2839217",
+            "title": "반도체 소재 개발 관련 후보물질 물성예측 시스템 및 방법",
+            "patent_dir": "/Users/kgw/skipers-ai/data/10-2839217",
+            "relative_path": "data/10-2839217",
+            "updated_at": "2026-06-07T15:17:03",
+            "data_origin": "shared_project_data",
+            "has_parsed": true,
+            "has_report": true,
+            "has_pdf": true,
+            "has_manifest": false,
+            "has_latest_input": true,
+            "has_latest_pdf": true,
+            "has_latest_report": true,
+            "has_patent_index": false,
+            "has_local_vectorstore": true,
+            "chunk_count": 15,
+            "report_json_count": 1,
+            "asset_count": 0,
+            "manifest_path": null,
+            "brief": "반도체 소재 개발 관련 후보물질 물성예측 시스템 및 방법"
+          }
+        ]
+      }
+    },
+    {
+      "name": "shared_index",
+      "method": "POST",
+      "path": "/api/v1/chatbot/preprocess/run",
+      "status_code": 200,
+      "ok": true,
+      "payload": {
+        "mode": "shared_index",
+        "shared_index": {
+          "status": "built",
+          "patent_count": 10,
+          "document_count": 157,
+          "rotation": {
+            "active_slot": "green",
+            "previous_active_slot": "blue",
+            "manifest_path": "/Users/kgw/skipers-ai/data/_vectorstore/green/manifest.json",
+            "documents_path": "/Users/kgw/skipers-ai/data/_vectorstore/green/documents.jsonl",
+            "legacy_manifest_path": "/Users/kgw/skipers-ai/data/_vectorstore/manifest.json",
+            "legacy_documents_path": "/Users/kgw/skipers-ai/data/_vectorstore/documents.jsonl",
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": "green",
+              "standby_slot": "blue",
+              "pointer_path": "/Users/kgw/skipers-ai/data/_vectorstore/active_slot.json",
+              "active_manifest_path": "/Users/kgw/skipers-ai/data/_vectorstore/green/manifest.json",
+              "active_documents_path": "/Users/kgw/skipers-ai/data/_vectorstore/green/documents.jsonl",
+              "legacy_manifest_path": "/Users/kgw/skipers-ai/data/_vectorstore/manifest.json",
+              "legacy_documents_path": "/Users/kgw/skipers-ai/data/_vectorstore/documents.jsonl",
+              "slots": [
+                {
+                  "slot": "blue",
+                  "is_active": false,
+                  "exists": true,
+                  "document_count": 157,
+                  "refreshed_at": "2026-06-07T15:51:08",
+                  "manifest_path": "/Users/kgw/skipers-ai/data/_vectorstore/blue/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/_vectorstore/blue/documents.jsonl"
+                },
+                {
+                  "slot": "green",
+                  "is_active": true,
+                  "exists": true,
+                  "document_count": 157,
+                  "refreshed_at": "2026-06-07T16:01:24",
+                  "manifest_path": "/Users/kgw/skipers-ai/data/_vectorstore/green/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/_vectorstore/green/documents.jsonl"
+                }
+              ]
+            }
+          }
+        },
+        "status": "ok"
+      }
+    },
+    {
+      "name": "wiki_topics",
+      "method": "GET",
+      "path": "/api/v1/wiki/topics",
+      "status_code": 200,
+      "ok": true,
+      "payload": {
+        "topics": [
+          {
+            "topic": "소프트웨어_IT",
+            "has_data": true,
+            "approved_md_exists": false,
+            "draft_count": 1,
+            "vectorstore_exists": false,
+            "document_count": 0,
+            "refreshed_at": null,
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": null,
+              "standby_slot": "blue",
+              "pointer_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/active_slot.json",
+              "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/manifest.json",
+              "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/documents.jsonl",
+              "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/manifest.json",
+              "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/documents.jsonl",
+              "slots": [
+                {
+                  "slot": "blue",
+                  "is_active": false,
+                  "exists": false,
+                  "document_count": null,
+                  "refreshed_at": null,
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/blue/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/blue/documents.jsonl"
+                },
+                {
+                  "slot": "green",
+                  "is_active": false,
+                  "exists": false,
+                  "document_count": null,
+                  "refreshed_at": null,
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/green/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/green/documents.jsonl"
+                }
+              ]
+            },
+            "paths": {
+              "web_search_data": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/web_search_data",
+              "approved_md": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/approved_context.md",
+              "vectorstore": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore"
+            }
+          },
+          {
+            "topic": "반도체_전자",
+            "has_data": true,
+            "approved_md_exists": true,
+            "draft_count": 1,
+            "vectorstore_exists": true,
+            "document_count": 1,
+            "refreshed_at": "2026-06-07T15:51:08",
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": "green",
+              "standby_slot": "blue",
+              "pointer_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/active_slot.json",
+              "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/green/manifest.json",
+              "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/green/documents.jsonl",
+              "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/manifest.json",
+              "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/documents.jsonl",
+              "slots": [
+                {
+                  "slot": "blue",
+                  "is_active": false,
+                  "exists": true,
+                  "document_count": 1,
+                  "refreshed_at": "2026-06-07T15:49:42",
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/blue/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/blue/documents.jsonl"
+                },
+                {
+                  "slot": "green",
+                  "is_active": true,
+                  "exists": true,
+                  "document_count": 1,
+                  "refreshed_at": "2026-06-07T15:51:08",
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/green/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/green/documents.jsonl"
+                }
+              ]
+            },
+            "paths": {
+              "web_search_data": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/web_search_data",
+              "approved_md": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/approved_context.md",
+              "vectorstore": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore"
+            }
+          },
+          {
+            "topic": "화학_소재",
+            "has_data": false,
+            "approved_md_exists": false,
+            "draft_count": 0,
+            "vectorstore_exists": false,
+            "document_count": 0,
+            "refreshed_at": null,
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": null,
+              "standby_slot": "blue",
+              "pointer_path": "/Users/kgw/skipers-ai/data/wiki/화학_소재/vectorstore/active_slot.json",
+              "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/화학_소재/vectorstore/manifest.json",
+              "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/화학_소재/vectorstore/documents.jsonl",
+              "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/화학_소재/vectorstore/manifest.json",
+              "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/화학_소재/vectorstore/documents.jsonl",
+              "slots": [
+                {
+                  "slot": "blue",
+                  "is_active": false,
+                  "exists": false,
+                  "document_count": null,
+                  "refreshed_at": null,
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/화학_소재/vectorstore/blue/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/화학_소재/vectorstore/blue/documents.jsonl"
+                },
+                {
+                  "slot": "green",
+                  "is_active": false,
+                  "exists": false,
+                  "document_count": null,
+                  "refreshed_at": null,
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/화학_소재/vectorstore/green/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/화학_소재/vectorstore/green/documents.jsonl"
+                }
+              ]
+            },
+            "paths": {
+              "web_search_data": "/Users/kgw/skipers-ai/data/wiki/화학_소재/web_search_data",
+              "approved_md": "/Users/kgw/skipers-ai/data/wiki/화학_소재/approved_context.md",
+              "vectorstore": "/Users/kgw/skipers-ai/data/wiki/화학_소재/vectorstore"
+            }
+          },
+          {
+            "topic": "바이오_의료",
+            "has_data": false,
+            "approved_md_exists": false,
+            "draft_count": 0,
+            "vectorstore_exists": false,
+            "document_count": 0,
+            "refreshed_at": null,
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": null,
+              "standby_slot": "blue",
+              "pointer_path": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/vectorstore/active_slot.json",
+              "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/vectorstore/manifest.json",
+              "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/vectorstore/documents.jsonl",
+              "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/vectorstore/manifest.json",
+              "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/vectorstore/documents.jsonl",
+              "slots": [
+                {
+                  "slot": "blue",
+                  "is_active": false,
+                  "exists": false,
+                  "document_count": null,
+                  "refreshed_at": null,
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/vectorstore/blue/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/vectorstore/blue/documents.jsonl"
+                },
+                {
+                  "slot": "green",
+                  "is_active": false,
+                  "exists": false,
+                  "document_count": null,
+                  "refreshed_at": null,
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/vectorstore/green/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/vectorstore/green/documents.jsonl"
+                }
+              ]
+            },
+            "paths": {
+              "web_search_data": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/web_search_data",
+              "approved_md": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/approved_context.md",
+              "vectorstore": "/Users/kgw/skipers-ai/data/wiki/바이오_의료/vectorstore"
+            }
+          },
+          {
+            "topic": "기계_제조",
+            "has_data": false,
+            "approved_md_exists": false,
+            "draft_count": 0,
+            "vectorstore_exists": false,
+            "document_count": 0,
+            "refreshed_at": null,
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": null,
+              "standby_slot": "blue",
+              "pointer_path": "/Users/kgw/skipers-ai/data/wiki/기계_제조/vectorstore/active_slot.json",
+              "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/기계_제조/vectorstore/manifest.json",
+              "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/기계_제조/vectorstore/documents.jsonl",
+              "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/기계_제조/vectorstore/manifest.json",
+              "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/기계_제조/vectorstore/documents.jsonl",
+              "slots": [
+                {
+                  "slot": "blue",
+                  "is_active": false,
+                  "exists": false,
+                  "document_count": null,
+                  "refreshed_at": null,
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/기계_제조/vectorstore/blue/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/기계_제조/vectorstore/blue/documents.jsonl"
+                },
+                {
+                  "slot": "green",
+                  "is_active": false,
+                  "exists": false,
+                  "document_count": null,
+                  "refreshed_at": null,
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/기계_제조/vectorstore/green/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/기계_제조/vectorstore/green/documents.jsonl"
+                }
+              ]
+            },
+            "paths": {
+              "web_search_data": "/Users/kgw/skipers-ai/data/wiki/기계_제조/web_search_data",
+              "approved_md": "/Users/kgw/skipers-ai/data/wiki/기계_제조/approved_context.md",
+              "vectorstore": "/Users/kgw/skipers-ai/data/wiki/기계_제조/vectorstore"
+            }
+          },
+          {
+            "topic": "에너지_환경",
+            "has_data": false,
+            "approved_md_exists": false,
+            "draft_count": 0,
+            "vectorstore_exists": false,
+            "document_count": 0,
+            "refreshed_at": null,
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": null,
+              "standby_slot": "blue",
+              "pointer_path": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/vectorstore/active_slot.json",
+              "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/vectorstore/manifest.json",
+              "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/vectorstore/documents.jsonl",
+              "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/vectorstore/manifest.json",
+              "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/vectorstore/documents.jsonl",
+              "slots": [
+                {
+                  "slot": "blue",
+                  "is_active": false,
+                  "exists": false,
+                  "document_count": null,
+                  "refreshed_at": null,
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/vectorstore/blue/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/vectorstore/blue/documents.jsonl"
+                },
+                {
+                  "slot": "green",
+                  "is_active": false,
+                  "exists": false,
+                  "document_count": null,
+                  "refreshed_at": null,
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/vectorstore/green/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/vectorstore/green/documents.jsonl"
+                }
+              ]
+            },
+            "paths": {
+              "web_search_data": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/web_search_data",
+              "approved_md": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/approved_context.md",
+              "vectorstore": "/Users/kgw/skipers-ai/data/wiki/에너지_환경/vectorstore"
+            }
+          },
+          {
+            "topic": "_general",
+            "has_data": true,
+            "approved_md_exists": false,
+            "draft_count": 1,
+            "vectorstore_exists": true,
+            "document_count": 0,
+            "refreshed_at": "2026-06-07T15:51:08",
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": "green",
+              "standby_slot": "blue",
+              "pointer_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/active_slot.json",
+              "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/green/manifest.json",
+              "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/green/documents.jsonl",
+              "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/manifest.json",
+              "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/documents.jsonl",
+              "slots": [
+                {
+                  "slot": "blue",
+                  "is_active": false,
+                  "exists": true,
+                  "document_count": 0,
+                  "refreshed_at": "2026-06-07T15:34:28",
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/blue/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/blue/documents.jsonl"
+                },
+                {
+                  "slot": "green",
+                  "is_active": true,
+                  "exists": true,
+                  "document_count": 0,
+                  "refreshed_at": "2026-06-07T15:51:08",
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/green/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/green/documents.jsonl"
+                }
+              ]
+            },
+            "paths": {
+              "web_search_data": "/Users/kgw/skipers-ai/data/wiki/_general/web_search_data",
+              "approved_md": "/Users/kgw/skipers-ai/data/wiki/_general/approved_context.md",
+              "vectorstore": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore"
+            }
+          }
+        ],
+        "active_count": 5,
+        "predefined_slugs": [
+          "소프트웨어_IT",
+          "반도체_전자",
+          "화학_소재",
+          "바이오_의료",
+          "기계_제조",
+          "에너지_환경",
+          "_general"
+        ]
+      }
+    },
+    {
+      "name": "application_status",
+      "method": "GET",
+      "path": "/api/v1/application/status",
+      "status_code": 200,
+      "ok": true,
+      "payload": {
+        "root": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack",
+        "root_exists": true,
+        "index_exists": true,
+        "document_count": 18,
+        "source_file_count": 7,
+        "source_roles": {
+          "application_procedure": 4,
+          "prior_art_search": 1,
+          "rejection_failure_feedback": 2
+        },
+        "rotation": {
+          "strategy": "blue_green",
+          "active_slot": "blue",
+          "standby_slot": "green",
+          "pointer_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/active_slot.json",
+          "active_manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/manifest.json",
+          "active_documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/documents.jsonl",
+          "legacy_manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/manifest.json",
+          "legacy_documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/documents.jsonl",
+          "slots": [
+            {
+              "slot": "blue",
+              "is_active": true,
+              "exists": true,
+              "document_count": 18,
+              "refreshed_at": "2026-06-07T15:55:57",
+              "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/manifest.json",
+              "documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/documents.jsonl"
+            },
+            {
+              "slot": "green",
+              "is_active": false,
+              "exists": true,
+              "document_count": 6,
+              "refreshed_at": "2026-06-07T15:55:12",
+              "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/green/manifest.json",
+              "documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/green/documents.jsonl"
+            }
+          ]
+        },
+        "manifest": {
+          "scope": "patent_application",
+          "backend": "local_hashed_bow",
+          "vector_dimensions": 256,
+          "refreshed_at": "2026-06-07T15:55:57",
+          "document_count": 18,
+          "source_file_count": 7,
+          "source_roles": {
+            "application_procedure": 4,
+            "prior_art_search": 1,
+            "rejection_failure_feedback": 2
+          },
+          "source_fingerprints": [
+            {
+              "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/named/001_SRC-001_특허로 특허출원가이드.html",
+              "size_bytes": 121799,
+              "sha1": "bc0dfae08ccc45e85cb10e3c8d85520a08d49510"
+            },
+            {
+              "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/named/002_SRC-002_특허고객번호부여신청.html",
+              "size_bytes": 198711,
+              "sha1": "38771f3236cb91d107579029714c11bb3be3b2b7"
+            },
+            {
+              "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/named/003_SRC-003_인증서 사용등록.html",
+              "size_bytes": 107461,
+              "sha1": "32c684f77be43867c188b38d8244122d929040f9"
+            },
+            {
+              "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/patent_application_process_guide.md",
+              "size_bytes": 5591,
+              "sha1": "8c88cca99f75dc935cf31a67374b9a8cc5b8b9c8"
+            },
+            {
+              "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/patent_rejection_failure_response.md",
+              "size_bytes": 2953,
+              "sha1": "829d9f3bd68d0a13c4636716da306afcff91d732"
+            },
+            {
+              "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/patent_rejection_notice_original_sources.md",
+              "size_bytes": 4592,
+              "sha1": "cc43a32a1dd1404a62be211376df3593f6f9a3f8"
+            },
+            {
+              "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/prior_art_search_workflow.md",
+              "size_bytes": 1784,
+              "sha1": "c1debded3c475ecdebf2737eaee849c71aff69bd"
+            }
+          ],
+          "errors": [],
+          "documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/documents.jsonl",
+          "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/manifest.json",
+          "active_slot": "blue",
+          "previous_active_slot": "green",
+          "rotation": {
+            "strategy": "blue_green",
+            "active_slot": "blue",
+            "previous_active_slot": "green",
+            "activated_at": "2026-06-07T15:55:57",
+            "standby_slot": "green"
+          }
+        },
+        "feedback": {
+          "root": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/feedback",
+          "count": 0,
+          "latest": null
+        },
+        "failed_patent_cases": {
+          "root": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent",
+          "count": 3,
+          "items": [
+            {
+              "case_id": "10-1959619_failed",
+              "title": "20260531_181425_20260529_144101_pdf.pdf",
+              "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/10-1959619_failed",
+              "created_at": "2026-06-04T16:09:25",
+              "updated_at": "2026-06-07T00:00:00",
+              "has_original_pdf": true,
+              "index_exists": true,
+              "document_count": 15,
+              "source_file_count": 2
+            },
+            {
+              "case_id": "20260531_181425_20260529_144101_pdf.pdf",
+              "title": "20260531_181425_20260529_144101_pdf.pdf",
+              "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf",
+              "created_at": "2026-06-04T15:42:29",
+              "updated_at": "2026-06-07T00:00:00",
+              "has_original_pdf": true,
+              "index_exists": true,
+              "document_count": 8,
+              "source_file_count": 1
+            },
+            {
+              "case_id": "20260531_181425_20260529_144101_pdf.pdf_155943_676781",
+              "title": "20260531_181425_20260529_144101_pdf.pdf",
+              "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781",
+              "created_at": "2026-06-04T15:59:43",
+              "updated_at": "2026-06-07T00:00:00",
+              "has_original_pdf": true,
+              "index_exists": true,
+              "document_count": 11,
+              "source_file_count": 2
+            }
+          ]
+        },
+        "download_report": {
+          "exists": true,
+          "success_count": 3,
+          "failure_count": 0,
+          "report_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/download_report.md",
+          "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/download_manifest.json"
+        }
+      }
+    },
+    {
+      "name": "failed_patents",
+      "method": "GET",
+      "path": "/api/v1/application/failed-patents",
+      "status_code": 200,
+      "ok": true,
+      "payload": {
+        "root": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent",
+        "count": 3,
+        "items": [
+          {
+            "case_id": "10-1959619_failed",
+            "title": "20260531_181425_20260529_144101_pdf.pdf",
+            "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/10-1959619_failed",
+            "created_at": "2026-06-04T16:09:25",
+            "updated_at": "2026-06-07T00:00:00",
+            "has_original_pdf": true,
+            "index_exists": true,
+            "document_count": 15,
+            "source_file_count": 2
+          },
+          {
+            "case_id": "20260531_181425_20260529_144101_pdf.pdf",
+            "title": "20260531_181425_20260529_144101_pdf.pdf",
+            "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf",
+            "created_at": "2026-06-04T15:42:29",
+            "updated_at": "2026-06-07T00:00:00",
+            "has_original_pdf": true,
+            "index_exists": true,
+            "document_count": 8,
+            "source_file_count": 1
+          },
+          {
+            "case_id": "20260531_181425_20260529_144101_pdf.pdf_155943_676781",
+            "title": "20260531_181425_20260529_144101_pdf.pdf",
+            "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781",
+            "created_at": "2026-06-04T15:59:43",
+            "updated_at": "2026-06-07T00:00:00",
+            "has_original_pdf": true,
+            "index_exists": true,
+            "document_count": 11,
+            "source_file_count": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "preprocess_status",
+      "method": "GET",
+      "path": "/api/v1/chatbot/preprocess/status",
+      "status_code": 200,
+      "ok": true,
+      "payload": {
+        "vectorstore": {
+          "backend": "local_hashed_bow",
+          "rotation_policy": "blue_green; readers use active_slot.json and writers build the standby slot before switching",
+          "core_source_types": [
+            "APPLICATION_FEEDBACK_REPORT",
+            "ORIGINAL_PDF",
+            "PATENT_INPUT_JSON",
+            "REPORT_JSON",
+            "REPORT_PDF"
+          ],
+          "core_policy": "patent/report only; wiki is topic-based in WIKI_ROOT/{topic}/vectorstore",
+          "global": {
+            "exists": true,
+            "document_count": 0,
+            "refreshed_at": "2026-06-07T15:51:08",
+            "source": "human_reviewed",
+            "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/green/manifest.json",
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": "green",
+              "standby_slot": "blue",
+              "pointer_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/active_slot.json",
+              "active_manifest_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/green/manifest.json",
+              "active_documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/green/documents.jsonl",
+              "legacy_manifest_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/manifest.json",
+              "legacy_documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/documents.jsonl",
+              "slots": [
+                {
+                  "slot": "blue",
+                  "is_active": false,
+                  "exists": true,
+                  "document_count": 0,
+                  "refreshed_at": "2026-06-07T15:34:28",
+                  "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/blue/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/blue/documents.jsonl"
+                },
+                {
+                  "slot": "green",
+                  "is_active": true,
+                  "exists": true,
+                  "document_count": 0,
+                  "refreshed_at": "2026-06-07T15:51:08",
+                  "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/green/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports/_global/index/vectorstore/green/documents.jsonl"
+                }
+              ]
+            }
+          },
+          "global_wiki": {
+            "exists": true,
+            "document_count": 1,
+            "source": "human_reviewed",
+            "policy": "merged wiki from all topic vectorstores",
+            "manifest_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/green/manifest.json",
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": "green",
+              "standby_slot": "blue",
+              "pointer_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/active_slot.json",
+              "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/green/manifest.json",
+              "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/green/documents.jsonl",
+              "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/manifest.json",
+              "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/documents.jsonl",
+              "slots": [
+                {
+                  "slot": "blue",
+                  "is_active": false,
+                  "exists": true,
+                  "document_count": 0,
+                  "refreshed_at": "2026-06-07T15:34:28",
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/blue/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/blue/documents.jsonl"
+                },
+                {
+                  "slot": "green",
+                  "is_active": true,
+                  "exists": true,
+                  "document_count": 1,
+                  "refreshed_at": "2026-06-07T15:51:08",
+                  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/green/manifest.json",
+                  "documents_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/green/documents.jsonl"
+                }
+              ]
+            }
+          },
+          "topic_wiki": [
+            {
+              "topic": "_general",
+              "vectorstore_exists": true,
+              "document_count": 0,
+              "refreshed_at": "2026-06-07T15:51:08",
+              "approved_md_exists": false,
+              "approved_md_path": "/Users/kgw/skipers-ai/data/wiki/_general/approved_context.md",
+              "rotation": {
+                "strategy": "blue_green",
+                "active_slot": "green",
+                "standby_slot": "blue",
+                "pointer_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/active_slot.json",
+                "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/green/manifest.json",
+                "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/green/documents.jsonl",
+                "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/manifest.json",
+                "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/documents.jsonl",
+                "slots": [
+                  {
+                    "slot": "blue",
+                    "is_active": false,
+                    "exists": true,
+                    "document_count": 0,
+                    "refreshed_at": "2026-06-07T15:34:28",
+                    "manifest_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/blue/manifest.json",
+                    "documents_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/blue/documents.jsonl"
+                  },
+                  {
+                    "slot": "green",
+                    "is_active": true,
+                    "exists": true,
+                    "document_count": 0,
+                    "refreshed_at": "2026-06-07T15:51:08",
+                    "manifest_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/green/manifest.json",
+                    "documents_path": "/Users/kgw/skipers-ai/data/wiki/_general/vectorstore/green/documents.jsonl"
+                  }
+                ]
+              }
+            },
+            {
+              "topic": "반도체_전자",
+              "vectorstore_exists": true,
+              "document_count": 1,
+              "refreshed_at": "2026-06-07T15:51:08",
+              "approved_md_exists": true,
+              "approved_md_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/approved_context.md",
+              "rotation": {
+                "strategy": "blue_green",
+                "active_slot": "green",
+                "standby_slot": "blue",
+                "pointer_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/active_slot.json",
+                "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/green/manifest.json",
+                "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/green/documents.jsonl",
+                "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/manifest.json",
+                "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/documents.jsonl",
+                "slots": [
+                  {
+                    "slot": "blue",
+                    "is_active": false,
+                    "exists": true,
+                    "document_count": 1,
+                    "refreshed_at": "2026-06-07T15:49:42",
+                    "manifest_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/blue/manifest.json",
+                    "documents_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/blue/documents.jsonl"
+                  },
+                  {
+                    "slot": "green",
+                    "is_active": true,
+                    "exists": true,
+                    "document_count": 1,
+                    "refreshed_at": "2026-06-07T15:51:08",
+                    "manifest_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/green/manifest.json",
+                    "documents_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/vectorstore/green/documents.jsonl"
+                  }
+                ]
+              }
+            },
+            {
+              "topic": "소프트웨어_IT",
+              "vectorstore_exists": false,
+              "document_count": 0,
+              "refreshed_at": null,
+              "approved_md_exists": false,
+              "approved_md_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/approved_context.md",
+              "rotation": {
+                "strategy": "blue_green",
+                "active_slot": null,
+                "standby_slot": "blue",
+                "pointer_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/active_slot.json",
+                "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/manifest.json",
+                "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/documents.jsonl",
+                "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/manifest.json",
+                "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/documents.jsonl",
+                "slots": [
+                  {
+                    "slot": "blue",
+                    "is_active": false,
+                    "exists": false,
+                    "document_count": null,
+                    "refreshed_at": null,
+                    "manifest_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/blue/manifest.json",
+                    "documents_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/blue/documents.jsonl"
+                  },
+                  {
+                    "slot": "green",
+                    "is_active": false,
+                    "exists": false,
+                    "document_count": null,
+                    "refreshed_at": null,
+                    "manifest_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/green/manifest.json",
+                    "documents_path": "/Users/kgw/skipers-ai/data/wiki/소프트웨어_IT/vectorstore/green/documents.jsonl"
+                  }
+                ]
+              }
+            },
+            {
+              "topic": "스마트_팩토리",
+              "vectorstore_exists": false,
+              "document_count": 0,
+              "refreshed_at": null,
+              "approved_md_exists": false,
+              "approved_md_path": "/Users/kgw/skipers-ai/data/wiki/스마트_팩토리/approved_context.md",
+              "rotation": {
+                "strategy": "blue_green",
+                "active_slot": null,
+                "standby_slot": "blue",
+                "pointer_path": "/Users/kgw/skipers-ai/data/wiki/스마트_팩토리/vectorstore/active_slot.json",
+                "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/스마트_팩토리/vectorstore/manifest.json",
+                "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/스마트_팩토리/vectorstore/documents.jsonl",
+                "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/스마트_팩토리/vectorstore/manifest.json",
+                "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/스마트_팩토리/vectorstore/documents.jsonl",
+                "slots": [
+                  {
+                    "slot": "blue",
+                    "is_active": false,
+                    "exists": false,
+                    "document_count": null,
+                    "refreshed_at": null,
+                    "manifest_path": "/Users/kgw/skipers-ai/data/wiki/스마트_팩토리/vectorstore/blue/manifest.json",
+                    "documents_path": "/Users/kgw/skipers-ai/data/wiki/스마트_팩토리/vectorstore/blue/documents.jsonl"
+                  },
+                  {
+                    "slot": "green",
+                    "is_active": false,
+                    "exists": false,
+                    "document_count": null,
+                    "refreshed_at": null,
+                    "manifest_path": "/Users/kgw/skipers-ai/data/wiki/스마트_팩토리/vectorstore/green/manifest.json",
+                    "documents_path": "/Users/kgw/skipers-ai/data/wiki/스마트_팩토리/vectorstore/green/documents.jsonl"
+                  }
+                ]
+              }
+            },
+            {
+              "topic": "특허출원_절차",
+              "vectorstore_exists": true,
+              "document_count": 1,
+              "refreshed_at": "2026-06-07T16:00:51",
+              "approved_md_exists": true,
+              "approved_md_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/approved_context.md",
+              "rotation": {
+                "strategy": "blue_green",
+                "active_slot": "blue",
+                "standby_slot": "green",
+                "pointer_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/active_slot.json",
+                "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/blue/manifest.json",
+                "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/blue/documents.jsonl",
+                "legacy_manifest_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/manifest.json",
+                "legacy_documents_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/documents.jsonl",
+                "slots": [
+                  {
+                    "slot": "blue",
+                    "is_active": true,
+                    "exists": true,
+                    "document_count": 1,
+                    "refreshed_at": "2026-06-07T16:00:51",
+                    "manifest_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/blue/manifest.json",
+                    "documents_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/blue/documents.jsonl"
+                  },
+                  {
+                    "slot": "green",
+                    "is_active": false,
+                    "exists": true,
+                    "document_count": 1,
+                    "refreshed_at": "2026-06-07T16:00:39",
+                    "manifest_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/green/manifest.json",
+                    "documents_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/green/documents.jsonl"
+                  }
+                ]
+              }
+            }
+          ],
+          "patents": []
+        },
+        "application": {
+          "root": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack",
+          "root_exists": true,
+          "index_exists": true,
+          "document_count": 18,
+          "source_file_count": 7,
+          "source_roles": {
+            "application_procedure": 4,
+            "prior_art_search": 1,
+            "rejection_failure_feedback": 2
+          },
+          "rotation": {
+            "strategy": "blue_green",
+            "active_slot": "blue",
+            "standby_slot": "green",
+            "pointer_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/active_slot.json",
+            "active_manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/manifest.json",
+            "active_documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/documents.jsonl",
+            "legacy_manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/manifest.json",
+            "legacy_documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/documents.jsonl",
+            "slots": [
+              {
+                "slot": "blue",
+                "is_active": true,
+                "exists": true,
+                "document_count": 18,
+                "refreshed_at": "2026-06-07T15:55:57",
+                "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/manifest.json",
+                "documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/documents.jsonl"
+              },
+              {
+                "slot": "green",
+                "is_active": false,
+                "exists": true,
+                "document_count": 6,
+                "refreshed_at": "2026-06-07T15:55:12",
+                "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/green/manifest.json",
+                "documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/green/documents.jsonl"
+              }
+            ]
+          },
+          "manifest": {
+            "scope": "patent_application",
+            "backend": "local_hashed_bow",
+            "vector_dimensions": 256,
+            "refreshed_at": "2026-06-07T15:55:57",
+            "document_count": 18,
+            "source_file_count": 7,
+            "source_roles": {
+              "application_procedure": 4,
+              "prior_art_search": 1,
+              "rejection_failure_feedback": 2
+            },
+            "source_fingerprints": [
+              {
+                "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/named/001_SRC-001_특허로 특허출원가이드.html",
+                "size_bytes": 121799,
+                "sha1": "bc0dfae08ccc45e85cb10e3c8d85520a08d49510"
+              },
+              {
+                "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/named/002_SRC-002_특허고객번호부여신청.html",
+                "size_bytes": 198711,
+                "sha1": "38771f3236cb91d107579029714c11bb3be3b2b7"
+              },
+              {
+                "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/named/003_SRC-003_인증서 사용등록.html",
+                "size_bytes": 107461,
+                "sha1": "32c684f77be43867c188b38d8244122d929040f9"
+              },
+              {
+                "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/patent_application_process_guide.md",
+                "size_bytes": 5591,
+                "sha1": "8c88cca99f75dc935cf31a67374b9a8cc5b8b9c8"
+              },
+              {
+                "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/patent_rejection_failure_response.md",
+                "size_bytes": 2953,
+                "sha1": "829d9f3bd68d0a13c4636716da306afcff91d732"
+              },
+              {
+                "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/patent_rejection_notice_original_sources.md",
+                "size_bytes": 4592,
+                "sha1": "cc43a32a1dd1404a62be211376df3593f6f9a3f8"
+              },
+              {
+                "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/prior_art_search_workflow.md",
+                "size_bytes": 1784,
+                "sha1": "c1debded3c475ecdebf2737eaee849c71aff69bd"
+              }
+            ],
+            "errors": [],
+            "documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/documents.jsonl",
+            "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/manifest.json",
+            "active_slot": "blue",
+            "previous_active_slot": "green",
+            "rotation": {
+              "strategy": "blue_green",
+              "active_slot": "blue",
+              "previous_active_slot": "green",
+              "activated_at": "2026-06-07T15:55:57",
+              "standby_slot": "green"
+            }
+          },
+          "feedback": {
+            "root": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/feedback",
+            "count": 0,
+            "latest": null
+          },
+          "failed_patent_cases": {
+            "root": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent",
+            "count": 3,
+            "items": [
+              {
+                "case_id": "10-1959619_failed",
+                "title": "20260531_181425_20260529_144101_pdf.pdf",
+                "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/10-1959619_failed",
+                "created_at": "2026-06-04T16:09:25",
+                "updated_at": "2026-06-07T00:00:00",
+                "has_original_pdf": true,
+                "index_exists": true,
+                "document_count": 15,
+                "source_file_count": 2
+              },
+              {
+                "case_id": "20260531_181425_20260529_144101_pdf.pdf",
+                "title": "20260531_181425_20260529_144101_pdf.pdf",
+                "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf",
+                "created_at": "2026-06-04T15:42:29",
+                "updated_at": "2026-06-07T00:00:00",
+                "has_original_pdf": true,
+                "index_exists": true,
+                "document_count": 8,
+                "source_file_count": 1
+              },
+              {
+                "case_id": "20260531_181425_20260529_144101_pdf.pdf_155943_676781",
+                "title": "20260531_181425_20260529_144101_pdf.pdf",
+                "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781",
+                "created_at": "2026-06-04T15:59:43",
+                "updated_at": "2026-06-07T00:00:00",
+                "has_original_pdf": true,
+                "index_exists": true,
+                "document_count": 11,
+                "source_file_count": 2
+              }
+            ]
+          },
+          "download_report": {
+            "exists": true,
+            "success_count": 3,
+            "failure_count": 0,
+            "report_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/download_report.md",
+            "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/download_manifest.json"
+          }
+        },
+        "application_external": {
+          "tavily": {
+            "configured": true,
+            "usage": "external web evidence and official-source discovery"
+          },
+          "kipris": {
+            "configured": true,
+            "usage": "prior-art, legal status, rejection/family/citation checks"
+          },
+          "kosis": {
+            "configured": true,
+            "usage": "market/industry statistics for filing and commercialization strategy"
+          }
+        }
+      }
+    }
+  ],
+  "patent_count": 10,
+  "application_document_count": 18,
+  "failed_case_count": 3,
+  "wiki_topic_count": 7,
+  "all_ok": true
+}

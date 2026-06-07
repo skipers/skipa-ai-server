@@ -1,0 +1,829 @@
+{
+  "status": "needs_human_review",
+  "workflow_type": "langgraph",
+  "elapsed_seconds": 0.22,
+  "validation": {
+    "valid": true,
+    "errors": [],
+    "patent_id": "10-1959619",
+    "title": "반도체 결함 시각화 방법 및 시스템",
+    "has_claims": true,
+    "has_description": true,
+    "has_market_data": false,
+    "has_kipris_data": false
+  },
+  "valuation": {
+    "schema_version": "patent-valuation-output/v1",
+    "patent_id": "10-1959619",
+    "title": "반도체 결함 시각화 방법 및 시스템",
+    "meta": {
+      "title": "반도체 결함 시각화 방법 및 시스템",
+      "registration_number": "10-1959619",
+      "registration_date": "2019-03-12",
+      "application_number": "10-2017-0024064",
+      "application_date": "2017-02-23",
+      "publication_number": "10-2018-0097281",
+      "publication_date": "2018-08-31",
+      "legal_status": "등록",
+      "assignee": [
+        "에스케이 주식회사"
+      ],
+      "inventors": [
+        "강명주",
+        "곽지훈",
+        "손명승",
+        "이민환",
+        "박준택",
+        "정항덕",
+        "김현욱",
+        "송경민",
+        "안성권",
+        "문용식"
+      ],
+      "agent": [
+        "양성환",
+        "한지나"
+      ],
+      "examiner": "홍종선",
+      "ipc": [
+        "H01L21/66",
+        "H01L21/67"
+      ],
+      "cpc": [
+        "H01L22/24",
+        "H01L21/67242",
+        "H01L22/12",
+        "H01L22/34"
+      ],
+      "prior_art_cited": [
+        "KR100648203 B1"
+      ],
+      "total_claims": 4,
+      "deleted_claims": [
+        2,
+        3,
+        4,
+        5,
+        8
+      ]
+    },
+    "legal": {
+      "registration_date": "2019-03-12",
+      "notice_date": "2019-07-02",
+      "examination_request_date": "2017-02-23"
+    },
+    "auto_scores": [],
+    "llm_scores": [],
+    "llm_sources": [],
+    "evidence": {},
+    "market_growth": {
+      "score": 3,
+      "fallback": true,
+      "skipped": true
+    },
+    "summary": {
+      "market": {
+        "score": 3,
+        "growth_rate": null,
+        "sector": null,
+        "c2_code": null
+      },
+      "execution_time_seconds": 0.0,
+      "steps": [
+        {
+          "name": "market_growth",
+          "status": "skipped",
+          "elapsed_seconds": 0,
+          "message": "시장 성장률 단계 비활성화"
+        },
+        {
+          "name": "auto_scores",
+          "status": "skipped",
+          "elapsed_seconds": 0,
+          "message": "자동 점수 단계 비활성화"
+        },
+        {
+          "name": "llm_scores",
+          "status": "skipped",
+          "elapsed_seconds": 0,
+          "message": "LLM 평가 단계 비활성화"
+        }
+      ]
+    }
+  },
+  "similar_analysis": null,
+  "report": {
+    "report_id": "10-1959619_20260604_160926",
+    "generated_at": "2026-06-04T16:09:26.794715",
+    "schema_version": "patent-valuation-report/v3",
+    "report_metadata": {
+      "title": "IP 가치 평가 보고서",
+      "evaluation_date": "2026-06-04",
+      "score_display_scale": "0~100",
+      "item_score_scale": "1~5",
+      "table_of_contents": [
+        {
+          "section": 1,
+          "key": "section_1_summary",
+          "title": "평가 요약"
+        },
+        {
+          "section": 2,
+          "key": "section_2_detailed_scores",
+          "title": "평가 기준별 상세 점수"
+        },
+        {
+          "section": 3,
+          "key": "section_3_project_utilization",
+          "title": "사내 프로젝트 활용 현황"
+        },
+        {
+          "section": 4,
+          "key": "section_4_similar_patents",
+          "title": "유사 특허 분석"
+        },
+        {
+          "section": 5,
+          "key": "section_5_review_items",
+          "title": "추가 확인 필요 사항"
+        },
+        {
+          "section": 6,
+          "key": "section_6_references",
+          "title": "참고 문헌"
+        }
+      ]
+    },
+    "patent": {
+      "id": "10-1959619",
+      "title": "반도체 결함 시각화 방법 및 시스템",
+      "registration_number": "10-1959619",
+      "application_number": "10-2017-0024064",
+      "application_date": "2017-02-23",
+      "registration_date": "2019-03-12",
+      "publication_number": "10-2018-0097281",
+      "publication_date": "2018-08-31",
+      "ipc_codes": [
+        "H01L21/66",
+        "H01L21/67"
+      ],
+      "cpc_codes": [
+        "H01L22/24",
+        "H01L21/67242",
+        "H01L22/12",
+        "H01L22/34"
+      ],
+      "assignee": [
+        "에스케이 주식회사"
+      ],
+      "inventors": [
+        "강명주",
+        "곽지훈",
+        "손명승",
+        "이민환",
+        "박준택",
+        "정항덕",
+        "김현욱",
+        "송경민",
+        "안성권",
+        "문용식"
+      ],
+      "total_claims": 4,
+      "legal_status": "등록",
+      "expiration_date": "2037-02-23",
+      "expiration_basis": "출원일 기준 20년 일반 만료일. 연장등록 등 개별 법적 사정은 별도 확인 필요",
+      "remaining_years": 10.7
+    },
+    "section_1_summary": {
+      "title": "평가 요약",
+      "overall_score": 0.0,
+      "overall_score_out_of_100": 0,
+      "overall_grade": "D",
+      "risk_level": "high",
+      "score_scale": {
+        "item": "1~5",
+        "display": "0~100"
+      },
+      "dimension_scores": {},
+      "project_utilization_brief": {
+        "commercialization_status": "미확인",
+        "applied_business_service": "",
+        "brief_summary": ""
+      },
+      "similar_patents_brief": {
+        "available": false
+      },
+      "overall_opinion": "종합 평균 점수는 0.0/5입니다. 시장 섹터는 미분류이며, 2점 이하 추가 확인 항목은 없음입니다."
+    },
+    "section_2_detailed_scores": {
+      "title": "평가 기준별 상세 점수",
+      "dimensions": {},
+      "evaluation_standard": "IP가치평가 실무가이드 Chapter 4 (특허청·한국발명진흥회·KISTI, 2021)",
+      "score_calculation_method": "자동 점수(규칙 기반 5개 항목) + LLM 점수(OpenAI GPT 기반 43개 항목). 각 항목 1~5점 척도. 차원별 평균으로 종합 점수 산출.",
+      "all_sources": []
+    },
+    "section_3_project_utilization": {
+      "title": "사내 프로젝트 활용 현황",
+      "available": false,
+      "data_source": "사내 프로젝트 문서 RAG 검색 결과",
+      "commercialization_status": "미확인",
+      "query": "",
+      "answer": "",
+      "applied_business_service": "",
+      "business_application_history": "",
+      "customers_partners": "",
+      "market_outlook": "",
+      "commercialization_signals": [],
+      "project_summary": "",
+      "sources": []
+    },
+    "section_4_similar_patents": {
+      "title": "유사 특허 분석",
+      "available": false,
+      "message": "유사 특허 분석 데이터가 없습니다.",
+      "data_source": "KIPRIS 유사 특허 검색",
+      "ecosystem_summary": {},
+      "top_comparisons": [],
+      "patent_list": [],
+      "competitive_analysis": {}
+    },
+    "section_5_review_items": {
+      "title": "추가 확인 필요 사항",
+      "selection_rule": "평가 점수 3점 이하 또는 근거 확신도 낮음 항목",
+      "items": []
+    },
+    "section_6_references": {
+      "title": "참고 문헌",
+      "evaluation_standard": {
+        "title": "IP가치평가 실무가이드 Chapter 4",
+        "publisher": "특허청·한국발명진흥회·KISTI",
+        "published_year": 2021
+      },
+      "tech_market_sources": [],
+      "papers_and_reports": [],
+      "project_rag_sources": [],
+      "kipris_similar_patent_sources": [],
+      "api_llm_sources": [
+        {
+          "source": "OpenAI GPT-4o-mini",
+          "usage": "43개 항목 LLM 기반 평가"
+        },
+        {
+          "source": "KOSIS (통계청)",
+          "usage": "산업 성장률 조회 (시장 성장성 점수)"
+        },
+        {
+          "source": "Tavily Web Search",
+          "usage": "LLM 평가 보조 웹 검색 증거 수집"
+        }
+      ],
+      "all_sources_deduplicated": []
+    },
+    "pipeline": {
+      "steps": [
+        {
+          "name": "market_growth",
+          "status": "skipped",
+          "elapsed_seconds": 0,
+          "message": "시장 성장률 단계 비활성화"
+        },
+        {
+          "name": "auto_scores",
+          "status": "skipped",
+          "elapsed_seconds": 0,
+          "message": "자동 점수 단계 비활성화"
+        },
+        {
+          "name": "llm_scores",
+          "status": "skipped",
+          "elapsed_seconds": 0,
+          "message": "LLM 평가 단계 비활성화"
+        }
+      ],
+      "execution_time_seconds": 0.0
+    },
+    "workflow": {
+      "type": "langgraph",
+      "node_trace": [
+        {
+          "node": "supervisor",
+          "status": "success",
+          "elapsed_seconds": 0.0,
+          "message": "next=collect_evidence"
+        },
+        {
+          "node": "collect_evidence",
+          "status": "success",
+          "elapsed_seconds": 0.0,
+          "message": "2개 세부 단계 실행"
+        },
+        {
+          "node": "supervisor",
+          "status": "success",
+          "elapsed_seconds": 0.0,
+          "message": "next=validate_input"
+        },
+        {
+          "node": "validate_input",
+          "status": "success",
+          "elapsed_seconds": 0.0,
+          "message": ""
+        },
+        {
+          "node": "supervisor",
+          "status": "success",
+          "elapsed_seconds": 0.0,
+          "message": "next=run_valuation"
+        },
+        {
+          "node": "run_valuation",
+          "status": "success",
+          "elapsed_seconds": 0.0,
+          "message": "가치 평가 완료"
+        },
+        {
+          "node": "supervisor:valuation",
+          "status": "flagged",
+          "elapsed_seconds": 0.0,
+          "message": "평가 점수가 생성되지 않았습니다. 시장 성장률 데이터가 fallback으로 산출되었습니다."
+        },
+        {
+          "node": "supervisor",
+          "status": "success",
+          "elapsed_seconds": 0.0,
+          "message": "next=build_report"
+        },
+        {
+          "node": "build_report",
+          "status": "success",
+          "elapsed_seconds": 0.0,
+          "message": "보고서 생성 완료"
+        },
+        {
+          "node": "supervisor",
+          "status": "success",
+          "elapsed_seconds": 0.0,
+          "message": "next=verify_report"
+        },
+        {
+          "node": "verify_report",
+          "status": "flagged",
+          "elapsed_seconds": 0.0,
+          "message": "자동 검증 신뢰도는 0.03이며 위험 등급은 high_risk입니다. 주요 이슈 4건이 발견되어 사람 검토가 필요합니다."
+        },
+        {
+          "node": "supervisor",
+          "status": "success",
+          "elapsed_seconds": 0.0,
+          "message": "next=end"
+        }
+      ],
+      "errors": [],
+      "human_reviews": [
+        {
+          "node": "supervisor:valuation",
+          "severity": "medium",
+          "reason": "평가 점수가 생성되지 않았습니다. 시장 성장률 데이터가 fallback으로 산출되었습니다.",
+          "status": "flagged",
+          "details": {
+            "average_score": 0.0,
+            "low_score_count": 0,
+            "market_growth": {
+              "score": 3,
+              "fallback": true,
+              "skipped": true
+            },
+            "low_score_items": []
+          }
+        },
+        {
+          "node": "verify_report",
+          "severity": "high",
+          "reason": "자동 검증 신뢰도는 0.03이며 위험 등급은 high_risk입니다. 주요 이슈 4건이 발견되어 사람 검토가 필요합니다.",
+          "status": "flagged",
+          "details": {
+            "schema_version": "report-verification/v1",
+            "overall_reliability_score": 0.03,
+            "reliability_grade": "D",
+            "risk_level": "high_risk",
+            "human_review_required": true,
+            "evidence_coverage": 0.0,
+            "source_quality_score": 0.0,
+            "numeric_integrity": "pass",
+            "metrics": {
+              "score_item_count": 0,
+              "report_score_item_count": 0,
+              "source_backed_item_count": 0,
+              "low_confidence_item_count": 0,
+              "high_score_without_source_count": 0,
+              "unsupported_claim_count": 0,
+              "contradiction_count": 0,
+              "numeric_mismatch_count": 0,
+              "official_source_count": 0,
+              "total_source_count": 0,
+              "similar_analysis_available": false,
+              "issue_count": 4,
+              "critical_issue_count": 1,
+              "high_issue_count": 1
+            },
+            "issues": [
+              {
+                "code": "missing_scores",
+                "severity": "critical",
+                "message": "평가 점수가 생성되지 않아 보고서 신뢰도를 판단할 수 없습니다.",
+                "location": "valuation"
+              },
+              {
+                "code": "missing_references",
+                "severity": "high",
+                "message": "보고서 전체에 검증 가능한 참고 출처가 없습니다.",
+                "location": "report.section_6_references"
+              },
+              {
+                "code": "missing_business_evidence",
+                "severity": "medium",
+                "message": "사내 사업화/RAG 근거가 없어 사업성 판단은 고객 확인이 필요합니다.",
+                "location": "report.section_3_project_utilization"
+              },
+              {
+                "code": "missing_similar_analysis",
+                "severity": "medium",
+                "message": "유사 특허 분석 결과가 없어 경쟁/차별화 판단 신뢰도가 낮습니다.",
+                "location": "report.section_4_similar_patents"
+              }
+            ],
+            "summary": "자동 검증 신뢰도는 0.03이며 위험 등급은 high_risk입니다. 주요 이슈 4건이 발견되어 사람 검토가 필요합니다."
+          }
+        }
+      ],
+      "report_verification": {
+        "overall_reliability_score": 0.03,
+        "reliability_grade": "D",
+        "risk_level": "high_risk",
+        "human_review_required": true
+      }
+    },
+    "quality_assurance": {
+      "schema_version": "report-verification/v1",
+      "overall_reliability_score": 0.03,
+      "reliability_grade": "D",
+      "risk_level": "high_risk",
+      "human_review_required": true,
+      "evidence_coverage": 0.0,
+      "source_quality_score": 0.0,
+      "numeric_integrity": "pass",
+      "metrics": {
+        "score_item_count": 0,
+        "report_score_item_count": 0,
+        "source_backed_item_count": 0,
+        "low_confidence_item_count": 0,
+        "high_score_without_source_count": 0,
+        "unsupported_claim_count": 0,
+        "contradiction_count": 0,
+        "numeric_mismatch_count": 0,
+        "official_source_count": 0,
+        "total_source_count": 0,
+        "similar_analysis_available": false,
+        "issue_count": 4,
+        "critical_issue_count": 1,
+        "high_issue_count": 1
+      },
+      "issues": [
+        {
+          "code": "missing_scores",
+          "severity": "critical",
+          "message": "평가 점수가 생성되지 않아 보고서 신뢰도를 판단할 수 없습니다.",
+          "location": "valuation"
+        },
+        {
+          "code": "missing_references",
+          "severity": "high",
+          "message": "보고서 전체에 검증 가능한 참고 출처가 없습니다.",
+          "location": "report.section_6_references"
+        },
+        {
+          "code": "missing_business_evidence",
+          "severity": "medium",
+          "message": "사내 사업화/RAG 근거가 없어 사업성 판단은 고객 확인이 필요합니다.",
+          "location": "report.section_3_project_utilization"
+        },
+        {
+          "code": "missing_similar_analysis",
+          "severity": "medium",
+          "message": "유사 특허 분석 결과가 없어 경쟁/차별화 판단 신뢰도가 낮습니다.",
+          "location": "report.section_4_similar_patents"
+        }
+      ],
+      "summary": "자동 검증 신뢰도는 0.03이며 위험 등급은 high_risk입니다. 주요 이슈 4건이 발견되어 사람 검토가 필요합니다."
+    }
+  },
+  "report_verification": {
+    "schema_version": "report-verification/v1",
+    "overall_reliability_score": 0.03,
+    "reliability_grade": "D",
+    "risk_level": "high_risk",
+    "human_review_required": true,
+    "evidence_coverage": 0.0,
+    "source_quality_score": 0.0,
+    "numeric_integrity": "pass",
+    "metrics": {
+      "score_item_count": 0,
+      "report_score_item_count": 0,
+      "source_backed_item_count": 0,
+      "low_confidence_item_count": 0,
+      "high_score_without_source_count": 0,
+      "unsupported_claim_count": 0,
+      "contradiction_count": 0,
+      "numeric_mismatch_count": 0,
+      "official_source_count": 0,
+      "total_source_count": 0,
+      "similar_analysis_available": false,
+      "issue_count": 4,
+      "critical_issue_count": 1,
+      "high_issue_count": 1
+    },
+    "issues": [
+      {
+        "code": "missing_scores",
+        "severity": "critical",
+        "message": "평가 점수가 생성되지 않아 보고서 신뢰도를 판단할 수 없습니다.",
+        "location": "valuation"
+      },
+      {
+        "code": "missing_references",
+        "severity": "high",
+        "message": "보고서 전체에 검증 가능한 참고 출처가 없습니다.",
+        "location": "report.section_6_references"
+      },
+      {
+        "code": "missing_business_evidence",
+        "severity": "medium",
+        "message": "사내 사업화/RAG 근거가 없어 사업성 판단은 고객 확인이 필요합니다.",
+        "location": "report.section_3_project_utilization"
+      },
+      {
+        "code": "missing_similar_analysis",
+        "severity": "medium",
+        "message": "유사 특허 분석 결과가 없어 경쟁/차별화 판단 신뢰도가 낮습니다.",
+        "location": "report.section_4_similar_patents"
+      }
+    ],
+    "summary": "자동 검증 신뢰도는 0.03이며 위험 등급은 high_risk입니다. 주요 이슈 4건이 발견되어 사람 검토가 필요합니다."
+  },
+  "human_reviews": [
+    {
+      "node": "supervisor:valuation",
+      "severity": "medium",
+      "reason": "평가 점수가 생성되지 않았습니다. 시장 성장률 데이터가 fallback으로 산출되었습니다.",
+      "status": "flagged",
+      "details": {
+        "average_score": 0.0,
+        "low_score_count": 0,
+        "market_growth": {
+          "score": 3,
+          "fallback": true,
+          "skipped": true
+        },
+        "low_score_items": []
+      }
+    },
+    {
+      "node": "verify_report",
+      "severity": "high",
+      "reason": "자동 검증 신뢰도는 0.03이며 위험 등급은 high_risk입니다. 주요 이슈 4건이 발견되어 사람 검토가 필요합니다.",
+      "status": "flagged",
+      "details": {
+        "schema_version": "report-verification/v1",
+        "overall_reliability_score": 0.03,
+        "reliability_grade": "D",
+        "risk_level": "high_risk",
+        "human_review_required": true,
+        "evidence_coverage": 0.0,
+        "source_quality_score": 0.0,
+        "numeric_integrity": "pass",
+        "metrics": {
+          "score_item_count": 0,
+          "report_score_item_count": 0,
+          "source_backed_item_count": 0,
+          "low_confidence_item_count": 0,
+          "high_score_without_source_count": 0,
+          "unsupported_claim_count": 0,
+          "contradiction_count": 0,
+          "numeric_mismatch_count": 0,
+          "official_source_count": 0,
+          "total_source_count": 0,
+          "similar_analysis_available": false,
+          "issue_count": 4,
+          "critical_issue_count": 1,
+          "high_issue_count": 1
+        },
+        "issues": [
+          {
+            "code": "missing_scores",
+            "severity": "critical",
+            "message": "평가 점수가 생성되지 않아 보고서 신뢰도를 판단할 수 없습니다.",
+            "location": "valuation"
+          },
+          {
+            "code": "missing_references",
+            "severity": "high",
+            "message": "보고서 전체에 검증 가능한 참고 출처가 없습니다.",
+            "location": "report.section_6_references"
+          },
+          {
+            "code": "missing_business_evidence",
+            "severity": "medium",
+            "message": "사내 사업화/RAG 근거가 없어 사업성 판단은 고객 확인이 필요합니다.",
+            "location": "report.section_3_project_utilization"
+          },
+          {
+            "code": "missing_similar_analysis",
+            "severity": "medium",
+            "message": "유사 특허 분석 결과가 없어 경쟁/차별화 판단 신뢰도가 낮습니다.",
+            "location": "report.section_4_similar_patents"
+          }
+        ],
+        "summary": "자동 검증 신뢰도는 0.03이며 위험 등급은 high_risk입니다. 주요 이슈 4건이 발견되어 사람 검토가 필요합니다."
+      }
+    }
+  ],
+  "human_review_pending": null,
+  "interrupts": [],
+  "node_trace": [
+    {
+      "node": "supervisor",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "next=collect_evidence"
+    },
+    {
+      "node": "collect_evidence",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "2개 세부 단계 실행"
+    },
+    {
+      "node": "supervisor",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "next=validate_input"
+    },
+    {
+      "node": "validate_input",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": ""
+    },
+    {
+      "node": "supervisor",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "next=run_valuation"
+    },
+    {
+      "node": "run_valuation",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "가치 평가 완료"
+    },
+    {
+      "node": "supervisor:valuation",
+      "status": "flagged",
+      "elapsed_seconds": 0.0,
+      "message": "평가 점수가 생성되지 않았습니다. 시장 성장률 데이터가 fallback으로 산출되었습니다."
+    },
+    {
+      "node": "supervisor",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "next=build_report"
+    },
+    {
+      "node": "build_report",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "보고서 생성 완료"
+    },
+    {
+      "node": "supervisor",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "next=verify_report"
+    },
+    {
+      "node": "verify_report",
+      "status": "flagged",
+      "elapsed_seconds": 0.0,
+      "message": "자동 검증 신뢰도는 0.03이며 위험 등급은 high_risk입니다. 주요 이슈 4건이 발견되어 사람 검토가 필요합니다."
+    },
+    {
+      "node": "supervisor",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "next=end"
+    }
+  ],
+  "errors": [],
+  "artifacts": {
+    "chatbot_pre_extracted_input": {
+      "patent_id": "10-1959619",
+      "meta": {
+        "title": "반도체 결함 시각화 방법 및 시스템",
+        "registration_number": "10-1959619",
+        "registration_date": "2019-03-12",
+        "application_number": "10-2017-0024064",
+        "application_date": "2017-02-23",
+        "publication_number": "10-2018-0097281",
+        "publication_date": "2018-08-31",
+        "legal_status": "등록",
+        "assignee": [
+          "에스케이 주식회사"
+        ],
+        "inventors": [
+          "강명주",
+          "곽지훈",
+          "손명승",
+          "이민환",
+          "박준택",
+          "정항덕",
+          "김현욱",
+          "송경민",
+          "안성권",
+          "문용식"
+        ],
+        "agent": [
+          "양성환",
+          "한지나"
+        ],
+        "examiner": "홍종선",
+        "ipc": [
+          "H01L21/66",
+          "H01L21/67"
+        ],
+        "cpc": [
+          "H01L22/24",
+          "H01L21/67242",
+          "H01L22/12",
+          "H01L22/34"
+        ],
+        "prior_art_cited": [
+          "KR100648203 B1"
+        ],
+        "total_claims": 4,
+        "deleted_claims": [
+          2,
+          3,
+          4,
+          5,
+          8
+        ],
+        "keywords": []
+      },
+      "description_summary": "[요약] 반도체 결함 시각화 방법 및 시스템이 제공된다. 본 발명의 실시예에 따른 반도체 결함 시각화 방법은, 다수의 반도체들에서 검출한 결함 위치들로부터 결함 개수 맵을 생성하여 다중 임계값 기반으로 결함 이미지들을 다중으 로 생성한다. 이에 의해, 결함의 위치별 군집/분포 패턴과 반복 패턴에 대한 파악/분석을 용이하게 한다.\n[기술분야] [0001] 본 발명은 반도체/공정 검사 기술에 관한 것으로, 더욱 상세하게는 반도체 결함을 시각화하는 방법 및 시스템에 관한 것이다.\n[해결과제] [0006] 본 발명은 상기와 같은 문제점을 해결하기 위하여 안출된 것으로서, 본 발명의 목적은, 다수의 반도체들에서 검 출한 결함 위치들로부터 결함 개수 맵을 생성하여 다중 임계값 기반으로 결함 이미지들을 다중으로 생성하는 반 도체 결함 시각화 방법 및 시스템을 제공함에 있다.\n[해결수단] [0007] 상기 목적을 달성하기 위한 본 발명의 일 실시예에 따른, 반도체 결함 시각화 방법은, 다수의 반도체 이미지들 에서 검출된 결함 위치 정보들을 획득하는 단계; 결함 위치 정보들을 이용하여, 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하는 단계; 및 맵을 이용하여, 다수의 반도체들에서 발생한 결함들에 대한 정보를 시각화 하는 단계;를 포함한다. [0008] 그리고, 본 발명의 일 실시예에 따른 반도체 결함 시각화 방법은, 임계값을 설정하는 단계;를 더 포함하고, 시 각화 단계는, 맵에서, 결함 개수가 임계값 이상인 셀들은 제1 타입으로, 결함 개수가 임계값 미만인 셀들은 제2 타입으로, 각각 표시하여, 결함 이미지를 생성할 수 있다. [0009] 또한, 제1 타입은, 제1 픽셀 값으로 셀을 표시하는 타입이고, 제2 타입은, 제2 픽셀 값으로 셀을 표시하는 타입 일 수 있다. [0010] 그리고, 제1 타입은, 제1 픽셀 값으로 셀을 표시하는 타입이고, 제2 타입은, 결함 개수가 임계값 미만인 셀들을 결함 개수에 따라 각기 다른 픽셀 값으로 셀을 표시하는 타입일 수 있다. [0011] 또한, 설정 단계는, 다수의 임계값들을 설정하고, 시각화 단계는, 다수의 임계값들에 따라 생성한 결함 이미지 들을 생성하며, 반도체 결함 시각화 방법은, 결함 이미지들을 비교 가능한 형태로 나열하는 단계;를 더 포함할 수 있다. [0012] 그리고, 본 발명의 일 실시예에 따른 반도체 결함 시각화 방법은, 결함 이미지들 중 적어도 2개의 결함 이미지 들 간의 차 이미지를 생성하는 단계;를 더 포함할 수 있다. [0013] 또한, 맵은, 그리드 타입으로 다수의 셀들이 구획된 맵일 수 있다. [0014] 그리고, 다수의 반도체들은, 다수의 웨이퍼들 또는 다수의 다이들일 수 있다. [0015] 한편, 본 발명의 다른 실시예에 따른 반도체 결함 시각화 시스템은, 다수의 반도체 이미지들에서 검출된 결함 위치 정보들을 수신하는 통신부; 및 결함 위치 정보들을 이용하여, 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하고, 맵을 이용하여 다수의 반도체들에서 발생한 결함들에 대한 정 보를 시각화 하는 프로세서;를 포함한다.\n[발명의 효과] [0016] 이상 설명한 바와 같이, 본 발명의 실시예들에 따르면, 많은 웨이퍼들에서 검출된 많은 결함들이 취합된 결함 이미지들이 다중 임계값들에 따라 결함 개수의 식별이 용이하도록 시각화 되어 제공되므로, 결함의 위치별 군집 /분포 패턴과 반복 패턴에 대한 파악/분석을 용이하게 한다.",
+      "claims_text": {
+        "claim_1": {
+          "type": "독립항",
+          "category": "방법",
+          "text": "다수의 반도체 이미지들에서 검출된 결함 위치 정보들을 획득하는 단계; 다수의 임계값들을 설정하는 단계; 결함 위치 정보들을 이용하여, 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하는 단계; 맵에 대해 다수의 임계값들을 각각 적용하여, 결함 개수가 임계값 이상인 셀들은 제1 픽셀 값으로, 결함 개수가 임계값 미만인 셀들은 결함 개수에 따라 각기 다른 픽셀 값으로, 각각 표시하여, 임계값 개수 만큼의 결함 이미 지들을 생성하는 제1 생성단계; 제1 생성단계에서 생성된 결함 이미지들을 비교 가능한 형태로 나열하여 시각화 하는 제1 시각화단계; 맵에 대해 다수의 임계값들을 각각 적용하여, 결함 개수가 임계값 이상인 셀들은 제1 픽셀 값으로, 결함 개수가 임계값 미만인 셀들은 제2 픽셀 값으로, 각각 표시하여, 임계값 개수 만큼의 결함 이미지들을 생성하는 제2 생 성단계; 및 제2 생성단계에서 생성된 결함 이미지들을 비교 가능한 형태로 나열하여 시각화 하는 제2 시각화단계;를 포함하 고, 다수의 반도체 이미지들은, 다수의 웨이퍼 이미지들 또는 다수의 다이 이미지들인 것을 특징으로 하는 반도체 결함 시각화 방법."
+        },
+        "claim_6": {
+          "type": "종속항",
+          "category": "방법",
+          "text": "청구항 1에 있어서, 결함 이미지들 중 적어도 2개의 결함 이미지들 간의 차 이미지를 생성하는 단계;를 더 포함하는 것을 특징으로 하는 반도체 결함 시각화 방법.",
+          "depends_on": 1
+        },
+        "claim_7": {
+          "type": "종속항",
+          "category": "방법",
+          "text": "청구항 1에 있어서, 맵은, 그리드 타입으로 다수의 셀들이 구획된 맵인 것을 특징으로 하는 반도체 결함 시각화 방법.",
+          "depends_on": 1
+        },
+        "claim_9": {
+          "type": "독립항",
+          "category": "시스템",
+          "text": "다수의 반도체 이미지들에서 검출된 결함 위치 정보들을 수신하는 통신부; 및 다수의 임계값들을 설정하고, 결함 위치 정보들을 이용하여 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하며, 맵에 대해 다수의 임계값들을 각각 적용하여 결함 개수가 임계값 이 상인 셀들은 제1 픽셀 값으로, 결함 개수가 임계값 미만인 셀들은 결함 개수에 따라 각기 다른 픽셀 값으로 각 각 표시하여 임계값 개수 만큼의 결함 이미지들을 생성하고 생성한 결함 이미지들을 비교 가능한 형태로 나열하 여 시각화 하는 프로세서;를 포함하고 프로세서는, 맵에 대해 다수의 임계값들을 각각 적용하여 결함 개수가 임계값 이상인 셀들은 제1 픽셀 값으로, 결함 개수가 임계값 미만인 셀들은 제2 픽셀 값으로 각각 표시하여, 임계값 개수 만큼의 결함 이미지들을 생성하고, 생성한 결함 이미지들을 비교 가능한 형태로 나열하여 시각화 하며, 다수의 반도체 이미지들은, 다수의 웨이퍼 이미지들 또는 다수의 다이 이미지들인 것을 특징으로 하는 반도체 결함 시각화 시스템."
+        }
+      },
+      "specification": {
+        "claims_raw_text": "청구항 1 다수의 반도체 이미지들에서 검출된 결함 위치 정보들을 획득하는 단계; 다수의 임계값들을 설정하는 단계; 결함 위치 정보들을 이용하여, 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하는 단계; 맵에 대해 다수의 임계값들을 각각 적용하여, 결함 개수가 임계값 이상인 셀들은 제1 픽셀 값으로, 결함 개수가 임계값 미만인 셀들은 결함 개수에 따라 각기 다른 픽셀 값으로, 각각 표시하여, 임계값 개수 만큼의 결함 이미 지들을 생성하는 제1 생성단계; 제1 생성단계에서 생성된 결함 이미지들을 비교 가능한 형태로 나열하여 시각화 하는 제1 시각화단계; 맵에 대해 다수의 임계값들을 각각 적용하여, 결함 개수가 임계값 이상인 셀들은 제1 픽셀 값으로, 결함 개수가 임계값 미만인 셀들은 제2 픽셀 값으로, 각각 표시하여, 임계값 개수 만큼의 결함 이미지들을 생성하는 제2 생 성단계; 및 제2 생성단계에서 생성된 결함 이미지들을 비교 가능한 형태로 나열하여 시각화 하는 제2 시각화단계;를 포함하 고, 다수의 반도체 이미지들은, 다수의 웨이퍼 이미지들 또는 다수의 다이 이미지들인 것을 특징으로 하는 반도체 결함 시각화 방법. 청구항 2 삭제 청구항 3 삭제 청구항 4 삭제 청구항 5 삭제 청구항 6 청구항 1에 있어서, 결함 이미지들 중 적어도 2개의 결함 이미지들 간의 차 이미지를 생성하는 단계;를 더 포함하는 것을 특징으로 하는 반도체 결함 시각화 방법. 청구항 7 청구항 1에 있어서, 맵은, 그리드 타입으로 다수의 셀들이 구획된 맵인 것을 특징으로 하는 반도체 결함 시각화 방법. 청구항 8 삭제 청구항 9 다수의 반도체 이미지들에서 검출된 결함 위치 정보들을 수신하는 통신부; 및 다수의 임계값들을 설정하고, 결함 위치 정보들을 이용하여 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하며, 맵에 대해 다수의 임계값들을 각각 적용하여 결함 개수가 임계값 이 상인 셀들은 제1 픽셀 값으로, 결함 개수가 임계값 미만인 셀들은 결함 개수에 따라 각기 다른 픽셀 값으로 각 각 표시하여 임계값 개수 만큼의 결함 이미지들을 생성하고 생성한 결함 이미지들을 비교 가능한 형태로 나열하 여 시각화 하는 프로세서;를 포함하고 프로세서는, 맵에 대해 다수의 임계값들을 각각 적용하여 결함 개수가 임계값 이상인 셀들은 제1 픽셀 값으로, 결함 개수가 임계값 미만인 셀들은 제2 픽셀 값으로 각각 표시하여, 임계값 개수 만큼의 결함 이미지들을 생성하고, 생성한 결함 이미지들을 비교 가능한 형태로 나열하여 시각화 하며, 다수의 반도체 이미지들은, 다수의 웨이퍼 이미지들 또는 다수의 다이 이미지들인 것을 특징으로 하는 반도체 결함 시각화 시스템.",
+        "description_text": "기 술 분 야 [0001] 본 발명은 반도체/공정 검사 기술에 관한 것으로, 더욱 상세하게는 반도체 결함을 시각화하는 방법 및 시스템에 관한 것이다. 배 경 기 술 [0002] 웨이퍼의 결함은 발생 원인과 수율에 미치는 정도가 다양한데, 특정 위치에 반복적으로 발생하는 결함은 경우에 따라 빠른 조치가 필요한 심각한 결함일 가능성이 높다. [0003] 이에, 웨이퍼의 결함에 대한 반복 패턴과 군집 패턴을 분석하는 것이 필요하다. 현재 대표적으로 행해지는 분석 기법은 웨이퍼에서 검출한 결함들을 결함 위치에 따라 결함 맵(Defect Map)에 점들로 나타내어 분포 패턴을 분 석하는 것이다. [0004] 하지만, 이 분석 방법은 점들의 밀도가 일정 수준을 넘은 영역들에 대해 밀도를 구분/비교할 수 없으며, 표시 가능한 점들의 개수에도 한계가 있어, 하나의 웨이퍼에 대한 분석에만 이용되고 있다. [0005] 결함의 반복 패턴과 군집 패턴을 신뢰성 있게 분석하려면, 많은 웨이퍼들에서 검출한 결함들을 취합하여 분석할 것이 요구되는 바, 이를 효과적을 수행할 수 있도록 하기 위한 방안의 모색이 요청된다. 발명의 내용 해결하려는 과제 [0006] 본 발명은 상기와 같은 문제점을 해결하기 위하여 안출된 것으로서, 본 발명의 목적은, 다수의 반도체들에서 검 출한 결함 위치들로부터 결함 개수 맵을 생성하여 다중 임계값 기반으로 결함 이미지들을 다중으로 생성하는 반 도체 결함 시각화 방법 및 시스템을 제공함에 있다. 과제의 해결 수단 [0007] 상기 목적을 달성하기 위한 본 발명의 일 실시예에 따른, 반도체 결함 시각화 방법은, 다수의 반도체 이미지들 에서 검출된 결함 위치 정보들을 획득하는 단계; 결함 위치 정보들을 이용하여, 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하는 단계; 및 맵을 이용하여, 다수의 반도체들에서 발생한 결함들에 대한 정보를 시각화 하는 단계;를 포함한다. [0008] 그리고, 본 발명의 일 실시예에 따른 반도체 결함 시각화 방법은, 임계값을 설정하는 단계;를 더 포함하고, 시 각화 단계는, 맵에서, 결함 개수가 임계값 이상인 셀들은 제1 타입으로, 결함 개수가 임계값 미만인 셀들은 제2 타입으로, 각각 표시하여, 결함 이미지를 생성할 수 있다. [0009] 또한, 제1 타입은, 제1 픽셀 값으로 셀을 표시하는 타입이고, 제2 타입은, 제2 픽셀 값으로 셀을 표시하는 타입 일 수 있다. [0010] 그리고, 제1 타입은, 제1 픽셀 값으로 셀을 표시하는 타입이고, 제2 타입은, 결함 개수가 임계값 미만인 셀들을 결함 개수에 따라 각기 다른 픽셀 값으로 셀을 표시하는 타입일 수 있다. [0011] 또한, 설정 단계는, 다수의 임계값들을 설정하고, 시각화 단계는, 다수의 임계값들에 따라 생성한 결함 이미지 들을 생성하며, 반도체 결함 시각화 방법은, 결함 이미지들을 비교 가능한 형태로 나열하는 단계;를 더 포함할 수 있다. [0012] 그리고, 본 발명의 일 실시예에 따른 반도체 결함 시각화 방법은, 결함 이미지들 중 적어도 2개의 결함 이미지 들 간의 차 이미지를 생성하는 단계;를 더 포함할 수 있다. [0013] 또한, 맵은, 그리드 타입으로 다수의 셀들이 구획된 맵일 수 있다. [0014] 그리고, 다수의 반도체들은, 다수의 웨이퍼들 또는 다수의 다이들일 수 있다. [0015] 한편, 본 발명의 다른 실시예에 따른 반도체 결함 시각화 시스템은, 다수의 반도체 이미지들에서 검출된 결함 위치 정보들을 수신하는 통신부; 및 결함 위치 정보들을 이용하여, 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하고, 맵을 이용하여 다수의 반도체들에서 발생한 결함들에 대한 정 보를 시각화 하는 프로세서;를 포함한다. 발명의 효과 [0016] 이상 설명한 바와 같이, 본 발명의 실시예들에 따르면, 많은 웨이퍼들에서 검출된 많은 결함들이 취합된 결함 이미지들이 다중 임계값들에 따라 결함 개수의 식별이 용이하도록 시각화 되어 제공되므로, 결함의 위치별 군집 /분포 패턴과 반복 패턴에 대한 파악/분석을 용이하게 한다.",
+        "technical_field": "[0001] 본 발명은 반도체/공정 검사 기술에 관한 것으로, 더욱 상세하게는 반도체 결함을 시각화하는 방법 및 시스템에 관한 것이다.",
+        "background_art": "[0002] 웨이퍼의 결함은 발생 원인과 수율에 미치는 정도가 다양한데, 특정 위치에 반복적으로 발생하는 결함은 경우에 따라 빠른 조치가 필요한 심각한 결함일 가능성이 높다. [0003] 이에, 웨이퍼의 결함에 대한 반복 패턴과 군집 패턴을 분석하는 것이 필요하다. 현재 대표적으로 행해지는 분석 기법은 웨이퍼에서 검출한 결함들을 결함 위치에 따라 결함 맵(Defect Map)에 점들로 나타내어 분포 패턴을 분 석하는 것이다. [0004] 하지만, 이 분석 방법은 점들의 밀도가 일정 수준을 넘은 영역들에 대해 밀도를 구분/비교할 수 없으며, 표시 가능한 점들의 개수에도 한계가 있어, 하나의 웨이퍼에 대한 분석에만 이용되고 있다. [0005] 결함의 반복 패턴과 군집 패턴을 신뢰성 있게 분석하려면, 많은 웨이퍼들에서 검출한 결함들을 취합하여 분석할 것이 요구되는 바, 이를 효과적을 수행할 수 있도록 하기 위한 방안의 모색이 요청된다.",
+        "problem_to_solve": "[0006] 본 발명은 상기와 같은 문제점을 해결하기 위하여 안출된 것으로서, 본 발명의 목적은, 다수의 반도체들에서 검 출한 결함 위치들로부터 결함 개수 맵을 생성하여 다중 임계값 기반으로 결함 이미지들을 다중으로 생성하는 반 도체 결함 시각화 방법 및 시스템을 제공함에 있다.",
+        "solution": "[0007] 상기 목적을 달성하기 위한 본 발명의 일 실시예에 따른, 반도체 결함 시각화 방법은, 다수의 반도체 이미지들 에서 검출된 결함 위치 정보들을 획득하는 단계; 결함 위치 정보들을 이용하여, 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하는 단계; 및 맵을 이용하여, 다수의 반도체들에서 발생한 결함들에 대한 정보를 시각화 하는 단계;를 포함한다. [0008] 그리고, 본 발명의 일 실시예에 따른 반도체 결함 시각화 방법은, 임계값을 설정하는 단계;를 더 포함하고, 시 각화 단계는, 맵에서, 결함 개수가 임계값 이상인 셀들은 제1 타입으로, 결함 개수가 임계값 미만인 셀들은 제2 타입으로, 각각 표시하여, 결함 이미지를 생성할 수 있다. [0009] 또한, 제1 타입은, 제1 픽셀 값으로 셀을 표시하는 타입이고, 제2 타입은, 제2 픽셀 값으로 셀을 표시하는 타입 일 수 있다. [0010] 그리고, 제1 타입은, 제1 픽셀 값으로 셀을 표시하는 타입이고, 제2 타입은, 결함 개수가 임계값 미만인 셀들을 결함 개수에 따라 각기 다른 픽셀 값으로 셀을 표시하는 타입일 수 있다. [0011] 또한, 설정 단계는, 다수의 임계값들을 설정하고, 시각화 단계는, 다수의 임계값들에 따라 생성한 결함 이미지 들을 생성하며, 반도체 결함 시각화 방법은, 결함 이미지들을 비교 가능한 형태로 나열하는 단계;를 더 포함할 수 있다. [0012] 그리고, 본 발명의 일 실시예에 따른 반도체 결함 시각화 방법은, 결함 이미지들 중 적어도 2개의 결함 이미지 들 간의 차 이미지를 생성하는 단계;를 더 포함할 수 있다. [0013] 또한, 맵은, 그리드 타입으로 다수의 셀들이 구획된 맵일 수 있다. [0014] 그리고, 다수의 반도체들은, 다수의 웨이퍼들 또는 다수의 다이들일 수 있다. [0015] 한편, 본 발명의 다른 실시예에 따른 반도체 결함 시각화 시스템은, 다수의 반도체 이미지들에서 검출된 결함 위치 정보들을 수신하는 통신부; 및 결함 위치 정보들을 이용하여, 다수의 셀들로 구획된 맵의 각 셀들에, 해당 셀들에 위치하는 결함의 개수들을 각각 수록하고, 맵을 이용하여 다수의 반도체들에서 발생한 결함들에 대한 정 보를 시각화 하는 프로세서;를 포함한다.",
+        "advantageous_effects": "[0016] 이상 설명한 바와 같이, 본 발명의 실시예들에 따르면, 많은 웨이퍼들에서 검출된 많은 결함들이 취합된 결함 이미지들이 다중 임계값들에 따라 결함 개수의 식별이 용이하도록 시각화 되어 제공되므로, 결함의 위치별 군집 /분포 패턴과 반복 패턴에 대한 파악/분석을 용이하게 한다."
+      },
+      "legal": {
+        "registration_date": "2019-03-12",
+        "notice_date": "2019-07-02",
+        "examination_request_date": "2017-02-23"
+      },
+      "source_pdf": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/10-1959619_failed/input/20260531_181425_20260529_144101_pdf.pdf",
+      "brief_summary": {
+        "개요": "반도체 결함 시각화 방법 및 시스템",
+        "핵심_내용": "반도체 결함 시각화 방법 및 시스템이 제공된다. 본 발명의 실시예에 따른 반도체 결함 시각화 방법은, 다수의 반도체들에서 검출한 결함 위치들로부터 결함 개수 맵을 생성하여 다중 임계값 기반으로 결함 이미지들을 다중으 로 생성한다."
+      }
+    },
+    "chatbot_pre_extracted_from_pdf": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/10-1959619_failed/input/20260531_181425_20260529_144101_pdf.pdf"
+  }
+}

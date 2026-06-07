@@ -1,0 +1,20 @@
+{
+  "scope": "wiki:global",
+  "refreshed_at": "2026-06-07T15:34:28",
+  "vector_dimensions": 256,
+  "backend": "local_hashed_bow",
+  "source": "human_reviewed",
+  "document_count": 0,
+  "source_fingerprints": [],
+  "documents_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/blue/documents.jsonl",
+  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/_global/vectorstore/blue/manifest.json",
+  "active_slot": "blue",
+  "previous_active_slot": null,
+  "rotation": {
+    "strategy": "blue_green",
+    "active_slot": "blue",
+    "previous_active_slot": null,
+    "activated_at": "2026-06-07T15:34:28",
+    "standby_slot": "green"
+  }
+}

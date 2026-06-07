@@ -1,0 +1,19 @@
+{
+  "scope": "shared_patents",
+  "refreshed_at": "2026-06-07T16:01:24",
+  "backend": "local_hashed_bow",
+  "document_count": 157,
+  "patent_count": 10,
+  "source": "shared_data_root",
+  "documents_path": "/Users/kgw/skipers-ai/data/_vectorstore/green/documents.jsonl",
+  "manifest_path": "/Users/kgw/skipers-ai/data/_vectorstore/green/manifest.json",
+  "active_slot": "green",
+  "previous_active_slot": "blue",
+  "rotation": {
+    "strategy": "blue_green",
+    "active_slot": "green",
+    "previous_active_slot": "blue",
+    "activated_at": "2026-06-07T16:01:24",
+    "standby_slot": "blue"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "active_slot": "green",
+  "previous_active_slot": "blue",
+  "activated_at": "2026-06-07T16:01:24",
+  "active_manifest_path": "/Users/kgw/skipers-ai/data/_vectorstore/green/manifest.json",
+  "active_documents_path": "/Users/kgw/skipers-ai/data/_vectorstore/green/documents.jsonl"
+}

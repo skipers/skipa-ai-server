@@ -319,7 +319,7 @@ def _iter_source_files() -> Iterable[Path]:
     if not PATENT_APPLICATION_ROOT.exists():
         return
     allowed = {".md", ".txt", ".csv", ".json", ".html", ".htm", ".pdf", ".xlsx", ".do", ".jsp", ".bin"}
-    skip_parts = {"index", "__pycache__", "readable", "named", "raw", "preprocessed", "failed_patent", "feedback"}
+    skip_parts = {"index", "__pycache__", "readable", "raw", "preprocessed", "failed_patent", "feedback"}
     generated_names = {
         "download_manifest.json",
         "download_report.md",
@@ -402,8 +402,8 @@ def _application_preprocess_report(files: list[Path], index_result: dict[str, An
         "index": index_result,
         "active_files": items,
         "excluded_policy": {
-            "directories": ["downloads/raw", "downloads/readable", "downloads/named", "index"],
-            "reason": "중복 원시 다운로드와 사람이 읽기 어려운 변환 전 파일은 검색 품질을 낮추므로 인덱싱하지 않습니다.",
+            "directories": ["downloads/raw", "downloads/readable", "index"],
+            "reason": "중복 원시 다운로드와 변환 중간 파일은 제외하고, 사람이 열기 쉬운 downloads/named 파일만 공식 원문 근거로 인덱싱합니다.",
         },
         "recommended_additions": RECOMMENDED_APPLICATION_ADDITIONS,
         "external_connectors": application_external_status(),

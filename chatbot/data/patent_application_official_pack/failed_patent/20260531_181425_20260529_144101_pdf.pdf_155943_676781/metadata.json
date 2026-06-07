@@ -1,0 +1,91 @@
+{
+  "case_id": "20260531_181425_20260529_144101_pdf.pdf_155943_676781",
+  "title": "20260531_181425_20260529_144101_pdf.pdf",
+  "created_at": "2026-06-04T15:59:43",
+  "reviewer": "browser-ui",
+  "notes": null,
+  "original_pdf_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/input/20260531_181425_20260529_144101_pdf.pdf",
+  "rejection_file_path": null,
+  "rejection_text_path": null,
+  "reports_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports",
+  "updated_at": "2026-06-07T00:00:00",
+  "index": {
+    "scope": "patent_application_failed_case",
+    "case_id": "20260531_181425_20260529_144101_pdf.pdf_155943_676781",
+    "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781",
+    "backend": "local_hashed_bow",
+    "vector_dimensions": 256,
+    "refreshed_at": "2026-06-07T00:00:00",
+    "document_count": 11,
+    "source_file_count": 2,
+    "source_roles": {
+      "failed_patent_original": 1,
+      "failed_patent_report": 1
+    },
+    "source_fingerprints": [
+      {
+        "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/input/20260531_181425_20260529_144101_pdf.pdf",
+        "size_bytes": 952537,
+        "sha1": "c0ecde82c4daf2b96f89e68db40b58fc00c5fe9f"
+      },
+      {
+        "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/latest_report.md",
+        "size_bytes": 4289,
+        "sha1": "5f0df77cea628e00e0e801b5522df7fcced25b3b"
+      }
+    ],
+    "errors": [],
+    "is_isolated_case_index": true,
+    "active_slot": "green",
+    "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/index/vectorstore/green/manifest.json"
+  },
+  "reports": [
+    {
+      "title": "20260531_181425_20260529_144101_pdf.pdf_155943_676781 실패특허 재평가 보고서",
+      "saved_at": "2026-06-04T15:59:45",
+      "paths": [
+        "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/20260604_155945_20260531_181425_20260529_144101_pdf.pdf_155943_676781_실패특허_재평가_보고서.json",
+        "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/latest_report.json",
+        "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/20260604_155945_20260531_181425_20260529_144101_pdf.pdf_155943_676781_실패특허_재평가_보고서.md",
+        "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/20260604_155945_20260531_181425_20260529_144101_pdf.pdf_155943_676781_실패특허_재평가_보고서.html",
+        "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/latest_report.md",
+        "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/latest_report.html"
+      ]
+    }
+  ],
+  "latest_report_paths": [
+    "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/20260604_155945_20260531_181425_20260529_144101_pdf.pdf_155943_676781_실패특허_재평가_보고서.json",
+    "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/latest_report.json",
+    "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/20260604_155945_20260531_181425_20260529_144101_pdf.pdf_155943_676781_실패특허_재평가_보고서.md",
+    "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/20260604_155945_20260531_181425_20260529_144101_pdf.pdf_155943_676781_실패특허_재평가_보고서.html",
+    "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/latest_report.md",
+    "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/latest_report.html"
+  ],
+  "latest_report_generation": {
+    "generated_at": "2026-06-04T15:59:45",
+    "source_pdf_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/input/20260531_181425_20260529_144101_pdf.pdf",
+    "options": {
+      "enable_market": true,
+      "enable_auto": true,
+      "enable_llm": true,
+      "enable_pdf_metadata_extraction": true,
+      "enable_business_rag": true,
+      "enable_similar_analysis": true,
+      "similar_use_llm": true,
+      "rag_top_k": 5,
+      "fail_on_validation_error": true,
+      "enable_human_review": false
+    },
+    "status": "partial_success",
+    "workflow_type": "langgraph",
+    "report_verification": null,
+    "saved_paths": [
+      "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/20260604_155945_20260531_181425_20260529_144101_pdf.pdf_155943_676781_실패특허_재평가_보고서.json",
+      "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/latest_report.json",
+      "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/20260604_155945_20260531_181425_20260529_144101_pdf.pdf_155943_676781_실패특허_재평가_보고서.md",
+      "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/20260604_155945_20260531_181425_20260529_144101_pdf.pdf_155943_676781_실패특허_재평가_보고서.html",
+      "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/latest_report.md",
+      "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf_155943_676781/reports/latest_report.html"
+    ]
+  }
+}

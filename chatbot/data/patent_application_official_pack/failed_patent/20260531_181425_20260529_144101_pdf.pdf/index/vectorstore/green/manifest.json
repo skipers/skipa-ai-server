@@ -1,0 +1,33 @@
+{
+  "scope": "patent_application_failed_case",
+  "case_id": "20260531_181425_20260529_144101_pdf.pdf",
+  "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf",
+  "backend": "local_hashed_bow",
+  "vector_dimensions": 256,
+  "refreshed_at": "2026-06-07T00:00:00",
+  "document_count": 8,
+  "source_file_count": 1,
+  "source_roles": {
+    "failed_patent_original": 1
+  },
+  "source_fingerprints": [
+    {
+      "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf/input/20260531_181425_20260529_144101_pdf.pdf",
+      "size_bytes": 952537,
+      "sha1": "c0ecde82c4daf2b96f89e68db40b58fc00c5fe9f"
+    }
+  ],
+  "errors": [],
+  "is_isolated_case_index": true,
+  "documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf/index/vectorstore/green/documents.jsonl",
+  "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/20260531_181425_20260529_144101_pdf.pdf/index/vectorstore/green/manifest.json",
+  "active_slot": "green",
+  "previous_active_slot": "blue",
+  "rotation": {
+    "strategy": "blue_green",
+    "active_slot": "green",
+    "previous_active_slot": "blue",
+    "activated_at": "2026-06-07T00:00:00",
+    "standby_slot": "blue"
+  }
+}

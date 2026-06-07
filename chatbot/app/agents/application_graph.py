@@ -290,7 +290,15 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
     text = query.lower()
     multi_categories: list[str] = []
 
-    if _is_failed_case_diagnostic_question(text):
+    explicit_prior_art = any(term in text for term in ["선행기술", "kipris", "검색", "cpc", "ipc", "유사"])
+    explicit_drafting = any(term in text for term in ["명세서", "청구항", "청구범위", "작성", "권리범위"])
+    if explicit_prior_art:
+        intent = "prior_art_search"
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
+    elif explicit_drafting:
+        intent = "drafting_claims"
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
+    elif _is_failed_case_diagnostic_question(text):
         intent = "failed_case_evaluation"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in REJECTION_TERMS):
@@ -302,10 +310,10 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
     elif _is_initial_application_question(text):
         intent = "application_procedure"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
-    elif any(term in text for term in ["선행기술", "kipris", "검색", "cpc", "ipc", "유사"]):
+    elif explicit_prior_art:
         intent = "prior_art_search"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
-    elif any(term in text for term in ["명세서", "청구항", "청구범위", "작성", "권리범위"]):
+    elif explicit_drafting:
         intent = "drafting_claims"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in ["수수료", "비용", "감면", "등록료", "심사청구료"]):
@@ -332,7 +340,7 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
     # 복합 의도 감지 (짧은 쿼리에서 2개 이상 카테고리 → 보기 제시)
     is_short_ambiguous = len(text.strip()) <= 8 and any(term in text for term in FOLLOWUP_TERMS)
     multi_categories = _detect_multi_application_intent(text)
-    is_multi = len(multi_categories) >= 2 and len(query.strip()) <= 40
+    is_multi = len(multi_categories) >= 2 and len(query.strip()) <= 16
 
     needs_clarification = is_short_ambiguous or is_multi
     if needs_clarification and is_multi:
@@ -366,12 +374,23 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
 
 def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, Any]:
     repaired = dict(intent)
+    rule_intent = _rule_application_intent(query)
     intent_name = str(repaired.get("intent") or "application_procedure")
     if intent_name not in SOURCE_PLAN_BY_INTENT:
-        intent_name = _rule_application_intent(query)["intent"]
+        intent_name = rule_intent["intent"]
         repaired["intent"] = intent_name
     text = query.lower()
-    if _is_failed_case_diagnostic_question(text):
+    explicit_prior_art = any(term in text for term in ["선행기술", "kipris", "검색", "cpc", "ipc", "유사"])
+    explicit_drafting = any(term in text for term in ["명세서", "청구항", "청구범위", "작성", "권리범위"])
+    if explicit_prior_art:
+        intent_name = "prior_art_search"
+        repaired["intent"] = intent_name
+        repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
+    elif explicit_drafting:
+        intent_name = "drafting_claims"
+        repaired["intent"] = intent_name
+        repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
+    elif _is_failed_case_diagnostic_question(text):
         intent_name = "failed_case_evaluation"
         repaired["intent"] = intent_name
         repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
@@ -384,6 +403,10 @@ def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, 
         repaired["intent"] = intent_name
         repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
     repaired["source_plan"] = SOURCE_PLAN_BY_INTENT[intent_name]
+    if repaired.get("needs_clarification") and not rule_intent.get("needs_clarification"):
+        repaired["needs_clarification"] = False
+        repaired["clarification_question"] = ""
+        repaired["reason"] = f"{repaired.get('reason') or ''} / 선택된 실패특허 케이스 근거가 있어 과도한 재질문을 해제"
     if repaired.get("needs_clarification"):
         repaired["needs_external"] = False
         repaired["source_plan"] = SOURCE_PLAN_BY_INTENT.get(intent_name, SOURCE_PLAN_BY_INTENT["application_procedure"])

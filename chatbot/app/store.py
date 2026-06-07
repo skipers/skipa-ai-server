@@ -95,6 +95,17 @@ def resolve_patent_dir(patent_id: str) -> Path:
     return patent_dir
 
 
+def _is_shared_patent(patent_id: str | None) -> bool:
+    if not patent_id:
+        return False
+    try:
+        from .shared_data import is_shared_patent_id
+
+        return is_shared_patent_id(patent_id)
+    except Exception:
+        return False
+
+
 def data_overview() -> dict[str, Any]:
     from .shared_data import list_shared_patent_ids, shared_vectorstore_status
     from .config import SHARED_DATA_ROOT
@@ -157,17 +168,36 @@ def patent_summary(patent_dir: Path) -> dict[str, Any]:
 
 
 def list_patents() -> list[dict[str, Any]]:
-    if not PATENTS_ROOT.exists():
-        return []
-    patents = []
-    for patent_dir in sorted(PATENTS_ROOT.iterdir(), key=lambda item: item.name):
-        if patent_dir.name.startswith(".") or patent_dir.name == "_global" or not patent_dir.is_dir():
-            continue
-        patents.append(patent_summary(patent_dir))
+    patents: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    if PATENTS_ROOT.exists():
+        for patent_dir in sorted(PATENTS_ROOT.iterdir(), key=lambda item: item.name):
+            if patent_dir.name.startswith(".") or patent_dir.name == "_global" or not patent_dir.is_dir():
+                continue
+            item = patent_summary(patent_dir)
+            patents.append(item)
+            seen.add(str(item.get("patent_id") or patent_dir.name))
+    try:
+        from .shared_data import list_shared_patent_ids, shared_patent_summary
+
+        for patent_id in list_shared_patent_ids():
+            if patent_id in seen:
+                continue
+            patents.append(shared_patent_summary(patent_id))
+            seen.add(patent_id)
+    except Exception:
+        pass
     return patents
 
 
 def patent_detail(patent_id: str, include_files: bool = True) -> dict[str, Any]:
+    if _is_shared_patent(patent_id):
+        try:
+            from .shared_data import shared_patent_detail
+
+            return shared_patent_detail(patent_id, include_files=include_files)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"공유 특허 상세 조회 실패: {patent_id} ({exc})") from exc
     patent_dir = resolve_patent_dir(patent_id)
     detail = patent_summary(patent_dir)
     detail["manifest"] = _read_json(patent_dir / "manifest.json")
@@ -185,6 +215,13 @@ def patent_detail(patent_id: str, include_files: bool = True) -> dict[str, Any]:
 
 
 def list_files(patent_id: str, limit: int = 300) -> list[dict[str, Any]]:
+    if _is_shared_patent(patent_id):
+        try:
+            from .shared_data import shared_list_files
+
+            return shared_list_files(patent_id, limit=limit)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"공유 특허 파일 조회 실패: {patent_id} ({exc})") from exc
     patent_dir = resolve_patent_dir(patent_id)
     files = []
     for path in sorted(patent_dir.rglob("*")):
@@ -196,6 +233,15 @@ def list_files(patent_id: str, limit: int = 300) -> list[dict[str, Any]]:
 
 
 def latest_json(patent_id: str, kind: str) -> dict[str, Any]:
+    if _is_shared_patent(patent_id):
+        try:
+            from .shared_data import shared_latest_json
+
+            return shared_latest_json(patent_id, kind)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=f"latest {kind} JSON이 없습니다: {patent_id}") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"지원하지 않는 kind입니다: {kind}") from exc
     patent_dir = resolve_patent_dir(patent_id)
     if kind == "input":
         path = patent_dir / "original" / "input" / "latest.json"
@@ -240,6 +286,18 @@ def patent_chunks(
     limit: int = 20,
     source_types: set[str] | None = None,
 ) -> dict[str, Any]:
+    if _is_shared_patent(patent_id):
+        try:
+            from .shared_data import shared_patent_chunks
+
+            return shared_patent_chunks(
+                patent_id,
+                offset=offset,
+                limit=limit,
+                source_types=source_types,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"공유 특허 chunk 조회 실패: {patent_id} ({exc})") from exc
     patent_dir = resolve_patent_dir(patent_id)
     file_name = CHUNK_FILES.get(chunk_file, chunk_file)
     if "/" in file_name or "\\" in file_name:
@@ -255,8 +313,11 @@ def business_chunks(*, offset: int = 0, limit: int = 20) -> dict[str, Any]:
 
 
 def _iter_chunk_items(patent_id: str | None, source_types: set[str] | None) -> Iterable[dict[str, Any]]:
+    if patent_id and _is_shared_patent(patent_id):
+        return
     patent_dirs = [resolve_patent_dir(patent_id)] if patent_id else [
         PATENTS_ROOT / summary["patent_id"] for summary in list_patents()
+        if (PATENTS_ROOT / str(summary["patent_id"])).exists()
     ]
     for patent_dir in patent_dirs:
         path = patent_dir / "extracted" / "all_chunks.jsonl"
@@ -331,11 +392,17 @@ def search_chunks(query: str, *, patent_id: str | None, source_types: set[str] |
             continue
         scored.append((score, item))
 
-    # Also search shared patent data (PROJECT_ROOT/data/{id}/)
-    if not patent_id and not scored:
+    # Also search shared patent data (PROJECT_ROOT/data/{id}/), including
+    # patent-scoped queries where the current repository has no legacy chunks.
+    if not scored:
         try:
             from .shared_data import search_shared_vectorstore
-            shared_result = search_shared_vectorstore(query, top_k=top_k)
+            shared_result = search_shared_vectorstore(
+                query,
+                top_k=top_k,
+                patent_id=patent_id,
+                source_types=effective_source_types,
+            )
             shared_hits = shared_result.get("hits") or []
             if shared_hits:
                 return {**shared_result, "mode": "shared_vectorstore"}
@@ -373,10 +440,19 @@ def _source_url(metadata: dict[str, Any]) -> str | None:
         return None
     path = Path(str(source_path))
     try:
-        rel = path.resolve().relative_to(DATA_ROOT.resolve())
+        from .config import SHARED_DATA_ROOT
     except Exception:
-        return None
-    return "/files/data/" + quote(str(rel).replace("\\", "/"))
+        SHARED_DATA_ROOT = PROJECT_ROOT / "data"
+    for base, prefix in (
+        (DATA_ROOT, "/files/data/"),
+        (SHARED_DATA_ROOT, "/files/shared/"),
+    ):
+        try:
+            rel = path.resolve().relative_to(base.resolve())
+        except Exception:
+            continue
+        return prefix + quote(str(rel).replace("\\", "/"))
+    return None
 
 
 def _clean_sentence(text: str, limit: int = 220) -> str:

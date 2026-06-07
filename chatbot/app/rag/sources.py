@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from ..config import DATA_ROOT
+from ..config import DATA_ROOT, SHARED_DATA_ROOT
 from .quality import filter_usable_hits
 from .source_card_utils import enrich_source_card
 
@@ -16,11 +16,16 @@ def _source_url(metadata: dict[str, Any]) -> str | None:
     if not source_path:
         return None
     path = Path(str(source_path))
-    try:
-        rel = path.resolve().relative_to(DATA_ROOT.resolve())
-    except Exception:
-        return None
-    return "/files/data/" + quote(str(rel).replace("\\", "/"))
+    for base, prefix in (
+        (DATA_ROOT, "/files/data/"),
+        (SHARED_DATA_ROOT, "/files/shared/"),
+    ):
+        try:
+            rel = path.resolve().relative_to(base.resolve())
+        except Exception:
+            continue
+        return prefix + quote(str(rel).replace("\\", "/"))
+    return None
 
 
 def cards_from_hits(hits: list[dict[str, Any]], *, query: str | None = None) -> list[dict[str, Any]]:

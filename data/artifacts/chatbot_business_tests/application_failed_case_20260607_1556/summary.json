@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-06-07T15:57:33",
+  "case_id": "10-1959619_failed",
+  "total": 20,
+  "success": 20,
+  "failed": 0,
+  "avg_source_count": 3.95,
+  "avg_elapsed_sec": 2.109,
+  "answer_strategies": [
+    "ask_clarification",
+    "openai_answer_then_guardrail",
+    "selected_failed_case_latest_report_summary"
+  ],
+  "source_types": [
+    "APPLICATION_OFFICIAL_MD",
+    "FAILED_PATENT_ORIGINAL_PDF",
+    "FAILED_PATENT_REPORT_MD",
+    "WEB"
+  ]
+}

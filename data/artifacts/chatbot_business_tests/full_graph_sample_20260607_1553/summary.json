@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-06-07T15:54:11",
+  "execution_mode": "full",
+  "patent_runner": "graph",
+  "bert_score_enabled": false,
+  "output_dir": "data/artifacts/chatbot_business_tests/full_graph_sample_20260607_1553",
+  "patents_used": [
+    {
+      "patent_id": "10-1959619",
+      "title": "반도체 결함 시각화 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-1959627",
+      "title": "실제 반도체 제조물을 복제한 가상 반도체 제조물 제공 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2042318",
+      "title": "스마트 팩토리 레이아웃 설계 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2142205",
+      "title": "설명 가능한 인공지능 모델링 및 시뮬레이션 시스템 및 방법"
+    },
+    {
+      "patent_id": "10-2663094",
+      "title": "단일 엔드포인트를 이용한 AI 모델 운영 장치 및 방법"
+    },
+    {
+      "patent_id": "10-2686678",
+      "title": "이상치 제거를 위한 금융시장 데이터 처리 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2737902",
+      "title": "예측 근거를 함께 제시하는 인공지능 모델 기반 금융시장 예측 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2753879",
+      "title": "주식 시장 예측을 위한 비정형 데이터 분석 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2762042",
+      "title": "NF3 가스 생산 설비 내 이물질 제거 시스템 및 방법"
+    },
+    {
+      "patent_id": "10-2839217",
+      "title": "반도체 소재 개발 관련 후보물질 물성예측 시스템 및 방법"
+    }
+  ],
+  "patent": {
+    "total": 20,
+    "success": 20,
+    "failed": 0,
+    "avg_elapsed_sec": 5.118,
+    "p95_elapsed_sec": 9.79,
+    "avg_source_count": 3.95,
+    "avg_quality_score": 0.3587,
+    "category_counts": {
+      "overview": 2,
+      "original": 3,
+      "report": 3,
+      "risk": 2,
+      "business": 2,
+      "market": 2,
+      "comparison": 2,
+      "table": 1,
+      "diagram": 2,
+      "evidence": 1
+    },
+    "intent_counts": {
+      "patent_report": 9,
+      "patent_original": 5,
+      "general": 2,
+      "comparison": 4
+    },
+    "answer_mode_counts": {
+      "None": 20
+    },
+    "quality_grade_counts": {
+      "low": 20
+    },
+    "source_type_counts": {
+      "SHARED_PATENT": 20,
+      "SHARED_REPORT": 8,
+      "WEB": 2
+    },
+    "errors": []
+  },
+  "application": {
+    "total": 10,
+    "success": 10,
+    "failed": 0,
+    "avg_elapsed_sec": 0.001,
+    "p95_elapsed_sec": null,
+    "avg_source_count": 0,
+    "avg_quality_score": null,
+    "category_counts": {
+      "application_procedure": 4,
+      "forms_and_filing": 4,
+      "fees": 2
+    },
+    "intent_counts": {
+      "None": 10
+    },
+    "answer_mode_counts": {
+      "require_failed_patent_case_before_chat": 10
+    },
+    "quality_grade_counts": {
+      "None": 10
+    },
+    "source_type_counts": {},
+    "errors": []
+  }
+}

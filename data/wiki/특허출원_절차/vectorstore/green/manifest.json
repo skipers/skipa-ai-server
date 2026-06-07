@@ -1,0 +1,26 @@
+{
+  "scope": "wiki:특허출원_절차",
+  "refreshed_at": "2026-06-07T16:00:39",
+  "vector_dimensions": 256,
+  "backend": "local_hashed_bow",
+  "source": "auto_approved_web",
+  "document_count": 1,
+  "source_fingerprints": [
+    {
+      "path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/approved_context.md",
+      "size_bytes": 19700,
+      "sha1": "f22dea44cd0446437c6db98534aa44a8649eb6be"
+    }
+  ],
+  "documents_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/green/documents.jsonl",
+  "manifest_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/green/manifest.json",
+  "active_slot": "green",
+  "previous_active_slot": "blue",
+  "rotation": {
+    "strategy": "blue_green",
+    "active_slot": "green",
+    "previous_active_slot": "blue",
+    "activated_at": "2026-06-07T16:00:39",
+    "standby_slot": "blue"
+  }
+}
