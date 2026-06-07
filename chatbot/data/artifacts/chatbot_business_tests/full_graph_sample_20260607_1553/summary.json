@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-06-07T15:51:59",
-  "execution_mode": "functional",
-  "patent_runner": "retrieval",
+  "generated_at": "2026-06-07T15:54:11",
+  "execution_mode": "full",
+  "patent_runner": "graph",
   "bert_score_enabled": false,
-  "output_dir": "data/artifacts/chatbot_business_tests/patent_100_each_20260607_1552",
+  "output_dir": "chatbot/data/artifacts/chatbot_business_tests/full_graph_sample_20260607_1553",
   "patents_used": [
     {
       "patent_id": "10-1959619",
@@ -47,60 +47,66 @@
     }
   ],
   "patent": {
-    "total": 1000,
-    "success": 1000,
+    "total": 20,
+    "success": 20,
     "failed": 0,
-    "avg_elapsed_sec": 0.005,
-    "p95_elapsed_sec": 0.005,
-    "avg_source_count": 3.477,
-    "avg_quality_score": 0.4731,
+    "avg_elapsed_sec": 5.118,
+    "p95_elapsed_sec": 9.79,
+    "avg_source_count": 3.95,
+    "avg_quality_score": 0.3587,
     "category_counts": {
-      "overview": 75,
-      "original": 125,
-      "report": 150,
-      "risk": 75,
-      "business": 100,
-      "market": 75,
-      "comparison": 75,
-      "table": 50,
-      "diagram": 75,
-      "evidence": 75,
-      "history": 75,
-      "wiki": 25,
-      "web": 25
+      "overview": 2,
+      "original": 3,
+      "report": 3,
+      "risk": 2,
+      "business": 2,
+      "market": 2,
+      "comparison": 2,
+      "table": 1,
+      "diagram": 2,
+      "evidence": 1
     },
     "intent_counts": {
-      "patent_original": 175,
-      "patent_report": 400,
-      "general": 300,
-      "comparison": 100,
-      "wiki": 25
+      "patent_report": 9,
+      "patent_original": 5,
+      "general": 2,
+      "comparison": 4
     },
     "answer_mode_counts": {
-      "None": 1000
+      "None": 20
     },
     "quality_grade_counts": {
-      "low": 270,
-      "medium": 730
+      "low": 20
     },
     "source_type_counts": {
-      "SHARED_PATENT": 954,
-      "SHARED_REPORT": 450
+      "SHARED_PATENT": 20,
+      "SHARED_REPORT": 8,
+      "WEB": 2
     },
     "errors": []
   },
   "application": {
-    "total": 0,
-    "success": 0,
+    "total": 10,
+    "success": 10,
     "failed": 0,
-    "avg_elapsed_sec": 0,
+    "avg_elapsed_sec": 0.001,
     "p95_elapsed_sec": null,
     "avg_source_count": 0,
     "avg_quality_score": null,
-    "category_counts": {},
-    "intent_counts": {},
-    "answer_mode_counts": {},
-    "quality_grade_counts": {},
+    "category_counts": {
+      "application_procedure": 4,
+      "forms_and_filing": 4,
+      "fees": 2
+    },
+    "intent_counts": {
+      "None": 10
+    },
+    "answer_mode_counts": {
+      "require_failed_patent_case_before_chat": 10
+    },
+    "quality_grade_counts": {
+      "None": 10
+    },
     "source_type_counts": {},
     "errors": []
   }

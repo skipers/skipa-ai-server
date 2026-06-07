@@ -54,6 +54,7 @@ tempCodeRunnerFile.py
 # Do not put secrets in api_test JSON files.
 
 # Generated artifacts, caches, crawled pages, vector indexes, and reports
+data/artifacts/
 chatbot/data/business/index/
 chatbot/data/mapped_patent_reports/**/index/
 chatbot/data/mapped_patent_reports/**/extracted/

@@ -2,7 +2,7 @@
 
 - Generated at: 2026-06-07T15:54:11
 - Execution mode: full
-- Output directory: `data/artifacts/chatbot_business_tests/full_graph_sample_20260607_1553`
+- Output directory: `chatbot/data/artifacts/chatbot_business_tests/full_graph_sample_20260607_1553`
 
 ## Patent Chatbot
 

@@ -2,7 +2,7 @@
 
 - Generated at: 2026-06-07T15:51:59
 - Execution mode: functional
-- Output directory: `data/artifacts/chatbot_business_tests/patent_100_each_20260607_1552`
+- Output directory: `chatbot/data/artifacts/chatbot_business_tests/patent_100_each_20260607_1552`
 
 ## Patent Chatbot
 

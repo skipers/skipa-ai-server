@@ -29,7 +29,7 @@ else:
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-ARTIFACT_ROOT = PROJECT_ROOT / "data" / "artifacts" / "chatbot_business_tests"
+ARTIFACT_ROOT = PROJECT_ROOT / "chatbot" / "data" / "artifacts" / "chatbot_business_tests"
 
 
 def _json_default(value: Any) -> Any:
