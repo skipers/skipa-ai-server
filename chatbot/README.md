@@ -6,7 +6,8 @@
 
 - 특허 챗봇: 특허 원문 PDF, 표준 input JSON, eval_logic 보고서 JSON을 검색해 유지 판단, 리스크, 청구항, 기술 내용, 용어 설명을 답변합니다.
 - 출원 도우미: 공식 출원 자료팩과 선택한 실패특허 케이스만 검색해 출원 절차, 거절 대응, 실패 원인, 등록 가능성 개선 방향을 답변합니다.
-- wiki gate: 외부정보가 필요한 질문에서 특허별 승인 wiki를 먼저 검색하고, 부족할 때만 web 검색으로 넘어갑니다.
+- 출원 전 사전평가: 출원 예정 아이디어/청구항을 케이스로 만들고 보고서 전용 vectorstore로 보강 방향을 답변합니다.
+- wiki gate: 외부정보가 필요한 질문에서 특허가 속한 분야의 승인 wiki를 먼저 검색하고, 부족할 때만 web 검색으로 넘어갑니다.
 - 감사 프로세스: web 검색 draft나 wiki 보강 자료 중 나쁜 데이터 후보를 찾고, 승인된 Markdown만 vectorstore에 반영합니다.
 - UI 테스트: `/ui`에서 챗봇, 출원 도우미, 감사, workflow Mermaid를 간단히 테스트합니다.
 
@@ -28,6 +29,7 @@ docker run --rm \
   -p 8001:8001 \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
   -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+  -v "$PWD/data:/app/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
   -v "$PWD/chatbot/logs:/app/chatbot/logs" \
   -v "$PWD/eval_logic/data:/app/eval_logic/data" \
@@ -40,6 +42,7 @@ eval_logic 보고서 서버는 같은 이미지에서 `eval-logic` args로 실�
 docker run --rm \
   -p 8000:8000 \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -v "$PWD/data:/app/data" \
   -v "$PWD/eval_logic/data:/app/eval_logic/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
   skipa-ai:latest eval-logic
@@ -51,6 +54,7 @@ Kubernetes CronJob 또는 로컬 수동 재색인은 같은 이미지에서 `nig
 docker run --rm \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
   -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+  -v "$PWD/data:/app/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
   -v "$PWD/chatbot/logs:/app/chatbot/logs" \
   -v "$PWD/eval_logic/data:/app/eval_logic/data" \
@@ -65,7 +69,7 @@ Swagger http://127.0.0.1:8001/docs
 Health  http://127.0.0.1:8001/health
 ```
 
-Docker 실행 시 `chatbot/data`, `chatbot/logs`, `eval_logic/data`는 외부 volume으로 mount합니다. Kubernetes에서는 이 경로를 PVC 또는 object storage 동기화 대상으로 잡으면 됩니다.
+Docker 실행 시 `data`, `chatbot/data`, `chatbot/logs`, `eval_logic/data`는 외부 volume으로 mount합니다. Kubernetes에서는 이 경로를 PVC 또는 object storage 동기화 대상으로 잡으면 됩니다.
 
 기본 Docker 이미지는 OpenAI 의도 분류, OpenAI 답변 생성, OpenAI embedding을 사용합니다. Ollama는 포함하지 않습니다. 로컬 HuggingFace embedding과 BERTScore까지 필요하면 `--build-arg INSTALL_LOCAL_EMBEDDINGS=true`로 빌드합니다. 이 옵션은 `torch` 계열 패키지를 포함하므로 이미지가 많이 커집니다.
 
@@ -98,8 +102,11 @@ Health  http://127.0.0.1:8001/health
 
 ```env
 DATA_ROOT=/Users/kgw/skipers-ai/chatbot/data
+SHARED_DATA_ROOT=/Users/kgw/skipers-ai/data
 PATENTS_ROOT=/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports
 PATENT_APPLICATION_ROOT=/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack
+WIKI_ROOT=/Users/kgw/skipers-ai/data/wiki
+PRE_EVAL_ROOT=/Users/kgw/skipers-ai/data/pre_application_cases
 
 INTENT_PROVIDER=openai
 OPENAI_INTENT_MODEL=gpt-4.1-mini
@@ -119,24 +126,28 @@ ENABLE_WEB_SEARCH=true
 ## 데이터 구조
 
 ```text
-chatbot/data/
-  mapped_patent_reports/
-    <patent_id>/
-      original/pdf/
-      original/input/
-      reports/json/
-      extracted/
-      index/vectorstore/
+data/
+  <patent_id>/
+    patent.pdf
+    parsed.json
+    report.json
+  _vectorstore/
+    active_slot.json
+    blue/
+    green/
+  wiki/
+    <topic_slug>/
+      web_search_data/
+      approved_context.md
+      vectorstore/
         active_slot.json
         blue/
         green/
-      wiki/
-        approved_context.md
-        web_search_drafts/
-        vectorstore/
-          active_slot.json
-          blue/
-          green/
+  pre_application_cases/
+
+chatbot/data/
+  artifacts/
+    chatbot_business_tests/
 
   patent_application_official_pack/
     downloads/
@@ -162,13 +173,14 @@ chatbot/data/
 
 중요한 격리 규칙:
 
-- 특허 원문/보고서 vectorstore와 wiki vectorstore는 분리합니다.
-- wiki는 외부검색 전 gate로만 사용합니다.
+- 특허 원문/보고서 공유 DB는 루트 `data/<patent_id>`와 `data/_vectorstore`를 사용합니다.
+- wiki는 루트 `data/wiki/<topic_slug>`에서 관리하고, 외부검색 전 gate로만 사용합니다.
 - 출원 도우미 공용 공식팩 index에는 `downloads/`와 4개 guide Markdown만 들어갑니다.
 - 실패특허 case index에는 현재 선택한 실패특허 원본, 선택 사유서, 최신 보고서만 들어갑니다.
 - 다른 실패특허 또는 다른 특허의 데이터가 한 case vectorstore에 섞이면 안 됩니다.
 - 모든 챗봇 vectorstore는 `blue`/`green` 두 slot으로 운영됩니다. refresh는 standby slot에 먼저 쓰고 `active_slot.json`을 전환하므로, 재색인 중에도 기존 active index로 답변할 수 있습니다.
-- 자동 감사는 `default_action=exclude`와 `severity=medium/high review` 후보를 낮은 품질/주의 데이터로 제외하고, 남은 승인 데이터만 각 특허 폴더의 `reviewed/`와 `wiki/approved_context.md`에 저장합니다.
+- 자동 감사는 `default_action=exclude`와 `severity=medium/high review` 후보를 낮은 품질/주의 데이터로 제외하고, 남은 승인 데이터만 해당 분야 wiki의 `approved_context.md`에 저장합니다.
+- 챗봇 기능 테스트 산출물은 `chatbot/data/artifacts`에만 저장합니다. 루트 `data/artifacts`는 생성하지 않습니다.
 
 ## 특허 챗봇 workflow
 
@@ -178,7 +190,7 @@ flowchart TD
   H --> I[OpenAI 의도 분류]
   I --> R{검색 경로}
   R -->|원문/청구항/보고서/평가| CORE[core vectorstore]
-  R -->|최신/시장/외부자료| WIKI[특허별 wiki gate]
+  R -->|최신/시장/외부자료| WIKI[분야별 wiki gate]
   WIKI -->|유사도 충분| WC[approved wiki 근거]
   WIKI -->|부족| WEB[web 검색 draft 생성]
   CORE --> A[OpenAI 답변 생성]
@@ -199,7 +211,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  U[실패특허 원본 PDF 업로드] --> C[case 생성<br/><registration>_failed]
+  U[실패특허 원본 PDF 업로드] --> C[case 생성<br/>registration_failed]
   C --> CI[case 전용 vectorstore 생성]
   CI --> Q[출원 도우미 질문]
   Q --> H[chat_history 반영]
@@ -256,6 +268,19 @@ POST /api/v1/wiki/audit-auto-refresh
 GET  /api/v1/wiki/agent/mermaid
 ```
 
+사전평가:
+
+```text
+POST /api/v1/pre-eval/evaluate
+GET  /api/v1/pre-eval/cases
+GET  /api/v1/pre-eval/cases/{case_id}
+GET  /api/v1/pre-eval/cases/{case_id}/report
+POST /api/v1/pre-eval/cases/{case_id}/index/refresh
+POST /api/v1/pre-eval/cases/{case_id}/chat
+POST /api/v1/pre-eval/cases/{case_id}/search
+GET  /api/v1/pre-eval/graph/mermaid
+```
+
 전체 자동 감사/blue-green 재색인:
 
 ```text
@@ -295,6 +320,7 @@ bash chatbot/scripts/preprocess_chatbot_data.sh --mode application-case-generate
 
 ## 문서
 
+- [API 명세서](docs/API_SPEC.md)
 - [챗봇 전체 아키텍처와 사용설명서](docs/CHATBOT_ARCHITECTURE_AND_USAGE.md)
 - [챗봇 데이터 README](data/README.md)
 - [특허 출원 공식팩 README](data/patent_application_official_pack/README.md)

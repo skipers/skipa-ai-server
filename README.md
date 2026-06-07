@@ -15,6 +15,7 @@
 - **분야별 wiki gate**: 웹검색 결과를 특허별이 아닌 기술 분야(소프트웨어_IT / 화학_소재 / 반도체_전자 등) 폴더로 관리하고, 감사 후 승인 데이터만 분야별 wiki vectorstore에 반영. Tavily/web 검색 보강 포함. blue/green rotation + 매일 00시 자동 재빌드.
 - 특허 출원 공식팩 기반 출원 도우미 챗봇
 - 실패특허 원본 PDF 업로드, 선택 거절사유 업로드, 재평가 보고서 생성, 케이스별 vectorstore 분리
+- 출원 전 아이디어/청구항 사전평가 보고서 생성 및 케이스별 챗봇
 - Swagger UI와 브라우저 UI를 통한 기능 테스트
 
 ## 전체 아키텍처
@@ -39,7 +40,7 @@ flowchart TB
     UI["UI 테스트 화면<br>/ui"]
     PROUTER["Patent Chat LangGraph<br>의도 라우팅"]
     CORE["Core Retrieval<br>원문+보고서 vectorstore"]
-    WGATE["Wiki Gate<br>특허별 승인 wiki 검색"]
+    WGATE["Wiki Gate<br>분야별 승인 wiki 검색"]
     WEB["Web Search<br>Tavily 등 외부검색"]
     ANSWER["Answer Generator<br>답변/표/다이어그램/근거/품질지표"]
   end
@@ -52,6 +53,13 @@ flowchart TB
     AANS["출원 답변 생성<br>절차/서식/청구항/거절대응/등록전략"]
   end
 
+  subgraph PRE[chatbot - 출원 전 사전평가]
+    PREIN["아이디어/기술설명/청구항 입력"]
+    PREWF["Pre-eval LangGraph<br>사전평가 보고서 생성"]
+    PRECASE["case report + vectorstore"]
+    PREANS["사전평가 챗봇<br>보강 방향/거절 가능성/다음 액션"]
+  end
+
   subgraph WIKI[wiki 감사 - 분야별]
     DRAFT["web_search_data<br>분야 폴더 임시 Markdown"]
     AUDIT["run_audit<br>나쁜 데이터 후보 판별"]
@@ -61,13 +69,13 @@ flowchart TB
   end
 
   subgraph DATA[데이터]
-    CDATA[chatbot/data]
-    MP["mapped_patent_reports<br>pat_id/"]
-    ORIG["original/pdf<br>original/input"]
-    REPS[reports/json]
-    EXT[extracted/all_chunks.jsonl]
-    IDX[index/vectorstore]
-    WIKID["wiki/<br>소프트웨어_IT / 화학_소재 / ..."]
+    SHARED["/data<br>공유 특허 DB"]
+    MP["/data/&lt;patent_id&gt;<br>patent.pdf / parsed.json / report.json"]
+    SIDX["/data/_vectorstore<br>공유 특허 index"]
+    WIKID["/data/wiki<br>분야별 wiki gate"]
+    PREEVAL["/data/pre_application_cases<br>사전평가 case"]
+    CDATA["chatbot/data<br>챗봇 전용 데이터"]
+    CART["chatbot/data/artifacts<br>챗봇 테스트 산출물"]
     APROOT[patent_application_official_pack]
     FAILED["failed_patent<br>registration_failed/"]
     EDATA["eval_logic/data<br>samples/resources/api_test/runtime_artifacts"]
@@ -85,10 +93,8 @@ flowchart TB
   CAPI --> PROUTER
   UI --> CAPI
   PROUTER --> CORE
-  CORE --> ORIG
-  CORE --> REPS
-  CORE --> EXT
-  CORE --> IDX
+  CORE --> MP
+  CORE --> SIDX
   PROUTER -->|외부정보 필요| WGATE
   WGATE --> WIKID
   WGATE -->|충분하면 wiki 답변| ANSWER
@@ -98,6 +104,7 @@ flowchart TB
   CORE --> ANSWER
 
   CAPI --> AROUTER
+  CAPI --> PREWF
   AROUTER --> APACK
   AROUTER --> FCASE
   AROUTER -->|실패특허 보고서 생성| RGEN
@@ -109,15 +116,19 @@ flowchart TB
   FCASE --> AANS
   WEB --> AANS
 
+  PREIN --> PREWF --> PRECASE
+  PRECASE --> PREEVAL
+  PRECASE --> PREANS
+  WEB --> PREANS
+
   DRAFT --> AUDIT --> REVIEW --> APPROVED --> WIDX --> WIKID
 
-  CDATA --> MP
+  SHARED --> MP
+  SHARED --> SIDX
+  SHARED --> WIKID
+  SHARED --> PREEVAL
+  CDATA --> CART
   CDATA --> APROOT
-  CDATA --> WIKID
-  MP --> ORIG
-  MP --> REPS
-  MP --> EXT
-  MP --> IDX
   APROOT --> FAILED
 ```
 
@@ -174,54 +185,57 @@ skipers-ai/
       static/                # /ui 화면
     data/
       README.md
-      mapped_patent_reports/
-      business/
+      artifacts/             # 챗봇 검증/테스트 산출물 (루트 data/artifacts 사용 금지)
       patent_application_official_pack/
-      wiki/                  # 분야별 wiki vectorstore (WIKI_ROOT)
-        _patent_topics.json  # {patent_id: topic_slug} 캐시
-        소프트웨어_IT/
-        화학_소재/
-        반도체_전자/
-        바이오_의료/
-        기계_제조/
-        에너지_환경/
-        _general/
-        _global/             # 전체 분야 병합 wiki vectorstore
     docs/
+      API_SPEC.md
       CHATBOT_ARCHITECTURE_AND_USAGE.md
     scripts/
       start_chatbot_server.sh
       preprocess_chatbot_data.sh
+
+  data/
+    <patent_id>/              # 챗봇과 eval_logic이 공유하는 특허별 원본/보고서 DB
+      patent.pdf
+      parsed.json
+      report.json
+    _vectorstore/             # 공유 특허 DB vectorstore
+    wiki/                     # 분야별 wiki vectorstore (WIKI_ROOT)
+      _patent_topics.json
+      소프트웨어_IT/
+      화학_소재/
+      반도체_전자/
+      바이오_의료/
+      기계_제조/
+      에너지_환경/
+      _general/
+      _global/
+    pre_application_cases/    # 출원 전 사전평가 케이스
 ```
 
 ## 데이터 계약
 
 ### 특허 챗봇 데이터
 
-특허 하나는 아래 폴더 하나에서 관리합니다.
+특허 원문과 보고서는 루트 공유 DB인 `data/<patent_id>`에서 관리합니다. 챗봇과 `eval_logic`은 이 경로를 함께 참조합니다.
 
 ```text
-chatbot/data/mapped_patent_reports/<patent_id>/
-  manifest.json
-  original/
-    pdf/                    # 특허 원문 PDF
-    input/                  # 표준 특허 input JSON
-  reports/
-    json/                   # eval_logic이 생성한 보고서 JSON
-    application_feedback/   # 출원/실패 피드백 공유 보고서
-  extracted/
-    all_chunks.jsonl        # 원문/보고서 chunk
-  index/
-    vectorstore/            # 원문+보고서 core vectorstore (blue/green)
-      active_slot.json
-      blue/
-      green/
+data/<patent_id>/
+  patent.pdf                # 특허 원문 PDF
+  parsed.json               # 표준 특허 input JSON
+  report.json               # eval_logic 평가/재평가 보고서 JSON
+  *.html / *.md             # 생성된 보고서 뷰 또는 보조 문서
+
+data/_vectorstore/
+  active_slot.json
+  blue/
+  green/
 ```
 
 wiki는 특허별이 아닌 **기술 분야별** 공유 폴더로 관리합니다:
 
 ```text
-chatbot/data/wiki/                       ← WIKI_ROOT
+data/wiki/                               ← WIKI_ROOT
   _patent_topics.json                    # {patent_id: topic_slug} 자동 캐시
   소프트웨어_IT/
     web_search_data/                     # 웹검색 raw draft (시간순 .md 파일)
@@ -244,13 +258,14 @@ chatbot/data/wiki/                       ← WIKI_ROOT
 
 중요한 규칙:
 
-- 원문/보고서 질문은 `index/vectorstore`를 먼저 사용합니다.
+- 원문/보고서 질문은 `data/_vectorstore`와 해당 특허의 `patent.pdf`, `parsed.json`, `report.json`을 먼저 사용합니다.
 - wiki는 core vectorstore에 섞지 않고 `WIKI_ROOT/{topic}/vectorstore`로만 관리합니다.
 - 특허가 어느 분야인지는 제목 키워드 매칭으로 자동 결정하고 `_patent_topics.json`에 캐시합니다.
 - wiki gate: 외부정보 필요 질문 → 해당 특허의 분야 wiki 먼저 검색 → 없으면 web 검색으로 넘어갑니다.
 - web 검색 결과는 해당 특허의 분야 `web_search_data/` 에 저장됩니다. 관련도 임계값 이상이면 `approved_context.md`에 자동 추가하고 분야 vectorstore를 즉시 재빌드합니다.
 - vectorstore는 blue/green 두 slot을 사용합니다. refresh는 standby slot에 먼저 완성본을 쓰고 `active_slot.json`만 전환하므로, 재색인 중에도 기존 active index를 계속 사용할 수 있습니다.
 - 매일 00:00 CronJob이 모든 분야 wiki vectorstore를 재빌드합니다 (`nightly_reindex_all`).
+- 루트 `data/artifacts/`는 사용하지 않습니다. 챗봇 검증 산출물은 `chatbot/data/artifacts/`에만 저장합니다.
 
 ### 특허 출원 도우미 데이터
 
@@ -337,6 +352,7 @@ docker run --rm \
   -e TAVILY_API_KEY="$TAVILY_API_KEY" \
   -e KIPRIS_API_KEY="$KIPRIS_API_KEY" \
   -e KOSIS_API_KEY="$KOSIS_API_KEY" \
+  -v "$PWD/data:/app/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
   -v "$PWD/chatbot/logs:/app/chatbot/logs" \
   -v "$PWD/eval_logic/data:/app/eval_logic/data" \
@@ -359,6 +375,7 @@ docker run --rm \
   -e TAVILY_API_KEY="$TAVILY_API_KEY" \
   -e KIPRIS_API_KEY="$KIPRIS_API_KEY" \
   -e KOSIS_API_KEY="$KOSIS_API_KEY" \
+  -v "$PWD/data:/app/data" \
   -v "$PWD/eval_logic/data:/app/eval_logic/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
   skipa-ai:latest eval-logic
@@ -383,6 +400,7 @@ curl http://127.0.0.1:8000/health
 docker run --rm \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
   -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+  -v "$PWD/data:/app/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
   -v "$PWD/chatbot/logs:/app/chatbot/logs" \
   -v "$PWD/eval_logic/data:/app/eval_logic/data" \
@@ -438,6 +456,7 @@ Kubernetes에서는 아래 경로를 PVC 또는 object storage 동기화 대상�
 /app/chatbot/data
 /app/chatbot/logs
 /app/eval_logic/data
+/app/data
 ```
 
 매일 00:00 자동 감사/재색인은 같은 이미지를 `CronJob`으로 한 번 실행합니다. 앱 pod는 기존 active slot을 계속 읽고, CronJob은 standby slot에 새 index를 만든 뒤 마지막에 `active_slot.json`을 전환합니다.
@@ -471,6 +490,8 @@ spec:
                   mountPath: /app/chatbot/logs
                 - name: eval-logic-data
                   mountPath: /app/eval_logic/data
+                - name: shared-data
+                  mountPath: /app/data
           volumes:
             - name: chatbot-data
               persistentVolumeClaim:
@@ -481,6 +502,9 @@ spec:
             - name: eval-logic-data
               persistentVolumeClaim:
                 claimName: eval-logic-data-pvc
+            - name: shared-data
+              persistentVolumeClaim:
+                claimName: shared-data-pvc
 ```
 
 ### eval_logic 보고서 서버
@@ -533,9 +557,11 @@ http://127.0.0.1:8001/docs
 
 ```env
 DATA_ROOT=/Users/kgw/skipers-ai/chatbot/data
-PATENTS_ROOT=/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports
+SHARED_DATA_ROOT=/Users/kgw/skipers-ai/data
+PATENTS_ROOT=/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports   # 호환용 legacy RAG 폴더
 PATENT_APPLICATION_ROOT=/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack
-WIKI_ROOT=/Users/kgw/skipers-ai/chatbot/data/wiki   # 생략 시 DATA_ROOT/wiki 자동 사용
+WIKI_ROOT=/Users/kgw/skipers-ai/data/wiki
+PRE_EVAL_ROOT=/Users/kgw/skipers-ai/data/pre_application_cases
 
 INTENT_PROVIDER=openai
 OPENAI_INTENT_MODEL=gpt-4.1-mini
@@ -560,6 +586,8 @@ KSIC_TABLE_PATH=data/resources/산업_KSIC_-특허_IPC__연계표.xlsx
 ```
 
 ## 주요 API
+
+상세 요청/응답 스키마와 Swagger 테스트 순서는 [API 명세서](chatbot/docs/API_SPEC.md)에 정리되어 있습니다. 아래는 운영 중 가장 자주 쓰는 엔드포인트 요약입니다.
 
 ### eval_logic 보고서 생성
 
@@ -681,6 +709,19 @@ POST /api/v1/application/failed-patents/{case_id}/index/refresh
 POST /api/v1/application/failed-patents/{case_id}/chat
 ```
 
+### 출원 전 사전평가
+
+```text
+POST /api/v1/pre-eval/evaluate
+GET  /api/v1/pre-eval/cases
+GET  /api/v1/pre-eval/cases/{case_id}
+GET  /api/v1/pre-eval/cases/{case_id}/report
+POST /api/v1/pre-eval/cases/{case_id}/index/refresh
+POST /api/v1/pre-eval/cases/{case_id}/chat
+POST /api/v1/pre-eval/cases/{case_id}/search
+GET  /api/v1/pre-eval/graph/mermaid
+```
+
 ## workflow 요약
 
 ### 보고서 생성
@@ -776,6 +817,7 @@ bash chatbot/scripts/preprocess_chatbot_data.sh --mode application-case-generate
 
 - [eval_logic README](eval_logic/README.md)
 - [chatbot README](chatbot/README.md)
+- [API 명세서](chatbot/docs/API_SPEC.md)
 - [챗봇 전체 아키텍처와 사용설명서](chatbot/docs/CHATBOT_ARCHITECTURE_AND_USAGE.md)
 - [챗봇 데이터 README](chatbot/data/README.md)
 - [특허 출원 공식팩 README](chatbot/data/patent_application_official_pack/README.md)
