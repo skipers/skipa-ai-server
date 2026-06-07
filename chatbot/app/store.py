@@ -96,17 +96,22 @@ def resolve_patent_dir(patent_id: str) -> Path:
 
 
 def data_overview() -> dict[str, Any]:
+    from .shared_data import list_shared_patent_ids, shared_vectorstore_status
+    from .config import SHARED_DATA_ROOT
     return {
         "data_root": _file_summary(DATA_ROOT),
         "patents_root": _file_summary(PATENTS_ROOT),
         "business_root": _file_summary(BUSINESS_ROOT),
+        "shared_data_root": _file_summary(SHARED_DATA_ROOT),
         "patent_count": len(list_patents()),
+        "shared_patent_count": len(list_shared_patent_ids()),
         "business_index": {
             "chunks": _file_summary(BUSINESS_ROOT / "index" / "all_chunks.jsonl"),
             "faiss": _file_summary(BUSINESS_ROOT / "index" / "faiss" / "index.faiss"),
             "pickle": _file_summary(BUSINESS_ROOT / "index" / "faiss" / "index.pkl"),
             "vectorstore": _file_summary(BUSINESS_ROOT / "index" / "vectorstore" / "manifest.json"),
         },
+        "shared_vectorstore": shared_vectorstore_status(),
         "vectorstore": vectorstore_status(),
     }
 
@@ -325,6 +330,18 @@ def search_chunks(query: str, *, patent_id: str | None, source_types: set[str] |
         if score <= 0:
             continue
         scored.append((score, item))
+
+    # Also search shared patent data (PROJECT_ROOT/data/{id}/)
+    if not patent_id and not scored:
+        try:
+            from .shared_data import search_shared_vectorstore
+            shared_result = search_shared_vectorstore(query, top_k=top_k)
+            shared_hits = shared_result.get("hits") or []
+            if shared_hits:
+                return {**shared_result, "mode": "shared_vectorstore"}
+        except Exception:
+            pass
+
     scored.sort(key=lambda pair: pair[0], reverse=True)
     hits = []
     for score, item in scored[:top_k]:

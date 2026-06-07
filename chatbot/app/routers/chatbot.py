@@ -199,6 +199,9 @@ def post_preprocess_run(request: PreprocessRunRequest) -> dict:
         result["application"] = preprocess_application_pack(refresh_index=request.refresh_application)
     elif request.mode == "nightly_reindex":
         result["nightly_reindex"] = nightly_reindex_all()
+    elif request.mode == "shared_index":
+        from ..shared_data import build_shared_vectorstore
+        result["shared_index"] = build_shared_vectorstore()
     elif request.mode == "all":
         result["wiki_normalize"] = normalize_wiki_context_files()
         result["vectorstore"] = refresh_vectorstores(use_reviewed=True)

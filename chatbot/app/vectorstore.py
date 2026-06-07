@@ -1296,6 +1296,14 @@ def nightly_reindex_all() -> dict[str, Any]:
     except Exception as exc:
         application_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 
+    # Rebuild shared patent vectorstore (PROJECT_ROOT/data/)
+    shared_index_result: dict[str, Any] | None = None
+    try:
+        from .shared_data import build_shared_vectorstore
+        shared_index_result = build_shared_vectorstore()
+    except Exception as exc:
+        shared_index_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+
     result = {
         "status": "completed",
         "workflow": "nightly_blue_green_reindex",
@@ -1305,6 +1313,7 @@ def nightly_reindex_all() -> dict[str, Any]:
         "wiki_auto_audit": wiki_result,
         "application_pack": application_result,
         "failed_patent_cases": failed_case_results,
+        "shared_patent_index": shared_index_result,
         "vectorstore_status": vectorstore_status(),
     }
     log_path = WIKI_AUDITOR_ROOT / "nightly_reindex.log"
