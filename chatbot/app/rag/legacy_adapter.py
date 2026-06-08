@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 import json
 from pathlib import Path
 from typing import Any
@@ -12,36 +11,17 @@ from fastapi.responses import FileResponse
 
 from ..config import LOG_ROOT, PATENTS_ROOT
 from ..store import list_patents
+from ..shared_data import build_shared_vectorstore
 from ..vectorstore import refresh_vectorstores
 from .source_card_utils import enrich_source_card, replace_answer_citation_labels
 
 
-@lru_cache(maxsize=1)
-def _legacy_import_error() -> str | None:
-    try:
-        from ..legacy.rag_pipeline import PatentRAGPipeline  # noqa: F401
-    except Exception as exc:
-        return f"{type(exc).__name__}: {exc}"
-    return None
-
-
-@lru_cache(maxsize=1)
-def _pipeline() -> Any:
-    error = _legacy_import_error()
-    if error:
-        raise RuntimeError(error)
-    from ..legacy.rag_pipeline import PatentRAGPipeline
-
-    return PatentRAGPipeline()
-
-
 def legacy_engine_status() -> dict[str, Any]:
-    error = _legacy_import_error()
     return {
-        "available": error is None,
-        "engine": "hybrid_retrieval" if error is None else "lightweight_fallback",
-        "display_name": "Hybrid Retrieval: FAISS + BM25 + RRF + intent routing + web gate" if error is None else "Lightweight fallback retrieval",
-        "error": error,
+        "available": True,
+        "engine": "qdrant_retrieval",
+        "display_name": "Qdrant retrieval + intent routing + wiki/web gate",
+        "error": None,
     }
 
 
@@ -128,9 +108,9 @@ def _normalize_source_card(card: dict[str, Any], index: int) -> dict[str, Any]:
 
 def normalize_legacy_answer(result: dict[str, Any], *, query: str, patent_id: str | None) -> dict[str, Any]:
     metrics = dict(result.get("metrics") or {})
-    metrics["engine"] = "hybrid_retrieval"
-    metrics["retrieval_stack"] = "FAISS+BM25+RRF+intent+web_gate"
-    metrics["hybrid_retrieval_available"] = True
+    metrics["engine"] = "qdrant_retrieval"
+    metrics["retrieval_stack"] = "Qdrant+intent+wiki_web_gate"
+    metrics["hybrid_retrieval_available"] = False
     cards = [
         _normalize_source_card(card, index)
         for index, card in enumerate(list(result.get("source_cards") or []), 1)
@@ -155,51 +135,10 @@ def try_answer_with_legacy(
     chat_history: list[dict[str, Any]] | None = None,
     context_patent_id: str | None = None,
 ) -> dict[str, Any] | None:
-    if _legacy_import_error():
-        return None
-    try:
-        pipeline = _pipeline()
-        if patent_id:
-            result = pipeline.answer(
-                patent_id=patent_id,
-                question=query,
-                user_id=user_id,
-                chat_history=chat_history,
-                context_patent_id=context_patent_id,
-            )
-        else:
-            result = pipeline.answer_global(
-                question=query,
-                user_id=user_id,
-                chat_history=chat_history,
-                context_patent_id=context_patent_id,
-            )
-        normalized = normalize_legacy_answer(result, query=query, patent_id=patent_id)
-        normalized["metrics"]["requested_top_k"] = top_k
-        return normalized
-    except Exception as exc:
-        return {
-            "query": query,
-            "patent_id": patent_id,
-            "answer": "",
-            "source_cards": [],
-            "metrics": {
-                "engine": "hybrid_retrieval",
-                "hybrid_retrieval_available": True,
-                "hybrid_retrieval_error": f"{type(exc).__name__}: {exc}",
-                "fallback_required": True,
-            },
-        }
+    return None
 
 
 def patent_summary_cards() -> dict[str, Any]:
-    if not _legacy_import_error():
-        try:
-            return {"engine": "hybrid_retrieval", "items": _pipeline().build_patent_summary_cards()}
-        except Exception as exc:
-            fallback = _summary_card_fallback()
-            fallback["hybrid_retrieval_error"] = f"{type(exc).__name__}: {exc}"
-            return fallback
     return _summary_card_fallback()
 
 
@@ -219,67 +158,42 @@ def _summary_card_fallback() -> dict[str, Any]:
                 "has_patent_index": patent.get("has_patent_index"),
             }
         )
-    return {"engine": "fallback_catalog", "items": items}
+    return {"engine": "qdrant_catalog", "items": items}
 
 
 def reindex_patent(patent_id: str, *, force_rebuild: bool = True, refresh_reviewed_vectorstore: bool = False) -> dict[str, Any]:
-    if _legacy_import_error():
-        raise HTTPException(status_code=503, detail=f"Hybrid Retrieval 의존성이 없습니다: {_legacy_import_error()}")
-    try:
-        _pipeline().build_or_load_patent_index(patent_id=patent_id, force_rebuild=force_rebuild)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
     result: dict[str, Any] = {
         "status": "OK",
         "scope": "PATENT",
         "patent_id": patent_id,
-        "engine": "hybrid_retrieval",
+        "engine": "qdrant_retrieval",
         "force_rebuild": force_rebuild,
+        "reviewed_vectorstore": refresh_vectorstores(use_reviewed=True),
+        "shared_vectorstore": build_shared_vectorstore(),
     }
-    if refresh_reviewed_vectorstore:
-        result["reviewed_vectorstore"] = refresh_vectorstores(use_reviewed=True)
     return result
 
 
 def reindex_global(*, force_rebuild: bool = True, refresh_reviewed_vectorstore: bool = False) -> dict[str, Any]:
-    if _legacy_import_error():
-        raise HTTPException(status_code=503, detail=f"Hybrid Retrieval 의존성이 없습니다: {_legacy_import_error()}")
-    try:
-        _pipeline().build_or_load_global_index(force_rebuild=force_rebuild)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
     result: dict[str, Any] = {
         "status": "OK",
         "scope": "GLOBAL",
-        "engine": "hybrid_retrieval",
+        "engine": "qdrant_retrieval",
         "force_rebuild": force_rebuild,
+        "reviewed_vectorstore": refresh_vectorstores(use_reviewed=True),
+        "shared_vectorstore": build_shared_vectorstore(),
     }
-    if refresh_reviewed_vectorstore:
-        result["reviewed_vectorstore"] = refresh_vectorstores(use_reviewed=True)
     return result
 
 
 def reindex_business(*, force_rebuild: bool = True, refresh_reviewed_vectorstore: bool = False) -> dict[str, Any]:
-    if _legacy_import_error():
-        raise HTTPException(status_code=503, detail=f"Hybrid Retrieval 의존성이 없습니다: {_legacy_import_error()}")
-    try:
-        _pipeline().build_or_load_business_index(force_rebuild=force_rebuild)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
     result: dict[str, Any] = {
         "status": "OK",
         "scope": "BUSINESS",
-        "engine": "hybrid_retrieval",
+        "engine": "qdrant_retrieval",
         "force_rebuild": force_rebuild,
+        "reviewed_vectorstore": refresh_vectorstores(use_reviewed=True),
     }
-    if refresh_reviewed_vectorstore:
-        result["reviewed_vectorstore"] = refresh_vectorstores(use_reviewed=True)
     return result
 
 

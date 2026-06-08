@@ -20,7 +20,7 @@ from .llm import call_ollama, call_openai_json
 
 ALLOWED_INTENTS = {"patent_original", "patent_report", "wiki", "comparison", "general"}
 ALLOWED_SOURCES = {"original", "report", "wiki", "reviewed_vectorstore", "web", "global_patents"}
-ALLOWED_FORMATS = {"text", "bullets", "table", "diagram", "table_and_diagram"}
+ALLOWED_FORMATS = {"text", "bullets", "table", "diagram", "table_and_diagram", "chart", "visual_summary"}
 ALLOWED_SCOPES = {"internal", "mixed", "external", "clarify"}
 WEB_TERMS = ("시장", "동향", "뉴스", "최근", "현재", "웹", "사업화", "경쟁", "제품", "표준", "외부", "최신", "규모", "성장률")
 # 내부 DB 검색 신호 - "찾아줘", "검색해줘" 등 + 특허 관련 명사
@@ -45,7 +45,11 @@ REPORT_TERM_TERMS = (
 # 지시 대상이 불분명한 대명사/부사만 포함 (동사/형용사 제외)
 AMBIGUOUS_SHORT_TERMS = ("이거", "그거", "저거", "이 특허", "앞에서", "방금", "이전")
 # 연속 질문 패턴 - 이전 답변 기반으로 이어가야 하는 질문
-CONTINUATION_TERMS = ("더 자세하게", "자세히 알려줘", "더 알려줘", "이어서", "계속해서", "좀 더", "추가로 알려줘")
+CONTINUATION_TERMS = (
+    "더 자세하게", "자세히 알려줘", "더 알려줘", "이어서", "계속해서", "좀 더", "추가로 알려줘",
+    "위에서 말한", "위에 말한", "방금 말한", "그 특허에 대해서", "그거 자세히",
+    "아니 그", "아니 위에", "아니 내가",  # 사용자 정정/재요청 패턴
+)
 
 # 복합 의도 감지 카테고리
 _MULTI_INTENT_CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
@@ -212,19 +216,35 @@ def _rule_intent(query: str) -> dict[str, Any]:
         if "wiki" not in source_plan:
             source_plan.append("wiki")
         source_plan.append("web")
-    needs_diagram = any(term in text for term in ["다이어그램", "흐름", "구조", "프로세스", "그림"])
-    needs_table = any(term in text for term in ["표", "비교", "점수", "유지", "매각", "제각", "판단"])
-    if needs_diagram and needs_table:
+    needs_diagram = any(term in text for term in ["다이어그램", "흐름", "구조", "프로세스", "그림", "시각화", "워크플로우"])
+    needs_table = any(term in text for term in ["표", "비교", "점수", "유지", "매각", "제각", "판단", "정리해줘", "정리해", "리스크"])
+    needs_chart = any(term in text for term in ["그래프", "차트", "도표", "추이", "비율", "분포", "성장률", "연도별"])
+    wants_visual = any(term in text for term in ["보기 쉽게", "한눈에", "시각", "시각화", "도식", "도표"])
+    if needs_chart and (needs_table or needs_diagram or wants_visual):
+        answer_format = "visual_summary"
+    elif needs_chart:
+        answer_format = "chart"
+    elif needs_diagram and needs_table:
         answer_format = "table_and_diagram"
     elif needs_diagram:
         answer_format = "diagram"
     elif needs_table:
         answer_format = "table"
-    elif any(term in text for term in ["정리", "목록", "핵심"]):
+    elif any(term in text for term in ["목록", "핵심", "청구항", "항목"]):
+        answer_format = "bullets"
+    elif wants_visual and intent in {"patent_report", "comparison"}:
+        answer_format = "visual_summary"
+    elif any(term in text for term in ["자세하게", "자세히", "상세하게", "설명해줘", "알려줘"]) and intent in ("patent_original", "patent_report"):
+        # 특허 상세/설명 질문 → 구조화된 불릿
+        answer_format = "bullets"
+    elif any(term in text for term in ["정리", "요약", "리스트"]):
         answer_format = "bullets"
     else:
         answer_format = "text"
-    use_history = is_continuation or any(term in text for term in ["이거", "이 특허", "그거", "앞에서", "방금", "이전", "계속"])
+    use_history = is_continuation or any(term in text for term in [
+        "이거", "이 특허", "그거", "앞에서", "방금", "이전", "계속",
+        "위에서", "위에 말한", "그 특허", "아니 ",
+    ])
     if needs_clarification and multi_intent_categories:
         clarification_question = _build_multi_intent_options(multi_intent_categories, query=query)
     elif needs_clarification:
@@ -396,10 +416,36 @@ def _coerce_intent(query: str, parsed: dict[str, Any], fallback: dict[str, Any],
     return _repair_intent(query, result)
 
 
-def classify_intent(query: str) -> dict[str, Any]:
+def classify_intent(
+    query: str,
+    *,
+    chat_history: list[dict[str, Any]] | None = None,
+    selected_patent_id: str | None = None,
+) -> dict[str, Any]:
     fallback = _rule_intent(query)
     system_prompt = INTENT_PROMPT.split("사용자 질문:", 1)[0].strip()
-    user_prompt = f"사용자 질문:\n{query}"
+
+    # 연속 질문일 때 이전 Q&A를 컨텍스트로 주입
+    context_prefix = ""
+    if chat_history and _is_continuation(query.lower()):
+        lines: list[str] = []
+        for item in list(chat_history)[-2:]:
+            if not isinstance(item, dict):
+                continue
+            prev_q = str(item.get("question") or item.get("query") or "").strip()
+            prev_a = str(item.get("answer") or "").strip()[:200]
+            if prev_q:
+                lines.append(f"이전 질문: {prev_q}")
+            if prev_a:
+                lines.append(f"이전 답변 요약: {prev_a}")
+        if lines:
+            context_prefix = "[대화 이력]\n" + "\n".join(lines) + "\n\n"
+
+    selected_context = ""
+    if selected_patent_id:
+        selected_context = f"[현재 선택 특허]\npatent_id: {selected_patent_id}\n\n"
+
+    user_prompt = f"{selected_context}{context_prefix}사용자 질문:\n{query}"
     if INTENT_PROVIDER == "openai":
         llm = call_openai_json(
             system_prompt=system_prompt,

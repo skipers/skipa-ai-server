@@ -8,14 +8,13 @@
   "rejection_file_path": null,
   "rejection_text_path": null,
   "reports_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/10-1959619_failed/reports",
-  "updated_at": "2026-06-07T00:00:00",
+  "updated_at": "2026-06-08T15:52:21",
   "index": {
     "scope": "patent_application_failed_case",
     "case_id": "10-1959619_failed",
     "case_dir": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/10-1959619_failed",
-    "backend": "local_hashed_bow",
-    "vector_dimensions": 256,
-    "refreshed_at": "2026-06-07T00:00:00",
+    "backend": "qdrant",
+    "refreshed_at": "2026-06-08T15:52:21",
     "document_count": 15,
     "source_file_count": 2,
     "source_roles": {
@@ -36,8 +35,8 @@
     ],
     "errors": [],
     "is_isolated_case_index": true,
-    "active_slot": "green",
-    "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/10-1959619_failed/index/vectorstore/green/manifest.json"
+    "collection": "skipa_application_failed_case_10_1959619_failed",
+    "manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/failed_patent/10-1959619_failed/index/qdrant/manifest.json"
   },
   "reports": [
     {

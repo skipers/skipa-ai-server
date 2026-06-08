@@ -12,6 +12,7 @@ from urllib.parse import quote
 from fastapi import HTTPException
 
 from .config import BUSINESS_ROOT, DATA_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT
+from .qdrant_store import collection_info, patent_collection, qdrant_status
 from .rag.quality import is_usable_evidence
 from .rag.source_card_utils import enrich_source_card
 from .vectorstore import CORE_SEARCH_SOURCE_TYPES, search_vectorstore, vectorstore_status
@@ -108,22 +109,22 @@ def _is_shared_patent(patent_id: str | None) -> bool:
 
 def data_overview() -> dict[str, Any]:
     from .shared_data import list_shared_patent_ids, shared_vectorstore_status
-    from .config import SHARED_DATA_ROOT
+    from .config import SHARED_DATA_ROOT, SHARED_PATENT_ROOT
     return {
         "data_root": _file_summary(DATA_ROOT),
         "patents_root": _file_summary(PATENTS_ROOT),
         "business_root": _file_summary(BUSINESS_ROOT),
         "shared_data_root": _file_summary(SHARED_DATA_ROOT),
+        "shared_patent_root": _file_summary(SHARED_PATENT_ROOT),
         "patent_count": len(list_patents()),
         "shared_patent_count": len(list_shared_patent_ids()),
         "business_index": {
             "chunks": _file_summary(BUSINESS_ROOT / "index" / "all_chunks.jsonl"),
-            "faiss": _file_summary(BUSINESS_ROOT / "index" / "faiss" / "index.faiss"),
-            "pickle": _file_summary(BUSINESS_ROOT / "index" / "faiss" / "index.pkl"),
-            "vectorstore": _file_summary(BUSINESS_ROOT / "index" / "vectorstore" / "manifest.json"),
+            "qdrant": collection_info(patent_collection("_business")),
         },
         "shared_vectorstore": shared_vectorstore_status(),
         "vectorstore": vectorstore_status(),
+        "qdrant": qdrant_status(),
     }
 
 
@@ -148,6 +149,7 @@ def patent_summary(patent_dir: Path) -> dict[str, Any]:
     latest_input = patent_dir / "original" / "input" / "latest.json"
     latest_pdf = patent_dir / "original" / "pdf" / "latest.pdf"
     latest_report = patent_dir / "reports" / "json" / "latest.json"
+    qdrant = collection_info(patent_collection(str(patent_id)))
     return {
         "patent_id": patent_id,
         "title": title,
@@ -158,8 +160,10 @@ def patent_summary(patent_dir: Path) -> dict[str, Any]:
         "has_latest_input": latest_input.exists(),
         "has_latest_pdf": latest_pdf.exists(),
         "has_latest_report": latest_report.exists(),
-        "has_patent_index": (patent_dir / "index" / "faiss" / "index.faiss").exists(),
-        "has_local_vectorstore": (patent_dir / "index" / "vectorstore" / "manifest.json").exists(),
+        "has_patent_index": bool(qdrant.get("exists")),
+        "has_local_vectorstore": bool(qdrant.get("exists")),
+        "has_qdrant_vectorstore": bool(qdrant.get("exists")),
+        "qdrant_collection": patent_collection(str(patent_id)),
         "chunk_count": _count_lines(all_chunks),
         "report_json_count": _count_files(patent_dir / "reports" / "json", "*.json"),
         "asset_count": _count_files(patent_dir / "extracted" / "assets"),
@@ -206,8 +210,9 @@ def patent_detail(patent_id: str, include_files: bool = True) -> dict[str, Any]:
         "latest_pdf": _file_summary(patent_dir / "original" / "pdf" / "latest.pdf"),
         "latest_report": _file_summary(patent_dir / "reports" / "json" / "latest.json"),
         "all_chunks": _file_summary(patent_dir / "extracted" / "all_chunks.jsonl"),
-        "patent_index": _file_summary(patent_dir / "index" / "faiss" / "index.faiss"),
-        "local_vectorstore": _file_summary(patent_dir / "index" / "vectorstore" / "manifest.json"),
+        "patent_index": collection_info(patent_collection(patent_id)),
+        "local_vectorstore": collection_info(patent_collection(patent_id)),
+        "qdrant_vectorstore": collection_info(patent_collection(patent_id)),
     }
     if include_files:
         detail["files"] = list_files(patent_id, limit=300)
@@ -392,20 +397,66 @@ def search_chunks(query: str, *, patent_id: str | None, source_types: set[str] |
             continue
         scored.append((score, item))
 
-    # Also search shared patent data (PROJECT_ROOT/data/{id}/), including
+    # Also search shared patent data (PROJECT_ROOT/data/patent/{id}/), including
     # patent-scoped queries where the current repository has no legacy chunks.
     if not scored:
         try:
-            from .shared_data import search_shared_vectorstore
-            shared_result = search_shared_vectorstore(
-                query,
-                top_k=top_k,
-                patent_id=patent_id,
-                source_types=effective_source_types,
-            )
-            shared_hits = shared_result.get("hits") or []
-            if shared_hits:
-                return {**shared_result, "mode": "shared_vectorstore"}
+            from .shared_data import search_shared_vectorstore, SHARED_PATENT_SOURCE_TYPE, SHARED_REPORT_SOURCE_TYPE
+
+            if patent_id:
+                # source_types에 SHARED_PATENT·SHARED_REPORT 중 어느 쪽만 요청됐는지 확인
+                from .shared_data import _normalize_shared_source_types
+                resolved_st = _normalize_shared_source_types(effective_source_types)
+                wants_patent = SHARED_PATENT_SOURCE_TYPE in resolved_st
+                wants_report = SHARED_REPORT_SOURCE_TYPE in resolved_st
+
+                if wants_patent and wants_report:
+                    # 두 타입 모두 필요 → dual search
+                    # 의미 유사도 기준으로는 SHARED_REPORT가 항상 상위를 차지하므로
+                    # SHARED_PATENT 내용을 강제로 포함시킨다.
+                    n_report = max(top_k - 2, top_k // 2)
+                    n_patent = max(2, top_k - n_report)
+
+                    report_result = search_shared_vectorstore(
+                        query, top_k=n_report, patent_id=patent_id,
+                        source_types={SHARED_REPORT_SOURCE_TYPE},
+                    )
+                    patent_query = f"청구항 발명 기술 특징 {query}"
+                    patent_result = search_shared_vectorstore(
+                        patent_query, top_k=n_patent, patent_id=patent_id,
+                        source_types={SHARED_PATENT_SOURCE_TYPE},
+                    )
+                    combined_hits: list[dict[str, Any]] = []
+                    seen_ids: set[str] = set()
+                    for hit in (patent_result.get("hits") or []) + (report_result.get("hits") or []):
+                        doc_id = str(hit.get("metadata", {}).get("patent_id", "")) + str(hit.get("page_content", ""))[:60]
+                        if doc_id not in seen_ids:
+                            seen_ids.add(doc_id)
+                            combined_hits.append(hit)
+                    if combined_hits:
+                        return {
+                            **report_result,
+                            "hits": combined_hits[:top_k],
+                            "hit_count": min(len(combined_hits), top_k),
+                            "mode": "shared_qdrant_dual_search",
+                        }
+                else:
+                    # 단일 타입 요청 (patent_report → REPORT만, patent_original → PATENT만)
+                    single_result = search_shared_vectorstore(
+                        query, top_k=top_k, patent_id=patent_id, source_types=resolved_st,
+                    )
+                    if single_result.get("hits"):
+                        return {**single_result, "mode": "shared_qdrant_search"}
+            else:
+                shared_result = search_shared_vectorstore(
+                    query,
+                    top_k=top_k,
+                    patent_id=None,
+                    source_types=effective_source_types,
+                )
+                shared_hits = shared_result.get("hits") or []
+                if shared_hits:
+                    return {**shared_result, "mode": "shared_qdrant_search"}
         except Exception:
             pass
 

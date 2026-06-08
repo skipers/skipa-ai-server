@@ -120,18 +120,18 @@ class FeedbackRequest(BaseModel):
 
 class ReindexRequest(BaseModel):
     patent_id: str
-    force_rebuild: bool = Field(True, description="기존 FAISS가 있어도 전처리/인덱스를 다시 생성")
+    force_rebuild: bool = Field(True, description="기존 인덱스가 있어도 Qdrant 인덱스를 다시 생성")
     refresh_reviewed_vectorstore: bool = Field(
         False,
-        description="레거시 FAISS 재생성 후 사람 승인 데이터 기반 local vectorstore도 함께 갱신",
+        description="사람 승인 데이터 기반 Qdrant vectorstore도 함께 갱신",
     )
 
 
 class BusinessReindexRequest(BaseModel):
-    force_rebuild: bool = Field(True, description="기존 FAISS가 있어도 다시 생성")
+    force_rebuild: bool = Field(True, description="기존 인덱스가 있어도 Qdrant 인덱스를 다시 생성")
     refresh_reviewed_vectorstore: bool = Field(
         False,
-        description="레거시 FAISS 재생성 후 사람 승인 데이터 기반 local vectorstore도 함께 갱신",
+        description="사람 승인 데이터 기반 Qdrant vectorstore도 함께 갱신",
     )
 
 

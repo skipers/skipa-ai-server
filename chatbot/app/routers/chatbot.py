@@ -44,6 +44,8 @@ from ..rag.legacy_adapter import (
     render_page_image,
     write_feedback,
 )
+from ..minio_data import minio_patent_status, sync_patent_data_from_minio
+from ..qdrant_store import collection_info, qdrant_status, wiki_collection
 from ..schemas import (
     AnswerResponse,
     AuditApplyRequest,
@@ -83,7 +85,6 @@ from ..wiki.topics import (
     reclassify_all_patents,
     topic_approved_md,
     topic_draft_dir,
-    topic_vectorstore_root,
 )
 
 
@@ -180,7 +181,24 @@ def get_preprocess_status() -> dict:
         "vectorstore": vectorstore_status(),
         "application": application_index_status(),
         "application_external": application_external_status(),
+        "minio": minio_patent_status(),
+        "qdrant": qdrant_status(),
     }
+
+
+@router.get("/qdrant/status", summary="Qdrant 연결 및 dashboard 상태")
+def get_qdrant_status() -> dict:
+    return qdrant_status()
+
+
+@router.get("/minio/status", summary="MinIO patent 데이터 연결 상태")
+def get_minio_status() -> dict:
+    return minio_patent_status()
+
+
+@router.post("/minio/sync", summary="MinIO s3://bucket/patent/ 데이터를 로컬 공유 patent cache로 동기화")
+def post_minio_sync(rebuild_index: bool = Query(True, description="동기화 후 공유 특허 vectorstore를 재생성할지 여부")) -> dict:
+    return sync_patent_data_from_minio(rebuild_index=rebuild_index)
 
 
 @router.post("/preprocess/run", summary="전처리/wiki 정리/vectorstore refresh/application preprocess 실행")
@@ -319,8 +337,8 @@ def rag_global_chat(request: ChatRequest) -> dict:
 
 
 @patent_chat_router.post("/reindex", summary="특허별 검색 인덱스 재생성")
-@rag_router.post("/reindex", summary="특허별 전처리/RAG FAISS 재생성")
-@legacy_rag_router.post("/reindex", summary="특허별 전처리/RAG FAISS 재생성")
+@rag_router.post("/reindex", summary="특허별 Qdrant 인덱스 재생성")
+@legacy_rag_router.post("/reindex", summary="특허별 Qdrant 인덱스 재생성")
 def rag_reindex(request: ReindexRequest) -> dict:
     return run_ingestion_graph(
         scope="patent",
@@ -331,8 +349,8 @@ def rag_reindex(request: ReindexRequest) -> dict:
 
 
 @patent_chat_router.post("/global/reindex", summary="전체 특허 검색 인덱스 재생성")
-@rag_router.post("/global/reindex", summary="전체 특허 global FAISS 재생성")
-@legacy_rag_router.post("/global/reindex", summary="전체 특허 global FAISS 재생성")
+@rag_router.post("/global/reindex", summary="전체 특허 global Qdrant 인덱스 재생성")
+@legacy_rag_router.post("/global/reindex", summary="전체 특허 global Qdrant 인덱스 재생성")
 def rag_global_reindex(request: BusinessReindexRequest) -> dict:
     return run_ingestion_graph(
         scope="global",
@@ -342,8 +360,8 @@ def rag_global_reindex(request: BusinessReindexRequest) -> dict:
 
 
 @patent_chat_router.post("/business/reindex", summary="업무/공통 검색 인덱스 재생성")
-@rag_router.post("/business/reindex", summary="업무/공통 business FAISS 재생성")
-@legacy_rag_router.post("/business/reindex", summary="업무/공통 business FAISS 재생성")
+@rag_router.post("/business/reindex", summary="업무/공통 Qdrant 인덱스 재생성")
+@legacy_rag_router.post("/business/reindex", summary="업무/공통 Qdrant 인덱스 재생성")
 def rag_business_reindex(request: BusinessReindexRequest) -> dict:
     return run_ingestion_graph(
         scope="business",
@@ -429,14 +447,11 @@ def post_wiki_audit_auto_refresh() -> dict:
 @wiki_router.get("/topics", summary="분야별 wiki vectorstore 목록 및 상태")
 def get_wiki_topics() -> dict:
     """분야(topic) 목록과 각 분야의 approved_context.md 존재 여부, vectorstore 문서 수를 반환합니다."""
-    from ..index_rotation import active_manifest_path, rotation_status
-    from ..vectorstore import _read_json
 
     active = all_active_topic_slugs()
     topics = []
     for slug in TOPIC_SLUGS:
-        vs_root = topic_vectorstore_root(slug)
-        vs_manifest = _read_json(active_manifest_path(vs_root))
+        qdrant = collection_info(wiki_collection(slug))
         approved = topic_approved_md(slug)
         draft_dir = topic_draft_dir(slug)
         draft_count = sum(1 for f in draft_dir.rglob("*.md") if f.is_file()) if draft_dir.exists() else 0
@@ -446,14 +461,16 @@ def get_wiki_topics() -> dict:
                 "has_data": slug in active,
                 "approved_md_exists": approved.exists(),
                 "draft_count": draft_count,
-                "vectorstore_exists": active_manifest_path(vs_root).exists(),
-                "document_count": vs_manifest.get("document_count", 0),
-                "refreshed_at": vs_manifest.get("refreshed_at"),
-                "rotation": rotation_status(vs_root),
+                "backend": "qdrant",
+                "collection": wiki_collection(slug),
+                "vectorstore_exists": bool(qdrant.get("exists")),
+                "document_count": qdrant.get("points_count", 0),
+                "refreshed_at": None,
+                "qdrant": qdrant,
                 "paths": {
                     "web_search_data": str(draft_dir),
                     "approved_md": str(approved),
-                    "vectorstore": str(vs_root),
+                    "vectorstore": wiki_collection(slug),
                 },
             }
         )
@@ -467,11 +484,8 @@ def get_wiki_topic_detail(topic_slug: str) -> dict:
 
     if "/" in topic_slug or "\\" in topic_slug:
         raise HTTPException(status_code=400, detail="잘못된 topic_slug입니다.")
-    from ..index_rotation import active_manifest_path, rotation_status
-    from ..vectorstore import _read_json
 
-    vs_root = topic_vectorstore_root(topic_slug)
-    vs_manifest = _read_json(active_manifest_path(vs_root))
+    qdrant = collection_info(wiki_collection(topic_slug))
     approved = topic_approved_md(topic_slug)
     draft_dir = topic_draft_dir(topic_slug)
     drafts = []
@@ -488,16 +502,18 @@ def get_wiki_topic_detail(topic_slug: str) -> dict:
         "approved_md_preview": preview,
         "approved_md_path": str(approved),
         "recent_drafts": drafts,
-        "vectorstore_exists": active_manifest_path(vs_root).exists(),
-        "document_count": vs_manifest.get("document_count", 0),
-        "refreshed_at": vs_manifest.get("refreshed_at"),
-        "rotation": rotation_status(vs_root),
+        "backend": "qdrant",
+        "collection": wiki_collection(topic_slug),
+        "vectorstore_exists": bool(qdrant.get("exists")),
+        "document_count": qdrant.get("points_count", 0),
+        "refreshed_at": None,
+        "qdrant": qdrant,
     }
 
 
-@wiki_router.post("/topics/refresh", summary="분야별 wiki vectorstore 전체 재빌드 (blue/green)")
+@wiki_router.post("/topics/refresh", summary="분야별 wiki Qdrant vectorstore 전체 재빌드")
 def post_wiki_topics_refresh() -> dict:
-    """모든 분야의 wiki vectorstore를 blue/green 방식으로 재빌드합니다. 자정 nightly_reindex에 포함됩니다."""
+    """모든 분야의 wiki vectorstore를 Qdrant collection으로 재빌드합니다. 자정 nightly_reindex에 포함됩니다."""
     result = refresh_vectorstores(use_reviewed=True)
     return {
         "status": "refreshed",
@@ -525,7 +541,8 @@ def get_patent_topic_mapping(patent_id: str = Query(..., description="매핑을 
     return {
         "patent_id": patent_id,
         "topic": topic,
-        "vectorstore_path": str(topic_vectorstore_root(topic)),
+        "vectorstore_path": wiki_collection(topic),
+        "collection": wiki_collection(topic),
         "approved_md_path": str(topic_approved_md(topic)),
     }
 

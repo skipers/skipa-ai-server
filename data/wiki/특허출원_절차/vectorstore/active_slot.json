@@ -1,7 +1,0 @@
-{
-  "active_slot": "blue",
-  "previous_active_slot": "green",
-  "activated_at": "2026-06-07T16:00:51",
-  "active_manifest_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/blue/manifest.json",
-  "active_documents_path": "/Users/kgw/skipers-ai/data/wiki/특허출원_절차/vectorstore/blue/documents.jsonl"
-}

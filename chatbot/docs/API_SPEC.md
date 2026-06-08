@@ -31,8 +31,9 @@ uvicorn apps.api.main:app --reload --app-dir src --port 8000
 
 ```text
 /Users/kgw/skipers-ai/data                         공유 특허 DB, wiki, 사전평가 case
-/Users/kgw/skipers-ai/data/<patent_id>             patent.pdf / parsed.json / report.json
-/Users/kgw/skipers-ai/data/_vectorstore            공유 특허 DB index
+/Users/kgw/skipers-ai/data/patent/<patent_id>      patent.pdf / parsed.json / report.json
+/Users/kgw/skipers-ai/data/patent                  MinIO에서 동기화되는 공유 특허 cache
+Qdrant collection skipa_shared_patents             공유 특허 DB index
 /Users/kgw/skipers-ai/data/wiki                    분야별 wiki gate
 /Users/kgw/skipers-ai/chatbot/data                 출원팩, 챗봇 전용 데이터
 /Users/kgw/skipers-ai/chatbot/data/artifacts       챗봇 검증 산출물
@@ -76,7 +77,7 @@ uvicorn apps.api.main:app --reload --app-dir src --port 8000
 ```json
 {
   "query": "질문",
-  "mode": "shared_vectorstore",
+  "mode": "shared_qdrant_search",
   "patent_id": "10-2886381",
   "top_k": 5,
   "hit_count": 5,
@@ -127,6 +128,9 @@ uvicorn apps.api.main:app --reload --app-dir src --port 8000
 | `GET` | `/api/v1/chatbot/business/chunks` | 공통 business RAG chunk 조회 |
 | `GET` | `/api/v1/chatbot/vectorstore/status` | vectorstore 상태 |
 | `GET` | `/api/v1/chatbot/preprocess/status` | vectorstore, 출원팩, 외부 API 상태 |
+| `GET` | `/api/v1/chatbot/minio/status` | MinIO `s3://skipa/patent/` 연결과 로컬 cache 상태 |
+| `POST` | `/api/v1/chatbot/minio/sync` | MinIO patent prefix를 `data/patent/`로 동기화 |
+| `GET` | `/api/v1/chatbot/qdrant/status` | Qdrant 연결과 dashboard URL 확인 |
 | `POST` | `/api/v1/chatbot/search` | RAG 검색 결과만 확인 |
 | `POST` | `/api/v1/chatbot/query` | `/search`와 같은 검색 확인 |
 | `POST` | `/api/v1/chatbot/answer` | 검색과 답변 생성을 한 번에 확인 |
@@ -154,9 +158,40 @@ uvicorn apps.api.main:app --reload --app-dir src --port 8000
 | `auto_audit_refresh` | wiki 자동 감사 후 승인 데이터만 vectorstore 반영 |
 | `audit` | 나쁜 데이터 후보 감사만 실행 |
 | `application_preprocess` | 출원 공식팩 전처리와 공용 index 갱신 |
-| `nightly_reindex` | 매일 00:00 작업과 같은 전체 blue/green 재색인 |
-| `shared_index` | 루트 `data/<patent_id>` 공유 특허 DB index 재생성 |
+| `nightly_reindex` | 매일 00:00 작업과 같은 전체 Qdrant 재색인 |
+| `shared_index` | 루트 `data/patent/<patent_id>` 공유 특허 DB index 재생성 |
 | `all` | wiki 정규화, vectorstore refresh, 출원팩 전처리 |
+
+### MinIO patent sync
+
+Kubernetes 내부에서는 아래 환경변수 기준으로 MinIO를 사용합니다.
+
+```env
+MINIO_ENDPOINT=http://skipa-minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=...
+MINIO_BUCKET=skipa
+MINIO_PATENT_PREFIX=patent
+```
+
+로컬 노트북/맥에서 UI를 직접 띄울 때는 먼저 port-forward를 열고 endpoint를 바꿉니다.
+
+```bash
+kubectl -n skala3-finalproj-class2-team8 port-forward svc/skipa-minio 19000:9000
+export MINIO_ENDPOINT=http://127.0.0.1:19000
+```
+
+상태 확인:
+
+```bash
+curl http://127.0.0.1:8001/api/v1/chatbot/minio/status
+```
+
+동기화와 공유 index 재생성:
+
+```bash
+curl -X POST "http://127.0.0.1:8001/api/v1/chatbot/minio/sync?rebuild_index=true"
+```
 
 ### POST `/api/v1/chatbot/vectorstore/refresh`
 
@@ -231,7 +266,7 @@ ReindexRequest:
 | --- | --- | --- |
 | `GET` | `/api/v1/wiki/topics` | 분야별 wiki vectorstore 목록 및 상태 |
 | `GET` | `/api/v1/wiki/topics/{topic_slug}` | 특정 분야 approved preview와 최근 draft |
-| `POST` | `/api/v1/wiki/topics/refresh` | 모든 분야 wiki vectorstore blue/green 재빌드 |
+| `POST` | `/api/v1/wiki/topics/refresh` | 모든 분야 wiki Qdrant vectorstore 재빌드 |
 | `POST` | `/api/v1/wiki/topics/reclassify` | 전체 특허 분야 재분류 |
 | `GET` | `/api/v1/wiki/topics/{topic_slug}/patent` | 특허 ID가 매핑된 분야 조회 |
 | `POST` | `/api/v1/wiki/audit` | wiki/챗봇 데이터 감사 실행 |
@@ -468,12 +503,14 @@ Dev API:
 
 1. `GET /api/v1/chatbot/config`로 데이터 루트와 모델 설정을 확인합니다.
 2. `GET /api/v1/chatbot/preprocess/status`로 vectorstore와 출원팩 상태를 확인합니다.
-3. 필요하면 `POST /api/v1/chatbot/preprocess/run`에 `{"mode":"shared_index"}`를 보내 공유 특허 DB index를 갱신합니다.
-4. wiki 데이터 검증은 `POST /api/v1/wiki/audit-auto-refresh` 또는 `{"mode":"auto_audit_refresh"}`로 실행합니다.
-5. 일반 특허 질문은 `POST /api/v1/patent-chat/chat`으로 테스트합니다.
-6. 출원 도우미는 먼저 `/api/v1/application/failed-patents/upload`로 실패특허 PDF를 올리고, case ID를 받은 뒤 `/failed-patents/{case_id}/chat`을 호출합니다.
-7. 실패특허 보고서가 필요하면 `/failed-patents/{case_id}/report/generate`를 호출한 뒤 같은 case chat으로 결과를 확인합니다.
-8. 출원 전 아이디어 평가는 `/api/v1/pre-eval/evaluate`로 케이스를 만들고 `/pre-eval/cases/{case_id}/chat`으로 질문합니다.
+3. MinIO 데이터를 먼저 확인하려면 `GET /api/v1/chatbot/minio/status`를 호출합니다.
+4. 필요하면 `POST /api/v1/chatbot/minio/sync?rebuild_index=true`로 `s3://skipa/patent/`를 `data/patent/`에 동기화합니다.
+5. 필요하면 `POST /api/v1/chatbot/preprocess/run`에 `{"mode":"shared_index"}`를 보내 공유 특허 DB index만 다시 갱신합니다.
+6. wiki 데이터 검증은 `POST /api/v1/wiki/audit-auto-refresh` 또는 `{"mode":"auto_audit_refresh"}`로 실행합니다.
+7. 일반 특허 질문은 `POST /api/v1/patent-chat/chat`으로 테스트합니다.
+8. 출원 도우미는 먼저 `/api/v1/application/failed-patents/upload`로 실패특허 PDF를 올리고, case ID를 받은 뒤 `/failed-patents/{case_id}/chat`을 호출합니다.
+9. 실패특허 보고서가 필요하면 `/failed-patents/{case_id}/report/generate`를 호출한 뒤 같은 case chat으로 결과를 확인합니다.
+10. 출원 전 아이디어 평가는 `/api/v1/pre-eval/evaluate`로 케이스를 만들고 `/pre-eval/cases/{case_id}/chat`으로 질문합니다.
 
 ## CLI 대응표
 

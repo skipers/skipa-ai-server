@@ -217,6 +217,22 @@
           <section class="tool-card">
             <div class="tool-head">
               <div>
+                <h2>저장소 연결</h2>
+                <p id="minioSummary">MinIO는 native console, Qdrant는 dashboard에서 직접 확인합니다.</p>
+              </div>
+              <div class="button-row">
+                <button id="loadMinioButton" type="button">상태 새로고침</button>
+                <button id="syncMinioButton" type="button">MinIO에서 가져오기</button>
+              </div>
+            </div>
+            <div id="minioStatusGrid" class="data-grid">
+              <div class="empty">상태 새로고침 버튼을 눌러 MinIO/Qdrant 연결을 확인하세요.</div>
+            </div>
+          </section>
+
+          <section class="tool-card">
+            <div class="tool-head">
+              <div>
                 <h2>데이터 보기</h2>
                 <p id="dataSummary">특허 원문, 보고서 JSON, index 상태를 불러옵니다.</p>
               </div>
@@ -236,7 +252,7 @@
             <div class="tool-head">
               <div>
                 <h2>분야별 Wiki Vectorstore</h2>
-                <p id="topicWikiSummary">분야(기술 분야)별 wiki 데이터와 blue/green vectorstore 상태입니다. 00시 자동 재빌드됩니다.</p>
+                <p id="topicWikiSummary">분야(기술 분야)별 wiki 데이터와 Qdrant collection 상태입니다. 00시 자동 재빌드됩니다.</p>
               </div>
               <div class="button-row">
                 <button id="loadTopicsButton" type="button">분야 목록</button>
@@ -301,6 +317,7 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="/ui/static/app.js"></script>
   </body>
 </html>

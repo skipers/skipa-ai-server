@@ -1,4 +1,4 @@
-"""Loader for PROJECT_ROOT/data/{patent_id}/ patent dataset.
+"""Loader for PROJECT_ROOT/data/patent/{patent_id}/ patent dataset.
 
 Each patent folder contains:
   parsed.json   — normalized_patent, brief_summary, keywords
@@ -15,11 +15,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
-from .config import PROJECT_ROOT, SHARED_DATA_ROOT
-from .index_rotation import active_documents_path, active_manifest_path, rotation_status, write_rotating_index
+from .config import PROJECT_ROOT, SHARED_DATA_ROOT, SHARED_PATENT_ROOT
+from .qdrant_store import collection_info, search_documents, shared_patents_collection, upsert_documents
 
 
-SHARED_VECTORSTORE_ROOT = SHARED_DATA_ROOT / "_vectorstore"
+SHARED_VECTORSTORE_ROOT = SHARED_DATA_ROOT / "_qdrant_shared_patents"
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
 
 # Source types for shared data
@@ -102,7 +102,7 @@ def _file_summary(path: Path) -> dict[str, Any]:
 def _shared_patent_dir(patent_id: str) -> Path | None:
     if not patent_id or "/" in patent_id or "\\" in patent_id:
         return None
-    folder = SHARED_DATA_ROOT / patent_id
+    folder = SHARED_PATENT_ROOT / patent_id
     if not folder.is_dir():
         return None
     if not ((folder / "parsed.json").exists() or (folder / "report.json").exists()):
@@ -129,10 +129,10 @@ def is_shared_patent_id(patent_id: str | None) -> bool:
 
 def list_shared_patent_ids() -> list[str]:
     """Return patent IDs that have at least parsed.json or report.json."""
-    if not SHARED_DATA_ROOT.exists():
+    if not SHARED_PATENT_ROOT.exists():
         return []
     ids = []
-    for d in sorted(SHARED_DATA_ROOT.iterdir()):
+    for d in sorted(SHARED_PATENT_ROOT.iterdir()):
         if not d.is_dir() or d.name.startswith("_") or d.name.startswith("."):
             continue
         if (d / "parsed.json").exists() or (d / "report.json").exists():
@@ -141,7 +141,7 @@ def list_shared_patent_ids() -> list[str]:
 
 
 def shared_patent_summary(patent_id: str) -> dict[str, Any]:
-    folder = SHARED_DATA_ROOT / patent_id
+    folder = SHARED_PATENT_ROOT / patent_id
     parsed = _read_json(folder / "parsed.json")
     patent = parsed.get("normalized_patent") if isinstance(parsed.get("normalized_patent"), dict) else {}
     meta = patent.get("meta") if isinstance(patent.get("meta"), dict) else {}
@@ -166,7 +166,8 @@ def shared_patent_summary(patent_id: str) -> dict[str, Any]:
         "has_latest_pdf": (folder / "patent.pdf").exists(),
         "has_latest_report": has_report,
         "has_patent_index": False,
-        "has_local_vectorstore": active_manifest_path(SHARED_VECTORSTORE_ROOT).exists(),
+        "has_local_vectorstore": bool(collection_info(shared_patents_collection()).get("exists")),
+        "has_qdrant_vectorstore": bool(collection_info(shared_patents_collection()).get("exists")),
         "chunk_count": all_chunks_estimate,
         "report_json_count": 1 if has_report else 0,
         "asset_count": 0,
@@ -196,9 +197,10 @@ def shared_patent_detail(patent_id: str, include_files: bool = True) -> dict[str
         "latest_input": _file_summary(folder / "parsed.json"),
         "latest_pdf": _file_summary(folder / "patent.pdf"),
         "latest_report": _file_summary(folder / "report.json"),
-        "all_chunks": _file_summary(active_documents_path(SHARED_VECTORSTORE_ROOT)),
+        "all_chunks": _file_summary(SHARED_VECTORSTORE_ROOT),
         "patent_index": _file_summary(SHARED_VECTORSTORE_ROOT),
-        "local_vectorstore": _file_summary(active_manifest_path(SHARED_VECTORSTORE_ROOT)),
+        "local_vectorstore": collection_info(shared_patents_collection()),
+        "qdrant_vectorstore": collection_info(shared_patents_collection()),
     }
     detail["parsed_summary"] = {
         "keys": sorted(parsed.keys()) if isinstance(parsed, dict) else [],
@@ -257,10 +259,10 @@ def shared_patent_chunks(
         if allowed and meta.get("source_type") not in allowed:
             continue
         if matched >= offset and len(items) < limit:
-            items.append({**doc, "_line_no": index, "_chunk_file": str(active_documents_path(SHARED_VECTORSTORE_ROOT))})
+            items.append({**doc, "_line_no": index, "_chunk_file": "qdrant"})
         matched += 1
     return {
-        "path": _file_summary(active_documents_path(SHARED_VECTORSTORE_ROOT)),
+        "path": _file_summary(SHARED_VECTORSTORE_ROOT),
         "offset": offset,
         "limit": limit,
         "matched_count": matched,
@@ -280,13 +282,13 @@ def _parsed_to_docs(patent_id: str, parsed: dict[str, Any]) -> list[dict[str, An
     meta = patent.get("meta") if isinstance(patent.get("meta"), dict) else {}
     spec = patent.get("specification") if isinstance(patent.get("specification"), dict) else {}
     title = meta.get("title") or patent_id
-    source_path = str(SHARED_DATA_ROOT / patent_id / "parsed.json")
+    source_path = str(SHARED_PATENT_ROOT / patent_id / "parsed.json")
     base_meta = {
         "patent_id": patent_id,
         "source_type": SHARED_PATENT_SOURCE_TYPE,
         "title": title,
         "source_path": source_path,
-        "relative_source_path": f"data/{patent_id}/parsed.json",
+        "relative_source_path": f"data/patent/{patent_id}/parsed.json",
         "file_name": "parsed.json",
     }
 
@@ -330,12 +332,12 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
     docs: list[dict[str, Any]] = []
     report = report_data.get("report") if isinstance(report_data.get("report"), dict) else {}
     valuation = report_data.get("valuation") if isinstance(report_data.get("valuation"), dict) else report
-    source_path = str(SHARED_DATA_ROOT / patent_id / "report.json")
+    source_path = str(SHARED_PATENT_ROOT / patent_id / "report.json")
     base_meta = {
         "patent_id": patent_id,
         "source_type": SHARED_REPORT_SOURCE_TYPE,
         "source_path": source_path,
-        "relative_source_path": f"data/{patent_id}/report.json",
+        "relative_source_path": f"data/patent/{patent_id}/report.json",
         "file_name": "report.json",
     }
 
@@ -363,7 +365,7 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
         if d:
             docs.append(d)
 
-    # Current eval_logic report structure used by PROJECT_ROOT/data/{patent_id}/report.json
+    # Current eval_logic report structure used by PROJECT_ROOT/data/patent/{patent_id}/report.json
     for key, label in [
         ("meta", "보고서 메타정보"),
         ("auto_scores", "자동 평가 점수"),
@@ -448,11 +450,11 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
 # ---------------------------------------------------------------------------
 
 def build_shared_vectorstore() -> dict[str, Any]:
-    """Index all patents in SHARED_DATA_ROOT into a single vectorstore."""
+    """Index all patents in SHARED_PATENT_ROOT into the shared Qdrant collection."""
     all_docs: list[dict[str, Any]] = []
     patent_ids = list_shared_patent_ids()
     for pid in patent_ids:
-        folder = SHARED_DATA_ROOT / pid
+        folder = SHARED_PATENT_ROOT / pid
         parsed = _read_json(folder / "parsed.json")
         if parsed:
             all_docs.extend(_parsed_to_docs(pid, parsed))
@@ -460,21 +462,30 @@ def build_shared_vectorstore() -> dict[str, Any]:
         if report:
             all_docs.extend(_report_to_docs(pid, report))
 
-    vs_root = SHARED_VECTORSTORE_ROOT
     manifest = {
         "scope": "shared_patents",
         "refreshed_at": _now(),
-        "backend": "local_hashed_bow",
+        "backend": "qdrant",
         "document_count": len(all_docs),
         "patent_count": len(patent_ids),
-        "source": "shared_data_root",
+        "source": "shared_patent_root",
+        "shared_patent_root": str(SHARED_PATENT_ROOT),
     }
-    rotation = write_rotating_index(vs_root, all_docs, manifest)
+    qdrant = upsert_documents(
+        shared_patents_collection(),
+        all_docs,
+        collection_scope="shared_patents",
+        recreate=True,
+        extra_payload={"index_scope": "shared_patents"},
+    )
     return {
         "status": "built",
+        "backend": "qdrant",
         "patent_count": len(patent_ids),
         "document_count": len(all_docs),
-        "rotation": rotation,
+        "collection": qdrant["collection"],
+        "qdrant": qdrant,
+        "manifest": manifest,
     }
 
 
@@ -485,95 +496,30 @@ def search_shared_vectorstore(
     patent_id: str | None = None,
     source_types: set[str] | None = None,
 ) -> dict[str, Any]:
-    """Search the shared patent vectorstore."""
-    docs_path = active_documents_path(SHARED_VECTORSTORE_ROOT)
-    if not docs_path.exists():
-        return {"query": query, "hit_count": 0, "hits": [], "mode": "shared_vectorstore"}
-
-    q_vec = _vectorize(query)
-    if not q_vec:
-        return {"query": query, "hit_count": 0, "hits": [], "mode": "shared_vectorstore", "patent_id": patent_id}
+    """Search the shared patent Qdrant collection."""
     allowed_source_types = _normalize_shared_source_types(source_types)
-
-    def _dot(a: dict, b: dict) -> float:
-        return sum(a.get(k, 0.0) * v for k, v in b.items())
-
-    def _fallback_priority(doc: dict[str, Any]) -> tuple[int, int]:
-        meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        source_type = str(meta.get("source_type") or "")
-        section = str(meta.get("section_title") or "")
-        query_text = query.lower()
-        priority = 50
-        if any(term in query_text for term in ("평가", "점수", "보고서", "리스크", "유지", "사업", "시장")):
-            if source_type == SHARED_REPORT_SOURCE_TYPE:
-                priority -= 30
-            if any(term in section for term in ("종합", "평가", "점수", "근거", "시장", "LLM")):
-                priority -= 15
-        if any(term in query_text for term in ("원문", "청구항", "발명", "효과", "해결")):
-            if source_type == SHARED_PATENT_SOURCE_TYPE:
-                priority -= 30
-            if any(term in section for term in ("청구항", "발명", "효과", "해결")):
-                priority -= 15
-        return (priority, len(str(doc.get("page_content") or "")) * -1)
-
-    scored: list[tuple[float, dict]] = []
-    fallback_docs: list[dict[str, Any]] = []
-    for line in docs_path.open(encoding="utf-8"):
-        try:
-            doc = json.loads(line)
-        except Exception:
-            continue
-        meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        if patent_id and str(meta.get("patent_id") or "") != patent_id:
-            continue
-        if allowed_source_types and str(meta.get("source_type") or "") not in allowed_source_types:
-            continue
-        fallback_docs.append(doc)
-        vec = doc.get("vector") if isinstance(doc.get("vector"), dict) else {}
-        score = _dot(q_vec, {str(k): float(v) for k, v in vec.items()})
-        if score <= 0:
-            continue
-        scored.append((score, doc))
-
-    if not scored and patent_id and fallback_docs:
-        scored = [
-            (0.000001, doc)
-            for doc in sorted(fallback_docs, key=_fallback_priority)[:top_k]
-        ]
-
-    scored.sort(key=lambda p: p[0], reverse=True)
-    hits = []
-    for score, doc in scored[:top_k]:
-        meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        text = str(doc.get("page_content") or "")
-        hits.append({
-            "patent_id": meta.get("patent_id", ""),
-            "score": round(score, 6),
-            "excerpt": text[:360],
-            "page_content": text,
-            "metadata": meta,
-        })
-
+    result = search_documents(
+        shared_patents_collection(),
+        query,
+        top_k=top_k,
+        patent_id=patent_id,
+        source_types=allowed_source_types,
+    )
     return {
-        "query": query,
-        "patent_id": patent_id,
-        "top_k": top_k,
-        "hit_count": len(hits),
-        "hits": hits,
-        "mode": "shared_vectorstore",
+        **result,
+        "mode": "shared_qdrant_search",
         "source_types": sorted(allowed_source_types),
-        "documents_path": str(docs_path),
     }
 
 
 def shared_vectorstore_status() -> dict[str, Any]:
-    vs_root = SHARED_VECTORSTORE_ROOT
-    manifest = _read_json(active_manifest_path(vs_root))
+    info = collection_info(shared_patents_collection())
     return {
-        "exists": active_manifest_path(vs_root).exists(),
-        "document_count": manifest.get("document_count", 0),
-        "patent_count": manifest.get("patent_count", 0),
-        "refreshed_at": manifest.get("refreshed_at"),
-        "vectorstore_path": str(vs_root),
-        "rotation": rotation_status(vs_root),
+        "backend": "qdrant",
+        "exists": info.get("exists", False),
+        "document_count": info.get("points_count", 0),
+        "patent_count": len(list_shared_patent_ids()),
+        "refreshed_at": None,
+        "collection": shared_patents_collection(),
+        "qdrant": info,
     }

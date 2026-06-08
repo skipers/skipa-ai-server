@@ -1,7 +1,0 @@
-{
-  "active_slot": "blue",
-  "previous_active_slot": "green",
-  "activated_at": "2026-06-07T15:55:57",
-  "active_manifest_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/manifest.json",
-  "active_documents_path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/index/vectorstore/blue/documents.jsonl"
-}

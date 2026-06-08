@@ -26,7 +26,7 @@ import json
 import re
 from pathlib import Path
 
-from ..config import PATENTS_ROOT, SHARED_DATA_ROOT, WIKI_ROOT
+from ..config import PATENTS_ROOT, SHARED_PATENT_ROOT, WIKI_ROOT
 
 
 # ---------------------------------------------------------------------------
@@ -219,8 +219,8 @@ def reclassify_all_patents() -> dict[str, str]:
         for patent_dir in sorted(PATENTS_ROOT.iterdir()):
             if patent_dir.is_dir() and not patent_dir.name.startswith("_"):
                 patent_ids.add(patent_dir.name)
-    if SHARED_DATA_ROOT.exists():
-        for patent_dir in sorted(SHARED_DATA_ROOT.iterdir()):
+    if SHARED_PATENT_ROOT.exists():
+        for patent_dir in sorted(SHARED_PATENT_ROOT.iterdir()):
             if not patent_dir.is_dir() or patent_dir.name.startswith("_") or patent_dir.name.startswith("."):
                 continue
             if (patent_dir / "parsed.json").exists() or (patent_dir / "report.json").exists():
@@ -252,7 +252,7 @@ def _topic_from_patent_paths(patent_id: str) -> str:
     for path in [
         PATENTS_ROOT / patent_id / "manifest.json",
         PATENTS_ROOT / patent_id / "original" / "input" / "latest.json",
-        SHARED_DATA_ROOT / patent_id / "parsed.json",
+        SHARED_PATENT_ROOT / patent_id / "parsed.json",
     ]:
         title = _title_from_json(path)
         if title:
@@ -277,7 +277,7 @@ def topic_approved_md(topic_slug: str) -> Path:
 
 
 def topic_vectorstore_root(topic_slug: str) -> Path:
-    return WIKI_ROOT / topic_slug / "vectorstore"
+    return WIKI_ROOT / topic_slug / "qdrant"
 
 
 def topic_draft_index_path(topic_slug: str) -> Path:

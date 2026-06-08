@@ -7,7 +7,7 @@
 | 영역 | 역할 | 핵심 데이터 |
 | --- | --- | --- |
 | `eval_logic` | 특허 PDF/JSON을 표준 입력으로 정규화하고 평가 보고서 JSON을 생성합니다. | `eval_logic/data/api_test`, `eval_logic/data/runtime_artifacts`, 특허별 보고서 |
-| 특허 챗봇 | 특허 원문, 보고서, 승인 wiki, web 검색 근거로 질의응답합니다. | `data/<patent_id>`, `data/_vectorstore`, `data/wiki` |
+| 특허 챗봇 | MinIO에서 동기화한 특허 원문, 보고서, 승인 wiki, web 검색 근거로 질의응답합니다. | `data/patent/<patent_id>`, Qdrant `skipa_shared_patents`, `data/wiki` |
 | 출원 도우미 | 공식 출원 자료팩과 선택 실패특허 case를 기준으로 출원/거절/실패 분석을 답변합니다. | `chatbot/data/patent_application_official_pack` |
 | 출원 전 사전평가 | 출원 예정 아이디어/기술설명/청구항으로 사전평가 보고서를 만들고 케이스별 챗봇을 제공합니다. | `data/pre_application_cases` |
 | wiki 감사 | web 검색 draft와 wiki 보강 자료를 감사하고 승인 데이터만 vectorstore에 반영합니다. | `data/wiki/<topic_slug>/approved_context.md`, `data/wiki/<topic_slug>/vectorstore` |
@@ -65,11 +65,12 @@ flowchart TB
   end
 
   subgraph DATA[데이터 저장소]
-    SHARED[data/patent_id]
+    MINIO[MinIO s3://skipa/patent]
+    SHARED[data/patent/patent_id]
     PDF[patent.pdf]
     INPUT[parsed.json]
     REPORT[report.json]
-    VEC[data/_vectorstore]
+    VEC[Qdrant<br/>skipa_shared_patents]
     WIKI[data/wiki/topic/vectorstore]
     APACK[patent_application_official_pack]
     FAILED[failed_patent/registration_failed]
@@ -122,6 +123,7 @@ flowchart TB
 
   DRAFT --> AUD --> HUMAN --> APPROVE --> WIDX --> WIKI
 
+  MINIO -->|startup/UI sync| SHARED
   SHARED --> PDF
   SHARED --> INPUT
   SHARED --> REPORT

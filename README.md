@@ -8,11 +8,11 @@
 
 - 특허 PDF 또는 JSON 입력 기반 가치평가/재평가 보고서 생성
 - 보고서 생성 후 자동 신뢰도 검증(`verify_report`) 및 `report_verification` 제공
-- 특허별 원문 PDF, 표준 input JSON, 보고서 JSON, chunk, vectorstore 통합 관리
+- 특허별 원문 PDF, 표준 input JSON, 보고서 JSON, chunk, Qdrant vectorstore 통합 관리
 - 가벼운 LLM 의도 라우팅 기반 특허 챗봇
 - OpenAI 기반 의도 분류, 답변 생성, embedding 설정 지원
-- FAISS + BM25 + RRF 기반 hybrid retrieval
-- **분야별 wiki gate**: 웹검색 결과를 특허별이 아닌 기술 분야(소프트웨어_IT / 화학_소재 / 반도체_전자 등) 폴더로 관리하고, 감사 후 승인 데이터만 분야별 wiki vectorstore에 반영. Tavily/web 검색 보강 포함. blue/green rotation + 매일 00시 자동 재빌드.
+- Qdrant + OpenAI embedding 기반 retrieval
+- **분야별 wiki gate**: 웹검색 결과를 특허별이 아닌 기술 분야(소프트웨어_IT / 화학_소재 / 반도체_전자 등) 폴더로 관리하고, 감사 후 승인 데이터만 분야별 Qdrant collection에 반영. Tavily/web 검색 보강 포함. 매일 00시 자동 재빌드.
 - 특허 출원 공식팩 기반 출원 도우미 챗봇
 - 실패특허 원본 PDF 업로드, 선택 거절사유 업로드, 재평가 보고서 생성, 케이스별 vectorstore 분리
 - 출원 전 아이디어/청구항 사전평가 보고서 생성 및 케이스별 챗봇
@@ -65,13 +65,13 @@ flowchart TB
     AUDIT["run_audit<br>나쁜 데이터 후보 판별"]
     REVIEW["사람 검토/자동 제외"]
     APPROVED["approved_context.md<br>분야별"]
-    WIDX["wiki vectorstore refresh<br>blue/green per topic"]
+    WIDX["wiki Qdrant refresh<br>per topic collection"]
   end
 
   subgraph DATA[데이터]
     SHARED["/data<br>공유 특허 DB"]
-    MP["/data/&lt;patent_id&gt;<br>patent.pdf / parsed.json / report.json"]
-    SIDX["/data/_vectorstore<br>공유 특허 index"]
+    MP["/data/patent/&lt;patent_id&gt;<br>patent.pdf / parsed.json / report.json"]
+    SIDX["Qdrant<br>공유 특허 collection"]
     WIKID["/data/wiki<br>분야별 wiki gate"]
     PREEVAL["/data/pre_application_cases<br>사전평가 case"]
     CDATA["chatbot/data<br>챗봇 전용 데이터"]
@@ -195,11 +195,12 @@ skipers-ai/
       preprocess_chatbot_data.sh
 
   data/
-    <patent_id>/              # 챗봇과 eval_logic이 공유하는 특허별 원본/보고서 DB
-      patent.pdf
-      parsed.json
-      report.json
-    _vectorstore/             # 공유 특허 DB vectorstore
+    patent/
+      <patent_id>/            # 챗봇과 eval_logic이 공유하는 특허별 원본/보고서 DB
+        patent.pdf
+        parsed.json
+        report.json
+    qdrant collections        # 공유 특허 DB / wiki / 출원팩 / 실패특허 case index
     wiki/                     # 분야별 wiki vectorstore (WIKI_ROOT)
       _patent_topics.json
       소프트웨어_IT/
@@ -217,19 +218,17 @@ skipers-ai/
 
 ### 특허 챗봇 데이터
 
-특허 원문과 보고서는 루트 공유 DB인 `data/<patent_id>`에서 관리합니다. 챗봇과 `eval_logic`은 이 경로를 함께 참조합니다.
+특허 원문과 보고서는 루트 공유 DB인 `data/patent/<patent_id>`에서 관리합니다. 챗봇과 `eval_logic`은 이 경로를 함께 참조합니다. K8s에서는 서버 시작 시 MinIO `s3://skipa/patent/`를 이 로컬 캐시에 동기화합니다.
 
 ```text
-data/<patent_id>/
+data/patent/<patent_id>/
   patent.pdf                # 특허 원문 PDF
   parsed.json               # 표준 특허 input JSON
   report.json               # eval_logic 평가/재평가 보고서 JSON
   *.html / *.md             # 생성된 보고서 뷰 또는 보조 문서
 
-data/_vectorstore/
-  active_slot.json
-  blue/
-  green/
+Qdrant collection:
+  skipa_shared_patents        # data/patent 전체 공유 특허 DB
 ```
 
 wiki는 특허별이 아닌 **기술 분야별** 공유 폴더로 관리합니다:
@@ -241,30 +240,23 @@ data/wiki/                               ← WIKI_ROOT
     web_search_data/                     # 웹검색 raw draft (시간순 .md 파일)
     approved_context.md                  # 감사/자동 승인된 wiki 본문
     draft_index.json                     # 중복 검색 dedup 인덱스
-    vectorstore/                         # blue/green vectorstore
-      active_slot.json
-      blue/
-      green/
+    qdrant collection: skipa_wiki_topic_<topic_slug>
   화학_소재/
     (동일 구조)
   반도체_전자/ 바이오_의료/ 기계_제조/ 에너지_환경/ _general/
     (동일 구조)
   _global/
-    vectorstore/                         # 전체 분야 병합 wiki vectorstore
-      active_slot.json
-      blue/
-      green/
+    qdrant collection: skipa_wiki_global # 전체 분야 병합 wiki vectorstore
 ```
 
 중요한 규칙:
 
-- 원문/보고서 질문은 `data/_vectorstore`와 해당 특허의 `patent.pdf`, `parsed.json`, `report.json`을 먼저 사용합니다.
-- wiki는 core vectorstore에 섞지 않고 `WIKI_ROOT/{topic}/vectorstore`로만 관리합니다.
+- 원문/보고서 질문은 Qdrant `skipa_shared_patents`와 해당 특허의 `patent.pdf`, `parsed.json`, `report.json`을 먼저 사용합니다.
+- wiki는 core vectorstore에 섞지 않고 분야별 Qdrant collection으로만 관리합니다.
 - 특허가 어느 분야인지는 제목 키워드 매칭으로 자동 결정하고 `_patent_topics.json`에 캐시합니다.
 - wiki gate: 외부정보 필요 질문 → 해당 특허의 분야 wiki 먼저 검색 → 없으면 web 검색으로 넘어갑니다.
 - web 검색 결과는 해당 특허의 분야 `web_search_data/` 에 저장됩니다. 관련도 임계값 이상이면 `approved_context.md`에 자동 추가하고 분야 vectorstore를 즉시 재빌드합니다.
-- vectorstore는 blue/green 두 slot을 사용합니다. refresh는 standby slot에 먼저 완성본을 쓰고 `active_slot.json`만 전환하므로, 재색인 중에도 기존 active index를 계속 사용할 수 있습니다.
-- 매일 00:00 CronJob이 모든 분야 wiki vectorstore를 재빌드합니다 (`nightly_reindex_all`).
+- 매일 00:00 CronJob이 MinIO/local cache와 승인 wiki를 기준으로 Qdrant collection을 재빌드합니다 (`nightly_reindex_all`).
 - 루트 `data/artifacts/`는 사용하지 않습니다. 챗봇 검증 산출물은 `chatbot/data/artifacts/`에만 저장합니다.
 
 ### 특허 출원 도우미 데이터
@@ -276,19 +268,13 @@ chatbot/data/patent_application_official_pack/
   patent_rejection_failure_response.md
   patent_rejection_notice_original_sources.md
   prior_art_search_workflow.md
-  index/vectorstore/                         # 공용 공식팩 index
-    active_slot.json
-    blue/
-    green/
+  index/qdrant/                              # 공용 공식팩 Qdrant manifest
   failed_patent/
     <registration_number>_failed/
       input/                                 # 실패특허 원본 PDF
       rejection/                             # 선택 거절의견서/사유서
       reports/                               # 재평가 보고서, latest_report.*
-      index/vectorstore/                     # 해당 실패특허 1건 전용 index
-        active_slot.json
-        blue/
-        green/
+      index/qdrant/                          # 해당 실패특허 1건 전용 Qdrant manifest
       metadata.json
 ```
 
@@ -459,7 +445,7 @@ Kubernetes에서는 아래 경로를 PVC 또는 object storage 동기화 대상�
 /app/data
 ```
 
-매일 00:00 자동 감사/재색인은 같은 이미지를 `CronJob`으로 한 번 실행합니다. 앱 pod는 기존 active slot을 계속 읽고, CronJob은 standby slot에 새 index를 만든 뒤 마지막에 `active_slot.json`을 전환합니다.
+매일 00:00 자동 감사/재색인은 같은 이미지를 `CronJob`으로 한 번 실행합니다. CronJob은 MinIO/local cache와 승인 wiki를 기준으로 Qdrant collection을 재빌드합니다.
 
 ```yaml
 apiVersion: batch/v1
@@ -558,10 +544,23 @@ http://127.0.0.1:8001/docs
 ```env
 DATA_ROOT=/Users/kgw/skipers-ai/chatbot/data
 SHARED_DATA_ROOT=/Users/kgw/skipers-ai/data
+SHARED_PATENT_ROOT=/Users/kgw/skipers-ai/data/patent
 PATENTS_ROOT=/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports   # 호환용 legacy RAG 폴더
 PATENT_APPLICATION_ROOT=/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack
 WIKI_ROOT=/Users/kgw/skipers-ai/data/wiki
 PRE_EVAL_ROOT=/Users/kgw/skipers-ai/data/pre_application_cases
+
+MINIO_ENDPOINT=http://skipa-minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=...
+MINIO_BUCKET=skipa
+MINIO_PATENT_PREFIX=patent
+MINIO_SYNC_ON_STARTUP=true
+
+QDRANT_URL=http://skipa-qdrant:6333
+QDRANT_API_KEY=...
+QDRANT_COLLECTION_PREFIX=skipa
+QDRANT_VECTOR_SIZE=3072
 
 INTENT_PROVIDER=openai
 OPENAI_INTENT_MODEL=gpt-4.1-mini
@@ -633,6 +632,9 @@ GET  /api/v1/chatbot/patents/{patent_id}/chunks
 GET  /api/v1/chatbot/business/chunks
 GET  /api/v1/chatbot/vectorstore/status
 GET  /api/v1/chatbot/preprocess/status
+GET  /api/v1/chatbot/minio/status
+POST /api/v1/chatbot/minio/sync
+GET  /api/v1/chatbot/qdrant/status
 POST /api/v1/chatbot/preprocess/run
 POST /api/v1/chatbot/vectorstore/refresh
 POST /api/v1/chatbot/search
@@ -667,7 +669,7 @@ GET  /api/v1/patent-chat/ingestion/mermaid
 # 분야별 wiki vectorstore 관리
 GET  /api/v1/wiki/topics                     분야 목록 및 vectorstore 상태
 GET  /api/v1/wiki/topics/{topic_slug}        특정 분야 상세 (approved_context 미리보기, 최근 draft)
-POST /api/v1/wiki/topics/refresh             모든 분야 wiki vectorstore 재빌드 (blue/green)
+POST /api/v1/wiki/topics/refresh             모든 분야 wiki Qdrant vectorstore 재빌드
 GET  /api/v1/wiki/topics/{topic_slug}/patent?patent_id=X   특허 → 분야 매핑 확인
 
 # 데이터 감사 (품질 검사 → 사람 검토 → 승인)
@@ -774,11 +776,11 @@ supervisor
 audit 실행 → 나쁜 데이터 후보 추출
  -> 사람 검토 또는 자동 제외
  -> approved_context.md 저장
- -> WIKI_ROOT/{topic}/vectorstore 재빌드 (blue/green)
+ -> 분야별 Qdrant collection 재빌드
 
 매일 00:00 CronJob (nightly_reindex_all)
  -> 모든 분야 wiki vectorstore 재빌드
- -> WIKI_ROOT/_global/vectorstore 병합 재빌드
+ -> Qdrant `skipa_wiki_global` 병합 재빌드
 
 다음 외부정보 질문에서 해당 분야 wiki gate로 사용
 ```
@@ -797,7 +799,7 @@ bash chatbot/scripts/preprocess_chatbot_data.sh --mode refresh
 # wiki 자동 감사 후 승인 데이터만 refresh
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode auto-audit
 
-# 매일 00:00 CronJob에서 실행할 전체 blue/green 재색인 작업
+# 매일 00:00 CronJob에서 실행할 전체 Qdrant 재색인 작업
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode nightly-reindex
 
 # 출원 공식팩 전처리 및 공용 index 갱신

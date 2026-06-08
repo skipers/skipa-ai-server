@@ -103,10 +103,18 @@ Health  http://127.0.0.1:8001/health
 ```env
 DATA_ROOT=/Users/kgw/skipers-ai/chatbot/data
 SHARED_DATA_ROOT=/Users/kgw/skipers-ai/data
+SHARED_PATENT_ROOT=/Users/kgw/skipers-ai/data/patent
 PATENTS_ROOT=/Users/kgw/skipers-ai/chatbot/data/mapped_patent_reports
 PATENT_APPLICATION_ROOT=/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack
 WIKI_ROOT=/Users/kgw/skipers-ai/data/wiki
 PRE_EVAL_ROOT=/Users/kgw/skipers-ai/data/pre_application_cases
+
+MINIO_ENDPOINT=http://skipa-minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=...
+MINIO_BUCKET=skipa
+MINIO_PATENT_PREFIX=patent
+MINIO_SYNC_ON_STARTUP=true
 
 INTENT_PROVIDER=openai
 OPENAI_INTENT_MODEL=gpt-4.1-mini
@@ -127,22 +135,17 @@ ENABLE_WEB_SEARCH=true
 
 ```text
 data/
-  <patent_id>/
-    patent.pdf
-    parsed.json
-    report.json
-  _vectorstore/
-    active_slot.json
-    blue/
-    green/
+  patent/
+    <patent_id>/
+      patent.pdf
+      parsed.json
+      report.json
+  Qdrant collection: skipa_shared_patents
   wiki/
     <topic_slug>/
       web_search_data/
       approved_context.md
-      vectorstore/
-        active_slot.json
-        blue/
-        green/
+      Qdrant collection: skipa_wiki_topic_<topic_slug>
   pre_application_cases/
 
 chatbot/data/
@@ -155,30 +158,27 @@ chatbot/data/
     patent_rejection_failure_response.md
     patent_rejection_notice_original_sources.md
     prior_art_search_workflow.md
-    index/vectorstore/
-      active_slot.json
-      blue/
-      green/
+    index/qdrant/
+      manifest.json
     failed_patent/
       <registration_number>_failed/
         input/
         rejection/
         reports/
-        index/vectorstore/
-          active_slot.json
-          blue/
-          green/
+        index/qdrant/
+          manifest.json
         metadata.json
 ```
 
 중요한 격리 규칙:
 
-- 특허 원문/보고서 공유 DB는 루트 `data/<patent_id>`와 `data/_vectorstore`를 사용합니다.
+- 특허 원문/보고서 공유 DB는 루트 `data/patent/<patent_id>`와 Qdrant `skipa_shared_patents` collection을 사용합니다.
+- MinIO `s3://skipa/patent/` 데이터는 서버 시작 또는 UI의 `MinIO에서 가져오기` 버튼으로 `data/patent/`에 동기화합니다.
 - wiki는 루트 `data/wiki/<topic_slug>`에서 관리하고, 외부검색 전 gate로만 사용합니다.
 - 출원 도우미 공용 공식팩 index에는 `downloads/`와 4개 guide Markdown만 들어갑니다.
 - 실패특허 case index에는 현재 선택한 실패특허 원본, 선택 사유서, 최신 보고서만 들어갑니다.
 - 다른 실패특허 또는 다른 특허의 데이터가 한 case vectorstore에 섞이면 안 됩니다.
-- 모든 챗봇 vectorstore는 `blue`/`green` 두 slot으로 운영됩니다. refresh는 standby slot에 먼저 쓰고 `active_slot.json`을 전환하므로, 재색인 중에도 기존 active index로 답변할 수 있습니다.
+- 모든 챗봇 vectorstore는 Qdrant collection으로 운영됩니다. MinIO/local cache와 승인 Markdown이 원본이고, refresh 시 collection을 재생성합니다.
 - 자동 감사는 `default_action=exclude`와 `severity=medium/high review` 후보를 낮은 품질/주의 데이터로 제외하고, 남은 승인 데이터만 해당 분야 wiki의 `approved_context.md`에 저장합니다.
 - 챗봇 기능 테스트 산출물은 `chatbot/data/artifacts`에만 저장합니다. 루트 `data/artifacts`는 생성하지 않습니다.
 
@@ -296,7 +296,7 @@ cd /Users/kgw/skipers-ai
 # 상태 확인
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode status
 
-# 특허 챗봇 vectorstore refresh
+# 특허 챗봇 Qdrant vectorstore refresh
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode refresh
 
 # wiki 자동 감사 후 승인 데이터만 반영

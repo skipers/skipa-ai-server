@@ -1,7 +1,0 @@
-{
-  "active_slot": "green",
-  "previous_active_slot": "blue",
-  "activated_at": "2026-06-07T15:29:41",
-  "active_manifest_path": "/Users/kgw/skipers-ai/data/pre_application_cases/20260607_152938_AI_기반_불량_검출_시스템/index/vectorstore/green/manifest.json",
-  "active_documents_path": "/Users/kgw/skipers-ai/data/pre_application_cases/20260607_152938_AI_기반_불량_검출_시스템/index/vectorstore/green/documents.jsonl"
-}

@@ -74,7 +74,8 @@ def run_chat_agent(
         "trace": [],
         "errors": [],
     }
-    final_state = CHAT_GRAPH.invoke(state) if CHAT_GRAPH is not None else _sequential(state)
+    # LangGraph 1.2.0 모듈 import 시점 컴파일 그래프의 state 전파 버그 우회
+    final_state = _sequential(state)
     result = dict(final_state.get("result") or {})
     metrics = dict(result.get("metrics") or {})
     metrics["agent_trace"] = final_state.get("trace", [])
@@ -96,8 +97,8 @@ def chat_graph_mermaid() -> str:
 
   E --> J[Hybrid Retrieval 먼저 시도]
   J --> M{source guard 통과?}
-  M -- 예 --> N[FAISS+BM25+RRF + OpenAI 답변]
-  M -- 아니오 --> O[core vectorstore + OpenAI 답변]
+  M -- 예 --> N[Qdrant core/wiki 검색 + OpenAI 답변]
+  M -- 아니오 --> O[Qdrant fallback 검색 + OpenAI 답변]
   H --> J
   I --> J
   N --> K[근거 카드 + 품질 지표]

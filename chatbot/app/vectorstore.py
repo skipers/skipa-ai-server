@@ -1,12 +1,11 @@
-"""Audit, human review, and local vectorstore refresh for chatbot data.
+"""Audit, human review, and Qdrant vectorstore refresh for chatbot data.
 
-The production chatbot can replace the local hashed vectors with an embedding
-and FAISS backend. The important contract is the workflow:
+The important contract is the workflow:
 
 1. Audit scans raw shared data and flags suspicious documents.
 2. A human reviews the findings in Swagger or the generated Markdown.
 3. Only human-approved content is saved as Markdown/JSONL.
-4. Vectorstores are rebuilt from the approved content.
+4. Qdrant vectorstores are rebuilt from the approved content.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ from typing import Any, Iterable
 from fastapi import HTTPException
 
 from .config import BUSINESS_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT, WIKI_ROOT
-from .index_rotation import active_documents_path, active_manifest_path, rotation_status, write_rotating_index
+from .qdrant_store import collection_info, patent_collection, search_documents, upsert_documents, wiki_collection
 from .rag.quality import is_usable_evidence, preprocess_evidence_text
 
 
@@ -409,7 +408,7 @@ def _load_reviewed_documents(patent_id: str) -> list[dict[str, Any]]:
 
 def normalize_wiki_context_files() -> dict[str, Any]:
     """Rewrite approved wiki contexts from reviewed docs into topic-based approved_context.md."""
-    from .wiki.topics import get_patent_topic, topic_approved_md, topic_vectorstore_root
+    from .wiki.topics import get_patent_topic, topic_approved_md
 
     updated = []
     for patent_id in _patent_ids():
@@ -497,6 +496,18 @@ def collect_patent_documents(patent_id: str, *, use_reviewed: bool = True) -> li
     return docs
 
 
+def _collection_for_scope(scope: str) -> str:
+    if scope == "global":
+        return patent_collection(None)
+    if scope.startswith("patent:"):
+        return patent_collection(scope.split(":", 1)[1])
+    if scope == "wiki:global":
+        return wiki_collection(None)
+    if scope.startswith("wiki:"):
+        return wiki_collection(scope.split(":", 1)[1])
+    return patent_collection(scope)
+
+
 def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: str, source: str = "unknown") -> dict[str, Any]:
     source_paths: set[Path] = set()
     for doc in docs:
@@ -517,26 +528,32 @@ def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: s
         "scope": scope,
         "refreshed_at": _now(),
         "vector_dimensions": VECTOR_DIMENSIONS,
-        "backend": "local_hashed_bow",
+        "backend": "qdrant",
         "source": source,
         "document_count": len(docs),
         "source_fingerprints": source_fingerprints,
     }
-    rotation = write_rotating_index(output_dir, docs, manifest)
+    collection = _collection_for_scope(scope)
+    qdrant = upsert_documents(
+        collection,
+        docs,
+        collection_scope=scope,
+        recreate=True,
+        extra_payload={"source": source, "logical_index_root": str(output_dir)},
+    )
     return {
         "scope": scope,
+        "backend": "qdrant",
         "document_count": len(docs),
-        "manifest_path": rotation["manifest_path"],
-        "documents_path": rotation["documents_path"],
-        "active_slot": rotation["active_slot"],
-        "previous_active_slot": rotation["previous_active_slot"],
-        "legacy_manifest_path": rotation["legacy_manifest_path"],
-        "legacy_documents_path": rotation["legacy_documents_path"],
+        "collection": collection,
+        "qdrant": qdrant,
+        "refreshed_at": manifest["refreshed_at"],
+        "source": source,
     }
 
 
 def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
-    from .wiki.topics import all_active_topic_slugs, topic_vectorstore_root
+    from .wiki.topics import all_active_topic_slugs, topic_approved_md
 
     patent_results = []
     global_docs: list[dict[str, Any]] = []
@@ -552,33 +569,33 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
                 excluded_by_policy[_source_type(doc) or "UNKNOWN"] += 1
         global_docs.extend(core_docs)
         patent_results.append(
-            _write_vectorstore(patent_dir / "index" / "vectorstore", core_docs, scope=f"patent:{patent_id}", source=source)
+            _write_vectorstore(patent_dir / "index" / "qdrant", core_docs, scope=f"patent:{patent_id}", source=source)
         )
 
     business_docs = _business_documents()
     for doc in business_docs:
         excluded_by_policy[_source_type(doc) or "BUSINESS"] += 1
     _write_vectorstore(
-        BUSINESS_ROOT / "index" / "vectorstore",
+        BUSINESS_ROOT / "index" / "qdrant",
         [],
         scope="business-disabled",
         source="disabled_non_core_web_routing",
     )
-    global_result = _write_vectorstore(PATENTS_ROOT / "_global" / "index" / "vectorstore", global_docs, scope="global", source=source)
+    global_result = _write_vectorstore(PATENTS_ROOT / "_global" / "index" / "qdrant", global_docs, scope="global", source=source)
 
-    # Build per-topic wiki vectorstores (blue/green)
+    # Build per-topic wiki vectorstores in Qdrant.
     topic_wiki_results = []
     all_wiki_docs: list[dict[str, Any]] = []
     for topic_slug in all_active_topic_slugs():
         topic_docs = list(_topic_wiki_documents(topic_slug))
         all_wiki_docs.extend(topic_docs)
         topic_wiki_results.append(
-            _write_vectorstore(topic_vectorstore_root(topic_slug), topic_docs, scope=f"wiki:{topic_slug}", source=source)
+            _write_vectorstore(topic_approved_md(topic_slug).parent / "qdrant", topic_docs, scope=f"wiki:{topic_slug}", source=source)
         )
 
     # Global wiki = merge of all topic wikis
     global_wiki_result = _write_vectorstore(
-        WIKI_ROOT / "_global" / "vectorstore",
+        WIKI_ROOT / "_global" / "qdrant",
         all_wiki_docs,
         scope="wiki:global",
         source=source,
@@ -595,29 +612,28 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
         "global_wiki_vectorstore": global_wiki_result,
         "core_source_types": sorted(CORE_SEARCH_SOURCE_TYPES),
         "excluded_from_core_search": dict(sorted(excluded_by_policy.items())),
-        "wiki_policy": "wiki is topic-based: WIKI_ROOT/{topic_slug}/vectorstore with blue/green rotation",
+        "wiki_policy": "wiki is topic-based: WIKI_ROOT/{topic_slug}/approved_context.md indexed into a dedicated Qdrant collection",
         "web_policy": "non-core data is excluded from core vectorstores; questions without original/report/wiki evidence route to web search",
     }
 
 
 def vectorstore_status() -> dict[str, Any]:
-    from .wiki.topics import all_active_topic_slugs, topic_vectorstore_root, topic_approved_md
+    from .wiki.topics import all_active_topic_slugs, topic_approved_md
 
     patent_status = []
     for patent_id in _patent_ids():
         patent_dir = PATENTS_ROOT / patent_id
-        core_root = patent_dir / "index" / "vectorstore"
-        manifest_path = active_manifest_path(core_root)
-        manifest = _read_json(manifest_path)
         reviewed_path = _reviewed_docs_path(patent_id)
+        info = collection_info(patent_collection(patent_id))
         patent_status.append(
             {
                 "patent_id": patent_id,
-                "exists": manifest_path.exists(),
-                "document_count": manifest.get("document_count", 0),
-                "refreshed_at": manifest.get("refreshed_at"),
-                "manifest_path": str(manifest_path),
-                "rotation": rotation_status(core_root),
+                "exists": bool(info.get("exists")),
+                "backend": "qdrant",
+                "collection": patent_collection(patent_id),
+                "document_count": info.get("points_count", 0),
+                "refreshed_at": None,
+                "qdrant": info,
                 "has_human_reviewed_source": reviewed_path.exists(),
                 "approved_markdown_path": str(_reviewed_md_path(patent_id)) if _reviewed_md_path(patent_id).exists() else None,
             }
@@ -625,69 +641,59 @@ def vectorstore_status() -> dict[str, Any]:
 
     topic_status = []
     for topic_slug in all_active_topic_slugs():
-        vs_root = topic_vectorstore_root(topic_slug)
-        vs_manifest = _read_json(active_manifest_path(vs_root))
         approved = topic_approved_md(topic_slug)
+        info = collection_info(wiki_collection(topic_slug))
         topic_status.append(
             {
                 "topic": topic_slug,
-                "vectorstore_exists": active_manifest_path(vs_root).exists(),
-                "document_count": vs_manifest.get("document_count", 0),
-                "refreshed_at": vs_manifest.get("refreshed_at"),
+                "vectorstore_exists": bool(info.get("exists")),
+                "backend": "qdrant",
+                "collection": wiki_collection(topic_slug),
+                "document_count": info.get("points_count", 0),
+                "refreshed_at": None,
                 "approved_md_exists": approved.exists(),
                 "approved_md_path": str(approved),
-                "rotation": rotation_status(vs_root),
+                "qdrant": info,
             }
         )
 
-    global_root = PATENTS_ROOT / "_global" / "index" / "vectorstore"
-    global_wiki_root = WIKI_ROOT / "_global" / "vectorstore"
-    global_manifest = _read_json(active_manifest_path(global_root))
-    global_wiki_manifest = _read_json(active_manifest_path(global_wiki_root))
+    global_info = collection_info(patent_collection(None))
+    global_wiki_info = collection_info(wiki_collection(None))
     return {
-        "backend": "local_hashed_bow",
-        "rotation_policy": "blue_green; readers use active_slot.json and writers build the standby slot before switching",
+        "backend": "qdrant",
+        "rotation_policy": "qdrant_collection_replace; MinIO/local cache remains source of truth",
         "core_source_types": sorted(CORE_SEARCH_SOURCE_TYPES),
-        "core_policy": "patent/report only; wiki is topic-based in WIKI_ROOT/{topic}/vectorstore",
+        "core_policy": "patent/report only; wiki is topic-based in dedicated Qdrant collections",
         "global": {
-            "exists": bool(global_manifest),
-            "document_count": global_manifest.get("document_count", 0),
-            "refreshed_at": global_manifest.get("refreshed_at"),
-            "source": global_manifest.get("source"),
-            "manifest_path": str(active_manifest_path(global_root)),
-            "rotation": rotation_status(global_root),
+            "exists": bool(global_info.get("exists")),
+            "backend": "qdrant",
+            "collection": patent_collection(None),
+            "document_count": global_info.get("points_count", 0),
+            "refreshed_at": None,
+            "qdrant": global_info,
         },
         "global_wiki": {
-            "exists": bool(global_wiki_manifest),
-            "document_count": global_wiki_manifest.get("document_count", 0),
-            "source": global_wiki_manifest.get("source"),
+            "exists": bool(global_wiki_info.get("exists")),
+            "backend": "qdrant",
+            "collection": wiki_collection(None),
+            "document_count": global_wiki_info.get("points_count", 0),
             "policy": "merged wiki from all topic vectorstores",
-            "manifest_path": str(active_manifest_path(global_wiki_root)),
-            "rotation": rotation_status(global_wiki_root),
+            "qdrant": global_wiki_info,
         },
         "topic_wiki": topic_status,
         "patents": patent_status,
     }
 
 
-def _vector_documents_path(*, patent_id: str | None, source_types: set[str] | None) -> Path:
+def _vector_collection(*, patent_id: str | None, source_types: set[str] | None) -> str:
     requested = set(source_types or [])
     if requested and requested <= WIKI_SEARCH_SOURCE_TYPES:
         if patent_id:
-            from .wiki.topics import get_patent_topic, topic_vectorstore_root
+            from .wiki.topics import get_patent_topic
             topic = get_patent_topic(patent_id)
-            return active_documents_path(topic_vectorstore_root(topic))
-        return active_documents_path(WIKI_ROOT / "_global" / "vectorstore")
-    root = PATENTS_ROOT / patent_id / "index" / "vectorstore" if patent_id else PATENTS_ROOT / "_global" / "index" / "vectorstore"
-    return active_documents_path(root)
-
-
-def _iter_vector_documents(patent_id: str | None, source_types: set[str] | None = None) -> Iterable[dict[str, Any]]:
-    docs_path = _vector_documents_path(patent_id=patent_id, source_types=source_types)
-    if not docs_path.exists():
-        return
-    for _, item in _read_jsonl(docs_path) or []:
-        yield item
+            return wiki_collection(topic)
+        return wiki_collection(None)
+    return patent_collection(patent_id)
 
 
 def _excerpt(text: str, query: str, size: int = 360) -> str:
@@ -702,68 +708,28 @@ def _excerpt(text: str, query: str, size: int = 360) -> str:
 
 
 def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int) -> dict[str, Any]:
-    query_vector = _vectorize(query)
     effective_source_types = set(source_types) if source_types is not None else set(CORE_SEARCH_SOURCE_TYPES)
-    docs_path = _vector_documents_path(patent_id=patent_id, source_types=effective_source_types)
-    if not query_vector:
-        return {
-            "query": query,
-            "mode": "local_vectorstore_search",
-            "patent_id": patent_id,
-            "top_k": top_k,
-            "source_types": sorted(effective_source_types),
-            "documents_path": str(docs_path),
-            "hit_count": 0,
-            "hits": [],
-        }
-    if not docs_path.exists():
-        return {
-            "query": query,
-            "mode": "local_vectorstore_search",
-            "patent_id": patent_id,
-            "top_k": top_k,
-            "source_types": sorted(effective_source_types),
-            "documents_path": str(docs_path),
-            "hit_count": 0,
-            "hits": [],
-        }
-    scored: list[tuple[float, dict[str, Any]]] = []
-    for doc in _iter_vector_documents(patent_id, effective_source_types) or []:
-        text = str(doc.get("page_content") or "")
-        if not is_usable_evidence(text):
-            continue
-        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        source_type = str(metadata.get("source_type", ""))
-        if effective_source_types and source_type not in effective_source_types:
-            continue
-        vector = doc.get("vector") if isinstance(doc.get("vector"), dict) else {}
-        score = _dot(query_vector, {str(key): float(value) for key, value in vector.items()})
-        if score <= 0:
-            continue
-        scored.append((score, doc))
-    scored.sort(key=lambda pair: pair[0], reverse=True)
-    hits = []
-    for score, doc in scored[:top_k]:
-        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        text = str(doc.get("page_content") or "")
-        hits.append(
-            {
-                "patent_id": str(metadata.get("patent_id") or patent_id or ""),
-                "score": round(score, 6),
-                "excerpt": _excerpt(text, query),
-                "page_content": text,
-                "metadata": metadata,
-            }
-        )
+    collection = _vector_collection(patent_id=patent_id, source_types=effective_source_types)
+    filter_patent_id = None if patent_id and effective_source_types <= WIKI_SEARCH_SOURCE_TYPES else patent_id
+    result = search_documents(
+        collection,
+        query,
+        top_k=top_k,
+        patent_id=filter_patent_id,
+        source_types=effective_source_types,
+    )
+    usable_hits = [hit for hit in result.get("hits", []) if is_usable_evidence(hit.get("page_content"))]
     return {
         "query": query,
-        "mode": "local_vectorstore_search",
+        "mode": "qdrant_vectorstore_search",
         "patent_id": patent_id,
         "top_k": top_k,
         "source_types": sorted(effective_source_types),
-        "documents_path": str(docs_path),
-        "hit_count": len(hits),
-        "hits": hits,
+        "collection": collection,
+        "hit_count": len(usable_hits),
+        "hits": usable_hits,
+        "embedding_provider": result.get("embedding_provider"),
+        "embedding_error": result.get("embedding_error"),
     }
 
 
@@ -1078,7 +1044,7 @@ def _write_approved_files(
             else:
                 approved_docs.append(doc)
 
-        from .wiki.topics import get_patent_topic, topic_approved_md, topic_vectorstore_root
+        from .wiki.topics import get_patent_topic, topic_approved_md
 
         reviewed_dir = PATENTS_ROOT / patent_id / "reviewed"
         reviewed_dir.mkdir(parents=True, exist_ok=True)
@@ -1260,8 +1226,8 @@ def nightly_reindex_all() -> dict[str, Any]:
     """Run the Kubernetes CronJob reindex workflow once.
 
     This is intentionally one-shot. Kubernetes should schedule it at midnight
-    with a CronJob, while the chatbot/eval pods keep serving from the current
-    active blue/green slot until this job finishes and switches the pointer.
+    with a CronJob. MinIO/local cache is the source of truth and Qdrant
+    collections are rebuilt from that approved data.
     """
 
     started_at = _now()
@@ -1296,7 +1262,7 @@ def nightly_reindex_all() -> dict[str, Any]:
     except Exception as exc:
         application_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 
-    # Rebuild shared patent vectorstore (PROJECT_ROOT/data/)
+    # Rebuild shared patent vectorstore (PROJECT_ROOT/data/patent)
     shared_index_result: dict[str, Any] | None = None
     try:
         from .shared_data import build_shared_vectorstore
@@ -1306,7 +1272,7 @@ def nightly_reindex_all() -> dict[str, Any]:
 
     result = {
         "status": "completed",
-        "workflow": "nightly_blue_green_reindex",
+        "workflow": "nightly_qdrant_reindex",
         "started_at": started_at,
         "finished_at": _now(),
         "schedule_hint": "Kubernetes CronJob: 0 0 * * *",
@@ -1482,7 +1448,6 @@ def auto_approve_web_draft(
     from .wiki.topics import (
         get_patent_topic,
         topic_approved_md,
-        topic_vectorstore_root,
         topic_wiki_root,
     )
 
@@ -1550,7 +1515,7 @@ def auto_approve_web_draft(
 
         topic_docs = list(_topic_wiki_documents(topic))
         _write_vectorstore(
-            topic_vectorstore_root(topic),
+            approved_md.parent / "qdrant",
             topic_docs,
             scope=f"wiki:{topic}",
             source="auto_approved_web",

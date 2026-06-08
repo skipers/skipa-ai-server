@@ -6,11 +6,12 @@
 
 ```text
 /Users/kgw/skipers-ai/data/
-  <patent_id>/
-    patent.pdf              # 특허 원문 PDF
-    parsed.json             # 표준 input JSON
-    report.json             # eval_logic 보고서 JSON
-  _vectorstore/             # 공유 특허 DB index
+  patent/
+    <patent_id>/
+      patent.pdf            # 특허 원문 PDF
+      parsed.json           # 표준 input JSON
+      report.json           # eval_logic 보고서 JSON
+  Qdrant: skipa_shared_patents
   wiki/                     # 분야별 wiki gate와 approved_context
   pre_application_cases/    # 출원 전 사전평가 케이스
 
@@ -21,13 +22,13 @@
     patent_rejection_failure_response.md
     patent_rejection_notice_original_sources.md
     prior_art_search_workflow.md
-    index/vectorstore/      # 공용 공식팩 index
+    index/qdrant/           # 공용 공식팩 Qdrant manifest
     failed_patent/
       <registration_number>_failed/
         input/              # 실패특허 원본 PDF
         rejection/          # 선택 거절의견서/사유서
         reports/            # latest_report.* 및 생성 보고서
-        index/vectorstore/  # 해당 실패특허 1건 전용 index
+        index/qdrant/       # 해당 실패특허 1건 전용 Qdrant manifest
         metadata.json
 
   artifacts/
@@ -36,14 +37,16 @@
 
 ## 공유 특허 DB
 
-일반 특허 챗봇과 보고서 생성 로직은 루트 `data/<patent_id>`를 기준으로 원문과 보고서를 공유합니다.
+일반 특허 챗봇과 보고서 생성 로직은 루트 `data/patent/<patent_id>`를 기준으로 원문과 보고서를 공유합니다.
 
 - `patent.pdf`: 특허 원문
 - `parsed.json`: 전처리된 표준 특허 입력
 - `report.json`: 평가/재평가 보고서
-- `data/_vectorstore`: 특허 원문과 보고서 기반 통합 검색 index
+- Qdrant `skipa_shared_patents`: 특허 원문과 보고서 기반 통합 검색 index
 
-`chatbot/data/mapped_patent_reports`는 호환용 legacy RAG 경로로 남아 있을 수 있지만, 신규 공유 기준은 루트 `data/<patent_id>`입니다.
+`chatbot/data/mapped_patent_reports`는 호환용 legacy RAG 경로로 남아 있을 수 있지만, 신규 공유 기준은 루트 `data/patent/<patent_id>`입니다.
+
+MinIO를 사용하는 환경에서는 `s3://skipa/patent/`를 이 경로로 동기화합니다. UI의 데이터 탭에서 `MinIO 상태`와 `MinIO에서 가져오기` 버튼으로 확인/동기화할 수 있습니다.
 
 ## wiki와 web 검색
 
@@ -54,19 +57,16 @@ data/wiki/<topic_slug>/
   web_search_data/          # Tavily/web 검색 draft Markdown
   approved_context.md       # 감사 후 승인된 자연어 context
   draft_index.json
-  vectorstore/
-    active_slot.json
-    blue/
-    green/
+  Qdrant collection: skipa_wiki_topic_<topic_slug>
 ```
 
 동작 규칙:
 
-- 내부 특허 질문은 먼저 `data/_vectorstore`와 해당 특허 보고서/원문을 검색합니다.
+- 내부 특허 질문은 먼저 Qdrant `skipa_shared_patents`와 해당 특허 보고서/원문을 검색합니다.
 - 최신 시장, 외부 자료, 웹 근거가 필요한 질문만 wiki gate로 넘어갑니다.
 - wiki에 충분한 승인 근거가 있으면 web 검색을 생략합니다.
 - wiki가 부족하면 web 검색 결과를 draft로 저장하고, 감사 후 승인된 내용만 vectorstore에 반영합니다.
-- 매일 00:00 KST 재색인은 standby slot에 새 index를 만들고 마지막에 `active_slot.json`을 전환합니다.
+- 매일 00:00 KST 재색인은 MinIO/local cache와 승인 wiki를 기준으로 Qdrant collection을 재빌드합니다.
 
 ## 출원 도우미 데이터
 
@@ -99,7 +99,7 @@ eval_logic/data/api_test/
 eval_logic/data/runtime_artifacts/
 ```
 
-챗봇에서 계속 검색해야 하는 보고서는 최종적으로 루트 `data/<patent_id>/report.json` 또는 출원 도우미 실패특허 case의 `reports/`에 저장되어야 합니다. 출원 도우미의 실패특허 보고서 생성 API는 보고서 생성 후 해당 case 폴더에 저장하고 그 case vectorstore만 refresh합니다.
+챗봇에서 계속 검색해야 하는 보고서는 최종적으로 루트 `data/patent/<patent_id>/report.json` 또는 출원 도우미 실패특허 case의 `reports/`에 저장되어야 합니다. 출원 도우미의 실패특허 보고서 생성 API는 보고서 생성 후 해당 case 폴더에 저장하고 그 case vectorstore만 refresh합니다.
 
 ## 전처리와 refresh
 

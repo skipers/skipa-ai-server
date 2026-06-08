@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import BUSINESS_ROOT, DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT, PRE_EVAL_ROOT, SHARED_DATA_ROOT
+from .config import BUSINESS_ROOT, DATA_ROOT, MINIO_SYNC_ON_STARTUP, PATENT_APPLICATION_ROOT, PATENTS_ROOT, PRE_EVAL_ROOT, SHARED_DATA_ROOT
 from .routers.pre_eval import router as pre_eval_router
 from .routers.chatbot import (
     agent_router,
@@ -54,6 +54,19 @@ async def _nightly_reindex_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    if MINIO_SYNC_ON_STARTUP:
+        try:
+            from .minio_data import sync_patent_data_from_minio
+
+            result = await asyncio.to_thread(sync_patent_data_from_minio)
+            logger.info(
+                "MinIO patent sync: status=%s local_patents=%s remote_objects=%s",
+                result.get("sync_status") or result.get("status"),
+                (result.get("minio") or result).get("local_patent_count"),
+                (result.get("minio") or result).get("remote_object_count"),
+            )
+        except Exception as exc:
+            logger.error("MinIO patent sync failed: %s", exc)
     task = asyncio.create_task(_nightly_reindex_loop())
     logger.info("nightly reindex 스케줄러 시작 (매일 00:00 KST)")
     yield

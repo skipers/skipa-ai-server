@@ -57,7 +57,7 @@ def main() -> int:
             "audit=audit only, normalize-wiki=rewrite approved wiki markdown, "
             "application-preprocess=preprocess application pack, all=chatbot refresh+application preprocess, "
             "application-feedback=create rejection/opinion feedback HTML and refresh application index, "
-            "nightly-reindex=auto-audit wiki and blue/green refresh for every chatbot index, "
+            "nightly-reindex=auto-audit wiki and Qdrant refresh for every chatbot index, "
             "status=show status"
         ),
     )

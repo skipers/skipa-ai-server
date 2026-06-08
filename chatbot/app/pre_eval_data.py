@@ -13,7 +13,7 @@ from typing import Any, Iterable
 from fastapi import HTTPException
 
 from .config import PRE_EVAL_ROOT, PROJECT_ROOT, WIKI_ROOT
-from .index_rotation import active_documents_path, active_manifest_path, rotation_status, write_rotating_index
+from .qdrant_store import collection_exists, collection_info, pre_eval_collection, search_documents, upsert_documents
 from .rag.quality import compact_text, is_usable_evidence
 
 
@@ -61,7 +61,7 @@ def _case_input_path(case_id: str) -> Path:
 
 
 def _case_vectorstore_root(case_id: str) -> Path:
-    return _pre_eval_case_dir(case_id) / "index" / "vectorstore"
+    return _pre_eval_case_dir(case_id) / "index" / "qdrant"
 
 
 # ---------------------------------------------------------------------------
@@ -226,45 +226,38 @@ def _write_pre_eval_vectorstore(case_id: str, docs: list[dict[str, Any]]) -> dic
     manifest = {
         "scope": f"pre_eval:{case_id}",
         "refreshed_at": _now(),
-        "backend": "local_hashed_bow",
+        "backend": "qdrant",
         "document_count": len(docs),
         "source": "pre_application_valuation",
     }
-    return write_rotating_index(vs_root, docs, manifest)
+    vs_root.mkdir(parents=True, exist_ok=True)
+    result = upsert_documents(
+        pre_eval_collection(case_id),
+        docs,
+        collection_scope=f"pre_eval:{case_id}",
+        recreate=True,
+        extra_payload={"case_id": case_id, "source": "pre_application_valuation"},
+    )
+    _write_json(vs_root / "manifest.json", {**manifest, "collection": pre_eval_collection(case_id), "qdrant": result})
+    return result
 
 
 def search_pre_eval_vectorstore(case_id: str, query: str, top_k: int = 8) -> dict[str, Any]:
-    """Search the pre-eval case vectorstore."""
-    vs_root = _case_vectorstore_root(case_id)
-    docs_path = active_documents_path(vs_root)
-    if not docs_path.exists():
-        return {"query": query, "case_id": case_id, "hit_count": 0, "hits": []}
-    query_vec = _vectorize(query)
-    scored: list[tuple[float, dict[str, Any]]] = []
-    for line in docs_path.open(encoding="utf-8"):
-        try:
-            doc = json.loads(line)
-        except Exception:
-            continue
-        text = str(doc.get("page_content") or "")
-        if len(text.strip()) < 10:
-            continue
-        vec = doc.get("vector") if isinstance(doc.get("vector"), dict) else {}
-        score = _dot(query_vec, {str(k): float(v) for k, v in vec.items()})
-        scored.append((score, doc))
-    scored.sort(key=lambda p: p[0], reverse=True)
-    hits = []
-    for score, doc in scored[:top_k]:
-        meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        text = str(doc.get("page_content") or "")
-        hits.append({
-            "case_id": case_id,
-            "score": round(score, 6),
-            "excerpt": text[:360],
-            "page_content": text,
-            "metadata": meta,
-        })
-    return {"query": query, "case_id": case_id, "hit_count": len(hits), "hits": hits}
+    """Search the pre-eval case Qdrant collection."""
+    collection = pre_eval_collection(case_id)
+    if not collection_exists(collection):
+        return {"query": query, "case_id": case_id, "mode": "pre_eval_qdrant", "collection": collection, "hit_count": 0, "hits": []}
+    result = search_documents(collection, query, top_k=top_k, case_id=case_id)
+    return {
+        "query": query,
+        "case_id": case_id,
+        "mode": "pre_eval_qdrant",
+        "collection": collection,
+        "hit_count": result.get("hit_count", 0),
+        "hits": result.get("hits", []),
+        "embedding_provider": result.get("embedding_provider"),
+        "embedding_error": result.get("embedding_error"),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -457,7 +450,9 @@ def list_pre_eval_cases() -> list[dict[str, Any]]:
             "overall_grade": meta.get("overall_grade"),
             "overall_score_out_of_100": meta.get("overall_score_out_of_100"),
             "has_report": (d / "report.json").exists(),
-            "has_vectorstore": active_manifest_path(_case_vectorstore_root(d.name)).exists(),
+            "has_vectorstore": collection_exists(pre_eval_collection(d.name)),
+            "backend": "qdrant",
+            "collection": pre_eval_collection(d.name),
         })
     return cases
 
@@ -468,8 +463,7 @@ def pre_eval_case_status(case_id: str) -> dict[str, Any]:
     if not case_dir.exists():
         raise HTTPException(status_code=404, detail=f"사전 평가 케이스를 찾을 수 없습니다: {safe_id}")
     meta = _read_json(_case_metadata_path(safe_id))
-    vs_root = _case_vectorstore_root(safe_id)
-    vs_manifest = _read_json(active_manifest_path(vs_root))
+    qdrant = collection_info(pre_eval_collection(safe_id))
     return {
         "case_id": safe_id,
         "patent_title": meta.get("patent_title"),
@@ -477,10 +471,12 @@ def pre_eval_case_status(case_id: str) -> dict[str, Any]:
         "overall_grade": meta.get("overall_grade"),
         "overall_score_out_of_100": meta.get("overall_score_out_of_100"),
         "schema_version": meta.get("schema_version"),
-        "vectorstore_exists": active_manifest_path(vs_root).exists(),
-        "vectorstore_document_count": vs_manifest.get("document_count", 0),
-        "vectorstore_refreshed_at": vs_manifest.get("refreshed_at"),
-        "rotation": rotation_status(vs_root),
+        "backend": "qdrant",
+        "collection": pre_eval_collection(safe_id),
+        "vectorstore_exists": bool(qdrant.get("exists")),
+        "vectorstore_document_count": qdrant.get("points_count", 0),
+        "vectorstore_refreshed_at": None,
+        "qdrant": qdrant,
         "report_path": str(_case_report_path(safe_id)),
         "report_md_path": str(_case_report_md_path(safe_id)),
     }

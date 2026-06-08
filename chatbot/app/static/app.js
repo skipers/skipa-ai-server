@@ -193,7 +193,202 @@ function parseMermaid(code) {
   return { nodes, edges };
 }
 
-function renderMermaidDiagram(code) {
+function initMermaid() {
+  if (!window.mermaid || window.__skipaMermaidReady) return;
+  window.mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: "base",
+    themeVariables: {
+      primaryColor: "#eef4ff",
+      primaryTextColor: "#102033",
+      primaryBorderColor: "#9db9df",
+      lineColor: "#466487",
+      secondaryColor: "#f7fbff",
+      tertiaryColor: "#ffffff",
+      fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+    },
+    flowchart: {
+      htmlLabels: false,
+      curve: "basis",
+      padding: 14,
+      nodeSpacing: 44,
+      rankSpacing: 56,
+    },
+  });
+  window.__skipaMermaidReady = true;
+}
+
+function showMermaidFallbacks(root = document) {
+  root.querySelectorAll(".mermaid-shell").forEach((shell) => {
+    shell.classList.add("fallback-visible");
+  });
+}
+
+async function renderPendingMermaid(root = document) {
+  const nodes = [...root.querySelectorAll(".mermaid-native:not([data-processed])")];
+  if (!nodes.length) return;
+  initMermaid();
+  if (!window.mermaid) {
+    showMermaidFallbacks(root);
+    return;
+  }
+  try {
+    await window.mermaid.run({ nodes });
+  } catch (error) {
+    console.warn("Mermaid render failed", error);
+    showMermaidFallbacks(root);
+  }
+}
+
+function meaningfulMermaidLines(code) {
+  return stripMermaidFence(code)
+    .split("\n")
+    .map((line) => line.trim().replace(/;$/, ""))
+    .filter((line) => line && !line.startsWith("%%"));
+}
+
+function renderChartBars(title, items, unit = "") {
+  const cleanItems = items
+    .map((item) => ({ label: cleanMermaidLabel(item.label), value: Number(item.value) }))
+    .filter((item) => item.label && Number.isFinite(item.value));
+  if (!cleanItems.length) return "";
+  const max = Math.max(...cleanItems.map((item) => Math.abs(item.value)), 1);
+  return `
+    <div class="chart-render">
+      ${title ? `<strong>${escapeHtml(title)}</strong>` : ""}
+      <div class="chart-bars">
+        ${cleanItems.map((item) => {
+          const width = Math.max(4, Math.round((Math.abs(item.value) / max) * 100));
+          return `
+            <div class="chart-row">
+              <span>${escapeHtml(item.label)}</span>
+              <div class="chart-track"><i style="width:${width}%"></i></div>
+              <b>${escapeHtml(`${item.value}${unit}`)}</b>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderMermaidPie(code) {
+  const lines = meaningfulMermaidLines(code);
+  let title = "";
+  const items = [];
+  lines.forEach((line) => {
+    if (/^pie\b/i.test(line)) return;
+    if (/^title\b/i.test(line)) {
+      title = cleanMermaidLabel(line.replace(/^title\b/i, ""));
+      return;
+    }
+    const match = line.match(/^"?([^":]+)"?\s*:\s*([0-9.]+)/);
+    if (match) items.push({ label: match[1], value: Number(match[2]) });
+  });
+  return renderChartBars(title || "비율/점수 분포", items);
+}
+
+function renderMermaidXyChart(code) {
+  const lines = meaningfulMermaidLines(code);
+  let title = "";
+  let xLabels = [];
+  let seriesLabel = "값";
+  let values = [];
+  lines.forEach((line) => {
+    if (/^title\b/i.test(line)) {
+      title = cleanMermaidLabel(line.replace(/^title\b/i, ""));
+      return;
+    }
+    const xMatch = line.match(/^x-axis\s+\[([^\]]+)\]/i);
+    if (xMatch) {
+      xLabels = xMatch[1].split(",").map((item) => cleanMermaidLabel(item));
+      return;
+    }
+    const yMatch = line.match(/^y-axis\s+"?([^"]+)"?/i);
+    if (yMatch) seriesLabel = cleanMermaidLabel(yMatch[1]);
+    const seriesMatch = line.match(/^(?:bar|line)\s+\[([^\]]+)\]/i);
+    if (seriesMatch && !values.length) {
+      values = seriesMatch[1].split(",").map((item) => Number(item.trim())).filter((item) => Number.isFinite(item));
+    }
+  });
+  const items = values.map((value, index) => ({ label: xLabels[index] || `${index + 1}`, value }));
+  return renderChartBars(title || seriesLabel || "추이", items);
+}
+
+function renderMermaidQuadrant(code) {
+  const lines = meaningfulMermaidLines(code);
+  let title = "";
+  const quadrantLabels = {
+    1: "높은 우선순위",
+    2: "관리 필요",
+    3: "낮은 우선순위",
+    4: "빠른 실행",
+  };
+  const buckets = { 1: [], 2: [], 3: [], 4: [] };
+  lines.forEach((line) => {
+    if (/^title\b/i.test(line)) {
+      title = cleanMermaidLabel(line.replace(/^title\b/i, ""));
+      return;
+    }
+    const qMatch = line.match(/^quadrant-([1-4])\s+(.+)/i);
+    if (qMatch) {
+      quadrantLabels[qMatch[1]] = cleanMermaidLabel(qMatch[2]);
+      return;
+    }
+    const pointMatch = line.match(/^(.+?):\s*\[\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\]/);
+    if (pointMatch) {
+      const x = Number(pointMatch[2]);
+      const y = Number(pointMatch[3]);
+      const q = x >= 0.5 && y >= 0.5 ? 1 : x < 0.5 && y >= 0.5 ? 2 : x < 0.5 && y < 0.5 ? 3 : 4;
+      buckets[q].push(cleanMermaidLabel(pointMatch[1]));
+    }
+  });
+  return `
+    <div class="quadrant-render">
+      ${title ? `<strong>${escapeHtml(title)}</strong>` : ""}
+      <div class="quadrant-grid">
+        ${[2, 1, 3, 4].map((key) => `
+          <div class="quadrant-cell">
+            <b>${escapeHtml(quadrantLabels[key])}</b>
+            ${(buckets[key] || []).length
+              ? `<ul>${buckets[key].map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+              : `<span>해당 항목 없음</span>`}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderMermaidTimeline(code) {
+  const lines = meaningfulMermaidLines(code);
+  let title = "";
+  const items = [];
+  lines.forEach((line) => {
+    if (/^timeline\b/i.test(line)) return;
+    if (/^title\b/i.test(line)) {
+      title = cleanMermaidLabel(line.replace(/^title\b/i, ""));
+      return;
+    }
+    const match = line.match(/^([^:]+):\s*(.+)$/);
+    if (match) items.push({ time: cleanMermaidLabel(match[1]), text: cleanMermaidLabel(match[2]) });
+  });
+  if (!items.length) return "";
+  return `
+    <div class="timeline-render">
+      ${title ? `<strong>${escapeHtml(title)}</strong>` : ""}
+      ${items.map((item) => `
+        <div class="timeline-row">
+          <b>${escapeHtml(item.time)}</b>
+          <span>${escapeHtml(item.text)}</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderFlowFallback(code) {
   const parsed = parseMermaid(code);
   const nodeLabel = (id) => parsed.nodes.get(id) || id;
   if (!parsed.nodes.size && !parsed.edges.length) {
@@ -216,6 +411,40 @@ function renderMermaidDiagram(code) {
       <div class="${parsed.edges.length ? "diagram-edge-list" : "diagram-node-row"}">${edges}</div>
     </div>
   `;
+}
+
+function renderNativeMermaid(code) {
+  const clean = stripMermaidFence(code);
+  return `
+    <div class="mermaid-shell">
+      <div class="mermaid mermaid-native">${escapeHtml(clean)}</div>
+      <div class="mermaid-fallback">${renderFlowFallback(code)}</div>
+    </div>
+  `;
+}
+
+function renderMermaidDiagram(code) {
+  const firstLine = meaningfulMermaidLines(code)[0] || "";
+  if (/^(flowchart|graph|sequenceDiagram|stateDiagram|stateDiagram-v2|classDiagram|erDiagram|journey|gantt)\b/i.test(firstLine)) {
+    return renderNativeMermaid(code);
+  }
+  if (/^pie\b/i.test(firstLine)) {
+    const rendered = renderMermaidPie(code);
+    if (rendered) return rendered;
+  }
+  if (/^xychart/i.test(firstLine)) {
+    const rendered = renderMermaidXyChart(code);
+    if (rendered) return rendered;
+  }
+  if (/^quadrantChart\b/i.test(firstLine)) {
+    const rendered = renderMermaidQuadrant(code);
+    if (rendered) return rendered;
+  }
+  if (/^timeline\b/i.test(firstLine)) {
+    const rendered = renderMermaidTimeline(code);
+    if (rendered) return rendered;
+  }
+  return renderFlowFallback(code);
 }
 
 function splitTableRow(line) {
@@ -336,6 +565,7 @@ function appendMessage(text, className, rich = false, containerId = "messages") 
   message.className = `message ${className}`;
   if (rich) {
     message.innerHTML = renderAnswerHtml(text);
+    renderPendingMermaid(message);
   } else {
     message.textContent = text;
   }
@@ -374,6 +604,7 @@ async function renderAnswerProgressively(message, answer) {
     await delay(10);
   }
   message.innerHTML = renderAnswerHtml(text);
+  renderPendingMermaid(message);
   focusAnswerStart(message);
 }
 
@@ -525,8 +756,8 @@ function renderDataCards() {
       <div class="chip-row">
         ${chip(patent.has_latest_input ? "원문 JSON" : "원문 없음", patent.has_latest_input ? "approved" : "review")}
         ${chip(patent.has_latest_report ? "보고서 JSON" : "보고서 없음", patent.has_latest_report ? "approved" : "review")}
-        ${chip(patent.has_patent_index ? "FAISS" : "FAISS 없음", patent.has_patent_index ? "approved" : "review")}
-        ${chip(patent.has_local_vectorstore ? "승인 vectorstore" : "local 없음", patent.has_local_vectorstore ? "approved" : "review")}
+        ${chip(patent.has_patent_index ? "Qdrant" : "Qdrant 없음", patent.has_patent_index ? "approved" : "review")}
+        ${chip(patent.has_local_vectorstore ? "승인 vectorstore" : "index 없음", patent.has_local_vectorstore ? "approved" : "review")}
       </div>
       <div class="data-actions">
         <button type="button" data-action="detail">상세</button>
@@ -548,6 +779,89 @@ function renderDataCards() {
     });
     grid.appendChild(article);
   });
+}
+
+function nativeLink(url, label) {
+  if (!url) return "";
+  return `<a class="button-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`;
+}
+
+function renderStorageStatus(status, qdrant = null) {
+  const grid = $("minioStatusGrid");
+  if (!grid) return;
+  const connected = Boolean(status.connected);
+  const qdrantConnected = Boolean(qdrant?.connected);
+  $("minioSummary").textContent =
+    `MinIO ${connected ? "연결됨" : "연결 필요"} · Qdrant ${qdrantConnected ? "연결됨" : "연결 필요"} · local ${status.local_patent_count ?? 0}건`;
+  grid.innerHTML = `
+    <article class="data-card">
+      <h3>MinIO 원본 저장소</h3>
+      <p>remote object ${escapeHtml(status.remote_object_count ?? "-")}개 · local file ${escapeHtml(status.local_file_count ?? 0)}개 · local patent ${escapeHtml(status.local_patent_count ?? 0)}개</p>
+      <div class="chip-row">
+        ${chip(status.configured ? "설정됨" : "설정 없음", status.configured ? "approved" : "review")}
+        ${chip(connected ? "connected" : "not connected", connected ? "approved" : "review")}
+        ${chip(status.backend || "backend -")}
+      </div>
+      <p>${escapeHtml(status.error || status.hint || status.local_root || "")}</p>
+      <div class="data-actions">
+        ${nativeLink(status.console_url, "MinIO Console")}
+        <button type="button" data-action="detail">상세 JSON</button>
+      </div>
+    </article>
+    <article class="data-card">
+      <h3>Qdrant Vectorstore</h3>
+      <p>collection ${escapeHtml(qdrant?.collection_count ?? "-")}개 · vector size ${escapeHtml(qdrant?.vector_size ?? "-")} · ${escapeHtml(qdrant?.embedding_provider ?? "-")}</p>
+      <div class="chip-row">
+        ${chip(qdrant?.configured ? "설정됨" : "설정 없음", qdrant?.configured ? "approved" : "review")}
+        ${chip(qdrantConnected ? "connected" : "not connected", qdrantConnected ? "approved" : "review")}
+        ${chip("Qdrant")}
+      </div>
+      <p>${escapeHtml(qdrant?.error || qdrant?.url || "")}</p>
+      <div class="data-actions">
+        ${nativeLink(qdrant?.dashboard_url, "Qdrant Dashboard")}
+        <button type="button" data-action="qdrant-detail">상세 JSON</button>
+      </div>
+    </article>
+  `;
+  grid.querySelector('[data-action="detail"]').addEventListener("click", () => {
+    showModal("MinIO patent 상태", jsonBlock(status));
+  });
+  const qdrantButton = grid.querySelector('[data-action="qdrant-detail"]');
+  if (qdrantButton) {
+    qdrantButton.addEventListener("click", () => {
+      showModal("Qdrant 상태", jsonBlock(qdrant || {}));
+    });
+  }
+}
+
+async function loadMinioStatus() {
+  const button = $("loadMinioButton");
+  setBusy(button, true, "확인 중");
+  try {
+    const status = await api("/api/v1/chatbot/minio/status");
+    const qdrant = await api("/api/v1/chatbot/qdrant/status").catch((error) => ({ connected: false, error: error.message }));
+    renderStorageStatus(status, qdrant);
+    setStatus(`MinIO ${status.connected ? "연결됨" : "연결 실패"} · remote ${status.remote_object_count ?? "-"}개 · local ${status.local_patent_count ?? 0}건`);
+    return status;
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function syncMinioPatents() {
+  const button = $("syncMinioButton");
+  setBusy(button, true, "동기화 중");
+  try {
+    const result = await api("/api/v1/chatbot/minio/sync?rebuild_index=true", { method: "POST" });
+    const qdrant = await api("/api/v1/chatbot/qdrant/status").catch((error) => ({ connected: false, error: error.message }));
+    renderStorageStatus(result.minio || result, qdrant);
+    setStatus(`MinIO 동기화 ${result.sync_status || result.status} · local ${(result.minio || result).local_patent_count ?? 0}건`);
+    showModal("MinIO 동기화 결과", jsonBlock(result));
+    await loadBaseData();
+    return result;
+  } finally {
+    setBusy(button, false);
+  }
 }
 
 function renderAudit(audit) {
@@ -605,6 +919,9 @@ function selectedFindingIds() {
 }
 
 function appendAnswerMeta(metrics, sourceCards, containerId = "messages") {
+  const details = document.createElement("details");
+  details.className = "answer-meta-details";
+  details.innerHTML = `<summary>답변 지표 · 근거 ${(sourceCards || []).length}개</summary>`;
   const meta = document.createElement("div");
   meta.className = "answer-meta";
   const quality = metrics?.answer_quality || {};
@@ -612,18 +929,20 @@ function appendAnswerMeta(metrics, sourceCards, containerId = "messages") {
     `engine ${metrics?.engine || metrics?.mode || "-"}`,
     `scope ${metrics?.scope || "-"}`,
     `mode ${metrics?.answer_mode || metrics?.mode || "-"}`,
+    metrics?.answer_depth ? `depth ${metrics.answer_depth}` : "",
+    metrics?.effective_top_k ? `top_k ${metrics.effective_top_k}` : "",
     `근거 ${(sourceCards || []).length}개`,
     `confidence ${metrics?.confidence_score ?? metrics?.hit_count ?? "-"}`,
     quality.composite_score !== undefined ? `quality ${quality.composite_score} (${quality.grade || "-"})` : "",
   ].filter(Boolean).map((item) => `<span>${escapeHtml(item)}</span>`).join("");
-  $(containerId).appendChild(meta);
+  details.appendChild(meta);
+  $(containerId).appendChild(details);
 }
 
 function appendSources(sourceCards, containerId = "messages") {
   if (!sourceCards || sourceCards.length === 0) return;
   const details = document.createElement("details");
   details.className = "source-details";
-  details.open = true;
   details.innerHTML = `<summary>근거 자료 ${sourceCards.length}개</summary>`;
   const list = document.createElement("div");
   list.className = "source-list";
@@ -659,21 +978,24 @@ function appendSources(sourceCards, containerId = "messages") {
 
 async function loadBaseData() {
   setStatus("불러오는 중");
-  const [config, patents, status] = await Promise.all([
+  const [config, patents, status, minio, qdrant] = await Promise.all([
     api("/api/v1/chatbot/config"),
     api("/api/v1/chatbot/patents"),
     api("/api/v1/wiki/agent/run", { method: "POST", body: JSON.stringify({ mode: "status" }) }),
+    api("/api/v1/chatbot/minio/status").catch((error) => ({ connected: false, error: error.message })),
+    api("/api/v1/chatbot/qdrant/status").catch((error) => ({ connected: false, error: error.message })),
   ]);
   state.patents = patents.items || [];
   renderPatentOptions();
   renderDataCards();
+  renderStorageStatus(minio, qdrant || config.qdrant);
   loadApplicationCases().catch(() => {
     state.applicationCases = [];
     renderApplicationCases();
   });
   const vector = status.vectorstore_status || config.vectorstore || {};
   const engine = config.rag_engine?.available ? "Hybrid Retrieval" : "fallback";
-  setStatus(`특허 ${config.patent_count ?? state.patents.length}개 · 문서 ${vector.global?.document_count ?? "-"}개 · ${engine}`);
+  setStatus(`특허 ${config.shared_patent_count ?? config.patent_count ?? state.patents.length}개 · MinIO ${minio.connected ? "연결" : "미연결"} · ${engine}`);
   api("/api/v1/patent-chat/patent-summary-cards")
     .then((cards) => {
       state.cards = cards.items || [];
@@ -779,6 +1101,7 @@ async function loadWorkflowGraph(type) {
   state.mermaid = graph.diagram || "";
   $("workflowDetail").innerHTML = workflowInfoHtml(type);
   $("workflowDiagram").innerHTML = state.mermaid ? renderMermaidDiagram(state.mermaid) : `<div class="empty">그래프가 없습니다.</div>`;
+  renderPendingMermaid($("workflowDiagram"));
   $("workflowDiagram").dataset.loaded = type;
   $("workflowMermaid").textContent = state.mermaid || "그래프가 없습니다.";
   bindWorkflowStepDetails();
@@ -885,14 +1208,12 @@ function renderTopicWiki(data) {
   topics.forEach((topic) => {
     const article = document.createElement("article");
     article.className = "data-card";
-    const slot = topic.rotation?.active_slot || "-";
-    const standby = topic.rotation?.standby_slot || "-";
     article.innerHTML = `
       <h3>${escapeHtml(topic.topic)}</h3>
       <p>문서 ${escapeHtml(topic.document_count ?? 0)}개 · draft ${escapeHtml(topic.draft_count ?? 0)}개 · 갱신 ${escapeHtml(topic.refreshed_at ? topic.refreshed_at.slice(0, 16) : "없음")}</p>
       <div class="chip-row">
         ${chip(topic.approved_md_exists ? "approved_context.md ✓" : "approved 없음", topic.approved_md_exists ? "approved" : "review")}
-        ${chip(topic.vectorstore_exists ? `VS ✓ (${slot}→${standby})` : "VS 없음", topic.vectorstore_exists ? "approved" : "review")}
+        ${chip(topic.vectorstore_exists ? "Qdrant ✓" : "Qdrant 없음", topic.vectorstore_exists ? "approved" : "review")}
         ${chip(topic.has_data ? "활성" : "대기", topic.has_data ? "approved" : "")}
       </div>
       <div class="data-actions">
@@ -948,7 +1269,15 @@ async function ask() {
     appendAnswerMeta(data.metrics || {}, data.source_cards || []);
     appendSources(data.source_cards || []);
     focusAnswerStart(pending);
-    rememberHistory("chat", text, data.answer, { patent_id: selected === "__all__" ? null : selected });
+    // source_cards의 patent_id를 빈도순으로 저장해 후속 질문 컨텍스트 유지
+    const sourceCardPatentIds = [...new Set(
+      (data.source_cards || []).map(c => c?.metadata?.patent_id).filter(Boolean)
+    )];
+    rememberHistory("chat", text, data.answer, {
+      patent_id: selected === "__all__" ? null : selected,
+      source_card_patent_ids: sourceCardPatentIds,
+      resolved_patent_id: data.metrics?.resolved_patent_id || null,
+    });
     setStatus(`답변 완료 · 근거 ${(data.source_cards || []).length}개`);
   } catch (error) {
     pending.textContent = `요청 실패: ${error.message}`;
@@ -1220,6 +1549,8 @@ function bindEvents() {
   });
   $("reloadButton").addEventListener("click", () => loadBaseData().catch((error) => setStatus(error.message)));
   $("loadDataButton").addEventListener("click", () => loadBaseData().catch((error) => setStatus(error.message)));
+  $("loadMinioButton").addEventListener("click", () => loadMinioStatus().catch((error) => setStatus(error.message)));
+  $("syncMinioButton").addEventListener("click", () => syncMinioPatents().catch((error) => setStatus(error.message)));
   $("refreshApprovedVectorstoreButton").addEventListener("click", () => refreshApprovedVectorstore().catch((error) => setStatus(error.message)));
   $("loadTopicsButton").addEventListener("click", () => loadTopicWiki().catch((error) => setStatus(error.message)));
   $("refreshTopicsButton").addEventListener("click", () => refreshTopicWiki().catch((error) => setStatus(error.message)));

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ..rag.config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT, ANSWER_PROVIDER
+from ..rag.config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_PROVIDER
 from ..rag.evaluation import answer_quality_metrics
 from ..rag.llm import call_openai_prompt
 from ..rag.pipeline import answer_question
@@ -21,6 +21,20 @@ LOW_EVIDENCE_MARKERS = (
     "찾을 수 없습니다",
     "내부 승인 데이터와 원문/보고서에서 직접 답할 만한 근거가 충분하지 않습니다",
 )
+
+_WHOLE_PATENT_DETAIL_TERMS = (
+    "이 특허",
+    "해당 특허",
+    "그 특허",
+    "특허에 대해서",
+    "더 자세하게",
+    "자세하게",
+    "자세히",
+    "상세하게",
+    "구체적으로",
+)
+
+_ORIGINAL_ONLY_TERMS = ("청구항", "청구범위", "원문", "명세서", "도면", "pdf", "발명의 설명")
 
 
 def _is_low_evidence_answer(result: dict) -> bool:
@@ -96,13 +110,13 @@ def _merge_context_sections(result: dict, state: ChatAgentState, web_context: di
                 f"외부 웹 검색 결과:\n{_web_snippets_for_prompt(web_results)}\n\n"
                 "위 두 정보를 통합해 질문에 직접 답하세요.\n"
                 "- 내부 DB 정보(특허 원문·보고서)와 웹 정보를 자연스럽게 합칩니다.\n"
-                "- 1-4문장으로 간결하게 씁니다.\n"
+                "- 사용자가 상세 설명을 요청했으면 충분히 길게 설명하고, 핵심만 요청했을 때만 짧게 답합니다.\n"
+                "- 내부 근거와 외부 근거가 충돌하면 내부 특허 원문·보고서를 우선하고 차이를 짧게 설명합니다.\n"
                 "- '확인 필요 사항', '근거', '해석' 섹션은 추가하지 않습니다."
             )
             llm = call_openai_prompt(
                 combined_prompt,
                 model=ANSWER_MODEL,
-                max_output_tokens=min(ANSWER_NUM_PREDICT, 600),
                 timeout=ANSWER_LLM_TIMEOUT,
                 temperature=0.2,
             )
@@ -131,18 +145,65 @@ def _allows_web_fallback(intent: dict) -> bool:
     return bool(intent.get("needs_web") or "web" in set(intent.get("source_plan") or []))
 
 
+def _needs_whole_patent_detail(query: str, intent_type: str, patent_id: str | None) -> bool:
+    if not patent_id:
+        return False
+    q = (query or "").lower()
+    if any(term in q for term in _ORIGINAL_ONLY_TERMS):
+        return False
+    if intent_type in {"patent_report", "comparison"}:
+        return False
+    return any(term in q for term in _WHOLE_PATENT_DETAIL_TERMS)
+
+
+def _source_types_from_intent(intent: dict, *, fallback_requested: set[str]) -> set[str] | None:
+    """Map the LLM source plan to concrete stored source types."""
+    plan = {str(item or "") for item in intent.get("source_plan") or []}
+    if {"original", "report"} <= plan or "global_patents" in plan:
+        return set(CORE_SEARCH_SOURCE_TYPES) | {"SHARED_PATENT", "SHARED_REPORT"}
+    if "report" in plan and "original" not in plan:
+        return {"REPORT_JSON", "REPORT_PDF", "APPLICATION_FEEDBACK_REPORT", "SHARED_REPORT"}
+    if "original" in plan and "report" not in plan:
+        return {"ORIGINAL_PDF", "PATENT_INPUT_JSON", "SHARED_PATENT"}
+    requested = fallback_requested & set(CORE_SEARCH_SOURCE_TYPES)
+    return requested or set(CORE_SEARCH_SOURCE_TYPES)
+
+
 def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
     patent_id = state.get("resolved_patent_id") or state.get("patent_id")
     wiki_available = _has_wiki_context(state)
-    requested_source_types = set(state.get("source_types") or CORE_SEARCH_SOURCE_TYPES)
-    source_types = requested_source_types & set(CORE_SEARCH_SOURCE_TYPES) or set(CORE_SEARCH_SOURCE_TYPES)
+    intent = state.get("intent") or {}
+    intent_type = str(intent.get("intent") or "general")
+
+    # LLM intent/source_plan을 우선 사용하고, 애매한 경우에만 선택 특허 상세 fallback을 적용한다.
+    query_text = state.get("query", "")
+    if _needs_whole_patent_detail(query_text, intent_type, patent_id):
+        source_types = set(CORE_SEARCH_SOURCE_TYPES) | {"SHARED_PATENT", "SHARED_REPORT"}
+        intent = {
+            **intent,
+            "intent": "patent_original",
+            "focus": "selected_patent_deep_dive",
+            "answer_format": intent.get("answer_format") if intent.get("answer_format") != "text" else "bullets",
+            "source_plan": ["original", "report", "reviewed_vectorstore"],
+            "reason": f"{intent.get('reason', '')} / selected patent deep dive uses original + report",
+        }
+    else:
+        source_types = _source_types_from_intent(
+            intent,
+            fallback_requested=set(state.get("source_types") or CORE_SEARCH_SOURCE_TYPES),
+        )
+    state = {**state, "intent": intent}
+
+    # 연속 질문은 이전 컨텍스트가 포함된 retrieval_query로 검색 품질을 높임
+    retrieval_query = state.get("retrieval_query") or state.get("query", "")
     result = answer_question(
         state.get("query", ""),
+        retrieval_query=retrieval_query,
         patent_id=patent_id,
         source_types=source_types,
         top_k=int(state.get("top_k") or 5),
         allow_web=not wiki_available,
-        intent_override=state.get("intent") or None,
+        intent_override=intent or None,
     )
     result.setdefault("metrics", {})["hybrid_retrieval_scope_policy"] = "try_hybrid_then_guard_source_types"
     web_context = dict(state.get("web_context") or {})
