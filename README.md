@@ -327,6 +327,37 @@ docker build \
   -t skipa-ai:local-embeddings .
 ```
 
+### GitHub Actions 배포
+
+`.github/workflows/deploy-ai.yml`은 `dev`와 `main` push, 또는 수동 실행(`workflow_dispatch`) 때 루트 `Dockerfile`로 Kubernetes용 이미지를 빌드합니다.
+
+```text
+image repository: amdp-registry.skala-ai.com/skala26a-ai2/skipa-ai
+image tags:
+  <branch>-<short_sha>
+  <branch>-latest
+infra manifest:
+  skipers/skipa-infra/k8s/ai-backend/kustomization.yml 또는 kustomization.yaml
+```
+
+워크플로우가 하는 일:
+
+- `linux/amd64` Docker image build
+- Harbor registry push
+- `skipers/skipa-infra` repository checkout
+- `k8s/ai-backend` kustomization image tag 갱신
+- infra repository `main` branch로 manifest update commit/push
+
+GitHub Secrets:
+
+```text
+HARBOR_USERNAME
+HARBOR_PASSWORD
+INFRA_REPO_TOKEN
+```
+
+OpenAI, Tavily, MinIO, Qdrant API key는 image에 bake하지 않습니다. Kubernetes Secret/ConfigMap에서 runtime env로 주입합니다.
+
 ### Docker Image 로컬 검증
 
 챗봇 서버:
@@ -338,6 +369,13 @@ docker run --rm \
   -e TAVILY_API_KEY="$TAVILY_API_KEY" \
   -e KIPRIS_API_KEY="$KIPRIS_API_KEY" \
   -e KOSIS_API_KEY="$KOSIS_API_KEY" \
+  -e QDRANT_URL="${QDRANT_URL:-http://host.docker.internal:6333}" \
+  -e QDRANT_API_KEY="$QDRANT_API_KEY" \
+  -e MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://host.docker.internal:19000}" \
+  -e MINIO_ACCESS_KEY="$MINIO_ACCESS_KEY" \
+  -e MINIO_SECRET_KEY="$MINIO_SECRET_KEY" \
+  -e MINIO_BUCKET="${MINIO_BUCKET:-skipa}" \
+  -e MINIO_PATENT_PREFIX="${MINIO_PATENT_PREFIX:-patent}" \
   -v "$PWD/data:/app/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
   -v "$PWD/chatbot/logs:/app/chatbot/logs" \
@@ -361,6 +399,8 @@ docker run --rm \
   -e TAVILY_API_KEY="$TAVILY_API_KEY" \
   -e KIPRIS_API_KEY="$KIPRIS_API_KEY" \
   -e KOSIS_API_KEY="$KOSIS_API_KEY" \
+  -e QDRANT_URL="${QDRANT_URL:-http://host.docker.internal:6333}" \
+  -e QDRANT_API_KEY="$QDRANT_API_KEY" \
   -v "$PWD/data:/app/data" \
   -v "$PWD/eval_logic/data:/app/eval_logic/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
@@ -386,6 +426,13 @@ curl http://127.0.0.1:8000/health
 docker run --rm \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
   -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+  -e QDRANT_URL="${QDRANT_URL:-http://host.docker.internal:6333}" \
+  -e QDRANT_API_KEY="$QDRANT_API_KEY" \
+  -e MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://host.docker.internal:19000}" \
+  -e MINIO_ACCESS_KEY="$MINIO_ACCESS_KEY" \
+  -e MINIO_SECRET_KEY="$MINIO_SECRET_KEY" \
+  -e MINIO_BUCKET="${MINIO_BUCKET:-skipa}" \
+  -e MINIO_PATENT_PREFIX="${MINIO_PATENT_PREFIX:-patent}" \
   -v "$PWD/data:/app/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
   -v "$PWD/chatbot/logs:/app/chatbot/logs" \
@@ -417,6 +464,29 @@ containers:
           secretKeyRef:
             name: skipa-ai-secrets
             key: TAVILY_API_KEY
+      - name: QDRANT_URL
+        value: http://skipa-qdrant:6333
+      - name: QDRANT_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: skipa-qdrant-secret
+            key: api-key
+      - name: MINIO_ENDPOINT
+        value: http://skipa-minio:9000
+      - name: MINIO_BUCKET
+        value: skipa
+      - name: MINIO_PATENT_PREFIX
+        value: patent
+      - name: MINIO_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: skipa-minio-secret
+            key: access-key
+      - name: MINIO_SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: skipa-minio-secret
+            key: secret-key
 ```
 
 eval_logic 컨테이너:
@@ -434,6 +504,13 @@ containers:
           secretKeyRef:
             name: skipa-ai-secrets
             key: OPENAI_API_KEY
+      - name: QDRANT_URL
+        value: http://skipa-qdrant:6333
+      - name: QDRANT_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: skipa-qdrant-secret
+            key: api-key
 ```
 
 Kubernetes에서는 아래 경로를 PVC 또는 object storage 동기화 대상으로 잡습니다.
@@ -469,6 +546,30 @@ spec:
               envFrom:
                 - secretRef:
                     name: skipa-ai-secrets
+              env:
+                - name: QDRANT_URL
+                  value: http://skipa-qdrant:6333
+                - name: QDRANT_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: skipa-qdrant-secret
+                      key: api-key
+                - name: MINIO_ENDPOINT
+                  value: http://skipa-minio:9000
+                - name: MINIO_BUCKET
+                  value: skipa
+                - name: MINIO_PATENT_PREFIX
+                  value: patent
+                - name: MINIO_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: skipa-minio-secret
+                      key: access-key
+                - name: MINIO_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: skipa-minio-secret
+                      key: secret-key
               volumeMounts:
                 - name: chatbot-data
                   mountPath: /app/chatbot/data

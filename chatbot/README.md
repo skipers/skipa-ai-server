@@ -22,6 +22,8 @@ cd /Users/kgw/skipers-ai
 docker build -t skipa-ai:latest .
 ```
 
+GitHub Actions 배포는 루트 `.github/workflows/deploy-ai.yml`이 담당합니다. `dev` 또는 `main`에 push되면 `amdp-registry.skala-ai.com/skala26a-ai2/skipa-ai:<branch>-<short_sha>`와 `<branch>-latest`를 push하고, `skipers/skipa-infra/k8s/ai-backend` manifest의 image tag를 갱신합니다.
+
 챗봇 서버 로컬 검증:
 
 ```bash
@@ -29,6 +31,13 @@ docker run --rm \
   -p 8001:8001 \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
   -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+  -e QDRANT_URL="${QDRANT_URL:-http://host.docker.internal:6333}" \
+  -e QDRANT_API_KEY="$QDRANT_API_KEY" \
+  -e MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://host.docker.internal:19000}" \
+  -e MINIO_ACCESS_KEY="$MINIO_ACCESS_KEY" \
+  -e MINIO_SECRET_KEY="$MINIO_SECRET_KEY" \
+  -e MINIO_BUCKET="${MINIO_BUCKET:-skipa}" \
+  -e MINIO_PATENT_PREFIX="${MINIO_PATENT_PREFIX:-patent}" \
   -v "$PWD/data:/app/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
   -v "$PWD/chatbot/logs:/app/chatbot/logs" \
@@ -42,6 +51,8 @@ eval_logic 보고서 서버는 같은 이미지에서 `eval-logic` args로 실�
 docker run --rm \
   -p 8000:8000 \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e QDRANT_URL="${QDRANT_URL:-http://host.docker.internal:6333}" \
+  -e QDRANT_API_KEY="$QDRANT_API_KEY" \
   -v "$PWD/data:/app/data" \
   -v "$PWD/eval_logic/data:/app/eval_logic/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
@@ -54,6 +65,13 @@ Kubernetes CronJob 또는 로컬 수동 재색인은 같은 이미지에서 `nig
 docker run --rm \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
   -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+  -e QDRANT_URL="${QDRANT_URL:-http://host.docker.internal:6333}" \
+  -e QDRANT_API_KEY="$QDRANT_API_KEY" \
+  -e MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://host.docker.internal:19000}" \
+  -e MINIO_ACCESS_KEY="$MINIO_ACCESS_KEY" \
+  -e MINIO_SECRET_KEY="$MINIO_SECRET_KEY" \
+  -e MINIO_BUCKET="${MINIO_BUCKET:-skipa}" \
+  -e MINIO_PATENT_PREFIX="${MINIO_PATENT_PREFIX:-patent}" \
   -v "$PWD/data:/app/data" \
   -v "$PWD/chatbot/data:/app/chatbot/data" \
   -v "$PWD/chatbot/logs:/app/chatbot/logs" \
