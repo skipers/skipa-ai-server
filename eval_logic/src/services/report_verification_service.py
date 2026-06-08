@@ -110,9 +110,17 @@ class ReportVerificationService:
         ]
 
     def _report_score_items(self, report: dict[str, Any]) -> list[dict[str, Any]]:
+        evaluation = report.get("evaluation") or {}
+        if isinstance(evaluation.get("dimensions"), list):
+            items: list[dict[str, Any]] = []
+            for dim_data in evaluation.get("dimensions") or []:
+                if isinstance(dim_data, dict):
+                    items.extend(item for item in dim_data.get("items") or [] if isinstance(item, dict))
+            return items
+
         section = report.get("section_2_detailed_scores") or {}
         dimensions = section.get("dimensions") or {}
-        items: list[dict[str, Any]] = []
+        items = []
         if not isinstance(dimensions, dict):
             return items
         for dim_data in dimensions.values():
@@ -188,13 +196,13 @@ class ReportVerificationService:
         issues: list[VerificationIssue],
     ) -> None:
         expected = self._dimension_averages(scores)
-        dimensions = ((report.get("section_2_detailed_scores") or {}).get("dimensions") or {})
-        if not isinstance(dimensions, dict):
+        dimensions = self._report_dimensions_by_name(report)
+        if not dimensions:
             issues.append(VerificationIssue(
                 "missing_score_dimensions",
                 "critical",
                 "보고서 상세 점수 섹션의 차원별 점수 구조가 없습니다.",
-                "report.section_2_detailed_scores.dimensions",
+                "report.evaluation.dimensions",
             ))
             metrics["numeric_mismatch_count"] += 1
             return
@@ -207,12 +215,12 @@ class ReportVerificationService:
                     "dimension_average_mismatch",
                     "high",
                     f"{dim} 평균 점수가 원 평가 결과와 일치하지 않습니다. expected={expected_avg}, report={report_avg}",
-                    f"report.section_2_detailed_scores.dimensions.{dim}.average_score",
+                    f"report.evaluation.dimensions.{dim}.average_score",
                     dim=dim,
                 ))
 
-        summary_dimensions = ((report.get("section_1_summary") or {}).get("dimension_scores") or {})
-        if isinstance(summary_dimensions, dict):
+        summary_dimensions = self._summary_dimensions_by_name(report)
+        if summary_dimensions:
             for dim, expected_avg in expected.items():
                 report_avg = self._as_number((summary_dimensions.get(dim) or {}).get("average_score"))
                 if report_avg is not None and abs(report_avg - expected_avg) > 0.01:
@@ -221,7 +229,7 @@ class ReportVerificationService:
                         "summary_average_mismatch",
                         "medium",
                         f"{dim} 요약 평균 점수가 상세 점수와 일치하지 않습니다.",
-                        f"report.section_1_summary.dimension_scores.{dim}.average_score",
+                        f"report.summary.dimension_cards.{dim}.average_score",
                         dim=dim,
                     ))
 
@@ -345,15 +353,47 @@ class ReportVerificationService:
         for score in self._all_scores(valuation):
             sources.extend(src for src in score.get("sources") or [] if isinstance(src, dict))
 
-        section6 = report.get("section_6_references") or {}
-        for key in ("tech_market_sources", "papers_and_reports", "project_rag_sources", "all_sources_deduplicated"):
-            sources.extend(src for src in section6.get(key) or [] if isinstance(src, dict))
+        refs = report.get("references") or {}
+        grouped_sources = refs.get("sources") if isinstance(refs, dict) else None
+        if isinstance(grouped_sources, dict):
+            for group in grouped_sources.values():
+                sources.extend(src for src in group or [] if isinstance(src, dict))
+        else:
+            section6 = report.get("section_6_references") or {}
+            for key in ("tech_market_sources", "papers_and_reports", "project_rag_sources", "all_sources_deduplicated"):
+                sources.extend(src for src in section6.get(key) or [] if isinstance(src, dict))
 
         if similar_analysis:
             for patent in similar_analysis.get("similar_patents") or []:
                 if isinstance(patent, dict):
                     sources.append({"source": "KIPRIS", **patent})
         return self._dedup_sources(sources)
+
+    def _report_dimensions_by_name(self, report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        evaluation = report.get("evaluation") or {}
+        dimensions = evaluation.get("dimensions") if isinstance(evaluation, dict) else None
+        if isinstance(dimensions, list):
+            return {
+                str(item.get("key") or item.get("label") or ""): item
+                for item in dimensions
+                if isinstance(item, dict)
+            }
+
+        legacy = ((report.get("section_2_detailed_scores") or {}).get("dimensions") or {})
+        return legacy if isinstance(legacy, dict) else {}
+
+    def _summary_dimensions_by_name(self, report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        summary = report.get("summary") or {}
+        cards = summary.get("dimension_cards") if isinstance(summary, dict) else None
+        if isinstance(cards, list):
+            return {
+                str(item.get("key") or item.get("label") or ""): item
+                for item in cards
+                if isinstance(item, dict)
+            }
+
+        legacy = ((report.get("section_1_summary") or {}).get("dimension_scores") or {})
+        return legacy if isinstance(legacy, dict) else {}
 
     def _dedup_sources(self, sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen: set[str] = set()

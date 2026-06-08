@@ -94,6 +94,30 @@ class ReportJobResultResponse(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+class StoredReportListItem(BaseModel):
+    """미리 저장된 보고서 목록 항목입니다."""
+
+    patent_id: str
+    report_id: str | None = None
+    title: str | None = None
+    schema_version: str | None = None
+    generated_at: str | None = None
+    report_url: str
+
+
+class StoredReportListResponse(BaseModel):
+    """미리 저장된 보고서 목록 응답입니다."""
+
+    reports: list[StoredReportListItem] = Field(default_factory=list)
+
+
+class StoredReportResponse(BaseModel):
+    """미리 저장된 보고서 JSON 응답입니다."""
+
+    patent_id: str
+    report: dict[str, Any]
+
+
 class PatentToolRequest(BaseModel):
     """특허 JSON 기반 tool 요청입니다."""
 

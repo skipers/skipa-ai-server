@@ -1,16 +1,4 @@
-"""구조화된 JSON 보고서 빌더 (v2)
-
-평가 결과와 유사 특허 분석 데이터를 받아 보고서 목차 6개 섹션을
-그대로 반영한 구조화 JSON 보고서를 생성합니다.
-
-목차:
-  Section 1: 평가 요약
-  Section 2: 평가 기준별 상세 점수
-  Section 3: 사내 프로젝트 활용 현황
-  Section 4: 유사 특허 분석
-  Section 5: 추가 확인 필요 사항
-  Section 6: 참고 문헌
-"""
+"""서비스 화면용 재평가 보고서 JSON 빌더입니다."""
 
 from __future__ import annotations
 
@@ -18,7 +6,7 @@ from datetime import date, datetime
 from typing import Any
 
 
-REPORT_SCHEMA_VERSION = "patent-valuation-report/v3"
+REPORT_SCHEMA_VERSION = "patent-reevaluation-report/v1"
 DIMENSION_ORDER = ["기술성", "권리성", "시장성", "사업성"]
 
 
@@ -199,6 +187,312 @@ def _build_patent_info(result: dict[str, Any], evaluated_on: date) -> dict[str, 
             if isinstance(legal_remaining_years, (int, float))
             else _remaining_years(expiration, evaluated_on)
         ),
+    }
+
+
+def _build_metadata(report_id: str, generated_at: datetime, evaluated_on: date) -> dict[str, Any]:
+    return {
+        "report_type": "patent_reevaluation",
+        "title": "재평가 보고서",
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "generated_at": generated_at.isoformat(),
+        "evaluation_date": evaluated_on.isoformat(),
+        "score_display_scale": "0~100",
+        "item_score_scale": "1~5",
+        "service_sections": [
+            {"key": "patent", "title": "특허 기본정보"},
+            {"key": "summary", "title": "평가 요약"},
+            {"key": "evaluation", "title": "평가 기준별 상세 점수"},
+            {"key": "analysis", "title": "종합 평가 의견"},
+            {"key": "risks", "title": "리스크 및 추가 확인 필요 사항"},
+            {"key": "references", "title": "참고 자료"},
+            {"key": "similar_patents", "title": "유사 특허"},
+            {"key": "project_association", "title": "사내 프로젝트 연관 정보"},
+        ],
+        "storage_policy": "prebuilt_json_read_only",
+        "report_id": report_id,
+    }
+
+
+def _default_overall_opinion(overall_score: float, dim_stats: dict[str, Any]) -> str:
+    if not dim_stats:
+        return "평가 점수 데이터가 없어 종합 의견을 산출하지 못했습니다."
+    weakest_dim, weakest_data = min(dim_stats.items(), key=lambda item: item[1].get("average_score", 0))
+    strongest_dim, strongest_data = max(dim_stats.items(), key=lambda item: item[1].get("average_score", 0))
+    return (
+        f"종합 점수는 {overall_score}/5이며, {strongest_dim}({strongest_data.get('score_out_of_100')}점)이 "
+        f"상대적으로 강하고 {weakest_dim}({weakest_data.get('score_out_of_100')}점)은 추가 검토가 필요합니다."
+    )
+
+
+def _missing_dimensions(dim_stats: dict[str, Any]) -> list[str]:
+    return [dim for dim in DIMENSION_ORDER if dim not in dim_stats]
+
+
+def _source_count(scores: list[dict[str, Any]]) -> int:
+    seen: set[str] = set()
+    for score in scores:
+        for source in score.get("sources") or []:
+            if not isinstance(source, dict):
+                continue
+            key = str(source.get("url") or source.get("title") or source)
+            seen.add(key)
+    return len(seen)
+
+
+def _evidence_limitations(
+    all_scores: list[dict[str, Any]],
+    dim_stats: dict[str, Any],
+    project_available: bool,
+    project_source_count: int,
+) -> list[str]:
+    limitations: list[str] = []
+    missing_dims = _missing_dimensions(dim_stats)
+    if missing_dims:
+        limitations.append(
+            f"{', '.join(missing_dims)} 평가는 현재 저장 보고서에 충분한 항목이 없어 정량 판단 범위가 제한됩니다."
+        )
+    if len(all_scores) < 20:
+        limitations.append(
+            "세부 평가 항목 수가 제한적이므로 점수는 예비 판단으로 보고 추가 근거 검토가 필요합니다."
+        )
+    if _source_count(all_scores) == 0:
+        limitations.append(
+            "외부 기술·시장 출처가 충분히 연결되지 않아 고점/저점 판단의 근거 확인이 필요합니다."
+        )
+    if not project_available or project_source_count == 0:
+        limitations.append(
+            "사내 프로젝트 연관 정보는 확인된 RAG 근거가 없거나 부족하여 미확인 상태로 표시합니다."
+        )
+    return limitations
+
+
+def _compose_overall_opinion(
+    overall_score: float,
+    dim_stats: dict[str, Any],
+    evaluation_analysis: str,
+    limitations: list[str],
+) -> str:
+    base = evaluation_analysis or _default_overall_opinion(overall_score, dim_stats)
+    if not limitations:
+        return base
+    return f"{base} 다만 {' '.join(limitations)}"
+
+
+def _build_summary(
+    dim_stats: dict[str, Any],
+    overall_score: float,
+    evaluation_analysis: str,
+    similar_analysis: dict[str, Any] | None,
+    evidence_limitations: list[str] | None = None,
+) -> dict[str, Any]:
+    limitations = evidence_limitations or []
+    similar_brief: dict[str, Any] = {"available": False}
+    if similar_analysis:
+        eco = similar_analysis.get("ecosystem_summary") or {}
+        similar_brief = {
+            "available": True,
+            "total_count": eco.get("total_similar_patents", 0),
+            "active_count": eco.get("active_count", 0),
+            "enforceable_count": eco.get("enforceable_count", 0),
+            "enforceable_ratio": eco.get("enforceable_ratio"),
+            "average_citation_count": eco.get("avg_citation_count"),
+        }
+
+    return {
+        "overall_score": overall_score,
+        "overall_score_out_of_100": _score_to_100(overall_score),
+        "overall_grade": _to_grade(overall_score),
+        "risk_level": _to_risk(overall_score),
+        "dimension_cards": [
+            {
+                "key": dim,
+                "label": dim,
+                "average_score": data["average_score"],
+                "score_out_of_100": data["score_out_of_100"],
+                "grade": data["grade"],
+                "item_count": data["item_count"],
+            }
+            for dim, data in dim_stats.items()
+        ],
+        "similar_patents_brief": similar_brief,
+        "overall_opinion": _compose_overall_opinion(overall_score, dim_stats, evaluation_analysis, limitations),
+        "evidence_limitations": limitations,
+        "human_review_recommended": bool(limitations),
+    }
+
+
+def _build_evaluation(auto_scores: list[dict[str, Any]], llm_scores: list[dict[str, Any]]) -> dict[str, Any]:
+    detailed = _build_section2_detailed_scores(auto_scores, llm_scores)
+    dimensions = []
+    for dim, data in (detailed.get("dimensions") or {}).items():
+        dimensions.append({
+            "key": dim,
+            "label": dim,
+            "average_score": data.get("average_score"),
+            "score_out_of_100": data.get("score_out_of_100"),
+            "grade": _to_grade(float(data.get("average_score") or 0)),
+            "item_count": data.get("item_count", 0),
+            "items": [
+                {
+                    "name": item.get("item", ""),
+                    "score": item.get("score"),
+                    "score_out_of_100": item.get("score_out_of_100"),
+                    "grade": _to_grade(float(item.get("score") or 0)) if isinstance(item.get("score"), (int, float)) else None,
+                    "method": item.get("method", ""),
+                    "strategy": item.get("strategy"),
+                    "confidence": item.get("confidence"),
+                    "judgment_summary": item.get("judgment_summary", ""),
+                    "judgment_basis": item.get("judgment_basis", ""),
+                    "evidence": item.get("kipris_evidence") or "",
+                    "sources": item.get("sources") or [],
+                }
+                for item in data.get("items") or []
+            ],
+        })
+
+    return {
+        "score_scale": {"item": "1~5", "display": "0~100"},
+        "evaluation_standard": detailed.get("evaluation_standard"),
+        "score_calculation_method": detailed.get("score_calculation_method"),
+        "dimensions": dimensions,
+    }
+
+
+def _build_analysis(
+    evaluation_result: dict[str, Any],
+    dim_stats: dict[str, Any],
+    overall_score: float,
+    evaluation_analysis: str,
+    evidence_limitations: list[str] | None = None,
+) -> dict[str, Any]:
+    limitations = evidence_limitations or []
+    strongest = sorted(
+        dim_stats.items(),
+        key=lambda item: item[1].get("average_score", 0),
+        reverse=True,
+    )
+    weakest = sorted(dim_stats.items(), key=lambda item: item[1].get("average_score", 0))
+    return {
+        "overall": _compose_overall_opinion(overall_score, dim_stats, evaluation_analysis, limitations),
+        "grade": _to_grade(overall_score),
+        "strength_dimensions": [
+            {"dimension": dim, "score_out_of_100": data.get("score_out_of_100")}
+            for dim, data in strongest[:2]
+        ],
+        "watch_dimensions": [
+            {"dimension": dim, "score_out_of_100": data.get("score_out_of_100")}
+            for dim, data in weakest[:2]
+        ],
+        "market_sector": (evaluation_result.get("market") or {}).get("sector"),
+        "evidence_limitations": limitations,
+        "review_note": (
+            "근거가 부족한 항목은 사람이 원문, 사업 적용 자료, 외부 시장 근거를 추가 확인한 뒤 최종 판단해야 합니다."
+            if limitations
+            else "현재 저장된 근거 기준으로 자동 보고서 구조를 구성했습니다."
+        ),
+        "human_review_recommended": bool(limitations),
+    }
+
+
+def _build_project_association(evaluation_result: dict[str, Any]) -> dict[str, Any]:
+    project = _build_section3_project(evaluation_result)
+    available = bool(project.get("available"))
+    sources = project.get("sources") or []
+    if not available or not sources:
+        return {
+            "available": False,
+            "status": "not_found",
+            "data_source": project.get("data_source") or "사내 프로젝트 문서 RAG 검색 결과",
+            "commercialization_status": project.get("commercialization_status") or "미확인",
+            "applied_services": "",
+            "application_history": "",
+            "customers_partners": "",
+            "market_outlook": "",
+            "summary": "현재 저장된 사내 프로젝트 RAG 결과에서 명확한 적용 현황은 확인되지 않았습니다.",
+            "review_note": "연관 프로젝트가 없을 수도 있으므로 오류로 보지 않고 미확인 상태로 표시합니다. 필요 시 담당자가 프로젝트명, 제품명, 고객 사례를 추가 확인하면 됩니다.",
+            "signals": [],
+            "sources": [],
+        }
+    return {
+        "available": available,
+        "status": "found",
+        "data_source": project.get("data_source"),
+        "commercialization_status": project.get("commercialization_status"),
+        "applied_services": project.get("applied_business_service") or "",
+        "application_history": project.get("business_application_history") or "",
+        "customers_partners": project.get("customers_partners") or "",
+        "market_outlook": project.get("market_outlook") or "",
+        "summary": project.get("project_summary") or project.get("answer") or "",
+        "signals": project.get("commercialization_signals") or [],
+        "review_note": "사내 프로젝트 RAG 근거가 확인되어 연관 정보로 표시합니다.",
+        "sources": sources,
+    }
+
+
+def _build_similar_patents(similar_analysis: dict[str, Any] | None) -> dict[str, Any]:
+    similar = _build_section4_similar(similar_analysis)
+    return {
+        "available": similar.get("available", False),
+        "data_source": similar.get("data_source"),
+        "summary": similar.get("ecosystem_summary") or {},
+        "target_position": similar.get("target_position") or {},
+        "top_comparisons": similar.get("top_comparisons") or [],
+        "patents": similar.get("patent_list") or [],
+        "competitive_analysis": similar.get("competitive_analysis") or {},
+    }
+
+
+def _build_risks(
+    all_scores: list[dict[str, Any]],
+    evidence_limitations: list[str] | None = None,
+) -> dict[str, Any]:
+    review = _build_section5_review_items(all_scores)
+    limitations = evidence_limitations or []
+    limitation_items = [
+        {
+            "dimension": "근거",
+            "name": "근거 보강 필요",
+            "score": None,
+            "confidence": "낮음",
+            "priority": "medium",
+            "reason": limitation,
+            "judgment_basis": limitation,
+            "required_evidence": "특허 등록정보와 청구항, 사내 프로젝트 자료, 외부 기술·시장 근거 추가 확인",
+        }
+        for limitation in limitations
+    ]
+    return {
+        "selection_rule": review.get("selection_rule"),
+        "items": [
+            {
+                "dimension": item.get("dim", ""),
+                "name": item.get("item", ""),
+                "score": item.get("score"),
+                "confidence": item.get("confidence"),
+                "priority": item.get("review_priority"),
+                "reason": item.get("selection_reason"),
+                "judgment_basis": item.get("judgment_basis"),
+                "required_evidence": item.get("required_evidence"),
+            }
+            for item in review.get("items") or []
+        ] + limitation_items,
+        "human_review_recommended": bool((review.get("items") or []) or limitations),
+    }
+
+
+def _build_references(evaluation_result: dict[str, Any], similar_analysis: dict[str, Any] | None) -> dict[str, Any]:
+    refs = _build_section6_references(evaluation_result, similar_analysis)
+    return {
+        "evaluation_standard": refs.get("evaluation_standard"),
+        "sources": {
+            "tech_market": refs.get("tech_market_sources") or [],
+            "papers_and_reports": refs.get("papers_and_reports") or [],
+            "project": refs.get("project_rag_sources") or [],
+            "similar_patents": refs.get("kipris_similar_patent_sources") or [],
+            "system": refs.get("api_llm_sources") or [],
+            "deduplicated": refs.get("all_sources_deduplicated") or [],
+        },
     }
 
 
@@ -449,7 +743,7 @@ def _build_section5_review_items(all_scores: list[dict[str, Any]]) -> dict[str, 
         item_name = s.get("item", "")
         required_evidence = next(
             (label for key, label in review_map.items() if key in item_name),
-            "사업부 자체 자료 및 외부 근거와의 교차 검토",
+            "내부 프로젝트 자료 및 외부 근거와의 교차 검토",
         )
         reasons = []
         if score <= 3:
@@ -554,7 +848,7 @@ def build_structured_report(
     similar_analysis: dict[str, Any] | None = None,
     evaluation_analysis: str = "",
 ) -> dict[str, Any]:
-    """모든 섹션을 담은 구조화 JSON 보고서를 생성합니다.
+    """서비스 화면과 저장 DB 계약에 맞는 재평가 보고서 JSON을 생성합니다.
 
     Args:
         evaluation_result: PatentEvaluationOutput.to_dict() 결과
@@ -576,35 +870,39 @@ def build_structured_report(
 
     summary_steps = (evaluation_result.get("summary") or {}).get("steps") or []
     exec_time = (evaluation_result.get("summary") or {}).get("execution_time_seconds")
+    project_association = _build_project_association(evaluation_result)
+    evidence_limitations = _evidence_limitations(
+        all_scores,
+        dim_stats,
+        bool(project_association.get("available")),
+        len(project_association.get("sources") or []),
+    )
 
     return {
         "report_id": report_id,
         "generated_at": now.isoformat(),
         "schema_version": REPORT_SCHEMA_VERSION,
-        "report_metadata": {
-            "title": "IP 가치 평가 보고서",
-            "evaluation_date": evaluated_on.isoformat(),
-            "score_display_scale": "0~100",
-            "item_score_scale": "1~5",
-            "table_of_contents": [
-                {"section": 1, "key": "section_1_summary", "title": "평가 요약"},
-                {"section": 2, "key": "section_2_detailed_scores", "title": "평가 기준별 상세 점수"},
-                {"section": 3, "key": "section_3_project_utilization", "title": "사내 프로젝트 활용 현황"},
-                {"section": 4, "key": "section_4_similar_patents", "title": "유사 특허 분석"},
-                {"section": 5, "key": "section_5_review_items", "title": "추가 확인 필요 사항"},
-                {"section": 6, "key": "section_6_references", "title": "참고 문헌"},
-            ],
-        },
+        "metadata": _build_metadata(report_id, now, evaluated_on),
         "patent": _build_patent_info(evaluation_result, evaluated_on),
-        "section_1_summary": _build_section1_summary(
-            evaluation_result, all_scores, dim_stats, overall_score,
-            similar_analysis, evaluation_analysis,
+        "summary": _build_summary(
+            dim_stats,
+            overall_score,
+            evaluation_analysis,
+            similar_analysis,
+            evidence_limitations,
         ),
-        "section_2_detailed_scores": _build_section2_detailed_scores(auto_scores, llm_scores),
-        "section_3_project_utilization": _build_section3_project(evaluation_result),
-        "section_4_similar_patents": _build_section4_similar(similar_analysis),
-        "section_5_review_items": _build_section5_review_items(all_scores),
-        "section_6_references": _build_section6_references(evaluation_result, similar_analysis),
+        "evaluation": _build_evaluation(auto_scores, llm_scores),
+        "analysis": _build_analysis(
+            evaluation_result,
+            dim_stats,
+            overall_score,
+            evaluation_analysis,
+            evidence_limitations,
+        ),
+        "risks": _build_risks(all_scores, evidence_limitations),
+        "references": _build_references(evaluation_result, similar_analysis),
+        "similar_patents": _build_similar_patents(similar_analysis),
+        "project_association": project_association,
         "pipeline": {
             "steps": summary_steps,
             "execution_time_seconds": exec_time,
