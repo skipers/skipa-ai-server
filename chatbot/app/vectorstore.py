@@ -54,7 +54,7 @@ from .rag.quality import is_usable_evidence, preprocess_evidence_text
 VECTOR_DIMENSIONS = 256
 MAX_TEXT_CHARS = 20000
 CORE_SEARCH_SOURCE_TYPES = frozenset(
-    {"ORIGINAL_PDF", "REPORT_PDF", "PATENT_INPUT_JSON", "REPORT_JSON", "APPLICATION_FEEDBACK_REPORT"}
+    {"ORIGINAL_PDF", "REPORT_PDF", "PATENT_INPUT_JSON", "REPORT_JSON"}
 )
 WIKI_SEARCH_SOURCE_TYPES = frozenset({"WIKI"})
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
@@ -361,21 +361,6 @@ def _topic_wiki_documents(topic_slug: str) -> Iterable[dict[str, Any]]:
         yield doc
 
 
-def _application_feedback_documents(patent_id: str, patent_dir: Path) -> Iterable[dict[str, Any]]:
-    feedback_root = patent_dir / "reports" / "application_feedback"
-    latest_md = feedback_root / "latest.md"
-    if not latest_md.exists():
-        return
-    doc = _document(
-        patent_id=patent_id,
-        text=latest_md.read_text(encoding="utf-8", errors="ignore"),
-        source_path=latest_md,
-        source_type="APPLICATION_FEEDBACK_REPORT",
-        metadata={"file_name": latest_md.name, "section_title": "출원/실패 피드백 리포트"},
-    )
-    if doc:
-        yield doc
-
 
 def _business_documents() -> list[dict[str, Any]]:
     path = BUSINESS_ROOT / "index" / "all_chunks.jsonl"
@@ -517,7 +502,6 @@ def collect_patent_documents(patent_id: str, *, use_reviewed: bool = True) -> li
         if doc:
             docs.append(doc)
 
-    docs.extend(_application_feedback_documents(patent_id, patent_dir) or [])
     return docs
 
 
@@ -1285,35 +1269,6 @@ def nightly_reindex_all() -> dict[str, Any]:
     started_at = _now()
     wiki_result = auto_audit_apply_and_refresh(refresh_vectorstore=True)
 
-    application_result: dict[str, Any] | None = None
-    failed_case_results: list[dict[str, Any]] = []
-    try:
-        from .application_data import (
-            list_failed_patent_cases,
-            preprocess_application_pack,
-            refresh_failed_patent_case_index,
-        )
-
-        application_result = preprocess_application_pack(refresh_index=True)
-        cases = list_failed_patent_cases()
-        for item in cases.get("items") or []:
-            case_id = item.get("case_id") if isinstance(item, dict) else None
-            if not case_id:
-                continue
-            if item.get("has_original_pdf") is False:
-                failed_case_results.append(
-                    {"case_id": case_id, "status": "skipped", "reason": "missing_original_pdf"}
-                )
-                continue
-            try:
-                failed_case_results.append(refresh_failed_patent_case_index(str(case_id)))
-            except Exception as exc:
-                failed_case_results.append(
-                    {"case_id": case_id, "status": "error", "error": f"{type(exc).__name__}: {exc}"}
-                )
-    except Exception as exc:
-        application_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
-
     # Rebuild shared patent vectorstore (PROJECT_ROOT/data/patent)
     shared_index_result: dict[str, Any] | None = None
     try:
@@ -1338,8 +1293,6 @@ def nightly_reindex_all() -> dict[str, Any]:
         "finished_at": _now(),
         "schedule_hint": "Kubernetes CronJob: 0 0 * * *",
         "wiki_auto_audit": wiki_result,
-        "application_pack": application_result,
-        "failed_patent_cases": failed_case_results,
         "shared_patent_index": shared_index_result,
         "shared_patent_visual_index": visual_index_result,
         "vectorstore_status": vectorstore_status(),
@@ -1606,7 +1559,7 @@ def auto_approve_web_draft(
 def full_rebuild_vectorstores() -> dict[str, Any]:
     """모든 특허·wiki Qdrant 컬렉션을 삭제하고 처음부터 재구축.
 
-    삭제 대상 (application/pre-eval/visual 은 건드리지 않음):
+    삭제 대상 (pre-eval/visual 은 건드리지 않음):
       - skipa_patent_docs, skipa_patent_docs_global
       - skipa_wiki_docs_global, skipa_wiki_topic_* 컬렉션
       - skipa_patent_live*, skipa_wiki_live* (blue-green 슬롯)
@@ -1755,7 +1708,7 @@ def _load_bluegreen_status() -> dict[str, Any]:
 def bluegreen_refresh_global() -> dict[str, Any]:
     """글로벌 특허·wiki 컬렉션만 blue-green으로 무중단 재색인.
 
-    nightly_reindex_all()의 전체 워크플로(application pack, visual index 등)와 달리
+    nightly_reindex_all()의 전체 워크플로(wiki 감사, shared index, visual index 등)와 달리
     글로벌 검색 컬렉션만 교체하므로 시간이 짧아 매시간 실행에 적합합니다.
     """
     from .wiki.topics import all_active_topic_slugs, topic_approved_md

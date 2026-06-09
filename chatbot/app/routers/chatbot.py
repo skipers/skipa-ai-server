@@ -2,30 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from fastapi import APIRouter, Query
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
-
-from ..agents.application_graph import application_graph_mermaid, run_application_agent
 from ..agents.graph import chat_graph_mermaid, run_chat_agent
 from ..agents.ingestion_graph import ingestion_graph_mermaid, run_ingestion_graph
 from ..agents.wiki_graph import run_wiki_audit_graph, wiki_audit_graph_mermaid
-from ..application_data import (
-    application_download_report,
-    application_external_status,
-    application_index_status,
-    create_application_feedback_report,
-    create_failed_patent_case,
-    download_application_sources,
-    failed_patent_case_index_status,
-    generate_failed_patent_case_report,
-    list_failed_patent_cases,
-    preprocess_application_pack,
-    refresh_application_index,
-    refresh_failed_patent_case_index,
-    save_failed_patent_case_report,
-)
-from ..config import PATENT_APPLICATION_ROOT
 from ..config import (
     ANSWER_LLM_TIMEOUT,
     ANSWER_MODEL,
@@ -58,13 +39,6 @@ from ..schemas import (
     BusinessReindexRequest,
     ChatRequest,
     FeedbackRequest,
-    PatentApplicationChatRequest,
-    PatentApplicationDownloadRequest,
-    PatentApplicationFailedCaseCreateRequest,
-    PatentApplicationFailedCaseReportGenerateRequest,
-    PatentApplicationFailedCaseReportSaveRequest,
-    PatentApplicationFeedbackRequest,
-    PatentApplicationPreprocessRequest,
     PreprocessRunRequest,
     ReindexRequest,
     SearchRequest,
@@ -107,7 +81,6 @@ from ..wiki.topics import (
 # 라우터 정의
 #   patent_chat_router : /api/v1/patent-chat  → [주요] 특허 챗봇 API
 #   wiki_router        : /api/v1/wiki         → Wiki 감사·분야 관리
-#   application_router : /api/v1/application  → 출원 도우미 API
 #   router (chatbot)   : /api/v1/chatbot      → 운영·인프라 관리 API
 #   agent_router       : /api/v1/agent        → patent-chat alias (내부 호환용)
 #   rag_router         : /api/v1/rag          → Swagger 미노출 alias
@@ -120,7 +93,6 @@ rag_router = APIRouter(prefix="/api/v1/rag", tags=["patent-chat"], include_in_sc
 legacy_rag_router = APIRouter(prefix="/rag", tags=["patent-chat"], include_in_schema=False)
 agent_router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
 wiki_router = APIRouter(prefix="/api/v1/wiki", tags=["wiki"])
-application_router = APIRouter(prefix="/api/v1/application", tags=["application"])
 
 
 # ── [chatbot] 시스템 설정 조회 ────────────────────────────────────────────
@@ -307,15 +279,12 @@ def get_vectorstore_status() -> dict:
     "/preprocess/status",
     summary="전처리 파이프라인 전체 상태 통합 조회",
     description=(
-        "Vectorstore, 출원 도우미 인덱스, 외부 API(KIPRIS/KOSIS/Tavily), MinIO, Qdrant 연결 상태를 "
-        "한 번에 확인합니다. 시스템 점검 시 사용합니다."
+        "Vectorstore, MinIO, Qdrant 연결 상태를 한 번에 확인합니다. 시스템 점검 시 사용합니다."
     ),
 )
 def get_preprocess_status() -> dict:
     return {
         "vectorstore": vectorstore_status(),
-        "application": application_index_status(),
-        "application_external": application_external_status(),
         "minio": minio_patent_status(),
         "qdrant": qdrant_status(),
     }
@@ -394,9 +363,8 @@ def post_bluegreen_refresh() -> dict:
         "| `audit` | 데이터 품질 감사만 실행 (vectorstore 변경 없음) |\n"
         "| `shared_index` | data/patent/ → skipa_patent_docs blue-green 재색인 |\n"
         "| `visual_index` | 신규 특허 원본 PDF 도표·이미지 증분 색인 |\n"
-        "| `application_preprocess` | 출원 공식팩 전처리 + vectorstore 갱신 |\n"
         "| `nightly_reindex` | 전체 야간 재색인 워크플로우 실행 |\n"
-        "| `all` | wiki 정규화 + vectorstore + visual + application 전체 |\n"
+        "| `all` | wiki 정규화 + vectorstore + visual 전체 |\n"
     ),
 )
 def post_preprocess_run(request: PreprocessRunRequest) -> dict:
@@ -410,8 +378,6 @@ def post_preprocess_run(request: PreprocessRunRequest) -> dict:
         result["wiki_agent"] = run_wiki_audit_graph(mode="auto_refresh", refresh_vectorstore=True)
     elif request.mode == "audit":
         result["audit"] = run_audit()
-    elif request.mode == "application_preprocess":
-        result["application"] = preprocess_application_pack(refresh_index=request.refresh_application)
     elif request.mode == "nightly_reindex":
         result["nightly_reindex"] = nightly_reindex_all()
     elif request.mode == "shared_index":
@@ -423,7 +389,6 @@ def post_preprocess_run(request: PreprocessRunRequest) -> dict:
         result["wiki_normalize"] = normalize_wiki_context_files()
         result["vectorstore"] = refresh_vectorstores(use_reviewed=True)
         result["visual_index"] = build_missing_patent_visual_indexes(force=False)
-        result["application"] = preprocess_application_pack(refresh_index=request.refresh_application)
     result["status"] = "ok"
     return result
 
@@ -931,187 +896,3 @@ def post_wiki_agent_run(request: WikiAgentRunRequest) -> dict:
 def get_wiki_agent_mermaid() -> dict:
     return {"format": "mermaid", "diagram": wiki_audit_graph_mermaid()}
 
-
-@application_router.get("/status", summary="특허 출원 도우미 공식팩/index 상태")
-def get_application_status() -> dict:
-    return application_index_status()
-
-
-@application_router.get("/external/status", summary="KIPRIS/KOSIS/Tavily 외부 보강 연결 상태")
-def get_application_external_status() -> dict:
-    return application_external_status()
-
-
-@application_router.post("/preprocess", summary="특허 출원 공식팩 전처리 리포트 생성 및 vectorstore 갱신")
-def post_application_preprocess(request: PatentApplicationPreprocessRequest) -> dict:
-    return preprocess_application_pack(refresh_index=request.refresh_index)
-
-
-@application_router.post("/feedback/create", summary="의견서/거절사유/기존 평가 보고서를 연결한 출원 피드백 리포트 생성")
-def post_application_feedback_create(request: PatentApplicationFeedbackRequest) -> dict:
-    return create_application_feedback_report(**request.model_dump())
-
-
-@application_router.post("/report/generate", summary="호환용 전역 출원 피드백 리포트 생성")
-def post_application_report_generate(request: PatentApplicationFeedbackRequest) -> dict:
-    payload = request.model_dump()
-    if payload.get("title") == "특허 출원 실패/거절 대응 피드백":
-        payload["title"] = "특허 출원/실패 분석 보고서"
-    return create_application_feedback_report(**payload)
-
-
-@application_router.post("/feedback/upload", summary="의견서 PDF/문서 업로드 후 출원 피드백 HTML 생성 및 vectorstore 갱신")
-def post_application_feedback_upload(
-    file: UploadFile = File(..., description="의견서, 거절이유 통지서, 출원 실패 분석 문서 PDF/HWP/HTML/TXT"),
-    title: str = Form("특허 출원 실패/거절 대응 피드백"),
-    patent_id: str | None = Form(None),
-    source_report_path: str | None = Form(None),
-    reviewer: str | None = Form(None),
-    notes: str | None = Form(None),
-    refresh_index: bool = Form(True),
-) -> dict:
-    upload_dir = PATENT_APPLICATION_ROOT / "feedback" / "uploads"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = Path(file.filename or "opinion.pdf").name
-    upload_path = upload_dir / safe_name
-    upload_path.write_bytes(file.file.read())
-    return create_application_feedback_report(
-        title=title,
-        patent_id=patent_id,
-        opinion_file_path=str(upload_path),
-        source_report_path=source_report_path,
-        reviewer=reviewer,
-        notes=notes,
-        refresh_index=refresh_index,
-    )
-
-
-@application_router.get("/failed-patents", summary="출원 도우미 실패특허 케이스 목록")
-def get_application_failed_patents() -> dict:
-    return list_failed_patent_cases()
-
-
-@application_router.get("/failed-patents/{case_id}", summary="실패특허 케이스 파일/index 상태")
-def get_application_failed_patent(case_id: str) -> dict:
-    return failed_patent_case_index_status(case_id)
-
-
-@application_router.post("/failed-patents/create", summary="서버 로컬 PDF 경로로 실패특허 케이스 생성")
-def post_application_failed_patent_create(request: PatentApplicationFailedCaseCreateRequest) -> dict:
-    return create_failed_patent_case(
-        case_id=request.case_id,
-        title=request.title,
-        original_pdf_path=request.original_pdf_path,
-        rejection_reason_text=request.rejection_reason_text,
-        rejection_file_path=request.rejection_file_path,
-        reviewer=request.reviewer,
-        notes=request.notes,
-        refresh_index=request.refresh_index,
-    )
-
-
-@application_router.post("/failed-patents/upload", summary="실패특허 원본 PDF와 선택 사유서를 업로드하고 케이스 전용 vectorstore 생성")
-def post_application_failed_patent_upload(
-    original_pdf: UploadFile = File(..., description="채팅을 시작하기 위해 반드시 필요한 실패특허 원본 PDF"),
-    rejection_file: UploadFile | None = File(None, description="선택: 거절의견서/사유서 PDF/문서"),
-    case_id: str | None = Form(None),
-    title: str | None = Form(None),
-    rejection_reason_text: str | None = Form(None),
-    reviewer: str | None = Form(None),
-    notes: str | None = Form(None),
-    refresh_index: bool = Form(True),
-) -> dict:
-    if not (original_pdf.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="original_pdf는 실패특허 원본 PDF 파일이어야 합니다.")
-    rejection_bytes = rejection_file.file.read() if rejection_file is not None else None
-    rejection_name = rejection_file.filename if rejection_file is not None else None
-    return create_failed_patent_case(
-        case_id=case_id,
-        title=title or original_pdf.filename,
-        original_pdf_bytes=original_pdf.file.read(),
-        original_pdf_filename=original_pdf.filename,
-        rejection_reason_text=rejection_reason_text,
-        rejection_file_bytes=rejection_bytes,
-        rejection_file_filename=rejection_name,
-        reviewer=reviewer,
-        notes=notes,
-        refresh_index=refresh_index,
-    )
-
-
-@application_router.post("/failed-patents/{case_id}/index/refresh", summary="선택 실패특허 1건의 전용 vectorstore만 갱신")
-def post_application_failed_patent_index_refresh(case_id: str) -> dict:
-    return refresh_failed_patent_case_index(case_id)
-
-
-@application_router.post("/failed-patents/{case_id}/report/save", summary="특허 재평가 API 결과를 해당 실패특허 폴더에 저장하고 전용 vectorstore 갱신")
-def post_application_failed_patent_report_save(
-    case_id: str,
-    request: PatentApplicationFailedCaseReportSaveRequest,
-) -> dict:
-    return save_failed_patent_case_report(case_id, **request.model_dump())
-
-
-@application_router.post("/failed-patents/{case_id}/report/generate", summary="보고서 생성 에이전트를 실행하고 해당 실패특허 폴더 reports에 저장")
-def post_application_failed_patent_report_generate(
-    case_id: str,
-    request: PatentApplicationFailedCaseReportGenerateRequest,
-) -> dict:
-    payload = request.model_dump()
-    refresh_index = bool(payload.pop("refresh_index", True))
-    title = payload.pop("title", None)
-    return generate_failed_patent_case_report(
-        case_id,
-        title=title,
-        options=payload,
-        refresh_index=refresh_index,
-    )
-
-
-@application_router.post("/sources/download", summary="특허 출원 공식 자료 다운로드/크롤링")
-def post_application_sources_download(request: PatentApplicationDownloadRequest) -> dict:
-    return download_application_sources(
-        force=request.force,
-        timeout=request.timeout,
-        limit=request.limit,
-        include_embedded=request.include_embedded,
-    )
-
-
-@application_router.get("/sources/download-report", summary="특허 출원 공식 자료 다운로드/크롤링 리포트")
-def get_application_download_report() -> dict:
-    return application_download_report()
-
-
-@application_router.post("/index/refresh", summary="특허 출원 공식팩 vectorstore 갱신")
-def post_application_index_refresh() -> dict:
-    return refresh_application_index(force=True)
-
-
-@application_router.post("/chat", response_model=AnswerResponse, summary="특허 출원 도우미 챗봇")
-def post_application_chat(request: PatentApplicationChatRequest) -> dict:
-    return run_application_agent(
-        request.question,
-        user_id=request.user_id,
-        failed_patent_id=request.failed_patent_id,
-        chat_history=request.chat_history,
-        top_k=request.top_k,
-        refresh_index=request.refresh_index,
-    )
-
-
-@application_router.post("/failed-patents/{case_id}/chat", response_model=AnswerResponse, summary="선택 실패특허 케이스 기준 출원 도우미 챗봇")
-def post_application_failed_patent_chat(case_id: str, request: PatentApplicationChatRequest) -> dict:
-    return run_application_agent(
-        request.question,
-        user_id=request.user_id,
-        failed_patent_id=case_id,
-        chat_history=request.chat_history,
-        top_k=request.top_k,
-        refresh_index=request.refresh_index,
-    )
-
-
-@application_router.get("/chat/mermaid", summary="특허 출원 도우미 LangGraph Mermaid")
-def get_application_chat_mermaid() -> dict:
-    return {"format": "mermaid", "diagram": application_graph_mermaid()}

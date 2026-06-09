@@ -15,11 +15,10 @@ from fastapi.staticfiles import StaticFiles
 
 import os
 
-from .config import BUSINESS_ROOT, DATA_ROOT, MINIO_SYNC_ON_STARTUP, PATENT_APPLICATION_ROOT, PATENTS_ROOT, PRE_EVAL_ROOT, SHARED_DATA_ROOT
+from .config import BUSINESS_ROOT, DATA_ROOT, MINIO_SYNC_ON_STARTUP, PATENTS_ROOT, PRE_EVAL_ROOT, SHARED_DATA_ROOT
 from .routers.pre_eval import router as pre_eval_router
 from .routers.chatbot import (
     agent_router,
-    application_router,
     legacy_rag_router,
     patent_chat_router,
     rag_router,
@@ -105,12 +104,11 @@ app = FastAPI(
     lifespan=lifespan,
     title="SKIPA AI Chatbot API",
     description=(
-        "## SKIPA 특허 챗봇 · 출원 도우미 · 사전평가 통합 API\n\n"
+        "## SKIPA 특허 챗봇 · 사전평가 통합 API\n\n"
         "### 주요 API (신규 연동 시 사용)\n"
         "| 태그 | 설명 | 대표 엔드포인트 |\n"
         "|------|------|-----------------|\n"
         "| **patent-chat** | 특허 챗봇 답변 | `POST /api/v1/patent-chat/chat` |\n"
-        "| **application** | 특허 출원 도우미 | `POST /api/v1/application/chat` |\n"
         "| **pre-eval** | 출원 전 사전평가 | `POST /api/v1/pre-eval/evaluate` |\n\n"
         "### 운영 API\n"
         "| 태그 | 설명 |\n"
@@ -131,16 +129,6 @@ app = FastAPI(
                 "- **전체 특허 채팅**: `POST /global/chat` — 전체 특허 DB에서 관련 근거 탐색\n"
                 "- **인덱스 재생성**: 특허 데이터 추가·수정 후 `/reindex` 호출\n\n"
                 "신규 연동 시 이 태그의 API를 사용하세요."
-            ),
-        },
-        {
-            "name": "application",
-            "description": (
-                "**[주요 API] 특허 출원 도우미**\n\n"
-                "공식 출원 자료팩과 실패특허 케이스를 기반으로 출원 절차·거절 사유 대응·재심사 전략을 안내합니다.\n\n"
-                "- **채팅**: `POST /chat` — 출원 절차 질문 답변\n"
-                "- **실패특허 업로드**: `POST /failed-patents/upload` — PDF 업로드 후 케이스 전용 vectorstore 생성\n"
-                "- **보고서 생성**: `POST /failed-patents/{case_id}/report/generate` — AI 재평가 보고서 생성"
             ),
         },
         {
@@ -211,7 +199,6 @@ app.include_router(rag_router)
 app.include_router(legacy_rag_router)
 app.include_router(agent_router)
 app.include_router(wiki_router)
-app.include_router(application_router)
 app.include_router(pre_eval_router)
 
 if STATIC_ROOT.exists():
@@ -226,8 +213,6 @@ if PATENTS_ROOT.exists():
 if BUSINESS_ROOT.exists():
     app.mount("/files/business", StaticFiles(directory=str(BUSINESS_ROOT)), name="business_files")
 
-if PATENT_APPLICATION_ROOT.exists():
-    app.mount("/files/application", StaticFiles(directory=str(PATENT_APPLICATION_ROOT)), name="application_files")
 
 if PRE_EVAL_ROOT.exists():
     app.mount("/files/pre-eval", StaticFiles(directory=str(PRE_EVAL_ROOT)), name="pre_eval_files")
@@ -264,6 +249,4 @@ def health() -> dict:
         "data_root": str(DATA_ROOT),
         "patents_root": str(PATENTS_ROOT),
         "patents_root_exists": PATENTS_ROOT.exists(),
-        "patent_application_root": str(PATENT_APPLICATION_ROOT),
-        "patent_application_root_exists": PATENT_APPLICATION_ROOT.exists(),
     }

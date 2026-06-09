@@ -39,15 +39,6 @@ DEFAULT_DATA_ROOT = CHATBOT_ROOT / "data" if (CHATBOT_ROOT / "data").exists() el
 DATA_ROOT = _resolve_path(os.getenv("DATA_ROOT") or os.getenv("SKIPA_DATA_ROOT"), DEFAULT_DATA_ROOT)
 PATENTS_ROOT = _resolve_path(os.getenv("PATENTS_ROOT"), DATA_ROOT / "mapped_patent_reports")
 BUSINESS_ROOT = _resolve_path(os.getenv("BUSINESS_ROOT"), DATA_ROOT / "business")
-DEFAULT_PATENT_APPLICATION_ROOT = (
-    DATA_ROOT / "patent_application_official_pack"
-    if (DATA_ROOT / "patent_application_official_pack").exists()
-    else DATA_ROOT / "patent_application_official_pack(1)"
-)
-PATENT_APPLICATION_ROOT = _resolve_path(
-    os.getenv("PATENT_APPLICATION_ROOT"),
-    DEFAULT_PATENT_APPLICATION_ROOT,
-)
 LOG_ROOT = _resolve_path(os.getenv("LOG_ROOT"), CHATBOT_ROOT / "logs")
 WIKI_AUDITOR_ROOT = _resolve_path(os.getenv("WIKI_AUDITOR_ROOT"), CHATBOT_ROOT / "logs" / "wiki_auditor")
 # Shared project data root: PROJECT_ROOT/data (patent PDFs, reports, wiki)
