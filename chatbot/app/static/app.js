@@ -197,7 +197,7 @@ function initMermaid() {
   if (!window.mermaid || window.__skipaMermaidReady) return;
   window.mermaid.initialize({
     startOnLoad: false,
-    securityLevel: "strict",
+    securityLevel: "loose",
     theme: "base",
     themeVariables: {
       primaryColor: "#eef4ff",
@@ -209,7 +209,7 @@ function initMermaid() {
       fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
     },
     flowchart: {
-      htmlLabels: false,
+      htmlLabels: true,
       curve: "basis",
       padding: 14,
       nodeSpacing: 44,
@@ -233,12 +233,19 @@ async function renderPendingMermaid(root = document) {
     showMermaidFallbacks(root);
     return;
   }
-  try {
-    await window.mermaid.run({ nodes });
-  } catch (error) {
-    console.warn("Mermaid render failed", error);
-    showMermaidFallbacks(root);
-  }
+  // 개별 노드별로 렌더링 시도 — 실패한 노드만 fallback 표시
+  await Promise.all(nodes.map(async (node) => {
+    try {
+      await window.mermaid.run({ nodes: [node] });
+      // SVG가 실제로 삽입됐는지 확인
+      if (!node.querySelector("svg")) {
+        node.closest(".mermaid-shell")?.classList.add("fallback-visible");
+      }
+    } catch (error) {
+      console.warn("Mermaid node render failed:", error);
+      node.closest(".mermaid-shell")?.classList.add("fallback-visible");
+    }
+  }));
 }
 
 function meaningfulMermaidLines(code) {
@@ -415,6 +422,8 @@ function renderFlowFallback(code) {
 
 function renderNativeMermaid(code) {
   const clean = stripMermaidFence(code);
+  // Mermaid는 textContent로 코드를 읽으므로 HTML 특수문자는 안전하게 escapeHtml 처리.
+  // 단, &amp; 등이 textContent에서 복원되므로 Mermaid 파싱에는 영향 없음.
   return `
     <div class="mermaid-shell">
       <div class="mermaid mermaid-native">${escapeHtml(clean)}</div>
