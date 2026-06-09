@@ -56,9 +56,8 @@ def get_case_report(case_id: str) -> dict:
 
 @router.post(
     "/cases/{case_id}/index/refresh",
-    summary="[운영] 사전평가 케이스 vectorstore 재빌드",
-    description="사전평가 케이스의 Qdrant vectorstore를 재생성합니다. 내부 운영용입니다.",
-    tags=["chatbot"],
+    summary="사전평가 케이스 vectorstore 재빌드",
+    include_in_schema=False,
 )
 def post_case_index_refresh(case_id: str) -> dict:
     return refresh_pre_eval_case_index(case_id)

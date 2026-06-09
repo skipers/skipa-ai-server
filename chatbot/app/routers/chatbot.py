@@ -604,8 +604,8 @@ def rag_global_chat(request: ChatRequest) -> dict:
 
 @patent_chat_router.post(
     "/reindex",
-    tags=["chatbot"],
-    summary="[운영] 특허별 Qdrant 인덱스 재생성",
+    include_in_schema=False,
+    summary="특허별 Qdrant 인덱스 재생성",
     description=(
         "특정 특허의 Qdrant 인덱스를 재생성합니다. "
         "새 특허 데이터가 추가됐거나 원문·보고서가 갱신된 경우 호출합니다. "
@@ -625,8 +625,8 @@ def rag_reindex(request: ReindexRequest) -> dict:
 
 @patent_chat_router.post(
     "/global/reindex",
-    tags=["chatbot"],
-    summary="[운영] 전체 특허 글로벌 인덱스 재생성",
+    include_in_schema=False,
+    summary="전체 특허 글로벌 인덱스 재생성",
     description=(
         "전체 특허를 하나의 글로벌 Qdrant 컬렉션으로 재색인합니다. "
         "특허가 대거 추가·삭제됐을 때 사용합니다. "
