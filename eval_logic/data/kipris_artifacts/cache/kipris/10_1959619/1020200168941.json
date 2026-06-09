@@ -1,0 +1,317 @@
+{
+  "application_number": "1020200168941",
+  "raw": {
+    "bibliography_detail": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 10:24:12.2412",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "item": {
+            "biblioSummaryInfoArray": {
+              "biblioSummaryInfo": {
+                "applicationDate": "2020.12.04",
+                "applicationFlag": "특허",
+                "applicationNumber": "10-2020-0168941",
+                "claimCount": "1",
+                "examinerName": "",
+                "finalDisposal": "취하(심사미청구)",
+                "inventionTitle": "매설물 결함 정보를 제공하는 시스템 및 그에 대한 방법",
+                "inventionTitleEng": "System and Method for Providing Information on Buried  material's Defects",
+                "openDate": "2021.07.08",
+                "openNumber": "10-2021-0086478",
+                "originalApplicationDate": "2019.12.30",
+                "originalApplicationKind": "국내출원/분할",
+                "originalApplicationNumber": "10-2019-0178727",
+                "originalExaminationRequestDate": "",
+                "originalExaminationRequestFlag": "N",
+                "publicationDate": "",
+                "publicationNumber": "",
+                "registerDate": "",
+                "registerNumber": "",
+                "registerStatus": "취하",
+                "translationSubmitDate": ""
+              }
+            },
+            "ipcInfoArray": {
+              "ipcInfo": [
+                {
+                  "ipcDate": "(2024.01.01)",
+                  "ipcNumber": "G06Q 50/06"
+                },
+                {
+                  "ipcDate": "(2012.01.01)",
+                  "ipcNumber": "G06Q 50/10"
+                },
+                {
+                  "ipcDate": "(2023.01.01)",
+                  "ipcNumber": "G06Q 10/10"
+                },
+                {
+                  "ipcDate": "(2023.01.01)",
+                  "ipcNumber": "G06N 3/02"
+                },
+                {
+                  "ipcDate": "(2006.01.01)",
+                  "ipcNumber": "G06T 17/10"
+                },
+                {
+                  "ipcDate": "(2006.01.01)",
+                  "ipcNumber": "G06T 17/30"
+                },
+                {
+                  "ipcDate": "(2019.01.01)",
+                  "ipcNumber": "G06N 20/00"
+                },
+                {
+                  "ipcDate": "(2006.01.01)",
+                  "ipcNumber": "G01M 3/40"
+                }
+              ]
+            },
+            "familyInfoArray": {
+              "familyInfo": {
+                "familyApplicationNumber": "1020190178727"
+              }
+            },
+            "abstractInfoArray": {
+              "abstractInfo": {
+                "astrtCont": "본 발명에 기술된, 실제 매설물에 대한 매설물 결함을 제공하는 시스템은 기존 매설물의 결함 검출 데이터 세트 및 인공 매설물의 결함 검출 데이터 세트 중 적어도 하나의 결함 검출 데이터 세트를 저장하는 결함 검출 데이터 세트 저장부와, 결함 검출 데이터 세트를 기계 학습시켜 신경망을 생성하는 신경망 생성부와, 그리고 신경망 생성부에 입력되는 실제 결함 검출 데이터를 획득하는 매설물 결함 검출부를 포함하며, 신경망 생성부는 기계 학습된 신경망의 결함 검출 데이터 세트를 기반으로 하여, 실제 결함 검출 데이터를 3D 모델 데이터로 생성한다."
+              }
+            },
+            "internationalInfoArray": {
+              "internationalInfo": {
+                "internationOpenDate": "",
+                "internationOpenNumber": "",
+                "internationalApplicationDate": "",
+                "internationalApplicationNumber": ""
+              }
+            },
+            "claimInfoArray": {
+              "claimInfo": {
+                "claim": "1. 실제 매설물에 대한 매설물 결함 정보를 제공하는 시스템에 있어서,3D 스캔을 통한 초기 3D 모델 데이터를 각각 포함하는 기존 매설물의 결함 검출 데이터 세트 및 인공 매설물의 결함 검출 데이터 세트 중 적어도 하나의 결함 검출 데이터 세트를 저장하는 결함 검출 데이터 세트 저장부;상기 결함 검출 데이터 세트를 기계 학습시켜 신경망을 생성하는 신경망 생성부;상기 신경망 생성부에 입력되는 실제 결함 검출 데이터를 획득하는 매설물 결함 검출부; 및상기 신경망 생성부로부터 출력되는 3D 모델 데이터를 시각적으로 출력하여 표시하는 표시부;를 포함하며,상기 신경망 생성부는 상기 기계 학습된 신경망의 결함 검출 데이터 세트를 기반으로 하여, 상기 3D 스캔 없이 상기 실제 결함 검출 데이터를 제 1 3D 모델 데이터로 생성하고, 상기 표시부는 상기 제 1 3D 모델 데이터를 출력하는, 매설물 결함 정보 제공 시스템."
+              }
+            },
+            "applicantInfoArray": {
+              "applicantInfo": {
+                "address": "대구광역시 동구...",
+                "code": "219999028996",
+                "country": "대한민국",
+                "engName": "Korea Gas Corporation",
+                "name": "한국가스공사"
+              }
+            },
+            "inventorInfoArray": {
+              "inventorInfo": [
+                {
+                  "address": "인천광역시 연수구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "YOO, Hui Ryoung",
+                  "name": "유휘용"
+                },
+                {
+                  "address": "경기도 군포시 용호*로**번길 **, *...",
+                  "code": "",
+                  "country": "",
+                  "engName": "SONG, Hong Seok",
+                  "name": "송홍석"
+                },
+                {
+                  "address": "경기도 안양시 동안구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "CHO, Sung Ho",
+                  "name": "조성호"
+                },
+                {
+                  "address": "인천광역시 연수구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "KIM, Dong Kyu",
+                  "name": "김동규"
+                },
+                {
+                  "address": "인천광역시 남동구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "KIM, Dae Kwang",
+                  "name": "김대광"
+                },
+                {
+                  "address": "인천광역시 중구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "KIM, Jae Jun",
+                  "name": "김재준"
+                },
+                {
+                  "address": "인천광역시 연수구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "YANG, Seung Ung",
+                  "name": "양승웅"
+                }
+              ]
+            },
+            "agentInfoArray": {
+              "agentInfo": {
+                "address": "서울특별시 서초구 반포대로 ***, *층 (서초동, 장생빌딩)",
+                "code": "920021000018",
+                "country": "대한민국",
+                "engName": "LEE&PARK",
+                "name": "청운특허법인"
+              }
+            },
+            "priorityInfoArray": "",
+            "designatedStateInfoArray": "",
+            "priorArtDocumentsInfoArray": "",
+            "legalStatusInfoArray": {
+              "legalStatusInfo": [
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "[Divisional Application] Patent Application",
+                  "documentName": "[분할출원]특허출원서",
+                  "receiptDate": "2020.12.04",
+                  "receiptNumber": "1-1-2020-1317830-21"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "[Appointment of Agent] Report on Agent (Representative)",
+                  "documentName": "[대리인선임]대리인(대표자)에 관한 신고서",
+                  "receiptDate": "2022.07.12",
+                  "receiptNumber": "1-1-2022-0725892-01"
+                }
+              ]
+            },
+            "imagePathInfo": {
+              "docName": "1020200168941.jpg",
+              "largePath": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=6c650beb4cee9ce4122b704b88878c93d814add8dba18ada8ac802e58ea1d3ac5e86436da135192cc9608fa04cbd9f9ca283dd1b133c9f6ef09c706ddeda1376a99350bb181e0fbf",
+              "path": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=ed43a0609e94d6e22d01c5c32ba711cf856ed44ec11d85dd64f01b32334681ed5fab6b45496417b161c9114b05378629ff49195aa47e1564d91a3f9a3fbc5d1a4cf042d3b130e927"
+            },
+            "rndInfoArray": ""
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    },
+    "bibliography_summary": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 10:24:12.2412",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "items": {
+            "item": {
+              "applicationDate": "2020.12.04",
+              "applicationFlag": "특허",
+              "applicationNumber": "10-2020-0168941",
+              "claimCount": "1",
+              "examinerName": "",
+              "finalDisposal": "취하(심사미청구)",
+              "inventionTitle": "매설물 결함 정보를 제공하는 시스템 및 그에 대한 방법",
+              "inventionTitleEng": "System and Method for Providing Information on Buried  material's Defects",
+              "openDate": "2021.07.08",
+              "openNumber": "10-2021-0086478",
+              "originalApplicationDate": "2019.12.30",
+              "originalApplicationKind": "국내출원/분할",
+              "originalApplicationNumber": "10-2019-0178727",
+              "originalExaminationRequestDate": "",
+              "originalExaminationRequestFlag": "N",
+              "publicationDate": "",
+              "publicationNumber": "",
+              "registerDate": "",
+              "registerNumber": "",
+              "registerStatus": "취하",
+              "translationSubmitDate": ""
+            }
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    },
+    "citing_info": {
+      "response": {
+        "header": {
+          "resultCode": "",
+          "resultMsg": ""
+        },
+        "body": {
+          "items": {
+            "citingInfo": [
+              {
+                "StandardCitationApplicationNumber": "1020200168941",
+                "ApplicationNumber": "1020210175308",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0801",
+                "CitationLiteratureTypeCodeName": "발송문서"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020200168941",
+                "ApplicationNumber": "1020210175308",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0802",
+                "CitationLiteratureTypeCodeName": "선행기술조사보고서"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020200168941",
+                "ApplicationNumber": "1020210175308",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0805",
+                "CitationLiteratureTypeCodeName": "선행기술조사문헌"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020200168941",
+                "ApplicationNumber": "1020220037221",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0801",
+                "CitationLiteratureTypeCodeName": "발송문서"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020200168941",
+                "ApplicationNumber": "1020220037221",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0805",
+                "CitationLiteratureTypeCodeName": "선행기술조사문헌"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020200168941",
+                "ApplicationNumber": "1020230042808",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0802",
+                "CitationLiteratureTypeCodeName": "선행기술조사보고서"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "citation_count": 3,
+  "errors": [],
+  "fetched_at": "2026-06-09T10:24:13"
+}

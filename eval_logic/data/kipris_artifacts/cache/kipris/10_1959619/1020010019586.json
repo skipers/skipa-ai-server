@@ -1,0 +1,424 @@
+{
+  "application_number": "1020010019586",
+  "raw": {
+    "bibliography_detail": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 10:24:13.2413",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "item": {
+            "biblioSummaryInfoArray": {
+              "biblioSummaryInfo": {
+                "applicationDate": "2001.04.12",
+                "applicationFlag": "",
+                "applicationNumber": "10-2001-0019586",
+                "claimCount": "5",
+                "examinerName": "",
+                "finalDisposal": "거절결정(일반)",
+                "inventionTitle": "섬머타임 기능을 갖는 휴대폰 및 이를 이용한 시각 표시방법",
+                "inventionTitleEng": "MOBILE TELEPHONE HAVING SUMMER TIME FUNCTION AND TIME DISPLAY METHOD USING THE SAME",
+                "openDate": "2002.10.23",
+                "openNumber": "10-2002-0080176",
+                "originalApplicationDate": "",
+                "originalApplicationKind": "국내출원/신규",
+                "originalApplicationNumber": "",
+                "originalExaminationRequestDate": "2006.04.12",
+                "originalExaminationRequestFlag": "Y",
+                "publicationDate": "",
+                "publicationNumber": "",
+                "registerDate": "",
+                "registerNumber": "",
+                "registerStatus": "거절",
+                "translationSubmitDate": ""
+              }
+            },
+            "ipcInfoArray": {
+              "ipcInfo": [
+                {
+                  "ipcDate": "(2006.01.01)",
+                  "ipcNumber": "H04B 7/26"
+                },
+                {
+                  "ipcDate": "(2006.01.01)",
+                  "ipcNumber": "H04M 3/487"
+                }
+              ]
+            },
+            "familyInfoArray": {
+              "familyInfo": ""
+            },
+            "abstractInfoArray": {
+              "abstractInfo": {
+                "astrtCont": "본 발명은 휴대폰에서 세계 각 도시의 시각을 표시할 때, 사용자의 요구에 따라 해당 도시의 현재 시각을 썸머 타임제를 반영하여 표시하는 기술에 관한 것이다. 이러한 본 발명은, 기지국으로부터 현재 지역의 로컬 타임 정보를 수신받아 단말기에 표시하는 제1과정과; 세계 표준시각을 근거로 해당 도시의 현재 시각을 계산하여 표시하는 제2과정과; 편집 버튼신호가 입력되면 편집모드를 설정하고, 사용자의 조정 키신호에 따라 현재 표시된 해당 도시의 현재 시각을 썸머 타임을 고려한 시각으로 변환하여 표시하는 제3과정에 의해 달성된다."
+              }
+            },
+            "internationalInfoArray": {
+              "internationalInfo": {
+                "internationOpenDate": "",
+                "internationOpenNumber": "",
+                "internationalApplicationDate": "",
+                "internationalApplicationNumber": ""
+              }
+            },
+            "claimInfoArray": {
+              "claimInfo": [
+                {
+                  "claim": "1. <P INDENT=\"14\" ALIGN=\"JUSTIFIED\">기지국으로부터 현재 지역의 로컬 타임 정보를 수신받아 단말기에 표시하는 제1과정과; 세계 표준시각을 근거로 해당 도시의 현재 시각을 계산하여 표시하는 제2과정과; 사용자의 요구에 따라 현재 표시된 해당 도시의 현재 시각을 썸머 타임을 고려한 시각으로 변환하여 표시하는 제3과정으로 이루어지는 것을 특징으로 하는 휴대폰의 시각 표시방법. </p>"
+                },
+                {
+                  "claim": "2. <P INDENT=\"14\" ALIGN=\"JUSTIFIED\">제1항에 있어서, 제3과정은 사용자가 편집버튼을 클릭하는 것을 확인하여 편집모드를 설정하는 단계와; 편집모드에서 사용자가 입력하는 시각 조정키신호에 따라 현재 표시된 해당 도시의 현재 시각을 조정하는 단계와; 상기 조정된 시각을 표시하는 단계로 이루어지는 것을 특징으로 하는 휴대폰의 시각 표시방법. </p>"
+                },
+                {
+                  "claim": "3. <P INDENT=\"14\" ALIGN=\"JUSTIFIED\">제1항에 있어서, 제3과정은 사용자가 썸머타임 해제를 요구하면 해당 도시의 현재 시각을 세계 표준시각을 기준으로 변환하여 표시하는 단계를 더 포함하여 이루어지는 것을 특징으로 하는 휴대폰의 시각 표시방법.</p>"
+                }
+              ]
+            },
+            "applicantInfoArray": {
+              "applicantInfo": {
+                "address": "서울특별시 영등포구...",
+                "code": "120020128403",
+                "country": "대한민국",
+                "engName": "LG Electronics Inc.",
+                "name": "엘지전자 주식회사"
+              }
+            },
+            "inventorInfoArray": {
+              "inventorInfo": {
+                "address": "서울특별시서초구...",
+                "code": "",
+                "country": "대한민국",
+                "engName": "PARK,JongSung",
+                "name": "박종성"
+              }
+            },
+            "agentInfoArray": {
+              "agentInfo": [
+                {
+                  "address": "서울특별시 서초구 서초중앙로*길 ** (서초동) 갑목빌딩 *층 ***호(두레특허법률사무소)",
+                  "code": "919980003489",
+                  "country": "대한민국",
+                  "engName": "YANG, Soon Seok",
+                  "name": "양순석"
+                },
+                {
+                  "address": "서울 강남구 강남대로 *** (논현동) *-*F(박장원특허법률사무소)",
+                  "code": "919980002023",
+                  "country": "대한민국",
+                  "engName": "PARK, Jang Won",
+                  "name": "박장원"
+                }
+              ]
+            },
+            "priorityInfoArray": "",
+            "designatedStateInfoArray": "",
+            "priorArtDocumentsInfoArray": {
+              "priorArtDocumentsInfo": [
+                {
+                  "documentsNumber": "KR1019990026004 A",
+                  "examinerQuotationFlag": ""
+                },
+                {
+                  "documentsNumber": "KR2019970010776 U",
+                  "examinerQuotationFlag": ""
+                },
+                {
+                  "documentsNumber": "KR2019990029329 U",
+                  "examinerQuotationFlag": "Y"
+                },
+                {
+                  "documentsNumber": "KR1019980069037 A",
+                  "examinerQuotationFlag": ""
+                },
+                {
+                  "documentsNumber": "KR1019980073229 A",
+                  "examinerQuotationFlag": ""
+                }
+              ]
+            },
+            "legalStatusInfoArray": {
+              "legalStatusInfo": [
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Patent Application",
+                  "documentName": "특허출원서",
+                  "receiptDate": "2001.04.12",
+                  "receiptNumber": "1-1-2001-0082966-06"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Applicant change Notification",
+                  "documentName": "출원인변경신고서",
+                  "receiptDate": "2002.09.09",
+                  "receiptNumber": "1-1-2002-5222212-13"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of assignment of agent",
+                  "documentName": "대리인선임신고서",
+                  "receiptDate": "2002.09.09",
+                  "receiptNumber": "1-1-2002-5222336-76"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of change of applicant's information",
+                  "documentName": "출원인정보변경(경정)신고서",
+                  "receiptDate": "2003.10.16",
+                  "receiptNumber": "4-1-2003-0055522-32"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Request for Examination",
+                  "documentName": "출원심사청구서",
+                  "receiptDate": "2006.04.12",
+                  "receiptNumber": "1-1-2006-0254568-55"
+                },
+                {
+                  "commonCodeName": "보정승인 (Acceptance of amendment)",
+                  "documentEngName": "Amendment to Description, etc.",
+                  "documentName": "명세서등보정서",
+                  "receiptDate": "2006.04.12",
+                  "receiptNumber": "1-1-2006-0254570-47"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Request for Prior Art Search (Inside)",
+                  "documentName": "선행기술조사의뢰서(내부)",
+                  "receiptDate": "2006.12.04",
+                  "receiptNumber": "9-1-9999-9999999-89"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Report of Prior Art Search",
+                  "documentName": "선행기술조사보고서",
+                  "receiptDate": "2006.12.29",
+                  "receiptNumber": "9-6-2006-0085829-72"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Notification of reason for refusal",
+                  "documentName": "의견제출통지서",
+                  "receiptDate": "2007.06.08",
+                  "receiptNumber": "9-5-2007-0317610-78"
+                },
+                {
+                  "commonCodeName": "보정승인 (Acceptance of amendment)",
+                  "documentEngName": "[Amendment to Description, etc.] Amendment",
+                  "documentName": "[명세서등 보정]보정서",
+                  "receiptDate": "2007.08.07",
+                  "receiptNumber": "1-1-2007-0573556-91"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Notification of reason for refusal",
+                  "documentName": "의견제출통지서",
+                  "receiptDate": "2007.12.10",
+                  "receiptNumber": "9-5-2007-0669388-36"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Decision to Refuse a Patent",
+                  "documentName": "거절결정서",
+                  "receiptDate": "2008.02.25",
+                  "receiptNumber": "9-5-2008-0098217-45"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of change of applicant's information",
+                  "documentName": "출원인정보변경(경정)신고서",
+                  "receiptDate": "2008.08.08",
+                  "receiptNumber": "4-1-2008-5128387-76"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of change of applicant's information",
+                  "documentName": "출원인정보변경(경정)신고서",
+                  "receiptDate": "2009.04.27",
+                  "receiptNumber": "4-1-2009-5080835-50"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of change of applicant's information",
+                  "documentName": "출원인정보변경(경정)신고서",
+                  "receiptDate": "2009.11.03",
+                  "receiptNumber": "4-1-2009-0023850-26"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of change of applicant's information",
+                  "documentName": "출원인정보변경(경정)신고서",
+                  "receiptDate": "2015.05.22",
+                  "receiptNumber": "4-1-2015-5068349-97"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of change of applicant's information",
+                  "documentName": "출원인정보변경(경정)신고서",
+                  "receiptDate": "2020.05.28",
+                  "receiptNumber": "4-1-2020-5118228-40"
+                }
+              ]
+            },
+            "imagePathInfo": {
+              "docName": "1020010019586.JPG",
+              "largePath": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=452306798ef1fd035bfb5ff666db4c9cfad0bf93f73520e6ef43bdfdc32c1132129312372a468fbed543e5cc1e0e3738",
+              "path": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=ed43a0609e94d6e2d625a3dcb0746fe4473881283d6a4c2c83abb2b7817328126dbd258ee70eee685cf255b16ec86723"
+            },
+            "rndInfoArray": ""
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    },
+    "bibliography_summary": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 10:24:13.2413",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "items": {
+            "item": {
+              "applicationDate": "2001.04.12",
+              "applicationFlag": "",
+              "applicationNumber": "10-2001-0019586",
+              "claimCount": "5",
+              "examinerName": "",
+              "finalDisposal": "거절결정(일반)",
+              "inventionTitle": "섬머타임 기능을 갖는 휴대폰 및 이를 이용한 시각 표시방법",
+              "inventionTitleEng": "MOBILE TELEPHONE HAVING SUMMER TIME FUNCTION AND TIME DISPLAY METHOD USING THE SAME",
+              "openDate": "2002.10.23",
+              "openNumber": "10-2002-0080176",
+              "originalApplicationDate": "",
+              "originalApplicationKind": "국내출원/신규",
+              "originalApplicationNumber": "",
+              "originalExaminationRequestDate": "2006.04.12",
+              "originalExaminationRequestFlag": "Y",
+              "publicationDate": "",
+              "publicationNumber": "",
+              "registerDate": "",
+              "registerNumber": "",
+              "registerStatus": "거절",
+              "translationSubmitDate": ""
+            }
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    },
+    "citing_info": {
+      "response": {
+        "header": {
+          "resultCode": "",
+          "resultMsg": ""
+        },
+        "body": {
+          "items": {
+            "citingInfo": [
+              {
+                "StandardCitationApplicationNumber": "1020010019586",
+                "ApplicationNumber": "1020010055546",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0802",
+                "CitationLiteratureTypeCodeName": "선행기술조사보고서"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020010019586",
+                "ApplicationNumber": "1020010057272",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0802",
+                "CitationLiteratureTypeCodeName": "선행기술조사보고서"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020010019586",
+                "ApplicationNumber": "1020040047310",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0801",
+                "CitationLiteratureTypeCodeName": "발송문서"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020010019586",
+                "ApplicationNumber": "1020040071679",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0801",
+                "CitationLiteratureTypeCodeName": "발송문서"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020010019586",
+                "ApplicationNumber": "1020050007373",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0801",
+                "CitationLiteratureTypeCodeName": "발송문서"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020010019586",
+                "ApplicationNumber": "1020050090163",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0801",
+                "CitationLiteratureTypeCodeName": "발송문서"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020010019586",
+                "ApplicationNumber": "1020050090163",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0805",
+                "CitationLiteratureTypeCodeName": "선행기술조사문헌"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020010019586",
+                "ApplicationNumber": "1020060020886",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0802",
+                "CitationLiteratureTypeCodeName": "선행기술조사보고서"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020010019586",
+                "ApplicationNumber": "1020060020886",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0805",
+                "CitationLiteratureTypeCodeName": "선행기술조사문헌"
+              },
+              {
+                "StandardCitationApplicationNumber": "1020010019586",
+                "ApplicationNumber": "1020070094436",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0805",
+                "CitationLiteratureTypeCodeName": "선행기술조사문헌"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "citation_count": 8,
+  "errors": [],
+  "fetched_at": "2026-06-09T10:24:13"
+}

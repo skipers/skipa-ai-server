@@ -27,7 +27,7 @@
 - `data/runtime_artifacts`: 신규 workflow 런타임 산출물
 - `data/api_test`: API 테스트 입력/출력 산출물
 - `legacy`: 이전 코드
-- `data/legacy_artifacts`: 이전 프로토타입 산출물과 캐시
+- `data/kipris_artifacts`: KIPRIS 유사도 검색/상세 크롤링 산출물과 캐시
 
 권장 실행 예:
 

@@ -1,0 +1,366 @@
+{
+  "application_number": "1019870007927",
+  "raw": {
+    "bibliography_detail": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 10:24:16.2416",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "item": {
+            "biblioSummaryInfoArray": {
+              "biblioSummaryInfo": {
+                "applicationDate": "1987.07.21",
+                "applicationFlag": "",
+                "applicationNumber": "10-1987-0007927",
+                "claimCount": "2",
+                "examinerName": "함상준 (책자공보 제2011호)",
+                "finalDisposal": "등록결정(일반)",
+                "inventionTitle": "텔레비젼수상기의알람제어장치및그제어방법",
+                "inventionTitleEng": "ALARM CONTROLLER FOR TELEVISION",
+                "openDate": "1989.04.13",
+                "openNumber": "10-1989-0003221",
+                "originalApplicationDate": "",
+                "originalApplicationKind": "국내출원/신규",
+                "originalApplicationNumber": "",
+                "originalExaminationRequestDate": "1987.07.21",
+                "originalExaminationRequestFlag": "Y",
+                "publicationDate": "1990.08.31",
+                "publicationNumber": "10-1990-0006468",
+                "registerDate": "1991.02.11",
+                "registerNumber": "10-0039754-0000",
+                "registerStatus": "소멸",
+                "translationSubmitDate": ""
+              }
+            },
+            "ipcInfoArray": {
+              "ipcInfo": [
+                {
+                  "ipcDate": "(2011.01.01)",
+                  "ipcNumber": "H04N 5/445"
+                },
+                {
+                  "ipcDate": "(2011.01.01)",
+                  "ipcNumber": "H04N 5/44"
+                },
+                {
+                  "ipcDate": "(2006.01.01)",
+                  "ipcNumber": "H04N 5/60"
+                }
+              ]
+            },
+            "familyInfoArray": {
+              "familyInfo": ""
+            },
+            "abstractInfoArray": {
+              "abstractInfo": {
+                "astrtCont": "내용 없음"
+              }
+            },
+            "internationalInfoArray": {
+              "internationalInfo": {
+                "internationOpenDate": "",
+                "internationOpenNumber": "",
+                "internationalApplicationDate": "",
+                "internationalApplicationNumber": ""
+              }
+            },
+            "claimInfoArray": {
+              "claimInfo": [
+                {
+                  "claim": "1. <P>리모콘수신부(2)를 통해 입력되는 리모콘(1)의 출력신호 및 키보드(3)의 출력신호에 따라 시스템 전체의 동작을 제어하는 마이콤(4)의 제어에 의해 트랜지스터(TR1)가 온됨에 따라 릴레이(RL1)가 구동되어 전원부(5)에 교류전원이 인가되고, 음성신호부(7)의 출력신호가 음성신호제어부(8) 및 중폭기(9)를 통해 스피커(10)에 인가되는 텔레비젼 수상기에 있어서, 상기 마이콤(4)의 알람신호출력단자(AMO)를 신호변환부(FF1)의 입력단자(T1)에 접속하여 그의 출력단자(Q1)를 알람신호발생부(6) 및 스위치(SW1)의 제어단자에 접속하고, 이 스위치(SW1)의 고정단자(a1), (b1)를 상기 음성신호부(7) 및 알람신호발생부(6)의 출력단자(AO1), (AO2)에 각기 접속함과 아울러 그 스위치(SW1)의 가동단자를 상기 음성신호제어부(8)의 입력측에 접속하여 구성된 것을 특징으로 하는 텔레비젼 수상기의 알람 제어장치.</P>"
+                },
+                {
+                  "claim": "2. <P>알람입력키 및 현재시각 입력키를 누름에 따라 마이콤(4)에서 현재시각 저장모드 및 알람시각 저장모드를 세트하여 입력되는 현재시각 및 알람시각을 메모리에 기억하는 알람시각입력루틴 및 현재시각입력루단틴, 현재시각이 상기 알람시각과 동일할 때 상기 마이콤(4)에서 그의 출력단자(MO)로 주전원공급제어신호를 출력하고, 소정시간 후 그의 알람신호 출력단자(AMO)로 알람펄스신호(APS1)를 출력하며, 이후 알람해제키신호가 입력될때 상기 알람신호 출력단자(AMO)로 알람해제신호(APS2)를 출력하는 시각검출루틴과, 일정한 시간간격으로 시각을 검출하여 상기 시각검출루틴을 수행하게 하는 시각검출 주루틴으로 이루어짐을 특징으로 하는 텔레비젼 수상기의 알람제어방법.</P>"
+                }
+              ]
+            },
+            "applicantInfoArray": {
+              "applicantInfo": {
+                "address": "서울특별시 영등포구...",
+                "code": "119980002758",
+                "country": "대한민국",
+                "engName": "LG ELECTRONICS INC.",
+                "name": "주식회사 엘지이아이"
+              }
+            },
+            "inventorInfoArray": {
+              "inventorInfo": {
+                "address": "경북구미시지...",
+                "code": "",
+                "country": "대한민국",
+                "engName": "",
+                "name": "김태식"
+              }
+            },
+            "agentInfoArray": {
+              "agentInfo": {
+                "address": "서울 강남구 강남대로 *** (논현동) *-*F(박장원특허법률사무소)",
+                "code": "919980002023",
+                "country": "대한민국",
+                "engName": "PARK, Jang Won",
+                "name": "박장원"
+              }
+            },
+            "priorityInfoArray": "",
+            "designatedStateInfoArray": "",
+            "priorArtDocumentsInfoArray": "",
+            "legalStatusInfoArray": {
+              "legalStatusInfo": [
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Patent Application",
+                  "documentName": "특허출원서",
+                  "receiptDate": "1987.07.21",
+                  "receiptNumber": "1-1-1987-0047327-99"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of assignment of agent",
+                  "documentName": "대리인선임신고서",
+                  "receiptDate": "1987.07.21",
+                  "receiptNumber": "1-1-1987-0047328-34"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Request for Examination",
+                  "documentName": "출원심사청구서",
+                  "receiptDate": "1987.07.21",
+                  "receiptNumber": "1-1-1987-0047329-80"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Notification of reason for refusal",
+                  "documentName": "의견제출통지서",
+                  "receiptDate": "1990.03.28",
+                  "receiptNumber": "1-5-1987-0027862-28"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Written Opinion",
+                  "documentName": "의견서",
+                  "receiptDate": "1990.04.27",
+                  "receiptNumber": "1-1-1987-0047330-26"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Amendment to Description, etc.",
+                  "documentName": "명세서등보정서",
+                  "receiptDate": "1990.04.27",
+                  "receiptNumber": "1-1-1987-0047331-72"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Written decision on publication of examined application",
+                  "documentName": "출원공고결정서",
+                  "receiptDate": "1990.08.04",
+                  "receiptNumber": "1-5-1987-0027863-74"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Decision to grant",
+                  "documentName": "등록사정서",
+                  "receiptDate": "1990.11.16",
+                  "receiptNumber": "1-5-1987-0027865-65"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of change of applicant's information",
+                  "documentName": "출원인정보변경(경정)신고서",
+                  "receiptDate": "1999.01.18",
+                  "receiptNumber": "4-1-1999-0008437-16"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of change of applicant's information",
+                  "documentName": "출원인정보변경(경정)신고서",
+                  "receiptDate": "2000.03.15",
+                  "receiptNumber": "4-1-2000-0033420-65"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of change of applicant's information",
+                  "documentName": "출원인정보변경(경정)신고서",
+                  "receiptDate": "2001.03.29",
+                  "receiptNumber": "4-1-2001-0036111-11"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Notification of change of applicant's information",
+                  "documentName": "출원인정보변경(경정)신고서",
+                  "receiptDate": "2002.10.22",
+                  "receiptNumber": "4-1-2002-5030566-15"
+                }
+              ]
+            },
+            "imagePathInfo": {
+              "docName": "1019870007927.JPG",
+              "largePath": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=452306798ef1fd035bfb5ff666db4c9c1be337fa210204e8371308f39c8a0d83675fc389f80e93ebf0146ed02faedf87",
+              "path": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=ed43a0609e94d6e2d625a3dcb0746fe42e363d68bdf3754358e127d7b5a1087c9905689d0e835da83a12e0dbdea81bf9"
+            },
+            "rndInfoArray": ""
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    },
+    "bibliography_summary": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 10:24:16.2416",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "items": {
+            "item": {
+              "applicationDate": "1987.07.21",
+              "applicationFlag": "",
+              "applicationNumber": "10-1987-0007927",
+              "claimCount": "2",
+              "examinerName": "함상준 (책자공보 제2011호)",
+              "finalDisposal": "등록결정(일반)",
+              "inventionTitle": "텔레비젼수상기의알람제어장치및그제어방법",
+              "inventionTitleEng": "ALARM CONTROLLER FOR TELEVISION",
+              "openDate": "1989.04.13",
+              "openNumber": "10-1989-0003221",
+              "originalApplicationDate": "",
+              "originalApplicationKind": "국내출원/신규",
+              "originalApplicationNumber": "",
+              "originalExaminationRequestDate": "1987.07.21",
+              "originalExaminationRequestFlag": "Y",
+              "publicationDate": "1990.08.31",
+              "publicationNumber": "10-1990-0006468",
+              "registerDate": "1991.02.11",
+              "registerNumber": "10-0039754-0000",
+              "registerStatus": "소멸",
+              "translationSubmitDate": ""
+            }
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    },
+    "citing_info": {
+      "response": {
+        "header": {
+          "resultCode": "",
+          "resultMsg": ""
+        },
+        "body": {
+          "items": {
+            "citingInfo": [
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020210084662",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              },
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020210142977",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              },
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020220059184",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              },
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020220175824",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              },
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020220175825",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              },
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020220175826",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              },
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020220175827",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              },
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020230060834",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              },
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020230060835",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              },
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020230068046",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              },
+              {
+                "StandardCitationApplicationNumber": "1019870007927",
+                "ApplicationNumber": "1020230154057",
+                "StandardStatusCode": "20001",
+                "StandardStatusCodeName": "표준화",
+                "CitationLiteratureTypeCode": "E0806",
+                "CitationLiteratureTypeCodeName": "출원서인용문헌이력정보"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "citation_count": 11,
+  "errors": [],
+  "fetched_at": "2026-06-09T10:24:16"
+}

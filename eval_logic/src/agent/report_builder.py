@@ -633,12 +633,18 @@ def _build_section3_project(evaluation_result: dict[str, Any]) -> dict[str, Any]
 
 def _build_section4_similar(similar_analysis: dict[str, Any] | None) -> dict[str, Any]:
     """4. 유사 특허 분석"""
+    source_search = (similar_analysis or {}).get("meta", {}).get("source_search", {}) if similar_analysis else {}
+    data_source = (
+        "KIPRIS 특화검색 유사도 크롤러 결과"
+        if source_search.get("method") == "legacy_kipris_crawler"
+        else "KIPRIS 유사 특허 검색"
+    )
     if not similar_analysis:
         return {
             "title": "유사 특허 분석",
             "available": False,
             "message": "유사 특허 분석 데이터가 없습니다.",
-            "data_source": "KIPRIS 유사 특허 검색",
+            "data_source": data_source,
             "ecosystem_summary": {},
             "top_comparisons": [],
             "patent_list": [],
@@ -694,7 +700,8 @@ def _build_section4_similar(similar_analysis: dict[str, Any] | None) -> dict[str
     return {
         "title": "유사 특허 분석",
         "available": True,
-        "data_source": "KIPRIS 유사 특허 검색",
+        "data_source": data_source,
+        "source_search": source_search,
         "ecosystem_summary": similar_analysis.get("ecosystem_summary") or {},
         "target_position": similar_analysis.get("target_position") or {},
         "top_comparisons": top_list,
@@ -795,6 +802,14 @@ def _build_section6_references(
     # KIPRIS 유사 특허 출처
     kipris_sources: list[dict] = []
     if similar_analysis:
+        source_search = (similar_analysis.get("meta") or {}).get("source_search") or {}
+        if source_search:
+            kipris_sources.append({
+                "source": "KIPRIS 특화검색",
+                "method": source_search.get("method", ""),
+                "candidate_details": source_search.get("candidate_details", ""),
+                "date_range": source_search.get("date_range", {}),
+            })
         for pat in (similar_analysis.get("similar_patents") or [])[:10]:
             entry = {
                 "patent_no": pat.get("patent_no", ""),

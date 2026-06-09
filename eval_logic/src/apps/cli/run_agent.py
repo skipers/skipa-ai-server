@@ -27,6 +27,7 @@ from core.paths import RUNTIME_REPORT_DIR, SAMPLE_INPUT_DIR
 from core.report_naming import safe_report_filename_from_result
 
 OUTPUT_DIR = RUNTIME_REPORT_DIR
+SERVER_DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,25 +36,30 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "input_path",
         nargs="?",
-        help="입력 JSON 파일 또는 JSON 파일이 들어 있는 디렉터리. 생략하면 data/samples/input 전체를 실행합니다.",
+        help=(
+            "입력 JSON 파일, data/<등록번호> 디렉터리, 또는 data 루트. "
+            "생략하면 skipa-ai-server/data/*/parsed.json 전체를 실행합니다."
+        ),
     )
     parser.add_argument(
         "--profile",
         choices=["quick", "full"],
         default="full",
-        help="full: 전체 기능을 켠 기본 실행, quick: 외부 연동을 끈 빠른 로컬 확인",
+        help="full: 전체 평가 실행, quick: 시장/LLM/RAG만 줄인 실행. 유사 특허 KIPRIS 크롤러는 항상 실행합니다.",
     )
     parser.add_argument("--enable-market", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--enable-llm", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--enable-business-rag", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--similar-use-llm", action=argparse.BooleanOptionalAction, default=None)
-    parser.add_argument("--enable-pdf-metadata-extraction", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--rag-top-k", type=int, default=None)
     return parser.parse_args()
 
 
 def build_workflow_options(args: argparse.Namespace) -> PatentValuationWorkflowOptions:
-    """프로필 기본값 위에 사용자가 직접 지정한 옵션을 덮어씁니다."""
+    """프로필 기본값 위에 사용자가 직접 지정한 옵션을 덮어씁니다.
+
+    유사 특허 분석은 재평가 보고서 필수 섹션이므로 항상 KIPRIS 크롤러로 실행합니다.
+    """
     is_full = args.profile == "full"
 
     def choose(value: bool | None, default: bool) -> bool:
@@ -63,8 +69,15 @@ def build_workflow_options(args: argparse.Namespace) -> PatentValuationWorkflowO
         enable_market=choose(args.enable_market, is_full),
         enable_llm=choose(args.enable_llm, is_full),
         enable_business_rag=choose(args.enable_business_rag, is_full),
+        enable_similar_analysis=True,
+        similar_use_kipris_crawler=True,
+        similar_force_refresh=True,
+        similar_max_pages=5,
+        similar_max_results=10,
+        similar_date_from="2015-01-01",
+        similar_date_to="",
         similar_use_llm=choose(args.similar_use_llm, is_full),
-        enable_pdf_metadata_extraction=choose(args.enable_pdf_metadata_extraction, True),
+        enable_pdf_metadata_extraction=False,
         rag_top_k=args.rag_top_k,
     )
 
@@ -75,6 +88,13 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def resolve_input_files(input_path: str | None = None) -> list[Path]:
+    def parsed_files_in_data_root(root: Path) -> list[Path]:
+        return sorted(
+            path
+            for path in root.glob("*/parsed.json")
+            if path.parent.name.startswith("10-")
+        )
+
     if input_path:
         candidate = Path(input_path)
         if not candidate.exists():
@@ -82,16 +102,28 @@ def resolve_input_files(input_path: str | None = None) -> list[Path]:
         if candidate.is_file():
             return [candidate]
         if candidate.is_dir():
-            files = sorted(candidate.glob("*.json"))
+            if (candidate / "parsed.json").exists():
+                return [candidate / "parsed.json"]
+            files = parsed_files_in_data_root(candidate)
+            if not files:
+                files = sorted(candidate.glob("*.json"))
             if not files:
                 raise FileNotFoundError(f"디렉터리에 JSON 파일이 없습니다: {input_path}")
             return files
         raise ValueError(f"지원하지 않는 입력 경로입니다: {input_path}")
 
-    files = sorted(SAMPLE_INPUT_DIR.glob("*.json"))
+    files = parsed_files_in_data_root(SERVER_DATA_DIR)
     if not files:
-        raise FileNotFoundError(f"기본 입력 디렉터리에 JSON 파일이 없습니다: {SAMPLE_INPUT_DIR}")
+        files = sorted(SAMPLE_INPUT_DIR.glob("*.json"))
+    if not files:
+        raise FileNotFoundError(f"기본 입력 JSON을 찾을 수 없습니다: {SERVER_DATA_DIR}")
     return files
+
+
+def output_path_for_result(source_path: Path, result: dict[str, Any]) -> Path:
+    if source_path.name == "parsed.json" and source_path.parent.name.startswith("10-"):
+        return source_path.parent / "report.json"
+    return OUTPUT_DIR / safe_report_filename_from_result(result)
 
 
 def print_result_summary(result: dict[str, Any]) -> None:
@@ -151,6 +183,9 @@ def main() -> None:
         f"market={options.enable_market}, "
         f"llm={options.enable_llm}, "
         f"business_rag={options.enable_business_rag}, "
+        f"similar={options.enable_similar_analysis}, "
+        f"similar_kipris_crawler={options.similar_use_kipris_crawler}, "
+        f"similar_refresh={options.similar_force_refresh}, "
         f"similar_llm={options.similar_use_llm}, "
         f"pdf_metadata={options.enable_pdf_metadata_extraction}"
     )
@@ -163,7 +198,8 @@ def main() -> None:
         result = workflow.run(load_json(source_path))
         print_result_summary(result)
 
-        out_path = OUTPUT_DIR / safe_report_filename_from_result(result)
+        out_path = output_path_for_result(source_path, result)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as file:
             json.dump(result, file, ensure_ascii=False, indent=2)
         print(f"\n결과 저장: {out_path}")
