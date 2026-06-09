@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .config import PROJECT_ROOT, SHARED_DATA_ROOT, SHARED_PATENT_ROOT
-from .qdrant_store import collection_info, search_documents, shared_patents_collection, upsert_documents
+from .qdrant_store import bluegreen_upsert_documents, collection_info, search_documents, shared_patents_collection, upsert_documents
 
 
 SHARED_VECTORSTORE_ROOT = SHARED_DATA_ROOT / "_qdrant_shared_patents"
@@ -450,7 +450,7 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
 # ---------------------------------------------------------------------------
 
 def build_shared_vectorstore() -> dict[str, Any]:
-    """Index all patents in SHARED_PATENT_ROOT into the shared Qdrant collection."""
+    """Index all patents in SHARED_PATENT_ROOT into the shared Qdrant collection (blue-green)."""
     all_docs: list[dict[str, Any]] = []
     patent_ids = list_shared_patent_ids()
     for pid in patent_ids:
@@ -462,20 +462,13 @@ def build_shared_vectorstore() -> dict[str, Any]:
         if report:
             all_docs.extend(_report_to_docs(pid, report))
 
-    manifest = {
-        "scope": "shared_patents",
-        "refreshed_at": _now(),
-        "backend": "qdrant",
-        "document_count": len(all_docs),
-        "patent_count": len(patent_ids),
-        "source": "shared_patent_root",
-        "shared_patent_root": str(SHARED_PATENT_ROOT),
-    }
-    qdrant = upsert_documents(
-        shared_patents_collection(),
-        all_docs,
+    alias = shared_patents_collection()  # skipa_patent_docs
+    green = f"{alias}_green"
+    blue = f"{alias}_blue"
+
+    qdrant = bluegreen_upsert_documents(
+        alias, green, blue, all_docs,
         collection_scope="shared_patents",
-        recreate=True,
         extra_payload={"index_scope": "shared_patents"},
     )
     return {
@@ -483,9 +476,10 @@ def build_shared_vectorstore() -> dict[str, Any]:
         "backend": "qdrant",
         "patent_count": len(patent_ids),
         "document_count": len(all_docs),
-        "collection": qdrant["collection"],
+        "collection": qdrant.get("active_collection") or alias,
+        "alias": alias,
+        "active_color": qdrant.get("active_color"),
         "qdrant": qdrant,
-        "manifest": manifest,
     }
 
 

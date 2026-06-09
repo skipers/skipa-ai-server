@@ -753,7 +753,7 @@ def bluegreen_wiki_alias() -> str:
 def _aliases_list() -> list[dict[str, Any]]:
     """Qdrant에 등록된 모든 alias 목록을 반환. 오류 시 빈 리스트."""
     try:
-        resp = _json_request("GET", "/collections/aliases", None)
+        resp = _json_request("GET", "/aliases", None)  # POST는 /collections/aliases, GET은 /aliases
         return list((resp.get("result") or {}).get("aliases") or [])
     except Exception:
         return []
@@ -767,12 +767,31 @@ def get_alias_target(alias_name: str) -> str | None:
     return None
 
 
+def _real_collection_names() -> set[str]:
+    """Qdrant에 실제 컬렉션(alias 제외)으로 존재하는 이름 집합."""
+    try:
+        resp = _json_request("GET", "/collections", None)
+        return {c.get("name", "") for c in (resp.get("result") or {}).get("collections") or []}
+    except Exception:
+        return set()
+
+
 def set_alias(alias_name: str, target_collection: str) -> None:
-    """alias를 target_collection으로 원자적(atomic) 교체/생성."""
+    """alias를 target_collection으로 원자적(atomic) 교체/생성.
+
+    alias_name과 동일한 이름의 일반 컬렉션이 존재하면 자동 삭제 후 alias 생성 (마이그레이션).
+    """
     current = get_alias_target(alias_name)
     actions: list[dict[str, Any]] = []
     if current is not None:
         actions.append({"delete_alias": {"alias_name": alias_name}})
+    elif alias_name in _real_collection_names():
+        # 같은 이름의 일반 컬렉션이 있으면 삭제 후 alias로 교체
+        encoded = quote(alias_name, safe="")
+        try:
+            _json_request("DELETE", f"/collections/{encoded}", None)
+        except Exception:
+            pass
     actions.append({"create_alias": {"alias_name": alias_name, "collection_name": target_collection}})
     _json_request("POST", "/collections/aliases", {"actions": actions})
 

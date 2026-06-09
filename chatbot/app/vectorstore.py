@@ -22,6 +22,7 @@ from typing import Any, Iterable
 from fastapi import HTTPException
 
 from .config import BUSINESS_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT, WIKI_ROOT
+from .config import QDRANT_COLLECTION_PREFIX
 from .qdrant_store import (
     bluegreen_collection_status,
     bluegreen_patent_alias,
@@ -521,58 +522,49 @@ def collect_patent_documents(patent_id: str, *, use_reviewed: bool = True) -> li
 
 
 def _collection_for_scope(scope: str) -> str:
+    """스코프 이름 → Qdrant alias(또는 컬렉션) 이름.
+
+    모든 스코프가 blue-green으로 관리되므로 이 이름이 alias의 canonical 이름이 된다.
+    """
     if scope == "global":
-        return patent_collection(None)
-    if scope.startswith("patent:"):
-        return patent_collection(scope.split(":", 1)[1])
+        return bluegreen_patent_alias()          # skipa_patent_live
     if scope == "wiki:global":
-        return wiki_collection(None)
+        return bluegreen_wiki_alias()            # skipa_wiki_live
+    if scope == "shared_patents":
+        return shared_patents_collection()       # skipa_patent_docs
+    if scope.startswith("patent:"):
+        return patent_collection(scope.split(":", 1)[1])   # skipa_patent_doc_{id}
     if scope.startswith("wiki:"):
-        return wiki_collection(scope.split(":", 1)[1])
-    return patent_collection(scope)
-
-
-# global / wiki:global 스코프는 blue-green alias 방식으로 무중단 재색인
-_BLUEGREEN_SCOPES: frozenset[str] = frozenset({"global", "wiki:global"})
-
-
-def _bluegreen_params(scope: str) -> tuple[str, str, str] | None:
-    """blue-green 스코프이면 (alias, green_col, blue_col)을, 아니면 None을 반환."""
-    if scope == "global":
-        alias = bluegreen_patent_alias()
-    elif scope == "wiki:global":
-        alias = bluegreen_wiki_alias()
-    else:
-        return None
-    return alias, f"{alias}_green", f"{alias}_blue"
+        return wiki_collection(scope.split(":", 1)[1])     # skipa_wiki_topic_{slug}
+    # application, business, preeval 등 → 컬렉션 이름 그대로 alias로 사용
+    return f"{QDRANT_COLLECTION_PREFIX}_{scope.replace(':', '_').replace('-', '_')}"
 
 
 def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: str, source: str = "unknown") -> dict[str, Any]:
+    """모든 스코프에 blue-green alias 방식 적용. 기존 컬렉션이면 자동 마이그레이션."""
     for doc in docs:
         if doc.get("page_content") and not doc.get("vector"):
             doc["vector"] = _vectorize(str(doc.get("page_content") or ""))
 
     refreshed_at = _now()
     extra = {"source": source, "logical_index_root": str(output_dir)}
+    alias = _collection_for_scope(scope)
+    green = f"{alias}_green"
+    blue = f"{alias}_blue"
 
-    bg = _bluegreen_params(scope)
-    if bg:
-        alias, green, blue = bg
-        qdrant = bluegreen_upsert_documents(
-            alias, green, blue, docs, collection_scope=scope, extra_payload=extra,
-        )
-        active_collection = str(qdrant.get("active_collection") or alias)
-    else:
-        active_collection = _collection_for_scope(scope)
-        qdrant = upsert_documents(
-            active_collection, docs, collection_scope=scope, recreate=True, extra_payload=extra,
-        )
+    qdrant = bluegreen_upsert_documents(
+        alias, green, blue, docs, collection_scope=scope, extra_payload=extra,
+    )
+    active_collection = str(qdrant.get("active_collection") or alias)
 
     return {
         "scope": scope,
         "backend": "qdrant",
         "document_count": len(docs),
         "collection": active_collection,
+        "alias": alias,
+        "active_color": qdrant.get("active_color"),
+        "previous_color": qdrant.get("previous_color"),
         "qdrant": qdrant,
         "refreshed_at": refreshed_at,
         "source": source,
@@ -733,19 +725,15 @@ def _vector_collection(*, patent_id: str | None, source_types: set[str] | None) 
 
     if patent_id:
         per_col = patent_collection(patent_id)
-        if collection_exists(per_col):
+        if collection_exists(per_col) and (collection_info(per_col).get("points_count") or 0) > 0:
             return per_col
-        # per-patent 컬렉션 없음 → shared collection으로 직접 라우팅
-        return shared_patents_collection()
+        return shared_patents_collection()  # alias → 실제 데이터 있는 슬롯
 
-    # 전체 검색: blue-green alias → global 컬렉션 (문서 있는 경우) → shared
-    alias = bluegreen_patent_alias()
-    if collection_exists(alias):
-        return alias
-    global_col = patent_collection(None)
-    g_info = collection_info(global_col)
-    if g_info.get("exists") and (g_info.get("points_count") or 0) > 0:
-        return global_col
+    # 전체 검색: 문서가 있는 alias 우선, 없으면 shared collection
+    for candidate in [bluegreen_patent_alias(), patent_collection(None), shared_patents_collection()]:
+        info = collection_info(candidate)
+        if info.get("exists") and (info.get("points_count") or 0) > 0:
+            return candidate
     return shared_patents_collection()
 
 
@@ -1829,14 +1817,8 @@ def bluegreen_refresh_global() -> dict[str, Any]:
 
 
 def bluegreen_reindex_status() -> dict[str, Any]:
-    """현재 blue-green alias 상태와 마지막 실행 기록을 반환."""
-    patent_alias = bluegreen_patent_alias()
-    patent_green = f"{patent_alias}_green"
-    patent_blue = f"{patent_alias}_blue"
-
-    wiki_alias = bluegreen_wiki_alias()
-    wiki_green = f"{wiki_alias}_green"
-    wiki_blue = f"{wiki_alias}_blue"
+    """모든 blue-green alias의 현재 상태와 마지막 실행 기록을 반환."""
+    from .qdrant_store import _aliases_list
 
     last_run = _load_bluegreen_status()
     last_run_at = last_run.get("started_at")
@@ -1849,12 +1831,25 @@ def bluegreen_reindex_status() -> dict[str, Any]:
         except Exception:
             pass
 
+    # 등록된 모든 alias → _green/_blue 슬롯 상태 조회
+    aliases_raw = _aliases_list()
+    collections: dict[str, Any] = {}
+    for item in aliases_raw:
+        alias_name = str(item.get("alias_name") or "")
+        target = str(item.get("collection_name") or "")
+        # _green/_blue 슬롯은 제외 (alias만 표시)
+        if alias_name.endswith(("_green", "_blue")):
+            continue
+        green = f"{alias_name}_green"
+        blue = f"{alias_name}_blue"
+        collections[alias_name] = bluegreen_collection_status(alias_name, green, blue)
+
     return {
-        "strategy": "blue_green_alias",
+        "strategy": "blue_green_alias_all",
         "schedule": "every_1_hour",
         "last_run_at": last_run_at,
         "next_run_at": next_run_at,
         "last_run_status": last_run.get("status"),
-        "patent_global": bluegreen_collection_status(patent_alias, patent_green, patent_blue),
-        "wiki_global": bluegreen_collection_status(wiki_alias, wiki_green, wiki_blue),
+        "managed_collections": len(collections),
+        "collections": collections,
     }
