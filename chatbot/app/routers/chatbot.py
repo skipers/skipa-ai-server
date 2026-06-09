@@ -91,7 +91,7 @@ router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
 patent_chat_router = APIRouter(prefix="/api/v1/patent-chat", tags=["patent-chat"])
 rag_router = APIRouter(prefix="/api/v1/rag", tags=["patent-chat"], include_in_schema=False)
 legacy_rag_router = APIRouter(prefix="/rag", tags=["patent-chat"], include_in_schema=False)
-agent_router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
+agent_router = APIRouter(prefix="/api/v1/agent", tags=["agent"], include_in_schema=False)
 wiki_router = APIRouter(prefix="/api/v1/wiki", tags=["wiki"])
 
 
@@ -468,7 +468,7 @@ def post_search(request: SearchRequest) -> dict:
     "/query",
     response_model=SearchResponse,
     summary="RAG 검색 alias (= /search)",
-    description="`/chatbot/search` 와 동일한 핸들러입니다. 하위 호환용으로 유지됩니다.",
+    include_in_schema=False,
 )
 def post_query(request: SearchRequest) -> dict:
     return post_search(request)
@@ -477,11 +477,8 @@ def post_query(request: SearchRequest) -> dict:
 @router.post(
     "/answer",
     response_model=AnswerResponse,
-    summary="챗봇 답변 생성 (SearchRequest 기반, 디버그용)",
-    description=(
-        "SearchRequest 형식으로 챗봇 답변을 생성합니다. "
-        "주요 채팅 API는 `patent-chat` 태그의 `POST /chat`을 사용하세요."
-    ),
+    summary="챗봇 답변 생성 (SearchRequest 기반)",
+    include_in_schema=False,
 )
 def post_answer(request: SearchRequest) -> dict:
     return run_chat_agent(
@@ -526,21 +523,21 @@ def agent_answer(request: SearchRequest) -> dict:
     return post_answer(request)
 
 
-@patent_chat_router.get("/chat/mermaid", summary="특허 챗봇 LangGraph 답변 workflow Mermaid")
+@patent_chat_router.get("/chat/mermaid", summary="챗봇 LangGraph 워크플로우 다이어그램", include_in_schema=False)
 @rag_router.get("/chat/mermaid", summary="챗봇 LangGraph 답변 workflow Mermaid")
 @agent_router.get("/chat/mermaid", summary="챗봇 LangGraph 답변 workflow Mermaid")
 def get_chat_graph_mermaid() -> dict:
     return {"format": "mermaid", "diagram": chat_graph_mermaid()}
 
 
-@patent_chat_router.get("/engine/status", summary="Hybrid Retrieval 엔진 상태")
+@patent_chat_router.get("/engine/status", summary="Hybrid Retrieval 엔진 상태", include_in_schema=False)
 @rag_router.get("/engine/status", summary="복구된 rag.zip 엔진 사용 가능 여부")
 @legacy_rag_router.get("/engine/status", summary="복구된 rag.zip 엔진 사용 가능 여부")
 def get_rag_engine_status() -> dict:
     return legacy_engine_status()
 
 
-@patent_chat_router.get("/patents", summary="특허 챗봇 특허 목록")
+@patent_chat_router.get("/patents", summary="특허 챗봇 특허 목록", include_in_schema=False)
 @rag_router.get("/patents", summary="통합 RAG 특허 목록")
 @legacy_rag_router.get("/patents", summary="특허 챗봇 호환 특허 목록")
 def rag_patents() -> dict:
@@ -607,7 +604,8 @@ def rag_global_chat(request: ChatRequest) -> dict:
 
 @patent_chat_router.post(
     "/reindex",
-    summary="특허별 Qdrant 인덱스 재생성",
+    tags=["chatbot"],
+    summary="[운영] 특허별 Qdrant 인덱스 재생성",
     description=(
         "특정 특허의 Qdrant 인덱스를 재생성합니다. "
         "새 특허 데이터가 추가됐거나 원문·보고서가 갱신된 경우 호출합니다. "
@@ -627,7 +625,8 @@ def rag_reindex(request: ReindexRequest) -> dict:
 
 @patent_chat_router.post(
     "/global/reindex",
-    summary="전체 특허 글로벌 인덱스 재생성",
+    tags=["chatbot"],
+    summary="[운영] 전체 특허 글로벌 인덱스 재생성",
     description=(
         "전체 특허를 하나의 글로벌 Qdrant 컬렉션으로 재색인합니다. "
         "특허가 대거 추가·삭제됐을 때 사용합니다. "
@@ -646,8 +645,8 @@ def rag_global_reindex(request: BusinessReindexRequest) -> dict:
 
 @patent_chat_router.post(
     "/business/reindex",
-    summary="업무 공통 인덱스 재생성",
-    description="업무 공통 데이터(business/) 기반 Qdrant 인덱스를 재생성합니다. 현재는 비활성화된 데이터 소스입니다.",
+    summary="업무 공통 인덱스 재생성 (비활성)",
+    include_in_schema=False,
 )
 @rag_router.post("/business/reindex", summary="업무/공통 Qdrant 인덱스 재생성")
 @legacy_rag_router.post("/business/reindex", summary="업무/공통 Qdrant 인덱스 재생성")
@@ -661,8 +660,8 @@ def rag_business_reindex(request: BusinessReindexRequest) -> dict:
 
 @patent_chat_router.get(
     "/ingestion/mermaid",
-    summary="전처리·재색인 LangGraph 워크플로우 다이어그램",
-    description="전처리/RAG 재색인 LangGraph 그래프를 Mermaid 형식으로 반환합니다. UI의 워크플로우 탭에서 표시합니다.",
+    summary="전처리·재색인 워크플로우 다이어그램",
+    include_in_schema=False,
 )
 @rag_router.get("/ingestion/mermaid", summary="전처리/RAG 재색인 LangGraph Mermaid")
 @legacy_rag_router.get("/ingestion/mermaid", summary="전처리/RAG 재색인 LangGraph Mermaid")
@@ -856,7 +855,7 @@ def post_wiki_topics_refresh() -> dict:
     }
 
 
-@wiki_router.post("/topics/reclassify", summary="전체 특허 분야 재분류 (새 폴더 자동 생성)")
+@wiki_router.post("/topics/reclassify", summary="전체 특허 분야 재분류 (새 폴더 자동 생성)", include_in_schema=False)
 def post_reclassify_topics() -> dict:
     """모든 특허 제목을 다시 분석해 분야를 재할당합니다.
     기존 predefined 분야에 들어가지 못하면 제목에서 새 분야 slug를 추출해 WIKI_ROOT에 폴더를 만듭니다.
@@ -880,7 +879,7 @@ def get_patent_topic_mapping(patent_id: str = Query(..., description="매핑을 
     }
 
 
-@wiki_router.post("/agent/run", summary="Wiki LangGraph agent 직접 실행")
+@wiki_router.post("/agent/run", summary="Wiki LangGraph agent 직접 실행", include_in_schema=False)
 def post_wiki_agent_run(request: WikiAgentRunRequest) -> dict:
     return run_wiki_audit_graph(
         mode=request.mode,
@@ -892,7 +891,7 @@ def post_wiki_agent_run(request: WikiAgentRunRequest) -> dict:
     )
 
 
-@wiki_router.get("/agent/mermaid", summary="Wiki LangGraph agent Mermaid")
+@wiki_router.get("/agent/mermaid", summary="Wiki LangGraph agent Mermaid", include_in_schema=False)
 def get_wiki_agent_mermaid() -> dict:
     return {"format": "mermaid", "diagram": wiki_audit_graph_mermaid()}
 

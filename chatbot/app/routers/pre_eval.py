@@ -54,7 +54,12 @@ def get_case_report(case_id: str) -> dict:
     return get_pre_eval_report(case_id)
 
 
-@router.post("/cases/{case_id}/index/refresh", summary="사전평가 케이스 vectorstore 재빌드")
+@router.post(
+    "/cases/{case_id}/index/refresh",
+    summary="[운영] 사전평가 케이스 vectorstore 재빌드",
+    description="사전평가 케이스의 Qdrant vectorstore를 재생성합니다. 내부 운영용입니다.",
+    tags=["chatbot"],
+)
 def post_case_index_refresh(case_id: str) -> dict:
     return refresh_pre_eval_case_index(case_id)
 
@@ -83,6 +88,6 @@ def post_case_search(
     return search_pre_eval_vectorstore(case_id, query, top_k=top_k)
 
 
-@router.get("/graph/mermaid", summary="사전평가 챗봇 LangGraph Mermaid")
+@router.get("/graph/mermaid", summary="사전평가 챗봇 LangGraph Mermaid", include_in_schema=False)
 def get_graph_mermaid() -> dict:
     return {"format": "mermaid", "diagram": pre_eval_graph_mermaid()}
