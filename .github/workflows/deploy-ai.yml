@@ -31,12 +31,10 @@ jobs:
       - name: Set image variables
         run: |
           SHORT_SHA=${GITHUB_SHA::7}
-          BRANCH=${GITHUB_REF_NAME}
-          SAFE_BRANCH=$(echo "${BRANCH}" | tr '/' '-')
-          echo "IMAGE_TAG=${SAFE_BRANCH}-${SHORT_SHA}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=dev-${SHORT_SHA}" >> $GITHUB_ENV
           echo "IMAGE_REPOSITORY=${REGISTRY}/${PROJECT}/${IMAGE_NAME}" >> $GITHUB_ENV
-          echo "IMAGE=${REGISTRY}/${PROJECT}/${IMAGE_NAME}:${SAFE_BRANCH}-${SHORT_SHA}" >> $GITHUB_ENV
-          echo "LATEST_IMAGE=${REGISTRY}/${PROJECT}/${IMAGE_NAME}:${SAFE_BRANCH}-latest" >> $GITHUB_ENV
+          echo "IMAGE=${REGISTRY}/${PROJECT}/${IMAGE_NAME}:dev-${SHORT_SHA}" >> $GITHUB_ENV
+          echo "LATEST_IMAGE=${REGISTRY}/${PROJECT}/${IMAGE_NAME}:dev-latest" >> $GITHUB_ENV
 
       - name: Show deployment target
         run: |
@@ -87,8 +85,8 @@ jobs:
       - name: Update AI image tag in kustomization
         working-directory: skipa-infra/${{ env.INFRA_PATH }}
         run: |
-          if [ ! -f kustomization.yml ] && [ ! -f kustomization.yaml ]; then
-            echo "Cannot find kustomization.yml or kustomization.yaml in ${INFRA_PATH}" >&2
+          if [ ! -f kustomization.yml ]; then
+            echo "Cannot find kustomization.yml in ${INFRA_PATH}" >&2
             exit 1
           fi
           kustomize edit set image "${IMAGE_REPOSITORY}=${IMAGE_REPOSITORY}:${IMAGE_TAG}"
@@ -106,5 +104,11 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add "${INFRA_PATH}/kustomization.yml"
+
+          if git diff --cached --quiet; then
+            echo "No staged manifest changes to commit."
+            exit 0
+          fi
+
           git commit -m "ci: update ai-server image tag to ${IMAGE_TAG} [skip ci]"
           git push origin main
