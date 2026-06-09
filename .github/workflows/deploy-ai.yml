@@ -105,6 +105,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add "${{ env.INFRA_PATH }}/kustomization.yml" "${{ env.INFRA_PATH }}/kustomization.yaml" 2>/dev/null || true
+          git add "${INFRA_PATH}/kustomization.yml"
           git commit -m "ci: update ai-server image tag to ${IMAGE_TAG} [skip ci]"
           git push origin main
