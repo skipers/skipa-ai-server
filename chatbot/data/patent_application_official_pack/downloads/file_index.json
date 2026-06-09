@@ -1,0 +1,41 @@
+[
+  {
+    "no": 1,
+    "title": "특허로 특허출원가이드",
+    "source_id": "SRC-001",
+    "kind": "html",
+    "size_bytes": 121799,
+    "size": "118.9 KB",
+    "raw_file": "SRC-001_8496909b50.do",
+    "readable_file": "SRC-001_8496909b50.html",
+    "named_file": "001_SRC-001_특허로 특허출원가이드.html",
+    "open_method": "HTML 웹페이지: 브라우저로 열기",
+    "url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do"
+  },
+  {
+    "no": 2,
+    "title": "특허고객번호부여신청",
+    "source_id": "SRC-002",
+    "kind": "html",
+    "size_bytes": 198711,
+    "size": "194.1 KB",
+    "raw_file": "SRC-002_8c45815116.do",
+    "readable_file": "SRC-002_8c45815116.html",
+    "named_file": "002_SRC-002_특허고객번호부여신청.html",
+    "open_method": "HTML 웹페이지: 브라우저로 열기",
+    "url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do"
+  },
+  {
+    "no": 3,
+    "title": "인증서 사용등록",
+    "source_id": "SRC-003",
+    "kind": "html",
+    "size_bytes": 107461,
+    "size": "104.9 KB",
+    "raw_file": "SRC-003_4c6db459ee.do",
+    "readable_file": "SRC-003_4c6db459ee.html",
+    "named_file": "003_SRC-003_인증서 사용등록.html",
+    "open_method": "HTML 웹페이지: 브라우저로 열기",
+    "url": "https://patent.go.kr/smart/jsp/ka/pki/kipocertmgr/KCertMgrView.do"
+  }
+]

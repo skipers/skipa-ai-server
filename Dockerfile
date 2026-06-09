@@ -19,8 +19,24 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     ENABLE_OLLAMA_INTENT_FALLBACK=false \
     ENABLE_WEB_SEARCH=true \
     NIGHTLY_REINDEX_SCHEDULE="0 0 * * *" \
-    WIKI_ROOT=/app/chatbot/data/wiki \
-    PRE_EVAL_ROOT=/app/chatbot/data/pre_application_cases
+    SHARED_DATA_ROOT=/app/data \
+    SHARED_PATENT_ROOT=/app/data/patent \
+    WIKI_ROOT=/app/data/wiki \
+    PRE_EVAL_ROOT=/app/data/pre_application_cases \
+    MINIO_ENDPOINT=http://skipa-minio:9000 \
+    MINIO_CONSOLE_URL=http://skipa-minio:9001 \
+    MINIO_BUCKET=skipa \
+    MINIO_PATENT_PREFIX=patent \
+    MINIO_SYNC_ON_STARTUP=true \
+    MINIO_REINDEX_AFTER_SYNC=true \
+    ENABLE_VISUAL_ASSET_EXTRACTION=true \
+    ENABLE_VISUAL_BASE64=true \
+    MAX_VISUAL_ASSETS_PER_DOCUMENT=80 \
+    QDRANT_URL=http://skipa-qdrant:6333 \
+    QDRANT_API_KEY= \
+    QDRANT_COLLECTION_PREFIX=skipa \
+    QDRANT_VECTOR_SIZE=3072 \
+    QDRANT_DISTANCE=Cosine
 
 WORKDIR /app
 
@@ -69,8 +85,9 @@ COPY . /app
 RUN mkdir -p \
     /app/chatbot/logs/wiki_auditor \
     /app/chatbot/data \
-    /app/chatbot/data/wiki/_global \
-    /app/chatbot/data/pre_application_cases \
+    /app/data/patent \
+    /app/data/wiki/_global \
+    /app/data/pre_application_cases \
     /app/eval_logic/data/runtime_artifacts \
     /models/huggingface \
     /tmp/matplotlib \

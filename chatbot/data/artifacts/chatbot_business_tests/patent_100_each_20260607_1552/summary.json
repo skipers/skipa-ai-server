@@ -1,0 +1,107 @@
+{
+  "generated_at": "2026-06-07T15:51:59",
+  "execution_mode": "functional",
+  "patent_runner": "retrieval",
+  "bert_score_enabled": false,
+  "output_dir": "chatbot/data/artifacts/chatbot_business_tests/patent_100_each_20260607_1552",
+  "patents_used": [
+    {
+      "patent_id": "10-1959619",
+      "title": "반도체 결함 시각화 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-1959627",
+      "title": "실제 반도체 제조물을 복제한 가상 반도체 제조물 제공 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2042318",
+      "title": "스마트 팩토리 레이아웃 설계 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2142205",
+      "title": "설명 가능한 인공지능 모델링 및 시뮬레이션 시스템 및 방법"
+    },
+    {
+      "patent_id": "10-2663094",
+      "title": "단일 엔드포인트를 이용한 AI 모델 운영 장치 및 방법"
+    },
+    {
+      "patent_id": "10-2686678",
+      "title": "이상치 제거를 위한 금융시장 데이터 처리 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2737902",
+      "title": "예측 근거를 함께 제시하는 인공지능 모델 기반 금융시장 예측 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2753879",
+      "title": "주식 시장 예측을 위한 비정형 데이터 분석 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2762042",
+      "title": "NF3 가스 생산 설비 내 이물질 제거 시스템 및 방법"
+    },
+    {
+      "patent_id": "10-2839217",
+      "title": "반도체 소재 개발 관련 후보물질 물성예측 시스템 및 방법"
+    }
+  ],
+  "patent": {
+    "total": 1000,
+    "success": 1000,
+    "failed": 0,
+    "avg_elapsed_sec": 0.005,
+    "p95_elapsed_sec": 0.005,
+    "avg_source_count": 3.477,
+    "avg_quality_score": 0.4731,
+    "category_counts": {
+      "overview": 75,
+      "original": 125,
+      "report": 150,
+      "risk": 75,
+      "business": 100,
+      "market": 75,
+      "comparison": 75,
+      "table": 50,
+      "diagram": 75,
+      "evidence": 75,
+      "history": 75,
+      "wiki": 25,
+      "web": 25
+    },
+    "intent_counts": {
+      "patent_original": 175,
+      "patent_report": 400,
+      "general": 300,
+      "comparison": 100,
+      "wiki": 25
+    },
+    "answer_mode_counts": {
+      "None": 1000
+    },
+    "quality_grade_counts": {
+      "low": 270,
+      "medium": 730
+    },
+    "source_type_counts": {
+      "SHARED_PATENT": 954,
+      "SHARED_REPORT": 450
+    },
+    "errors": []
+  },
+  "application": {
+    "total": 0,
+    "success": 0,
+    "failed": 0,
+    "avg_elapsed_sec": 0,
+    "p95_elapsed_sec": null,
+    "avg_source_count": 0,
+    "avg_quality_score": null,
+    "category_counts": {},
+    "intent_counts": {},
+    "answer_mode_counts": {},
+    "quality_grade_counts": {},
+    "source_type_counts": {},
+    "errors": []
+  }
+}

@@ -28,7 +28,15 @@ import xml.etree.ElementTree as ET
 from fastapi import HTTPException
 
 from .config import DATA_ROOT, PATENT_APPLICATION_ROOT, PATENTS_ROOT, PROJECT_ROOT
-from .index_rotation import active_documents_path, active_manifest_path, rotation_status, write_rotating_index
+from .qdrant_store import (
+    application_collection,
+    collection_exists,
+    collection_info,
+    failed_case_collection,
+    scroll_documents,
+    search_documents,
+    upsert_documents,
+)
 from .rag.quality import compact_text
 from .rag.source_card_utils import enrich_source_card
 
@@ -134,15 +142,15 @@ def _hash_file(path: Path) -> str:
 
 
 def _index_dir() -> Path:
-    return PATENT_APPLICATION_ROOT / "index" / "vectorstore"
+    return PATENT_APPLICATION_ROOT / "index" / "qdrant"
 
 
 def _documents_path() -> Path:
-    return active_documents_path(_index_dir())
+    return _index_dir()
 
 
 def _manifest_path() -> Path:
-    return active_manifest_path(_index_dir())
+    return _index_dir() / "manifest.json"
 
 
 def _feedback_root() -> Path:
@@ -319,7 +327,7 @@ def _iter_source_files() -> Iterable[Path]:
     if not PATENT_APPLICATION_ROOT.exists():
         return
     allowed = {".md", ".txt", ".csv", ".json", ".html", ".htm", ".pdf", ".xlsx", ".do", ".jsp", ".bin"}
-    skip_parts = {"index", "__pycache__", "readable", "named", "raw", "preprocessed", "failed_patent", "feedback"}
+    skip_parts = {"index", "__pycache__", "readable", "raw", "preprocessed", "failed_patent", "feedback"}
     generated_names = {
         "download_manifest.json",
         "download_report.md",
@@ -402,8 +410,8 @@ def _application_preprocess_report(files: list[Path], index_result: dict[str, An
         "index": index_result,
         "active_files": items,
         "excluded_policy": {
-            "directories": ["downloads/raw", "downloads/readable", "downloads/named", "index"],
-            "reason": "중복 원시 다운로드와 사람이 읽기 어려운 변환 전 파일은 검색 품질을 낮추므로 인덱싱하지 않습니다.",
+            "directories": ["downloads/raw", "downloads/readable", "index"],
+            "reason": "중복 원시 다운로드와 변환 중간 파일은 제외하고, 사람이 열기 쉬운 downloads/named 파일만 공식 원문 근거로 인덱싱합니다.",
         },
         "recommended_additions": RECOMMENDED_APPLICATION_ADDITIONS,
         "external_connectors": application_external_status(),
@@ -844,8 +852,7 @@ def refresh_application_index(*, force: bool = True) -> dict[str, Any]:
     ]
     manifest = {
         "scope": "patent_application",
-        "backend": "local_hashed_bow",
-        "vector_dimensions": VECTOR_DIMENSIONS,
+        "backend": "qdrant",
         "refreshed_at": _now(),
         "document_count": len(docs),
         "source_file_count": len(source_files),
@@ -853,33 +860,43 @@ def refresh_application_index(*, force: bool = True) -> dict[str, Any]:
         "source_fingerprints": fingerprints,
         "errors": errors,
     }
-    rotation = write_rotating_index(_index_dir(), docs, manifest)
+    qdrant = upsert_documents(
+        application_collection(),
+        docs,
+        collection_scope="patent_application",
+        recreate=True,
+        extra_payload={"assistant_scope": "patent_application"},
+    )
+    _write_json(_manifest_path(), {**manifest, "collection": application_collection(), "qdrant": qdrant})
     return {
         "status": "refreshed",
         "scope": "patent_application",
+        "backend": "qdrant",
         "document_count": len(docs),
         "source_file_count": len(source_files),
-        "manifest_path": rotation["manifest_path"],
-        "documents_path": rotation["documents_path"],
-        "active_slot": rotation["active_slot"],
-        "previous_active_slot": rotation["previous_active_slot"],
+        "collection": application_collection(),
+        "qdrant": qdrant,
+        "manifest_path": str(_manifest_path()),
         "errors": errors,
     }
 
 
 def application_index_status() -> dict[str, Any]:
     manifest = _read_json(_manifest_path()) or {}
+    info = collection_info(application_collection())
     report = application_download_report()
     feedback_files = sorted(_feedback_root().glob("*/feedback.md")) if _feedback_root().exists() else []
     failed_cases = list_failed_patent_cases() if _failed_patent_root().exists() else {"root": str(_failed_patent_root()), "count": 0, "items": []}
     return {
         "root": str(PATENT_APPLICATION_ROOT),
         "root_exists": PATENT_APPLICATION_ROOT.exists(),
-        "index_exists": _documents_path().exists(),
-        "document_count": manifest.get("document_count"),
+        "backend": "qdrant",
+        "collection": application_collection(),
+        "index_exists": bool(info.get("exists")),
+        "document_count": info.get("points_count", manifest.get("document_count")),
         "source_file_count": manifest.get("source_file_count"),
         "source_roles": manifest.get("source_roles"),
-        "rotation": rotation_status(_index_dir()),
+        "qdrant": info,
         "manifest": manifest,
         "feedback": {
             "root": str(_feedback_root()),
@@ -898,53 +915,23 @@ def application_index_status() -> dict[str, Any]:
 
 
 def _iter_index_docs() -> Iterable[dict[str, Any]]:
-    path = _documents_path()
-    if not path.exists():
-        return
-    with path.open(encoding="utf-8") as file:
-        for line in file:
-            if not line.strip():
-                continue
-            try:
-                doc = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(doc, dict):
-                yield doc
+    yield from scroll_documents(application_collection(), limit=5000)
 
 
 def search_application_index(query: str, *, top_k: int = 6) -> dict[str, Any]:
-    if not _documents_path().exists():
+    if not collection_exists(application_collection()):
         refresh_application_index(force=True)
-    query_vector = _vectorize(query)
-    scored = []
-    for doc in _iter_index_docs() or []:
-        vector = doc.get("vector") if isinstance(doc.get("vector"), dict) else {}
-        score = _dot(query_vector, {str(key): float(value) for key, value in vector.items()})
-        if score <= 0:
-            continue
-        scored.append((score, doc))
-    scored.sort(key=lambda item: item[0], reverse=True)
-    hits = []
-    for score, doc in scored[:top_k]:
-        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        text = str(doc.get("page_content") or "")
-        hits.append(
-            {
-                "patent_id": "patent_application",
-                "score": round(score, 6),
-                "excerpt": text[:500],
-                "page_content": text,
-                "metadata": metadata,
-            }
-        )
+    result = search_documents(application_collection(), query, top_k=top_k)
     return {
         "query": query,
-        "mode": "patent_application_local_vectorstore",
+        "mode": "patent_application_qdrant",
         "patent_id": "patent_application",
         "top_k": top_k,
-        "hit_count": len(hits),
-        "hits": hits,
+        "collection": application_collection(),
+        "hit_count": result.get("hit_count", 0),
+        "hits": result.get("hits", []),
+        "embedding_provider": result.get("embedding_provider"),
+        "embedding_error": result.get("embedding_error"),
     }
 
 
@@ -1037,15 +1024,15 @@ def _case_metadata_path(case_id: str) -> Path:
 
 
 def _case_index_dir(case_id: str) -> Path:
-    return _failed_case_dir(case_id) / "index" / "vectorstore"
+    return _failed_case_dir(case_id) / "index" / "qdrant"
 
 
 def _case_documents_path(case_id: str) -> Path:
-    return active_documents_path(_case_index_dir(case_id))
+    return _case_index_dir(case_id)
 
 
 def _case_manifest_path(case_id: str) -> Path:
-    return active_manifest_path(_case_index_dir(case_id))
+    return _case_index_dir(case_id) / "manifest.json"
 
 
 def _read_case_metadata(case_id: str) -> dict[str, Any]:
@@ -1497,8 +1484,7 @@ def refresh_failed_patent_case_index(case_id: str) -> dict[str, Any]:
         "scope": "patent_application_failed_case",
         "case_id": safe_id,
         "case_dir": str(case_dir),
-        "backend": "local_hashed_bow",
-        "vector_dimensions": VECTOR_DIMENSIONS,
+        "backend": "qdrant",
         "refreshed_at": _now(),
         "document_count": len(docs),
         "source_file_count": len(source_files),
@@ -1507,20 +1493,28 @@ def refresh_failed_patent_case_index(case_id: str) -> dict[str, Any]:
         "errors": errors,
         "is_isolated_case_index": True,
     }
-    rotation = write_rotating_index(_case_index_dir(safe_id), docs, manifest)
+    collection = failed_case_collection(safe_id)
+    qdrant = upsert_documents(
+        collection,
+        docs,
+        collection_scope=f"patent_application_failed_case:{safe_id}",
+        recreate=True,
+        extra_payload={"case_id": safe_id, "is_isolated_case_index": True},
+    )
+    _write_json(_case_manifest_path(safe_id), {**manifest, "collection": collection, "qdrant": qdrant})
     metadata = _read_case_metadata(safe_id)
-    metadata["index"] = {**manifest, "active_slot": rotation["active_slot"], "manifest_path": rotation["manifest_path"]}
+    metadata["index"] = {**manifest, "collection": collection, "manifest_path": str(_case_manifest_path(safe_id))}
     _write_case_metadata(safe_id, metadata)
     return {
         "status": "refreshed",
         "scope": "patent_application_failed_case",
+        "backend": "qdrant",
         "case_id": safe_id,
         "document_count": len(docs),
         "source_file_count": len(source_files),
-        "manifest_path": rotation["manifest_path"],
-        "documents_path": rotation["documents_path"],
-        "active_slot": rotation["active_slot"],
-        "previous_active_slot": rotation["previous_active_slot"],
+        "collection": collection,
+        "qdrant": qdrant,
+        "manifest_path": str(_case_manifest_path(safe_id)),
         "errors": errors,
     }
 
@@ -1530,6 +1524,8 @@ def failed_patent_case_index_status(case_id: str) -> dict[str, Any]:
     case_dir = _failed_case_dir(safe_id)
     metadata = _read_case_metadata(safe_id)
     manifest = _read_json(_case_manifest_path(safe_id)) or {}
+    collection = failed_case_collection(safe_id)
+    info = collection_info(collection)
     files = [
         {
             "path": str(path),
@@ -1546,11 +1542,13 @@ def failed_patent_case_index_status(case_id: str) -> dict[str, Any]:
         "case_dir": str(case_dir),
         "metadata": metadata,
         "has_original_pdf": _case_has_original_pdf(safe_id),
-        "index_exists": _case_documents_path(safe_id).exists(),
-        "document_count": manifest.get("document_count"),
+        "backend": "qdrant",
+        "collection": collection,
+        "index_exists": bool(info.get("exists")),
+        "document_count": info.get("points_count", manifest.get("document_count")),
         "source_file_count": manifest.get("source_file_count"),
         "source_roles": manifest.get("source_roles"),
-        "rotation": rotation_status(_case_index_dir(safe_id)),
+        "qdrant": info,
         "manifest": manifest,
         "files": files,
     }
@@ -1585,61 +1583,26 @@ def list_failed_patent_cases() -> dict[str, Any]:
 
 
 def _iter_failed_case_index_docs(case_id: str) -> Iterable[dict[str, Any]]:
-    path = _case_documents_path(case_id)
-    if not path.exists():
-        return
-    with path.open(encoding="utf-8") as file:
-        for line in file:
-            if not line.strip():
-                continue
-            try:
-                doc = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(doc, dict):
-                yield doc
+    yield from scroll_documents(failed_case_collection(_safe_case_id(case_id)), limit=5000, case_id=_safe_case_id(case_id))
 
 
 def search_failed_patent_case_index(case_id: str, query: str, *, top_k: int = 6) -> dict[str, Any]:
     safe_id = _safe_case_id(case_id)
-    if not _case_documents_path(safe_id).exists():
+    collection = failed_case_collection(safe_id)
+    if not collection_exists(collection):
         refresh_failed_patent_case_index(safe_id)
-    query_vector = _vectorize(query)
-    scored = []
-    for doc in _iter_failed_case_index_docs(safe_id) or []:
-        vector = doc.get("vector") if isinstance(doc.get("vector"), dict) else {}
-        score = _dot(query_vector, {str(key): float(value) for key, value in vector.items()})
-        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        role = str(metadata.get("failed_patent_role") or "")
-        if role == "failed_patent_original":
-            score += 0.08
-        elif role in {"failed_patent_rejection_reason", "failed_patent_report"}:
-            score += 0.14
-        if score <= 0:
-            continue
-        scored.append((score, doc))
-    scored.sort(key=lambda item: item[0], reverse=True)
-    hits = []
-    for score, doc in scored[:top_k]:
-        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        text = str(doc.get("page_content") or "")
-        hits.append(
-            {
-                "patent_id": f"patent_application_failed_case:{safe_id}",
-                "score": round(score, 6),
-                "excerpt": text[:500],
-                "page_content": text,
-                "metadata": metadata,
-            }
-        )
+    result = search_documents(collection, query, top_k=top_k, case_id=safe_id)
     return {
         "query": query,
-        "mode": "patent_application_failed_case_vectorstore",
+        "mode": "patent_application_failed_case_qdrant",
         "patent_id": f"patent_application_failed_case:{safe_id}",
         "failed_patent_id": safe_id,
         "top_k": top_k,
-        "hit_count": len(hits),
-        "hits": hits,
+        "collection": collection,
+        "hit_count": result.get("hit_count", 0),
+        "hits": result.get("hits", []),
+        "embedding_provider": result.get("embedding_provider"),
+        "embedding_error": result.get("embedding_error"),
     }
 
 

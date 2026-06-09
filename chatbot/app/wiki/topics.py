@@ -26,7 +26,7 @@ import json
 import re
 from pathlib import Path
 
-from ..config import PATENTS_ROOT, WIKI_ROOT
+from ..config import PATENTS_ROOT, SHARED_PATENT_ROOT, WIKI_ROOT
 
 
 # ---------------------------------------------------------------------------
@@ -200,20 +200,7 @@ def get_patent_topic(patent_id: str) -> str:
     if cached and cached != "_general":
         return cached
 
-    topic = "_general"
-    for path in [
-        PATENTS_ROOT / patent_id / "manifest.json",
-        PATENTS_ROOT / patent_id / "original" / "input" / "latest.json",
-    ]:
-        if path.exists():
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-                title = str(data.get("title") or "")
-                if title:
-                    topic = classify_title_to_topic(title)
-                    break
-            except Exception:
-                pass
+    topic = _topic_from_patent_paths(patent_id)
 
     cache[patent_id] = topic
     _save_topics_cache(cache)
@@ -227,30 +214,50 @@ def reclassify_all_patents() -> dict[str, str]:
     new dynamic folders that may absorb previously '_general' patents.
     """
     cache: dict[str, str] = {}
-    if not PATENTS_ROOT.exists():
-        return cache
-    for patent_dir in sorted(PATENTS_ROOT.iterdir()):
-        if not patent_dir.is_dir() or patent_dir.name.startswith("_"):
-            continue
-        patent_id = patent_dir.name
-        # Force fresh classification by not consulting the cache
-        topic = "_general"
-        for path in [
-            patent_dir / "manifest.json",
-            patent_dir / "original" / "input" / "latest.json",
-        ]:
-            if path.exists():
-                try:
-                    data = json.loads(path.read_text(encoding="utf-8"))
-                    title = str(data.get("title") or "")
-                    if title:
-                        topic = classify_title_to_topic(title)
-                        break
-                except Exception:
-                    pass
-        cache[patent_id] = topic
+    patent_ids: set[str] = set()
+    if PATENTS_ROOT.exists():
+        for patent_dir in sorted(PATENTS_ROOT.iterdir()):
+            if patent_dir.is_dir() and not patent_dir.name.startswith("_"):
+                patent_ids.add(patent_dir.name)
+    if SHARED_PATENT_ROOT.exists():
+        for patent_dir in sorted(SHARED_PATENT_ROOT.iterdir()):
+            if not patent_dir.is_dir() or patent_dir.name.startswith("_") or patent_dir.name.startswith("."):
+                continue
+            if (patent_dir / "parsed.json").exists() or (patent_dir / "report.json").exists():
+                patent_ids.add(patent_dir.name)
+    for patent_id in sorted(patent_ids):
+        cache[patent_id] = _topic_from_patent_paths(patent_id)
     _save_topics_cache(cache)
     return cache
+
+
+def _title_from_json(path: Path) -> str:
+    if not path.exists():
+        return ""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    direct = data.get("title")
+    if direct:
+        return str(direct)
+    patent = data.get("normalized_patent") if isinstance(data.get("normalized_patent"), dict) else {}
+    meta = patent.get("meta") if isinstance(patent.get("meta"), dict) else {}
+    return str(meta.get("title") or patent.get("title") or "")
+
+
+def _topic_from_patent_paths(patent_id: str) -> str:
+    for path in [
+        PATENTS_ROOT / patent_id / "manifest.json",
+        PATENTS_ROOT / patent_id / "original" / "input" / "latest.json",
+        SHARED_PATENT_ROOT / patent_id / "parsed.json",
+    ]:
+        title = _title_from_json(path)
+        if title:
+            return classify_title_to_topic(title)
+    return "_general"
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +277,7 @@ def topic_approved_md(topic_slug: str) -> Path:
 
 
 def topic_vectorstore_root(topic_slug: str) -> Path:
-    return WIKI_ROOT / topic_slug / "vectorstore"
+    return WIKI_ROOT / topic_slug / "qdrant"
 
 
 def topic_draft_index_path(topic_slug: str) -> Path:

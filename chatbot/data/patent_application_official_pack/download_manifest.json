@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-06-07T15:55:26",
+  "root": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack",
+  "attempted_count": 3,
+  "success_count": 3,
+  "failure_count": 0,
+  "base_url_count": 3,
+  "embedded_url_count": 0,
+  "results": [
+    {
+      "url": "https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do",
+      "title": "특허로 특허출원가이드",
+      "source_id": "SRC-001",
+      "url_type": "page",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "text/html; charset=UTF-8",
+      "size_bytes": 121799,
+      "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/raw/SRC-001_8496909b50.do",
+      "started_at": "2026-06-07T15:55:24",
+      "finished_at": "2026-06-07T15:55:25"
+    },
+    {
+      "url": "https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do",
+      "title": "특허고객번호부여신청",
+      "source_id": "SRC-002",
+      "url_type": "page",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "text/html; charset=UTF-8",
+      "size_bytes": 198711,
+      "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/raw/SRC-002_8c45815116.do",
+      "started_at": "2026-06-07T15:55:25",
+      "finished_at": "2026-06-07T15:55:25"
+    },
+    {
+      "url": "https://patent.go.kr/smart/jsp/ka/pki/kipocertmgr/KCertMgrView.do",
+      "title": "인증서 사용등록",
+      "source_id": "SRC-003",
+      "url_type": "page",
+      "ok": true,
+      "status": "downloaded",
+      "http_status": 200,
+      "content_type": "text/html; charset=UTF-8",
+      "size_bytes": 107461,
+      "path": "/Users/kgw/skipers-ai/chatbot/data/patent_application_official_pack/downloads/raw/SRC-003_4c6db459ee.do",
+      "started_at": "2026-06-07T15:55:25",
+      "finished_at": "2026-06-07T15:55:26"
+    }
+  ]
+}

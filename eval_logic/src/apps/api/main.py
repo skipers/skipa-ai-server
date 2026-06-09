@@ -28,6 +28,8 @@ from apps.api.schemas import (
     ReportJobResponse,
     ReportJobResultResponse,
     ReportJobStatusResponse,
+    StoredReportListResponse,
+    StoredReportResponse,
 )
 from core.paths import (
     API_TEST_EXTRACTED_INPUT_DIR,
@@ -42,6 +44,7 @@ from core.schemas import normalize_patent_input
 from evaluation.auto_score import calc_auto_scores
 from evaluation.kosis_growth_fetcher import get_growth_score_from_json
 from evaluation.llm_evaluator import evaluate_all
+from agent.report_builder import REPORT_SCHEMA_VERSION, build_structured_report
 from services.evidence_collection_service import (
     BusinessUseRagService,
     PatentMetadataExtractionService,
@@ -56,6 +59,8 @@ app = FastAPI(
     ),
     version="0.2.0",
 )
+
+PREBUILT_REPORT_DATA_DIR = _SRC_DIR.parent.parent / "data"
 
 
 def _model_to_dict(model: Any) -> dict[str, Any]:
@@ -242,6 +247,58 @@ def _job_urls(job_id: str) -> tuple[str, str]:
     return f"/api/v1/reports/{job_id}/status", f"/api/v1/reports/{job_id}/result"
 
 
+def _stored_report_path(patent_id: str) -> Path:
+    safe_patent_id = _safe_name(patent_id)
+    return PREBUILT_REPORT_DATA_DIR / safe_patent_id / "report.json"
+
+
+def _normalize_stored_report(payload: dict[str, Any]) -> dict[str, Any]:
+    """저장소의 과거 workflow 결과 또는 현재 보고서 JSON을 화면용 보고서로 통일합니다."""
+    if payload.get("schema_version") == REPORT_SCHEMA_VERSION:
+        return payload
+
+    report = payload.get("report")
+    if isinstance(report, dict) and report.get("schema_version") == REPORT_SCHEMA_VERSION:
+        return report
+
+    valuation = payload.get("valuation")
+    if isinstance(valuation, dict):
+        return build_structured_report(
+            valuation,
+            similar_analysis=payload.get("similar_analysis") if isinstance(payload.get("similar_analysis"), dict) else None,
+            evaluation_analysis="",
+        )
+
+    if isinstance(report, dict):
+        return report
+    return payload
+
+
+def _read_stored_report(patent_id: str) -> dict[str, Any]:
+    path = _stored_report_path(patent_id)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"저장된 보고서를 찾을 수 없습니다: {patent_id}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=500, detail=f"저장된 보고서 JSON 파싱 실패: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=500, detail="저장된 보고서 JSON 최상위 값은 object여야 합니다.")
+    return _normalize_stored_report(payload)
+
+
+def _stored_report_summary(patent_id: str, report: dict[str, Any]) -> dict[str, Any]:
+    patent = report.get("patent") if isinstance(report.get("patent"), dict) else {}
+    return {
+        "patent_id": patent_id,
+        "report_id": report.get("report_id"),
+        "title": patent.get("title"),
+        "schema_version": report.get("schema_version"),
+        "generated_at": report.get("generated_at"),
+        "report_url": f"/api/v1/reports/patent-valuation/{patent_id}",
+    }
+
+
 @app.get("/health", tags=["health"])
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -250,6 +307,38 @@ def health() -> dict[str, str]:
 # ─────────────────────────────────────────────
 # 서비스용 Report Job API
 # ─────────────────────────────────────────────
+
+
+@app.get(
+    "/api/v1/reports/patent-valuation",
+    response_model=StoredReportListResponse,
+    tags=["reports"],
+)
+def list_stored_patent_reports() -> dict[str, Any]:
+    """미리 생성되어 저장된 재평가 보고서 목록을 조회합니다."""
+    reports = []
+    if PREBUILT_REPORT_DATA_DIR.exists():
+        for report_path in sorted(PREBUILT_REPORT_DATA_DIR.glob("*/report.json")):
+            patent_id = report_path.parent.name
+            try:
+                report = _read_stored_report(patent_id)
+            except HTTPException:
+                continue
+            reports.append(_stored_report_summary(patent_id, report))
+    return {"reports": reports}
+
+
+@app.get(
+    "/api/v1/reports/patent-valuation/{patent_id}",
+    response_model=StoredReportResponse,
+    tags=["reports"],
+)
+def get_stored_patent_report(patent_id: str) -> dict[str, Any]:
+    """미리 생성되어 저장된 재평가 보고서 JSON을 그대로 반환합니다."""
+    return {
+        "patent_id": patent_id,
+        "report": _read_stored_report(patent_id),
+    }
 
 
 @app.post(
@@ -448,7 +537,7 @@ def dev_evaluate_sample_patent(
 
 @app.post("/api/v1/tools/patent-metadata", tags=["tools"])
 def tool_extract_patent_metadata(file: UploadFile = File(...)) -> dict[str, Any]:
-    """PDF 원문 파일 업로드로 특허 메타데이터를 추출합니다."""
+    """PDF 파일 업로드로 특허 메타데이터를 추출합니다."""
     try:
         pdf_path = _save_uploaded_pdf(file, API_TEST_PDF_UPLOAD_DIR)
         result = PatentMetadataExtractionService().extract_from_pdf(pdf_path)

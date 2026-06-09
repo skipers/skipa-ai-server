@@ -54,11 +54,14 @@ tempCodeRunnerFile.py
 # Do not put secrets in api_test JSON files.
 
 # Generated artifacts, caches, crawled pages, vector indexes, and reports
+data/artifacts/
+data/patent/
 chatbot/data/business/index/
 chatbot/data/mapped_patent_reports/**/index/
 chatbot/data/mapped_patent_reports/**/extracted/
 chatbot/data/mapped_patent_reports/**/reviewed/
 chatbot/data/patent_application_official_pack/index/
+chatbot/data/patent_application_official_pack/**/index/qdrant/
 chatbot/data/patent_application_official_pack/downloads/
 eval_logic/resources/business_rag/index/
 eval_logic/resources/business_rag/processed/
@@ -91,7 +94,10 @@ chatbot/data/.DS_Store
 chatbot/data/patent_application_official_pack/failed_patent/
 # Topic-based wiki runtime data (vectorstore, drafts, approved content)
 chatbot/data/wiki/**/vectorstore/
+chatbot/data/wiki/**/qdrant/
 chatbot/data/wiki/**/web_search_data/
 chatbot/data/wiki/**/approved_context.md
 chatbot/data/wiki/**/draft_index.json
 chatbot/data/pre_application_cases/
+data/wiki/**/qdrant/
+data/pre_application_cases/**/index/qdrant/

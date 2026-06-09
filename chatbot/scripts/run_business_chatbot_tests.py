@@ -29,7 +29,23 @@ else:
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-ARTIFACT_ROOT = PROJECT_ROOT / "data" / "artifacts" / "chatbot_business_tests"
+ARTIFACT_ROOT = PROJECT_ROOT / "chatbot" / "data" / "artifacts" / "chatbot_business_tests"
+
+
+def _normalize_output_dir(path: Path) -> Path:
+    """Keep chatbot test artifacts under chatbot/data/artifacts.
+
+    Older commands used PROJECT_ROOT/data/artifacts. Redirect that location so
+    running old scripts does not recreate the root data/artifacts folder.
+    """
+    resolved = (PROJECT_ROOT / path).resolve() if not path.is_absolute() else path.resolve()
+    old_root = (PROJECT_ROOT / "data" / "artifacts").resolve()
+    new_root = (PROJECT_ROOT / "chatbot" / "data" / "artifacts").resolve()
+    try:
+        suffix = resolved.relative_to(old_root)
+    except ValueError:
+        return resolved
+    return new_root / suffix
 
 
 def _json_default(value: Any) -> Any:
@@ -581,7 +597,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    output_dir = args.output_dir or ARTIFACT_ROOT / datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = _normalize_output_dir(args.output_dir or ARTIFACT_ROOT / datetime.now().strftime("%Y%m%d_%H%M%S"))
     output_dir.mkdir(parents=True, exist_ok=True)
 
     _patch_expensive_optional_calls(enable_bert_score=args.enable_bert_score, execution_mode=args.execution_mode)

@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any
 
 from ..rag.llm import call_openai_prompt
-from ..rag.config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT
+from ..rag.config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL
 from ..rag.evaluation import answer_quality_metrics
 from ..rag.quality import compact_text, filter_usable_hits
 from ..rag.sources import cards_from_hits, cards_from_web
@@ -65,6 +65,7 @@ _SYSTEM_PROMPT = """당신은 출원 전 특허 사전평가 결과를 설명하
 제공된 사전평가 보고서 근거를 바탕으로 정확하고 실용적으로 답변하세요.
 - 등급, 점수, 영역별 분석, 개선 권고사항을 구체적으로 설명하세요.
 - 특허 출원 전 개선할 수 있는 실질적인 조언을 제공하세요.
+- 상세 질문이면 요약으로 끝내지 말고 평가 근거, 약점, 보완 액션, 우선순위를 단계별로 설명하세요.
 - 근거 없는 추측은 하지 마세요."""
 
 
@@ -110,7 +111,6 @@ def answer_pre_eval_question(state: ChatAgentState) -> ChatAgentState:
             prompt,
             model=ANSWER_MODEL,
             timeout=ANSWER_LLM_TIMEOUT,
-            max_output_tokens=ANSWER_NUM_PREDICT,
         )
         answer = str(llm_result.get("text") or "") if isinstance(llm_result, dict) else str(llm_result)
         if not answer:
@@ -217,7 +217,8 @@ def run_pre_eval_chat_agent(
         "trace": [],
         "errors": [],
     }
-    final_state = PRE_EVAL_GRAPH.invoke(state) if PRE_EVAL_GRAPH is not None else _sequential_pre_eval(state)
+    # LangGraph 1.2.0에서 모듈 import 시점 컴파일 그래프의 state 전파 버그 우회
+    final_state = _sequential_pre_eval(state)
     result = dict(final_state.get("result") or {})
     metrics = dict(result.get("metrics") or {})
     metrics["agent_trace"] = final_state.get("trace", [])

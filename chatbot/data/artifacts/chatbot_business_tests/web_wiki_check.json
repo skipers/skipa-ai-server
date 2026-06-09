@@ -1,0 +1,43 @@
+{
+  "patent_id": "10-1959619",
+  "topic": "반도체_전자",
+  "query": "반도체 결함 시각화 시스템 최신 시장 동향과 경쟁 기술 2026 검증 154938",
+  "provider": "tavily",
+  "result_count": 5,
+  "error": null,
+  "wiki_draft_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/web_search_data/20260607_154942_076710.md",
+  "new_draft_files": [
+    "20260607_154942_076710.md"
+  ],
+  "auto_approve": {
+    "auto_approved": true,
+    "topic": "반도체_전자",
+    "avg_relevance": 0.5,
+    "result_count": 5,
+    "reason": "high_relevance"
+  },
+  "approved_exists": true,
+  "approved_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/approved_context.md",
+  "trace": [
+    {
+      "node": "retrieve_web_context",
+      "status": "success",
+      "at": "2026-06-07T15:49:42",
+      "enabled": true,
+      "skipped_by_wiki": false,
+      "skipped_by_dedup": false,
+      "provider": "tavily",
+      "result_count": 5,
+      "error": null,
+      "skip_reason": null,
+      "wiki_draft_path": "/Users/kgw/skipers-ai/data/wiki/반도체_전자/web_search_data/20260607_154942_076710.md",
+      "wiki_auto_approve": {
+        "auto_approved": true,
+        "topic": "반도체_전자",
+        "avg_relevance": 0.5,
+        "result_count": 5,
+        "reason": "high_relevance"
+      }
+    }
+  ]
+}

@@ -7,6 +7,7 @@ from typing import Any, TypedDict
 
 class ChatAgentState(TypedDict, total=False):
     query: str
+    retrieval_query: str | None  # 리트리벌 전용 쿼리 (연속 질문 시 이전 컨텍스트 포함)
     patent_id: str | None
     user_id: str | None
     chat_history: list[dict[str, Any]]

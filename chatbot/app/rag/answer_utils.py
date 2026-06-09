@@ -48,9 +48,11 @@ def build_metrics(
     local_result: dict[str, Any],
     web_result: dict[str, Any],
     llm_result: dict[str, Any],
+    patent_id: str | None = None,
 ) -> dict[str, Any]:
     return {
         "intent": intent,
+        "scope": patent_id or local_result.get("patent_id"),  # UI scope 표시용
         "mode": local_result.get("mode"),
         "hit_count": local_result.get("hit_count", 0),
         "web_enabled": web_result.get("enabled"),

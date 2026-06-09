@@ -1,0 +1,111 @@
+{
+  "status": "partial_success",
+  "workflow_type": "langgraph",
+  "elapsed_seconds": 0.01,
+  "validation": {
+    "valid": false,
+    "errors": [
+      "patent_id 또는 meta.registration_number가 필요합니다.",
+      "meta.title 또는 title이 필요합니다."
+    ],
+    "patent_id": "",
+    "title": "",
+    "has_claims": false,
+    "has_description": false,
+    "has_market_data": false,
+    "has_kipris_data": false
+  },
+  "valuation": null,
+  "similar_analysis": null,
+  "report": null,
+  "report_verification": null,
+  "human_reviews": [
+    {
+      "node": "supervisor:evidence",
+      "severity": "high",
+      "reason": "증거 수집 단계에서 오류가 발생했습니다.",
+      "status": "flagged",
+      "details": {
+        "errors": [
+          "PDF 메타데이터 추출 실패: No module named 'pdfplumber'",
+          "사업화 현황 RAG 추정 실패: No module named 'rank_bm25'"
+        ]
+      }
+    },
+    {
+      "node": "supervisor:validation",
+      "severity": "high",
+      "reason": "입력 검증에 실패했습니다.",
+      "status": "flagged",
+      "details": {
+        "errors": [
+          "patent_id 또는 meta.registration_number가 필요합니다.",
+          "meta.title 또는 title이 필요합니다."
+        ],
+        "validation": {
+          "valid": false,
+          "errors": [
+            "patent_id 또는 meta.registration_number가 필요합니다.",
+            "meta.title 또는 title이 필요합니다."
+          ],
+          "patent_id": "",
+          "title": "",
+          "has_claims": false,
+          "has_description": false,
+          "has_market_data": false,
+          "has_kipris_data": false
+        }
+      }
+    }
+  ],
+  "human_review_pending": null,
+  "interrupts": [],
+  "node_trace": [
+    {
+      "node": "supervisor",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "next=collect_evidence"
+    },
+    {
+      "node": "collect_evidence",
+      "status": "error",
+      "elapsed_seconds": 0.0,
+      "message": "2개 세부 단계 실행"
+    },
+    {
+      "node": "supervisor:evidence",
+      "status": "flagged",
+      "elapsed_seconds": 0.0,
+      "message": "증거 수집 단계에서 오류가 발생했습니다."
+    },
+    {
+      "node": "supervisor",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "next=validate_input"
+    },
+    {
+      "node": "validate_input",
+      "status": "error",
+      "elapsed_seconds": 0.0,
+      "message": "patent_id 또는 meta.registration_number가 필요합니다.; meta.title 또는 title이 필요합니다."
+    },
+    {
+      "node": "supervisor:validation",
+      "status": "flagged",
+      "elapsed_seconds": 0.0,
+      "message": "입력 검증에 실패했습니다."
+    },
+    {
+      "node": "supervisor",
+      "status": "success",
+      "elapsed_seconds": 0.0,
+      "message": "next=end"
+    }
+  ],
+  "errors": [
+    "PDF 메타데이터 추출 실패: No module named 'pdfplumber'",
+    "사업화 현황 RAG 추정 실패: No module named 'rank_bm25'"
+  ]
+}

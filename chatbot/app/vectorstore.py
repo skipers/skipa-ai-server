@@ -1,12 +1,11 @@
-"""Audit, human review, and local vectorstore refresh for chatbot data.
+"""Audit, human review, and Qdrant vectorstore refresh for chatbot data.
 
-The production chatbot can replace the local hashed vectors with an embedding
-and FAISS backend. The important contract is the workflow:
+The important contract is the workflow:
 
 1. Audit scans raw shared data and flags suspicious documents.
 2. A human reviews the findings in Swagger or the generated Markdown.
 3. Only human-approved content is saved as Markdown/JSONL.
-4. Vectorstores are rebuilt from the approved content.
+4. Qdrant vectorstores are rebuilt from the approved content.
 """
 
 from __future__ import annotations
@@ -23,7 +22,32 @@ from typing import Any, Iterable
 from fastapi import HTTPException
 
 from .config import BUSINESS_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT, WIKI_ROOT
-from .index_rotation import active_documents_path, active_manifest_path, rotation_status, write_rotating_index
+from .config import QDRANT_COLLECTION_PREFIX
+from .qdrant_store import (
+    bluegreen_collection_status,
+    bluegreen_patent_alias,
+    bluegreen_upsert_documents,
+    bluegreen_wiki_alias,
+    collection_exists,
+    collection_info,
+    patent_collection,
+    search_documents,
+    shared_patents_collection,
+    upsert_documents,
+    wiki_collection,
+)
+
+# ---------------------------------------------------------------------------
+# 컬렉션 이름 주석 (명시적 참조)
+#
+# shared_patents_collection()      → skipa_patent_docs        ← 메인 특허 검색 (parsed.json + report.json)
+# patent_collection(patent_id)     → skipa_patent_doc_{id}   ← ingestion graph로 생성된 특허별 컬렉션
+# patent_collection(None)          → skipa_patent_docs_global ← review 워크플로우 글로벌 컬렉션
+# wiki_collection(topic_slug)      → skipa_wiki_topic_{slug}  ← 분야별 wiki
+# wiki_collection(None)            → skipa_wiki_docs_global   ← 전체 wiki 통합
+# bluegreen_patent_alias()         → skipa_patent_live        ← blue-green alias (patent)
+# bluegreen_wiki_alias()           → skipa_wiki_live          ← blue-green alias (wiki)
+# ---------------------------------------------------------------------------
 from .rag.quality import is_usable_evidence, preprocess_evidence_text
 
 
@@ -409,7 +433,7 @@ def _load_reviewed_documents(patent_id: str) -> list[dict[str, Any]]:
 
 def normalize_wiki_context_files() -> dict[str, Any]:
     """Rewrite approved wiki contexts from reviewed docs into topic-based approved_context.md."""
-    from .wiki.topics import get_patent_topic, topic_approved_md, topic_vectorstore_root
+    from .wiki.topics import get_patent_topic, topic_approved_md
 
     updated = []
     for patent_id in _patent_ids():
@@ -497,46 +521,58 @@ def collect_patent_documents(patent_id: str, *, use_reviewed: bool = True) -> li
     return docs
 
 
+def _collection_for_scope(scope: str) -> str:
+    """스코프 이름 → Qdrant alias(또는 컬렉션) 이름.
+
+    모든 스코프가 blue-green으로 관리되므로 이 이름이 alias의 canonical 이름이 된다.
+    """
+    if scope == "global":
+        return bluegreen_patent_alias()          # skipa_patent_live
+    if scope == "wiki:global":
+        return bluegreen_wiki_alias()            # skipa_wiki_live
+    if scope == "shared_patents":
+        return shared_patents_collection()       # skipa_patent_docs
+    if scope.startswith("patent:"):
+        return patent_collection(scope.split(":", 1)[1])   # skipa_patent_doc_{id}
+    if scope.startswith("wiki:"):
+        return wiki_collection(scope.split(":", 1)[1])     # skipa_wiki_topic_{slug}
+    # application, business, preeval 등 → 컬렉션 이름 그대로 alias로 사용
+    return f"{QDRANT_COLLECTION_PREFIX}_{scope.replace(':', '_').replace('-', '_')}"
+
+
 def _write_vectorstore(output_dir: Path, docs: list[dict[str, Any]], *, scope: str, source: str = "unknown") -> dict[str, Any]:
-    source_paths: set[Path] = set()
+    """모든 스코프에 blue-green alias 방식 적용. 기존 컬렉션이면 자동 마이그레이션."""
     for doc in docs:
         if doc.get("page_content") and not doc.get("vector"):
             doc["vector"] = _vectorize(str(doc.get("page_content") or ""))
-        source_path = Path(str(doc.get("metadata", {}).get("source_path", "")))
-        if source_path.exists():
-            source_paths.add(source_path)
-    source_fingerprints = [
-        {
-            "path": str(source_path),
-            "size_bytes": source_path.stat().st_size,
-            "sha1": _hash_file(source_path),
-        }
-        for source_path in sorted(source_paths)
-    ]
-    manifest = {
-        "scope": scope,
-        "refreshed_at": _now(),
-        "vector_dimensions": VECTOR_DIMENSIONS,
-        "backend": "local_hashed_bow",
-        "source": source,
-        "document_count": len(docs),
-        "source_fingerprints": source_fingerprints,
-    }
-    rotation = write_rotating_index(output_dir, docs, manifest)
+
+    refreshed_at = _now()
+    extra = {"source": source, "logical_index_root": str(output_dir)}
+    alias = _collection_for_scope(scope)
+    green = f"{alias}_green"
+    blue = f"{alias}_blue"
+
+    qdrant = bluegreen_upsert_documents(
+        alias, green, blue, docs, collection_scope=scope, extra_payload=extra,
+    )
+    active_collection = str(qdrant.get("active_collection") or alias)
+
     return {
         "scope": scope,
+        "backend": "qdrant",
         "document_count": len(docs),
-        "manifest_path": rotation["manifest_path"],
-        "documents_path": rotation["documents_path"],
-        "active_slot": rotation["active_slot"],
-        "previous_active_slot": rotation["previous_active_slot"],
-        "legacy_manifest_path": rotation["legacy_manifest_path"],
-        "legacy_documents_path": rotation["legacy_documents_path"],
+        "collection": active_collection,
+        "alias": alias,
+        "active_color": qdrant.get("active_color"),
+        "previous_color": qdrant.get("previous_color"),
+        "qdrant": qdrant,
+        "refreshed_at": refreshed_at,
+        "source": source,
     }
 
 
 def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
-    from .wiki.topics import all_active_topic_slugs, topic_vectorstore_root
+    from .wiki.topics import all_active_topic_slugs, topic_approved_md
 
     patent_results = []
     global_docs: list[dict[str, Any]] = []
@@ -552,33 +588,33 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
                 excluded_by_policy[_source_type(doc) or "UNKNOWN"] += 1
         global_docs.extend(core_docs)
         patent_results.append(
-            _write_vectorstore(patent_dir / "index" / "vectorstore", core_docs, scope=f"patent:{patent_id}", source=source)
+            _write_vectorstore(patent_dir / "index" / "qdrant", core_docs, scope=f"patent:{patent_id}", source=source)
         )
 
     business_docs = _business_documents()
     for doc in business_docs:
         excluded_by_policy[_source_type(doc) or "BUSINESS"] += 1
     _write_vectorstore(
-        BUSINESS_ROOT / "index" / "vectorstore",
+        BUSINESS_ROOT / "index" / "qdrant",
         [],
         scope="business-disabled",
         source="disabled_non_core_web_routing",
     )
-    global_result = _write_vectorstore(PATENTS_ROOT / "_global" / "index" / "vectorstore", global_docs, scope="global", source=source)
+    global_result = _write_vectorstore(PATENTS_ROOT / "_global" / "index" / "qdrant", global_docs, scope="global", source=source)
 
-    # Build per-topic wiki vectorstores (blue/green)
+    # Build per-topic wiki vectorstores in Qdrant.
     topic_wiki_results = []
     all_wiki_docs: list[dict[str, Any]] = []
     for topic_slug in all_active_topic_slugs():
         topic_docs = list(_topic_wiki_documents(topic_slug))
         all_wiki_docs.extend(topic_docs)
         topic_wiki_results.append(
-            _write_vectorstore(topic_vectorstore_root(topic_slug), topic_docs, scope=f"wiki:{topic_slug}", source=source)
+            _write_vectorstore(topic_approved_md(topic_slug).parent / "qdrant", topic_docs, scope=f"wiki:{topic_slug}", source=source)
         )
 
     # Global wiki = merge of all topic wikis
     global_wiki_result = _write_vectorstore(
-        WIKI_ROOT / "_global" / "vectorstore",
+        WIKI_ROOT / "_global" / "qdrant",
         all_wiki_docs,
         scope="wiki:global",
         source=source,
@@ -595,29 +631,28 @@ def refresh_vectorstores(*, use_reviewed: bool = True) -> dict[str, Any]:
         "global_wiki_vectorstore": global_wiki_result,
         "core_source_types": sorted(CORE_SEARCH_SOURCE_TYPES),
         "excluded_from_core_search": dict(sorted(excluded_by_policy.items())),
-        "wiki_policy": "wiki is topic-based: WIKI_ROOT/{topic_slug}/vectorstore with blue/green rotation",
+        "wiki_policy": "wiki is topic-based: WIKI_ROOT/{topic_slug}/approved_context.md indexed into a dedicated Qdrant collection",
         "web_policy": "non-core data is excluded from core vectorstores; questions without original/report/wiki evidence route to web search",
     }
 
 
 def vectorstore_status() -> dict[str, Any]:
-    from .wiki.topics import all_active_topic_slugs, topic_vectorstore_root, topic_approved_md
+    from .wiki.topics import all_active_topic_slugs, topic_approved_md
 
     patent_status = []
     for patent_id in _patent_ids():
         patent_dir = PATENTS_ROOT / patent_id
-        core_root = patent_dir / "index" / "vectorstore"
-        manifest_path = active_manifest_path(core_root)
-        manifest = _read_json(manifest_path)
         reviewed_path = _reviewed_docs_path(patent_id)
+        info = collection_info(patent_collection(patent_id))
         patent_status.append(
             {
                 "patent_id": patent_id,
-                "exists": manifest_path.exists(),
-                "document_count": manifest.get("document_count", 0),
-                "refreshed_at": manifest.get("refreshed_at"),
-                "manifest_path": str(manifest_path),
-                "rotation": rotation_status(core_root),
+                "exists": bool(info.get("exists")),
+                "backend": "qdrant",
+                "collection": patent_collection(patent_id),
+                "document_count": info.get("points_count", 0),
+                "refreshed_at": None,
+                "qdrant": info,
                 "has_human_reviewed_source": reviewed_path.exists(),
                 "approved_markdown_path": str(_reviewed_md_path(patent_id)) if _reviewed_md_path(patent_id).exists() else None,
             }
@@ -625,69 +660,81 @@ def vectorstore_status() -> dict[str, Any]:
 
     topic_status = []
     for topic_slug in all_active_topic_slugs():
-        vs_root = topic_vectorstore_root(topic_slug)
-        vs_manifest = _read_json(active_manifest_path(vs_root))
         approved = topic_approved_md(topic_slug)
+        info = collection_info(wiki_collection(topic_slug))
         topic_status.append(
             {
                 "topic": topic_slug,
-                "vectorstore_exists": active_manifest_path(vs_root).exists(),
-                "document_count": vs_manifest.get("document_count", 0),
-                "refreshed_at": vs_manifest.get("refreshed_at"),
+                "vectorstore_exists": bool(info.get("exists")),
+                "backend": "qdrant",
+                "collection": wiki_collection(topic_slug),
+                "document_count": info.get("points_count", 0),
+                "refreshed_at": None,
                 "approved_md_exists": approved.exists(),
                 "approved_md_path": str(approved),
-                "rotation": rotation_status(vs_root),
+                "qdrant": info,
             }
         )
 
-    global_root = PATENTS_ROOT / "_global" / "index" / "vectorstore"
-    global_wiki_root = WIKI_ROOT / "_global" / "vectorstore"
-    global_manifest = _read_json(active_manifest_path(global_root))
-    global_wiki_manifest = _read_json(active_manifest_path(global_wiki_root))
+    global_info = collection_info(patent_collection(None))
+    global_wiki_info = collection_info(wiki_collection(None))
     return {
-        "backend": "local_hashed_bow",
-        "rotation_policy": "blue_green; readers use active_slot.json and writers build the standby slot before switching",
+        "backend": "qdrant",
+        "rotation_policy": "qdrant_collection_replace; MinIO/local cache remains source of truth",
         "core_source_types": sorted(CORE_SEARCH_SOURCE_TYPES),
-        "core_policy": "patent/report only; wiki is topic-based in WIKI_ROOT/{topic}/vectorstore",
+        "core_policy": "patent/report only; wiki is topic-based in dedicated Qdrant collections",
         "global": {
-            "exists": bool(global_manifest),
-            "document_count": global_manifest.get("document_count", 0),
-            "refreshed_at": global_manifest.get("refreshed_at"),
-            "source": global_manifest.get("source"),
-            "manifest_path": str(active_manifest_path(global_root)),
-            "rotation": rotation_status(global_root),
+            "exists": bool(global_info.get("exists")),
+            "backend": "qdrant",
+            "collection": patent_collection(None),
+            "document_count": global_info.get("points_count", 0),
+            "refreshed_at": None,
+            "qdrant": global_info,
         },
         "global_wiki": {
-            "exists": bool(global_wiki_manifest),
-            "document_count": global_wiki_manifest.get("document_count", 0),
-            "source": global_wiki_manifest.get("source"),
+            "exists": bool(global_wiki_info.get("exists")),
+            "backend": "qdrant",
+            "collection": wiki_collection(None),
+            "document_count": global_wiki_info.get("points_count", 0),
             "policy": "merged wiki from all topic vectorstores",
-            "manifest_path": str(active_manifest_path(global_wiki_root)),
-            "rotation": rotation_status(global_wiki_root),
+            "qdrant": global_wiki_info,
         },
         "topic_wiki": topic_status,
         "patents": patent_status,
     }
 
 
-def _vector_documents_path(*, patent_id: str | None, source_types: set[str] | None) -> Path:
+def _vector_collection(*, patent_id: str | None, source_types: set[str] | None) -> str:
+    """검색에 사용할 Qdrant 컬렉션 이름을 반환.
+
+    우선순위:
+    1. wiki 검색 → 분야별 wiki collection (topic_slug) 또는 wiki live alias
+    2. 특허 id 지정 → per-patent collection (있으면) → 공유 특허 collection (fallback)
+    3. 전체 검색 → blue-green live alias → global 컬렉션 → 공유 특허 collection
+    """
     requested = set(source_types or [])
     if requested and requested <= WIKI_SEARCH_SOURCE_TYPES:
         if patent_id:
-            from .wiki.topics import get_patent_topic, topic_vectorstore_root
+            from .wiki.topics import get_patent_topic
             topic = get_patent_topic(patent_id)
-            return active_documents_path(topic_vectorstore_root(topic))
-        return active_documents_path(WIKI_ROOT / "_global" / "vectorstore")
-    root = PATENTS_ROOT / patent_id / "index" / "vectorstore" if patent_id else PATENTS_ROOT / "_global" / "index" / "vectorstore"
-    return active_documents_path(root)
+            return wiki_collection(topic)
+        alias = bluegreen_wiki_alias()
+        if collection_exists(alias):
+            return alias
+        return wiki_collection(None)
 
+    if patent_id:
+        per_col = patent_collection(patent_id)
+        if collection_exists(per_col) and (collection_info(per_col).get("points_count") or 0) > 0:
+            return per_col
+        return shared_patents_collection()  # alias → 실제 데이터 있는 슬롯
 
-def _iter_vector_documents(patent_id: str | None, source_types: set[str] | None = None) -> Iterable[dict[str, Any]]:
-    docs_path = _vector_documents_path(patent_id=patent_id, source_types=source_types)
-    if not docs_path.exists():
-        return
-    for _, item in _read_jsonl(docs_path) or []:
-        yield item
+    # 전체 검색: 문서가 있는 alias 우선, 없으면 shared collection
+    for candidate in [bluegreen_patent_alias(), patent_collection(None), shared_patents_collection()]:
+        info = collection_info(candidate)
+        if info.get("exists") and (info.get("points_count") or 0) > 0:
+            return candidate
+    return shared_patents_collection()
 
 
 def _excerpt(text: str, query: str, size: int = 360) -> str:
@@ -702,68 +749,39 @@ def _excerpt(text: str, query: str, size: int = 360) -> str:
 
 
 def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int) -> dict[str, Any]:
-    query_vector = _vectorize(query)
     effective_source_types = set(source_types) if source_types is not None else set(CORE_SEARCH_SOURCE_TYPES)
-    docs_path = _vector_documents_path(patent_id=patent_id, source_types=effective_source_types)
-    if not query_vector:
-        return {
-            "query": query,
-            "mode": "local_vectorstore_search",
-            "patent_id": patent_id,
-            "top_k": top_k,
-            "source_types": sorted(effective_source_types),
-            "documents_path": str(docs_path),
-            "hit_count": 0,
-            "hits": [],
-        }
-    if not docs_path.exists():
-        return {
-            "query": query,
-            "mode": "local_vectorstore_search",
-            "patent_id": patent_id,
-            "top_k": top_k,
-            "source_types": sorted(effective_source_types),
-            "documents_path": str(docs_path),
-            "hit_count": 0,
-            "hits": [],
-        }
-    scored: list[tuple[float, dict[str, Any]]] = []
-    for doc in _iter_vector_documents(patent_id, effective_source_types) or []:
-        text = str(doc.get("page_content") or "")
-        if not is_usable_evidence(text):
-            continue
-        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        source_type = str(metadata.get("source_type", ""))
-        if effective_source_types and source_type not in effective_source_types:
-            continue
-        vector = doc.get("vector") if isinstance(doc.get("vector"), dict) else {}
-        score = _dot(query_vector, {str(key): float(value) for key, value in vector.items()})
-        if score <= 0:
-            continue
-        scored.append((score, doc))
-    scored.sort(key=lambda pair: pair[0], reverse=True)
-    hits = []
-    for score, doc in scored[:top_k]:
-        metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        text = str(doc.get("page_content") or "")
-        hits.append(
-            {
-                "patent_id": str(metadata.get("patent_id") or patent_id or ""),
-                "score": round(score, 6),
-                "excerpt": _excerpt(text, query),
-                "page_content": text,
-                "metadata": metadata,
-            }
-        )
+    collection = _vector_collection(patent_id=patent_id, source_types=effective_source_types)
+    filter_patent_id = None if patent_id and effective_source_types <= WIKI_SEARCH_SOURCE_TYPES else patent_id
+
+    # shared_patents_collection 사용 시 소스 타입을 SHARED_* 로 정규화
+    # (ORIGINAL_PDF→SHARED_PATENT, REPORT_PDF→SHARED_REPORT 등)
+    filter_source_types: set[str] | None = effective_source_types
+    if collection == shared_patents_collection():
+        try:
+            from .shared_data import _normalize_shared_source_types
+            filter_source_types = _normalize_shared_source_types(effective_source_types) or None
+        except Exception:
+            filter_source_types = None  # 필터 없이 전체 검색
+
+    result = search_documents(
+        collection,
+        query,
+        top_k=top_k,
+        patent_id=filter_patent_id,
+        source_types=filter_source_types,
+    )
+    usable_hits = [hit for hit in result.get("hits", []) if is_usable_evidence(hit.get("page_content"))]
     return {
         "query": query,
-        "mode": "local_vectorstore_search",
+        "mode": "qdrant_vectorstore_search",
         "patent_id": patent_id,
         "top_k": top_k,
         "source_types": sorted(effective_source_types),
-        "documents_path": str(docs_path),
-        "hit_count": len(hits),
-        "hits": hits,
+        "collection": collection,
+        "hit_count": len(usable_hits),
+        "hits": usable_hits,
+        "embedding_provider": result.get("embedding_provider"),
+        "embedding_error": result.get("embedding_error"),
     }
 
 
@@ -1078,7 +1096,7 @@ def _write_approved_files(
             else:
                 approved_docs.append(doc)
 
-        from .wiki.topics import get_patent_topic, topic_approved_md, topic_vectorstore_root
+        from .wiki.topics import get_patent_topic, topic_approved_md
 
         reviewed_dir = PATENTS_ROOT / patent_id / "reviewed"
         reviewed_dir.mkdir(parents=True, exist_ok=True)
@@ -1260,8 +1278,8 @@ def nightly_reindex_all() -> dict[str, Any]:
     """Run the Kubernetes CronJob reindex workflow once.
 
     This is intentionally one-shot. Kubernetes should schedule it at midnight
-    with a CronJob, while the chatbot/eval pods keep serving from the current
-    active blue/green slot until this job finishes and switches the pointer.
+    with a CronJob. MinIO/local cache is the source of truth and Qdrant
+    collections are rebuilt from that approved data.
     """
 
     started_at = _now()
@@ -1296,7 +1314,7 @@ def nightly_reindex_all() -> dict[str, Any]:
     except Exception as exc:
         application_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 
-    # Rebuild shared patent vectorstore (PROJECT_ROOT/data/)
+    # Rebuild shared patent vectorstore (PROJECT_ROOT/data/patent)
     shared_index_result: dict[str, Any] | None = None
     try:
         from .shared_data import build_shared_vectorstore
@@ -1304,9 +1322,18 @@ def nightly_reindex_all() -> dict[str, Any]:
     except Exception as exc:
         shared_index_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 
+    # Incrementally build visual-only vectorstore for newly added patent originals.
+    visual_index_result: dict[str, Any] | None = None
+    try:
+        from .visual_data import build_missing_patent_visual_indexes
+
+        visual_index_result = build_missing_patent_visual_indexes(force=False)
+    except Exception as exc:
+        visual_index_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+
     result = {
         "status": "completed",
-        "workflow": "nightly_blue_green_reindex",
+        "workflow": "nightly_qdrant_reindex",
         "started_at": started_at,
         "finished_at": _now(),
         "schedule_hint": "Kubernetes CronJob: 0 0 * * *",
@@ -1314,6 +1341,7 @@ def nightly_reindex_all() -> dict[str, Any]:
         "application_pack": application_result,
         "failed_patent_cases": failed_case_results,
         "shared_patent_index": shared_index_result,
+        "shared_patent_visual_index": visual_index_result,
         "vectorstore_status": vectorstore_status(),
     }
     log_path = WIKI_AUDITOR_ROOT / "nightly_reindex.log"
@@ -1482,7 +1510,6 @@ def auto_approve_web_draft(
     from .wiki.topics import (
         get_patent_topic,
         topic_approved_md,
-        topic_vectorstore_root,
         topic_wiki_root,
     )
 
@@ -1550,7 +1577,7 @@ def auto_approve_web_draft(
 
         topic_docs = list(_topic_wiki_documents(topic))
         _write_vectorstore(
-            topic_vectorstore_root(topic),
+            approved_md.parent / "qdrant",
             topic_docs,
             scope=f"wiki:{topic}",
             source="auto_approved_web",
@@ -1569,4 +1596,260 @@ def auto_approve_web_draft(
         "avg_relevance": round(avg_relevance, 4),
         "result_count": result_count,
         "reason": "high_relevance" if can_auto_approve else f"low_relevance ({avg_relevance:.2f} < {WIKI_AUTO_APPROVE_MIN_RELEVANCE})",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Blue-green hourly refresh (무중단 글로벌 색인 교체)
+# ---------------------------------------------------------------------------
+
+def full_rebuild_vectorstores() -> dict[str, Any]:
+    """모든 특허·wiki Qdrant 컬렉션을 삭제하고 처음부터 재구축.
+
+    삭제 대상 (application/pre-eval/visual 은 건드리지 않음):
+      - skipa_patent_docs, skipa_patent_docs_global
+      - skipa_wiki_docs_global, skipa_wiki_topic_* 컬렉션
+      - skipa_patent_live*, skipa_wiki_live* (blue-green 슬롯)
+      - per-patent 컬렉션 (skipa_patent_doc_*)
+
+    재구축 순서:
+      1. shared 특허 컬렉션 (data/patent/ → skipa_patent_docs)
+      2. wiki 컬렉션 (approved_context.md → skipa_wiki_topic_*)
+      3. global wiki 컬렉션 (skipa_wiki_docs_global)
+    """
+    from urllib.parse import quote as _url_quote
+    from .qdrant_store import _json_request, _aliases_list, QDRANT_COLLECTION_PREFIX
+
+    started_at = _now()
+    deleted: list[str] = []
+    errors: list[str] = []
+
+    # 삭제할 컬렉션 패턴
+    _DELETE_PATTERNS = (
+        f"{QDRANT_COLLECTION_PREFIX}_patent_docs",        # shared main
+        f"{QDRANT_COLLECTION_PREFIX}_patent_docs_global", # review global
+        f"{QDRANT_COLLECTION_PREFIX}_wiki_docs_global",   # wiki global
+        f"{QDRANT_COLLECTION_PREFIX}_patent_live",        # blue-green alias slots
+        f"{QDRANT_COLLECTION_PREFIX}_wiki_live",          # blue-green alias slots
+        f"{QDRANT_COLLECTION_PREFIX}_patent_doc_",        # per-patent prefix
+        f"{QDRANT_COLLECTION_PREFIX}_wiki_topic_",        # per-topic wiki prefix
+    )
+
+    # 기존 컬렉션 목록 조회
+    try:
+        resp = _json_request("GET", "/collections", None)
+        existing = [c.get("name", "") for c in (resp.get("result") or {}).get("collections") or []]
+    except Exception as exc:
+        return {"status": "error", "error": f"컬렉션 목록 조회 실패: {exc}"}
+
+    # alias 삭제 (blue-green alias)
+    for alias_item in _aliases_list():
+        alias_name = str(alias_item.get("alias_name") or "")
+        if any(alias_name.startswith(p) for p in _DELETE_PATTERNS):
+            try:
+                _json_request("POST", "/collections/aliases", {
+                    "actions": [{"delete_alias": {"alias_name": alias_name}}]
+                })
+                deleted.append(f"alias:{alias_name}")
+            except Exception as exc:
+                errors.append(f"alias:{alias_name} 삭제 실패: {exc}")
+
+    # 컬렉션 삭제
+    for col in existing:
+        if any(col.startswith(p) or col == p.rstrip("_") for p in _DELETE_PATTERNS):
+            try:
+                _json_request("DELETE", f"/collections/{_url_quote(col, safe='')}", None)
+                deleted.append(f"collection:{col}")
+            except Exception as exc:
+                errors.append(f"collection:{col} 삭제 실패: {exc}")
+
+    # 재구축 1: shared 특허 컬렉션
+    shared_result: dict[str, Any] = {}
+    try:
+        from .shared_data import build_shared_vectorstore
+        shared_result = build_shared_vectorstore()
+    except Exception as exc:
+        shared_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+        errors.append(f"shared 특허 컬렉션 재구축 실패: {exc}")
+
+    # 재구축 2: wiki 컬렉션 (분야별)
+    from .wiki.topics import all_active_topic_slugs, topic_approved_md
+    topic_results: list[dict[str, Any]] = []
+    all_wiki_docs: list[dict[str, Any]] = []
+    for topic_slug in all_active_topic_slugs():
+        topic_docs = list(_topic_wiki_documents(topic_slug))
+        all_wiki_docs.extend(topic_docs)
+        try:
+            r = _write_vectorstore(
+                topic_approved_md(topic_slug).parent / "qdrant",
+                topic_docs,
+                scope=f"wiki:{topic_slug}",
+                source="full_rebuild",
+            )
+            topic_results.append({"topic": topic_slug, **r})
+        except Exception as exc:
+            topic_results.append({"topic": topic_slug, "status": "error", "error": str(exc)})
+            errors.append(f"wiki:{topic_slug} 재구축 실패: {exc}")
+
+    # 재구축 3: global wiki (blue-green)
+    global_wiki_result: dict[str, Any] = {}
+    try:
+        global_wiki_result = _write_vectorstore(
+            WIKI_ROOT / "_global" / "qdrant",
+            all_wiki_docs,
+            scope="wiki:global",
+            source="full_rebuild",
+        )
+    except Exception as exc:
+        global_wiki_result = {"status": "error", "error": str(exc)}
+        errors.append(f"wiki:global 재구축 실패: {exc}")
+
+    result = {
+        "status": "completed" if not errors else "completed_with_errors",
+        "workflow": "full_rebuild_vectorstores",
+        "started_at": started_at,
+        "finished_at": _now(),
+        "deleted": deleted,
+        "errors": errors,
+        "shared_patents": {
+            "collection": shared_patents_collection(),
+            "patent_count": shared_result.get("patent_count"),
+            "document_count": shared_result.get("document_count"),
+            "status": shared_result.get("status", "built"),
+        },
+        "wiki_topics": topic_results,
+        "wiki_global": {
+            "collection": global_wiki_result.get("collection"),
+            "document_count": global_wiki_result.get("document_count"),
+            "qdrant": global_wiki_result.get("qdrant"),
+        },
+    }
+    _save_bluegreen_status({"type": "full_rebuild", **result})
+    return result
+
+
+def _bluegreen_log_path() -> Path:
+    return WIKI_AUDITOR_ROOT / "bluegreen_status.json"
+
+
+def _save_bluegreen_status(data: dict[str, Any]) -> None:
+    """마지막 blue-green 실행 결과를 JSON 파일로 영속화."""
+    path = _bluegreen_log_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _load_bluegreen_status() -> dict[str, Any]:
+    path = _bluegreen_log_path()
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def bluegreen_refresh_global() -> dict[str, Any]:
+    """글로벌 특허·wiki 컬렉션만 blue-green으로 무중단 재색인.
+
+    nightly_reindex_all()의 전체 워크플로(application pack, visual index 등)와 달리
+    글로벌 검색 컬렉션만 교체하므로 시간이 짧아 매시간 실행에 적합합니다.
+    """
+    from .wiki.topics import all_active_topic_slugs, topic_approved_md
+
+    started_at = _now()
+    source = "bluegreen_hourly"
+
+    # 전체 특허 문서 수집
+    global_docs: list[dict[str, Any]] = []
+    patent_results = []
+    for patent_id in _patent_ids():
+        docs = collect_patent_documents(patent_id, use_reviewed=True)
+        core_docs = [doc for doc in docs if _is_core_search_doc(doc)]
+        global_docs.extend(core_docs)
+        patent_results.append({"patent_id": patent_id, "doc_count": len(core_docs)})
+
+    # 글로벌 특허 컬렉션 blue-green 교체
+    global_patent_result = _write_vectorstore(
+        PATENTS_ROOT / "_global" / "index" / "qdrant",
+        global_docs,
+        scope="global",
+        source=source,
+    )
+
+    # 전체 wiki 문서 수집 + 글로벌 wiki 컬렉션 blue-green 교체
+    all_wiki_docs: list[dict[str, Any]] = []
+    for topic_slug in all_active_topic_slugs():
+        all_wiki_docs.extend(list(_topic_wiki_documents(topic_slug)))
+
+    global_wiki_result = _write_vectorstore(
+        WIKI_ROOT / "_global" / "qdrant",
+        all_wiki_docs,
+        scope="wiki:global",
+        source=source,
+    )
+
+    result: dict[str, Any] = {
+        "status": "completed",
+        "workflow": "bluegreen_hourly_refresh",
+        "started_at": started_at,
+        "finished_at": _now(),
+        "patent_doc_count": len(global_docs),
+        "wiki_doc_count": len(all_wiki_docs),
+        "global_patent": {
+            "collection": global_patent_result.get("collection"),
+            "document_count": global_patent_result.get("document_count"),
+            "active_color": (global_patent_result.get("qdrant") or {}).get("active_color"),
+            "alias": (global_patent_result.get("qdrant") or {}).get("alias"),
+        },
+        "global_wiki": {
+            "collection": global_wiki_result.get("collection"),
+            "document_count": global_wiki_result.get("document_count"),
+            "active_color": (global_wiki_result.get("qdrant") or {}).get("active_color"),
+            "alias": (global_wiki_result.get("qdrant") or {}).get("alias"),
+        },
+    }
+    _save_bluegreen_status(result)
+    return result
+
+
+def bluegreen_reindex_status() -> dict[str, Any]:
+    """모든 blue-green alias의 현재 상태와 마지막 실행 기록을 반환."""
+    from .qdrant_store import _aliases_list
+
+    last_run = _load_bluegreen_status()
+    last_run_at = last_run.get("started_at")
+    next_run_at: str | None = None
+    if last_run_at:
+        try:
+            from datetime import datetime, timedelta
+            next_dt = datetime.fromisoformat(last_run_at) + timedelta(hours=1)
+            next_run_at = next_dt.isoformat(timespec="seconds")
+        except Exception:
+            pass
+
+    # 등록된 모든 alias → _green/_blue 슬롯 상태 조회
+    aliases_raw = _aliases_list()
+    collections: dict[str, Any] = {}
+    for item in aliases_raw:
+        alias_name = str(item.get("alias_name") or "")
+        target = str(item.get("collection_name") or "")
+        # _green/_blue 슬롯은 제외 (alias만 표시)
+        if alias_name.endswith(("_green", "_blue")):
+            continue
+        green = f"{alias_name}_green"
+        blue = f"{alias_name}_blue"
+        collections[alias_name] = bluegreen_collection_status(alias_name, green, blue)
+
+    return {
+        "strategy": "blue_green_alias_all",
+        "schedule": "every_1_hour",
+        "last_run_at": last_run_at,
+        "next_run_at": next_run_at,
+        "last_run_status": last_run.get("status"),
+        "managed_collections": len(collections),
+        "collections": collections,
     }

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>출원 공식 자료 로컬 파일 목록</title>
+  <style>
+    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #f7f7f4; color: #202124; }
+    header { position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #dedbd2; padding: 18px 24px 16px; }
+    h1 { margin: 0 0 10px; font-size: 22px; font-weight: 750; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: #5f6368; }
+    .toolbar { display: flex; gap: 8px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+    input, select { height: 36px; border: 1px solid #c9c5ba; background: #fff; border-radius: 6px; padding: 0 10px; font-size: 14px; }
+    input { min-width: 280px; flex: 1; }
+    main { padding: 18px 24px 32px; }
+    .hint { margin: 0 0 14px; color: #4b4f55; font-size: 14px; line-height: 1.5; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #dedbd2; }
+    th, td { border-bottom: 1px solid #ebe8df; padding: 10px 12px; text-align: left; vertical-align: middle; font-size: 14px; }
+    th { position: sticky; top: 112px; background: #efede7; font-size: 12px; color: #4b4f55; text-transform: uppercase; letter-spacing: .02em; z-index: 1; }
+    tr:hover td { background: #fbfaf7; }
+    td.num { width: 54px; color: #6f746f; font-variant-numeric: tabular-nums; }
+    td span { display: block; margin-top: 3px; color: #6f746f; font-size: 12px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .file code { word-break: break-all; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; height: 30px; padding: 0 10px; border: 1px solid #9b8d67; border-radius: 6px; color: #312b1b; text-decoration: none; background: #fff7df; font-weight: 650; }
+    a { color: #2457a6; }
+    section { margin-top: 22px; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    @media (max-width: 820px) { header { padding: 14px; } main { padding: 14px; overflow-x: auto; } table { min-width: 920px; } th { top: 134px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>출원 공식 자료 로컬 파일 목록</h1>
+    <div class="meta"><div>성공 파일 3개</div><div>보기용 폴더: <code>downloads/named</code></div><div>원본 폴더: <code>downloads/raw</code></div></div>
+    <div class="toolbar"><input id="q" type="search" placeholder="파일명, 문서명, SRC 번호 검색"><select id="kind"><option value="">전체 형식</option><option value="PDF">PDF</option><option value="HTML">HTML</option><option value="HWP">HWP</option><option value="ZIP/HWPX">HWPX</option><option value="EXE">EXE</option></select></div>
+  </header>
+  <main>
+    <p class="hint">아래의 <strong>열기</strong>를 누르면 <code>named/</code> 폴더의 보기용 파일이 열립니다. HWP/HWPX는 한컴오피스가 설치되어 있어야 정상적으로 열립니다.</p>
+    <table><thead><tr><th>번호</th><th>문서명</th><th>형식</th><th>크기</th><th>열기</th><th>로컬 파일명</th><th>원문</th></tr></thead><tbody id="rows">
+        <tr data-kind="HTML" data-text="특허로 특허출원가이드 src-001 001_src-001_특허로 특허출원가이드.html"><td class="num">001</td><td><strong>특허로 특허출원가이드</strong><span>SRC-001</span></td><td><code>HTML</code></td><td>118.9 KB</td><td><a class="button" href="named/001_SRC-001_%ED%8A%B9%ED%97%88%EB%A1%9C%20%ED%8A%B9%ED%97%88%EC%B6%9C%EC%9B%90%EA%B0%80%EC%9D%B4%EB%93%9C.html">열기</a></td><td class="file"><code>001_SRC-001_특허로 특허출원가이드.html</code></td><td><a href="https://patent.go.kr/smart/jsp/ka/menu/guide/main/GuideMain0207.do" target="_blank" rel="noopener">원문 URL</a></td></tr>
+        <tr data-kind="HTML" data-text="특허고객번호부여신청 src-002 002_src-002_특허고객번호부여신청.html"><td class="num">002</td><td><strong>특허고객번호부여신청</strong><span>SRC-002</span></td><td><code>HTML</code></td><td>194.1 KB</td><td><a class="button" href="named/002_SRC-002_%ED%8A%B9%ED%97%88%EA%B3%A0%EA%B0%9D%EB%B2%88%ED%98%B8%EB%B6%80%EC%97%AC%EC%8B%A0%EC%B2%AD.html">열기</a></td><td class="file"><code>002_SRC-002_특허고객번호부여신청.html</code></td><td><a href="https://patent.go.kr/smart/jsp/ka/prestep/codeapp/CodeAppView.do" target="_blank" rel="noopener">원문 URL</a></td></tr>
+        <tr data-kind="HTML" data-text="인증서 사용등록 src-003 003_src-003_인증서 사용등록.html"><td class="num">003</td><td><strong>인증서 사용등록</strong><span>SRC-003</span></td><td><code>HTML</code></td><td>104.9 KB</td><td><a class="button" href="named/003_SRC-003_%EC%9D%B8%EC%A6%9D%EC%84%9C%20%EC%82%AC%EC%9A%A9%EB%93%B1%EB%A1%9D.html">열기</a></td><td class="file"><code>003_SRC-003_인증서 사용등록.html</code></td><td><a href="https://patent.go.kr/smart/jsp/ka/pki/kipocertmgr/KCertMgrView.do" target="_blank" rel="noopener">원문 URL</a></td></tr>
+    </tbody></table>
+    
+  </main>
+  <script>
+    const q = document.getElementById('q');
+    const kind = document.getElementById('kind');
+    const rows = Array.from(document.querySelectorAll('#rows tr'));
+    function applyFilter() {
+      const needle = q.value.trim().toLowerCase();
+      const selected = kind.value;
+      for (const row of rows) {
+        const textOk = !needle || row.dataset.text.includes(needle);
+        const kindOk = !selected || row.dataset.kind === selected;
+        row.style.display = textOk && kindOk ? '' : 'none';
+      }
+    }
+    q.addEventListener('input', applyFilter);
+    kind.addEventListener('change', applyFilter);
+  </script>
+</body>
+</html>

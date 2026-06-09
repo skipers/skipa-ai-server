@@ -100,10 +100,17 @@ class PreprocessRunRequest(BaseModel):
         "auto_audit_refresh",
         "audit",
         "application_preprocess",
+        "visual_index",
         "nightly_reindex",
         "shared_index",
         "all",
-    ] = Field("refresh_vectorstore", description="실행할 전처리/리프레시 작업. shared_index: PROJECT_ROOT/data/ 특허 색인")
+    ] = Field(
+        "refresh_vectorstore",
+        description=(
+            "실행할 전처리/리프레시 작업. shared_index: PROJECT_ROOT/data/ 특허 색인, "
+            "visual_index: 신규 특허 원본 PDF의 표/도면/이미지만 Qdrant에 증분 색인"
+        ),
+    )
     use_reviewed: bool = Field(True, description="vectorstore refresh 시 승인 데이터만 사용할지 여부")
     refresh_application: bool = Field(True, description="all/application_preprocess 모드에서 출원 공식팩 index도 갱신")
 
@@ -120,18 +127,18 @@ class FeedbackRequest(BaseModel):
 
 class ReindexRequest(BaseModel):
     patent_id: str
-    force_rebuild: bool = Field(True, description="기존 FAISS가 있어도 전처리/인덱스를 다시 생성")
+    force_rebuild: bool = Field(True, description="기존 인덱스가 있어도 Qdrant 인덱스를 다시 생성")
     refresh_reviewed_vectorstore: bool = Field(
         False,
-        description="레거시 FAISS 재생성 후 사람 승인 데이터 기반 local vectorstore도 함께 갱신",
+        description="사람 승인 데이터 기반 Qdrant vectorstore도 함께 갱신",
     )
 
 
 class BusinessReindexRequest(BaseModel):
-    force_rebuild: bool = Field(True, description="기존 FAISS가 있어도 다시 생성")
+    force_rebuild: bool = Field(True, description="기존 인덱스가 있어도 Qdrant 인덱스를 다시 생성")
     refresh_reviewed_vectorstore: bool = Field(
         False,
-        description="레거시 FAISS 재생성 후 사람 승인 데이터 기반 local vectorstore도 함께 갱신",
+        description="사람 승인 데이터 기반 Qdrant vectorstore도 함께 갱신",
     )
 
 

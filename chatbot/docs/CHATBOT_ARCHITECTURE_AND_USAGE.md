@@ -7,9 +7,10 @@
 | 영역 | 역할 | 핵심 데이터 |
 | --- | --- | --- |
 | `eval_logic` | 특허 PDF/JSON을 표준 입력으로 정규화하고 평가 보고서 JSON을 생성합니다. | `eval_logic/data/api_test`, `eval_logic/data/runtime_artifacts`, 특허별 보고서 |
-| 특허 챗봇 | 특허 원문, 보고서, 승인 wiki, web 검색 근거로 질의응답합니다. | `chatbot/data/mapped_patent_reports/<patent_id>` |
+| 특허 챗봇 | MinIO에서 동기화한 특허 원문, 보고서, 승인 wiki, web 검색 근거로 질의응답합니다. | `data/patent/<patent_id>`, Qdrant `skipa_shared_patents`, `data/wiki` |
 | 출원 도우미 | 공식 출원 자료팩과 선택 실패특허 case를 기준으로 출원/거절/실패 분석을 답변합니다. | `chatbot/data/patent_application_official_pack` |
-| wiki 감사 | web 검색 draft와 wiki 보강 자료를 감사하고 승인 데이터만 vectorstore에 반영합니다. | `wiki/approved_context.md`, `wiki/vectorstore` |
+| 출원 전 사전평가 | 출원 예정 아이디어/기술설명/청구항으로 사전평가 보고서를 만들고 케이스별 챗봇을 제공합니다. | `data/pre_application_cases` |
+| wiki 감사 | web 검색 draft와 wiki 보강 자료를 감사하고 승인 데이터만 vectorstore에 반영합니다. | `data/wiki/<topic_slug>/approved_context.md`, `data/wiki/<topic_slug>/vectorstore` |
 | UI/Swagger | 챗봇, 출원도우미, 감사, 전처리, workflow를 직접 테스트합니다. | `/ui`, `/docs` |
 
 ## 2. 전체 아키텍처
@@ -34,7 +35,7 @@ flowchart TB
     PROUTER[LangGraph Router<br/>질문 의도/검색범위/답변형식 결정]
     CHIST[chat_history<br/>이전 질문 문맥]
     CORE[Core Retrieval<br/>원문 PDF + 보고서]
-    WG[Wiki Gate<br/>외부검색 전 특허별 승인 wiki 확인]
+    WG[Wiki Gate<br/>외부검색 전 분야별 승인 wiki 확인]
     WEB[Web Search<br/>Tavily 등]
     GEN[Answer Generator<br/>OpenAI 답변 생성]
     QMET[Quality Metrics<br/>retrieval/keyword/semantic score]
@@ -48,8 +49,15 @@ flowchart TB
     AGEN[출원 답변 생성<br/>원인/수정방향/등록전략]
   end
 
+  subgraph PRE[출원 전 사전평가]
+    PREIN[아이디어/기술설명/청구항]
+    PREWF[Pre-eval LangGraph<br/>사전평가 보고서 생성]
+    PRECASE[case report + vectorstore]
+    PREANS[사전평가 챗봇<br/>보강방향/거절가능성/다음액션]
+  end
+
   subgraph AUDIT[wiki 감사]
-    DRAFT[web_search_drafts]
+    DRAFT[web_search_data]
     AUD[run_audit<br/>나쁜 데이터 후보]
     HUMAN[사람 검토 또는 자동 제외]
     APPROVE[approved_context.md]
@@ -57,15 +65,17 @@ flowchart TB
   end
 
   subgraph DATA[데이터 저장소]
-    MP[mapped_patent_reports/<patent_id>]
-    PDF[original/pdf]
-    INPUT[original/input]
-    REPORT[reports/json]
-    CHUNK[extracted/all_chunks.jsonl]
-    VEC[index/vectorstore]
-    WIKI[wiki/vectorstore]
+    MINIO[MinIO s3://skipa/patent]
+    SHARED[data/patent/patent_id]
+    PDF[patent.pdf]
+    INPUT[parsed.json]
+    REPORT[report.json]
+    VEC[Qdrant<br/>skipa_shared_patents]
+    WIKI[data/wiki/topic/vectorstore]
     APACK[patent_application_official_pack]
-    FAILED[failed_patent/<registration>_failed]
+    FAILED[failed_patent/registration_failed]
+    ART[chatbot/data/artifacts]
+    PREEVAL[data/pre_application_cases]
     EDATA[eval_logic/data<br/>api_test/runtime_artifacts]
   end
 
@@ -73,6 +83,7 @@ flowchart TB
   U --> EAPI
   CAPI --> PROUTER
   CAPI --> AROUTER
+  CAPI --> PREWF
 
   EAPI --> WF
   WF --> N1 --> N2 --> N3 --> N4 --> N5 --> N6
@@ -84,7 +95,6 @@ flowchart TB
   CORE --> PDF
   CORE --> INPUT
   CORE --> REPORT
-  CORE --> CHUNK
   CORE --> VEC
   PROUTER --> WG
   WG --> WIKI
@@ -106,14 +116,19 @@ flowchart TB
   CASE --> AGEN
   WEB --> AGEN
 
+  PREIN --> PREWF --> PRECASE
+  PRECASE --> PREEVAL
+  PRECASE --> PREANS
+  WEB --> PREANS
+
   DRAFT --> AUD --> HUMAN --> APPROVE --> WIDX --> WIKI
 
-  MP --> PDF
-  MP --> INPUT
-  MP --> REPORT
-  MP --> CHUNK
-  MP --> VEC
-  MP --> WIKI
+  MINIO -->|startup/UI sync| SHARED
+  SHARED --> PDF
+  SHARED --> INPUT
+  SHARED --> REPORT
+  SHARED --> VEC
+  SHARED --> WIKI
   APACK --> FAILED
 ```
 
@@ -129,13 +144,13 @@ flowchart TD
   C -->|청구항/명세서/기술내용| CORE[원문 chunk 검색]
   C -->|평가/유지/리스크/점수| REPORT[보고서 chunk 검색]
   C -->|용어 설명/후속 질문| MIX[원문+보고서+이전 대화]
-  C -->|시장/최신/외부정보| WIKI[특허별 wiki gate]
+  C -->|시장/최신/외부정보| WIKI[분야별 wiki gate]
   C -->|불분명| CLARIFY[재질문 또는 내부검색 우선]
 
   WIKI --> WS{승인 wiki 근거 충분?}
   WS -->|예| WANS[wiki 근거 사용]
   WS -->|아니오| WEB[web 검색]
-  WEB --> DRAFT[web_search_drafts 저장]
+  WEB --> DRAFT[web_search_data 저장]
 
   CORE --> GEN[OpenAI 답변 생성]
   REPORT --> GEN
@@ -165,7 +180,7 @@ flowchart TD
 flowchart TD
   START[출원 도우미 시작] --> NEED{실패특허 case 선택됨?}
   NEED -->|아니오| UPLOAD[실패특허 원본 PDF 업로드 요청]
-  UPLOAD --> CASEMAKE[case 생성<br/><registration>_failed]
+  UPLOAD --> CASEMAKE[case 생성<br/>registration_failed]
   CASEMAKE --> CASEIDX[case vectorstore 생성]
   NEED -->|예| Q[질문 입력]
   CASEIDX --> Q
@@ -215,11 +230,11 @@ wiki는 외부검색 결과를 바로 정답 근거로 고정하지 않기 위�
 
 ```mermaid
 flowchart TD
-  WQ[외부정보 질문] --> GATE[특허별 wiki vectorstore 검색]
+  WQ[외부정보 질문] --> GATE[특허가 속한 분야 wiki 검색]
   GATE --> OK{충분한 승인 근거?}
   OK -->|예| ANSWER[승인 wiki 근거로 답변]
   OK -->|아니오| WEB[web 검색 실행]
-  WEB --> DRAFT[wiki/web_search_drafts/*.md 저장]
+  WEB --> DRAFT[data/wiki/topic/web_search_data/*.md 저장]
   DRAFT --> AUDIT[감사 실행]
   AUDIT --> BAD[나쁜 데이터/주의 데이터 후보]
   BAD --> REVIEW[사람 검토 또는 자동 제외]
@@ -361,6 +376,19 @@ CMP Pad 물류 관리 시스템의 유지 판단 근거를 알려줘
 | `POST /api/v1/wiki/agent/run` | wiki LangGraph 직접 실행 |
 | `GET /api/v1/wiki/agent/mermaid` | wiki 감사 Mermaid |
 
+### 출원 전 사전평가
+
+| API | 기능 |
+| --- | --- |
+| `POST /api/v1/pre-eval/evaluate` | 출원 전 아이디어/청구항 사전평가 및 케이스 생성 |
+| `GET /api/v1/pre-eval/cases` | 사전평가 케이스 목록 |
+| `GET /api/v1/pre-eval/cases/{case_id}` | 케이스 상태 및 vectorstore 정보 |
+| `GET /api/v1/pre-eval/cases/{case_id}/report` | 사전평가 보고서 JSON |
+| `POST /api/v1/pre-eval/cases/{case_id}/index/refresh` | 케이스 vectorstore 재빌드 |
+| `POST /api/v1/pre-eval/cases/{case_id}/chat` | 사전평가 보고서 기반 챗봇 |
+| `POST /api/v1/pre-eval/cases/{case_id}/search` | 케이스 vectorstore 직접 검색 |
+| `GET /api/v1/pre-eval/graph/mermaid` | 사전평가 workflow Mermaid |
+
 ### eval_logic 보고서 API
 
 | API | 기능 |
@@ -411,13 +439,14 @@ bash chatbot/scripts/preprocess_chatbot_data.sh --mode application-case-generate
 1. `eval_logic`은 특허 입력을 평가 보고서로 만드는 보고서 생성 에이전트입니다.
 2. `chatbot`은 생성된 보고서와 원문을 다시 검색해서 사용자가 이해할 수 있는 답변으로 바꿉니다.
 3. 특허 챗봇은 원문/보고서/core vectorstore를 기준으로 답하고, 외부정보가 필요할 때만 wiki gate와 web 검색을 사용합니다.
-4. wiki는 특허별로 분리되어 있어 전체 vectorstore를 오염시키지 않습니다.
+4. wiki는 분야별로 분리되어 있어 원문/보고서 vectorstore를 오염시키지 않습니다.
 5. wiki draft는 감사 후 승인된 내용만 vectorstore에 들어갑니다.
 6. 출원 도우미는 공용 공식팩 index와 선택 실패특허 case index를 함께 사용합니다.
 7. 실패특허는 `<registration>_failed` 폴더 단위로 격리되어 다른 실패특허와 섞이지 않습니다.
 8. 실패특허 보고서는 생성 후 해당 case의 `reports/latest_report.*`에 저장되고 그 case index만 갱신됩니다.
 9. 답변은 본문, 근거 카드, 품질 지표 순서로 제공됩니다.
 10. Swagger에서 전처리, 재색인, 감사, 보고서 생성, 출원 도우미 chat API를 모두 테스트할 수 있습니다.
+11. 챗봇 테스트 산출물은 `chatbot/data/artifacts`에만 저장하고 루트 `data/artifacts`는 사용하지 않습니다.
 
 ## 10. 점검 체크리스트
 

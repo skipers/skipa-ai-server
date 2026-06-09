@@ -290,7 +290,15 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
     text = query.lower()
     multi_categories: list[str] = []
 
-    if _is_failed_case_diagnostic_question(text):
+    explicit_prior_art = any(term in text for term in ["선행기술", "kipris", "검색", "cpc", "ipc", "유사"])
+    explicit_drafting = any(term in text for term in ["명세서", "청구항", "청구범위", "작성", "권리범위"])
+    if explicit_prior_art:
+        intent = "prior_art_search"
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
+    elif explicit_drafting:
+        intent = "drafting_claims"
+        source_plan = SOURCE_PLAN_BY_INTENT[intent]
+    elif _is_failed_case_diagnostic_question(text):
         intent = "failed_case_evaluation"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in REJECTION_TERMS):
@@ -302,10 +310,10 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
     elif _is_initial_application_question(text):
         intent = "application_procedure"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
-    elif any(term in text for term in ["선행기술", "kipris", "검색", "cpc", "ipc", "유사"]):
+    elif explicit_prior_art:
         intent = "prior_art_search"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
-    elif any(term in text for term in ["명세서", "청구항", "청구범위", "작성", "권리범위"]):
+    elif explicit_drafting:
         intent = "drafting_claims"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
     elif any(term in text for term in ["수수료", "비용", "감면", "등록료", "심사청구료"]):
@@ -318,9 +326,15 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
         intent = "application_procedure"
         source_plan = SOURCE_PLAN_BY_INTENT[intent]
 
-    needs_table = any(term in text for term in ["표", "비교", "체크리스트", "단계", "정리", "순서"])
-    needs_diagram = any(term in text for term in ["다이어그램", "흐름", "프로세스", "그림"])
-    if needs_table and needs_diagram:
+    needs_table = any(term in text for term in ["표", "비교", "체크리스트", "단계", "정리", "순서", "리스크", "원인"])
+    needs_diagram = any(term in text for term in ["다이어그램", "흐름", "프로세스", "그림", "워크플로우"])
+    needs_chart = any(term in text for term in ["그래프", "차트", "도표", "추이", "비율", "분포", "점수"])
+    wants_visual = any(term in text for term in ["보기 쉽게", "한눈에", "시각", "시각화", "도식", "도표"])
+    if needs_chart and (needs_table or needs_diagram or wants_visual):
+        answer_format = "visual_summary"
+    elif needs_chart:
+        answer_format = "chart"
+    elif needs_table and needs_diagram:
         answer_format = "table_and_diagram"
     elif needs_table:
         answer_format = "checklist_table"
@@ -332,7 +346,7 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
     # 복합 의도 감지 (짧은 쿼리에서 2개 이상 카테고리 → 보기 제시)
     is_short_ambiguous = len(text.strip()) <= 8 and any(term in text for term in FOLLOWUP_TERMS)
     multi_categories = _detect_multi_application_intent(text)
-    is_multi = len(multi_categories) >= 2 and len(query.strip()) <= 40
+    is_multi = len(multi_categories) >= 2 and len(query.strip()) <= 16
 
     needs_clarification = is_short_ambiguous or is_multi
     if needs_clarification and is_multi:
@@ -366,12 +380,23 @@ def _rule_application_intent(query: str) -> dict[str, Any]:
 
 def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, Any]:
     repaired = dict(intent)
+    rule_intent = _rule_application_intent(query)
     intent_name = str(repaired.get("intent") or "application_procedure")
     if intent_name not in SOURCE_PLAN_BY_INTENT:
-        intent_name = _rule_application_intent(query)["intent"]
+        intent_name = rule_intent["intent"]
         repaired["intent"] = intent_name
     text = query.lower()
-    if _is_failed_case_diagnostic_question(text):
+    explicit_prior_art = any(term in text for term in ["선행기술", "kipris", "검색", "cpc", "ipc", "유사"])
+    explicit_drafting = any(term in text for term in ["명세서", "청구항", "청구범위", "작성", "권리범위"])
+    if explicit_prior_art:
+        intent_name = "prior_art_search"
+        repaired["intent"] = intent_name
+        repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
+    elif explicit_drafting:
+        intent_name = "drafting_claims"
+        repaired["intent"] = intent_name
+        repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
+    elif _is_failed_case_diagnostic_question(text):
         intent_name = "failed_case_evaluation"
         repaired["intent"] = intent_name
         repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
@@ -384,6 +409,10 @@ def _repair_application_intent(query: str, intent: dict[str, Any]) -> dict[str, 
         repaired["intent"] = intent_name
         repaired["method"] = f"{repaired.get('method', 'llm')}_repaired"
     repaired["source_plan"] = SOURCE_PLAN_BY_INTENT[intent_name]
+    if repaired.get("needs_clarification") and not rule_intent.get("needs_clarification"):
+        repaired["needs_clarification"] = False
+        repaired["clarification_question"] = ""
+        repaired["reason"] = f"{repaired.get('reason') or ''} / 선택된 실패특허 케이스 근거가 있어 과도한 재질문을 해제"
     if repaired.get("needs_clarification"):
         repaired["needs_external"] = False
         repaired["source_plan"] = SOURCE_PLAN_BY_INTENT.get(intent_name, SOURCE_PLAN_BY_INTENT["application_procedure"])
@@ -1317,14 +1346,16 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
 {_external_context_for_prompt(state.get("external_context") or {})}
 
 답변 규칙:
-- 서론 없이 핵심 답변으로 바로 시작합니다 (1-3문장).
-- 출원 절차: 구체적인 단계와 기한을 포함합니다.
-- 거절 대응: 신규성/진보성/기재불비 유형별로 간결하게 구분합니다.
-- 실패 요인 분석: 핵심 원인 3개 이내로 정리합니다.
+- 서론 없이 핵심 결론으로 바로 시작합니다.
+- 질문이 상세 분석/원인 분석/보완 방향이면 짧게 줄이지 말고 단계별로 충분히 설명합니다.
+- 출원 절차: 준비 순서, 제출물, 판단 포인트, 기한/주의 흐름을 포함합니다.
+- 거절 대응: 신규성/진보성/기재불비/절차 문제를 구분하고, 각각 보정 방향과 의견서 주장 방향을 설명합니다.
+- 실패 요인 분석: 원인, 해당 근거, 보완 액션, 재출원/보정 전략을 연결합니다.
 - 실패특허 케이스는 현재 선택된 케이스({state.get("failed_patent_id") or "없음"})의 근거만 사용합니다.
 - 외부 근거는 공식팩 근거를 보강할 때만 사용합니다.
-- 표가 필요하면 Markdown 표를 포함합니다.
-- 다이어그램이 필요하면 Mermaid flowchart를 포함합니다.
+- 표·다이어그램·도표는 실용적으로 자유롭게 사용합니다. 절차/처리 흐름은 Mermaid flowchart, 원인/대응/우선순위는 Markdown 표나 quadrantChart, 점수/비율/추이는 Mermaid pie 또는 xychart를 사용할 수 있습니다.
+- 근거에 수치가 없으면 차트를 만들지 말고 표나 체크리스트로 대체합니다.
+- 시각 자료는 1-2개만 사용하고, 바로 아래에 "해석:" 문장으로 사용자가 무엇을 봐야 하는지 설명합니다.
 - 근거가 부족한 부분은 한 문장으로만 언급합니다. "부족한 데이터 제안", "확인해야 할 공식 자료명" 섹션은 추가하지 않습니다.
 """
     use_guided_template = intent_name in GUIDED_TEMPLATE_INTENTS
@@ -1332,7 +1363,6 @@ def answer_application_question(state: ApplicationAgentState) -> ApplicationAgen
         llm = call_openai_prompt(
             prompt,
             model=ANSWER_MODEL,
-            max_output_tokens=ANSWER_NUM_PREDICT,
             timeout=ANSWER_LLM_TIMEOUT,
             temperature=0.2,
         )
