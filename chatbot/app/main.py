@@ -103,25 +103,96 @@ STATIC_ROOT = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(
     lifespan=lifespan,
-    title="SKIPA Chatbot API",
+    title="SKIPA AI Chatbot API",
     description=(
-        "Swagger에서 챗봇 데이터 연결, 특허별 원문/보고서/wiki/index 상태, "
-        "그리고 RAG 검색용 query API를 확인하기 위한 FastAPI 앱입니다."
+        "## SKIPA 특허 챗봇 · 출원 도우미 · 사전평가 통합 API\n\n"
+        "### 주요 API (신규 연동 시 사용)\n"
+        "| 태그 | 설명 | 대표 엔드포인트 |\n"
+        "|------|------|-----------------|\n"
+        "| **patent-chat** | 특허 챗봇 답변 | `POST /api/v1/patent-chat/chat` |\n"
+        "| **application** | 특허 출원 도우미 | `POST /api/v1/application/chat` |\n"
+        "| **pre-eval** | 출원 전 사전평가 | `POST /api/v1/pre-eval/evaluate` |\n\n"
+        "### 운영 API\n"
+        "| 태그 | 설명 |\n"
+        "|------|------|\n"
+        "| **chatbot** | 데이터 조회·MinIO·Qdrant·Vectorstore·Blue-Green 관리 |\n"
+        "| **wiki** | Wiki 데이터 감사·승인·분야별 관리 |\n"
+        "| **agent** | patent-chat alias (내부 호환용) |\n"
     ),
-    version="0.1.0",
+    version="1.0.0",
     openapi_tags=[
-        {"name": "system", "description": "헬스체크"},
-        {"name": "chatbot", "description": "챗봇 데이터/검색 API"},
+        # ── 주요 사용자 대면 API ──────────────────────────────────────────────
         {
             "name": "patent-chat",
-            "description": "최고 성능 통합 특허 챗봇. LangGraph 의도 라우팅, Hybrid Retrieval, 특허별 wiki gate, 웹검색 보강을 한 경로로 제공합니다.",
+            "description": (
+                "**[주요 API] 특허 챗봇 답변 생성**\n\n"
+                "LangGraph 의도 라우팅 → Qdrant Hybrid Retrieval → OpenAI 답변 생성 파이프라인을 사용합니다.\n\n"
+                "- **특허 선택 채팅**: `POST /chat` — `patent_id` 지정 시 해당 특허 원문·보고서 우선 검색\n"
+                "- **전체 특허 채팅**: `POST /global/chat` — 전체 특허 DB에서 관련 근거 탐색\n"
+                "- **인덱스 재생성**: 특허 데이터 추가·수정 후 `/reindex` 호출\n\n"
+                "신규 연동 시 이 태그의 API를 사용하세요."
+            ),
         },
-        {"name": "agent", "description": "Agent query alias"},
-        {"name": "wiki", "description": "Wiki audit API"},
-        {"name": "application", "description": "특허 출원 도우미 API"},
+        {
+            "name": "application",
+            "description": (
+                "**[주요 API] 특허 출원 도우미**\n\n"
+                "공식 출원 자료팩과 실패특허 케이스를 기반으로 출원 절차·거절 사유 대응·재심사 전략을 안내합니다.\n\n"
+                "- **채팅**: `POST /chat` — 출원 절차 질문 답변\n"
+                "- **실패특허 업로드**: `POST /failed-patents/upload` — PDF 업로드 후 케이스 전용 vectorstore 생성\n"
+                "- **보고서 생성**: `POST /failed-patents/{case_id}/report/generate` — AI 재평가 보고서 생성"
+            ),
+        },
         {
             "name": "pre-eval",
-            "description": "출원 전 사전평가 챗봇. 특허명·기술설명·청구항을 입력하면 AI가 사전평가 보고서를 생성하고, 보고서 전용 vectorstore로 채팅합니다.",
+            "description": (
+                "**[주요 API] 출원 전 사전평가**\n\n"
+                "발명 정보(특허명·기술 설명·청구항)를 입력하면 AI가 권리성·시장성·사업성을 사전 진단하고 "
+                "평가 보고서 전용 vectorstore 기반 챗봇을 제공합니다.\n\n"
+                "- **평가 실행**: `POST /evaluate`\n"
+                "- **케이스 채팅**: `POST /cases/{case_id}/chat`"
+            ),
+        },
+        # ── 운영 · 관리 API ───────────────────────────────────────────────────
+        {
+            "name": "wiki",
+            "description": (
+                "**Wiki 감사 · 분야별 Vectorstore 관리**\n\n"
+                "특허 데이터를 기술 분야별로 분류하고 품질을 감사합니다. "
+                "사람이 검토·승인한 wiki 데이터만 챗봇 근거로 사용됩니다.\n\n"
+                "- 지원 분야: `반도체_전자`, `소프트웨어_IT`, `스마트_팩토리`, `특허출원_절차`\n"
+                "- **감사 흐름**: `POST /audit` → 사람 검토 → `POST /audit-apply` → vectorstore 갱신\n"
+                "- **자동 갱신**: `POST /audit-auto-refresh` — 저품질 데이터 자동 제외 후 vectorstore 재빌드"
+            ),
+        },
+        {
+            "name": "chatbot",
+            "description": (
+                "**데이터 조회 · 인프라 관리 API**\n\n"
+                "특허 데이터 조회, MinIO 동기화, Qdrant 연결 확인, "
+                "Vectorstore Blue-Green 관리, 전처리 파이프라인 실행을 담당합니다.\n\n"
+                "| 그룹 | 엔드포인트 |\n"
+                "|------|----------|\n"
+                "| 특허 데이터 | `/patents`, `/patents/{id}`, `/patents/{id}/chunks` |\n"
+                "| 저장소 연결 | `/minio/status`, `/minio/sync`, `/qdrant/status` |\n"
+                "| Vectorstore | `/vectorstore/status`, `/vectorstore/full-rebuild` |\n"
+                "| Blue-Green | `/bluegreen/status`, `/bluegreen/refresh` |\n"
+                "| 전처리 | `/preprocess/run`, `/preprocess/status` |\n"
+                "| Wiki 감사 | `/wiki-audit/run`, `/wiki-audit/apply` |"
+            ),
+        },
+        {
+            "name": "system",
+            "description": "서비스 헬스체크 · 루트 확인",
+        },
+        # ── 내부 호환용 (Alias) ───────────────────────────────────────────────
+        {
+            "name": "agent",
+            "description": (
+                "**[내부 alias] patent-chat API 경로 별칭**\n\n"
+                "`/api/v1/agent/*` 는 `/api/v1/patent-chat/*` 와 동일한 핸들러에 연결됩니다. "
+                "신규 개발 시 `patent-chat` 태그의 API를 사용하세요."
+            ),
         },
     ],
 )

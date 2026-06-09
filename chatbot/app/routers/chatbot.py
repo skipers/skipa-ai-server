@@ -103,6 +103,17 @@ from ..wiki.topics import (
 )
 
 
+# ---------------------------------------------------------------------------
+# 라우터 정의
+#   patent_chat_router : /api/v1/patent-chat  → [주요] 특허 챗봇 API
+#   wiki_router        : /api/v1/wiki         → Wiki 감사·분야 관리
+#   application_router : /api/v1/application  → 출원 도우미 API
+#   router (chatbot)   : /api/v1/chatbot      → 운영·인프라 관리 API
+#   agent_router       : /api/v1/agent        → patent-chat alias (내부 호환용)
+#   rag_router         : /api/v1/rag          → Swagger 미노출 alias
+#   legacy_rag_router  : /rag                 → Swagger 미노출 legacy alias
+# ---------------------------------------------------------------------------
+
 router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
 patent_chat_router = APIRouter(prefix="/api/v1/patent-chat", tags=["patent-chat"])
 rag_router = APIRouter(prefix="/api/v1/rag", tags=["patent-chat"], include_in_schema=False)
@@ -112,7 +123,16 @@ wiki_router = APIRouter(prefix="/api/v1/wiki", tags=["wiki"])
 application_router = APIRouter(prefix="/api/v1/application", tags=["application"])
 
 
-@router.get("/config", summary="챗봇 설정과 데이터 루트 확인")
+# ── [chatbot] 시스템 설정 조회 ────────────────────────────────────────────
+
+@router.get(
+    "/config",
+    summary="시스템 설정 및 데이터 루트 확인",
+    description=(
+        "현재 챗봇의 모델 설정(의도 분류 모델, 답변 생성 모델, 임베딩 모델), "
+        "데이터 루트 경로, RAG 엔진 상태, MinIO/Qdrant 연결 정보를 반환합니다."
+    ),
+)
 def get_config() -> dict:
     rag_engine = legacy_engine_status()
     return {
@@ -131,39 +151,81 @@ def get_config() -> dict:
     }
 
 
-@router.get("/data-links", summary="chatbot/data symlink 상태 확인")
+@router.get(
+    "/data-links",
+    summary="chatbot/data 심볼릭 링크 상태 확인",
+    description="chatbot/data 하위 심볼릭 링크(mapped_patent_reports, business)의 연결 상태와 실제 경로를 반환합니다.",
+)
 def get_data_links() -> dict:
     return link_status()
 
 
-@router.get("/patents", summary="챗봇이 사용할 수 있는 특허 목록")
+# ── [chatbot] 특허 데이터 조회 ────────────────────────────────────────────
+
+@router.get(
+    "/patents",
+    summary="특허 목록 조회",
+    description=(
+        "챗봇이 검색 가능한 전체 특허 목록을 반환합니다. "
+        "mapped_patent_reports(로컬)와 data/patent(공유 데이터)를 합산합니다."
+    ),
+)
 def get_patents() -> dict:
     patents = list_patents()
     return {"count": len(patents), "items": patents}
 
 
-@router.get("/patents/{patent_id}", summary="특허별 원문/보고서/wiki/index 상태")
+@router.get(
+    "/patents/{patent_id}",
+    summary="특허 상세 정보 조회",
+    description=(
+        "특정 특허의 원문 JSON, 보고서 JSON, Qdrant 인덱스 존재 여부, "
+        "파일 목록, chunk 수를 반환합니다. 데이터 파이프라인 진단용입니다."
+    ),
+)
 def get_patent(patent_id: str, include_files: bool = Query(True, description="특허 폴더 파일 목록 포함 여부")) -> dict:
     return patent_detail(patent_id, include_files=include_files)
 
 
-@router.get("/patents/{patent_id}/files", summary="특허 폴더 파일 목록")
+@router.get(
+    "/patents/{patent_id}/files",
+    summary="특허 폴더 파일 목록",
+    description="특정 특허 폴더 하위의 모든 파일 경로·크기·수정 시각을 반환합니다.",
+)
 def get_patent_files(patent_id: str, limit: int = Query(300, ge=1, le=1000)) -> dict:
     files = list_files(patent_id, limit=limit)
     return {"patent_id": patent_id, "count": len(files), "items": files}
 
 
-@router.get("/patents/{patent_id}/input/latest", summary="최신 특허 input JSON")
+@router.get(
+    "/patents/{patent_id}/input/latest",
+    summary="특허 최신 입력 JSON 조회 (parsed.json)",
+    description="해당 특허의 original/input/latest.json 또는 parsed.json을 반환합니다. 원문 메타데이터·청구항·명세서가 포함됩니다.",
+)
 def get_latest_input(patent_id: str) -> dict:
     return latest_json(patent_id, "input")
 
 
-@router.get("/patents/{patent_id}/report/latest", summary="최신 보고서 JSON")
+@router.get(
+    "/patents/{patent_id}/report/latest",
+    summary="특허 최신 평가 보고서 JSON 조회 (report.json)",
+    description="해당 특허의 reports/json/latest.json 또는 report.json을 반환합니다. 자동 점수·LLM 평가·시장 분석이 포함됩니다.",
+)
 def get_latest_report(patent_id: str) -> dict:
     return latest_json(patent_id, "report")
 
 
-@router.get("/patents/{patent_id}/chunks", summary="특허별 chunk 조회")
+@router.get(
+    "/patents/{patent_id}/chunks",
+    summary="특허 RAG chunk 목록 조회",
+    description=(
+        "Qdrant에 색인된 특허 chunk를 페이지네이션으로 조회합니다.\n\n"
+        "- `chunk_file=all` : 원문 + 보고서 전체\n"
+        "- `chunk_file=original` : 원문 PDF chunk만\n"
+        "- `chunk_file=report` : 보고서 PDF chunk만\n"
+        "- `source_type` 필터: `ORIGINAL_PDF`, `REPORT_PDF`, `SHARED_PATENT`, `SHARED_REPORT`"
+    ),
+)
 def get_chunks(
     patent_id: str,
     chunk_file: str = Query("all", description="all, original, report, original_visual, report_visual"),
@@ -180,17 +242,75 @@ def get_chunks(
     )
 
 
-@router.get("/business/chunks", summary="공통 business RAG chunk 조회")
+@router.get(
+    "/business/chunks",
+    summary="공통 Business RAG chunk 조회",
+    description="업무 공통 데이터(business/index/all_chunks.jsonl)에서 chunk를 조회합니다. 현재는 비활성화된 데이터 소스입니다.",
+)
 def get_business_chunks(offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)) -> dict:
     return business_chunks(offset=offset, limit=limit)
 
 
-@router.get("/vectorstore/status", summary="챗봇 vectorstore 갱신 상태")
+# ── [chatbot] 저장소 · 연결 상태 ──────────────────────────────────────────
+
+@router.get(
+    "/qdrant/status",
+    summary="Qdrant 벡터 DB 연결 상태 확인",
+    description=(
+        "Qdrant 서버 연결 여부, 전체 컬렉션 목록, 임베딩 모델, dashboard URL을 반환합니다. "
+        "연결 실패 시 `connected: false`와 `error` 메시지가 포함됩니다."
+    ),
+)
+def get_qdrant_status() -> dict:
+    return qdrant_status()
+
+
+@router.get(
+    "/minio/status",
+    summary="MinIO 오브젝트 스토리지 연결 상태 확인",
+    description=(
+        "MinIO 연결 여부, 원격 오브젝트 수, 로컬 동기화된 특허 수, console URL을 반환합니다. "
+        "로컬 캐시가 최신 상태인지 확인할 때 사용합니다."
+    ),
+)
+def get_minio_status() -> dict:
+    return minio_patent_status()
+
+
+@router.post(
+    "/minio/sync",
+    summary="MinIO → 로컬 특허 데이터 동기화",
+    description=(
+        "MinIO `s3://{bucket}/patent/` 의 특허 데이터를 로컬 공유 patent 캐시(`data/patent/`)로 동기화합니다. "
+        "`rebuild_index=true`(기본값)면 동기화 후 shared vectorstore(`skipa_patent_docs`)도 blue-green 재색인합니다."
+    ),
+)
+def post_minio_sync(rebuild_index: bool = Query(True, description="동기화 후 공유 특허 vectorstore를 재생성할지 여부")) -> dict:
+    return sync_patent_data_from_minio(rebuild_index=rebuild_index)
+
+
+# ── [chatbot] Vectorstore 상태 · 관리 ────────────────────────────────────
+
+@router.get(
+    "/vectorstore/status",
+    summary="Vectorstore 전체 현황 조회",
+    description=(
+        "특허별·분야별 wiki·글로벌 Qdrant 컬렉션의 존재 여부, 문서 수, "
+        "blue-green alias 상태를 한 번에 반환합니다."
+    ),
+)
 def get_vectorstore_status() -> dict:
     return vectorstore_status()
 
 
-@router.get("/preprocess/status", summary="전처리/vectorstore/application 상태 통합 확인")
+@router.get(
+    "/preprocess/status",
+    summary="전처리 파이프라인 전체 상태 통합 조회",
+    description=(
+        "Vectorstore, 출원 도우미 인덱스, 외부 API(KIPRIS/KOSIS/Tavily), MinIO, Qdrant 연결 상태를 "
+        "한 번에 확인합니다. 시스템 점검 시 사용합니다."
+    ),
+)
 def get_preprocess_status() -> dict:
     return {
         "vectorstore": vectorstore_status(),
@@ -201,43 +321,84 @@ def get_preprocess_status() -> dict:
     }
 
 
-@router.get("/qdrant/status", summary="Qdrant 연결 및 dashboard 상태")
-def get_qdrant_status() -> dict:
-    return qdrant_status()
-
-
-@router.get("/bluegreen/status", summary="Blue-green 글로벌 색인 현황 — alias·슬롯 상태·마지막 실행 시각")
-def get_bluegreen_status() -> dict:
-    return bluegreen_reindex_status()
-
-
-@router.post("/bluegreen/refresh", summary="Blue-green 글로벌 색인 즉시 실행 (스케줄 대기 없이)")
-def post_bluegreen_refresh() -> dict:
-    return bluegreen_refresh_global()
+@router.post(
+    "/vectorstore/refresh",
+    summary="Vectorstore 전체 재생성 (감사 자동 적용 포함)",
+    description=(
+        "`auto_audit=true`(기본값)면 저품질·주의 데이터를 자동 감사·제외 후 승인 데이터 기준으로 "
+        "전체 Vectorstore를 blue-green 방식으로 재생성합니다. "
+        "직접 `/preprocess/run?mode=refresh_vectorstore` 호출과 동일합니다."
+    ),
+)
+def post_vectorstore_refresh(auto_audit: bool = Query(True, description="true면 주의/나쁜 데이터 자동 제외 후 승인본으로 refresh")) -> dict:
+    result = run_wiki_audit_graph(mode="auto_refresh" if auto_audit else "refresh")
+    return result.get("apply_result") or result.get("refresh_result", result)
 
 
 @router.post(
     "/vectorstore/full-rebuild",
-    summary=(
-        "전체 벡터스토어 완전 재구축 — 특허·wiki 컬렉션 삭제 후 처음부터 재색인. "
-        "application/pre-eval/visual 컬렉션은 건드리지 않음."
+    summary="Vectorstore 완전 초기화 후 재구축",
+    description=(
+        "특허·wiki 관련 Qdrant 컬렉션을 **전부 삭제**하고 처음부터 재색인합니다.\n\n"
+        "**재구축 순서:**\n"
+        "1. `data/patent/` → `skipa_patent_docs` (shared patents) blue-green 재색인\n"
+        "2. 분야별 wiki → `skipa_wiki_topic_{slug}` blue-green 재색인\n"
+        "3. 전체 wiki 통합 → `skipa_wiki_live` blue-green 재색인\n\n"
+        "⚠️ application, pre-eval, visual 컬렉션은 영향받지 않습니다."
     ),
 )
 def post_vectorstore_full_rebuild() -> dict:
     return full_rebuild_vectorstores()
 
 
-@router.get("/minio/status", summary="MinIO patent 데이터 연결 상태")
-def get_minio_status() -> dict:
-    return minio_patent_status()
+# ── [chatbot] Blue-Green 관리 ─────────────────────────────────────────────
+
+@router.get(
+    "/bluegreen/status",
+    summary="Blue-Green Vectorstore 현황 조회",
+    description=(
+        "모든 blue-green 관리 컬렉션의 현재 활성 슬롯(green/blue), "
+        "각 슬롯의 문서 수, 마지막 교체 시각, 다음 예정 교체 시각을 반환합니다.\n\n"
+        "1시간마다 자동으로 inactive 슬롯에 재색인 후 alias를 교체합니다."
+    ),
+)
+def get_bluegreen_status() -> dict:
+    return bluegreen_reindex_status()
 
 
-@router.post("/minio/sync", summary="MinIO s3://bucket/patent/ 데이터를 로컬 공유 patent cache로 동기화")
-def post_minio_sync(rebuild_index: bool = Query(True, description="동기화 후 공유 특허 vectorstore를 재생성할지 여부")) -> dict:
-    return sync_patent_data_from_minio(rebuild_index=rebuild_index)
+@router.post(
+    "/bluegreen/refresh",
+    summary="Blue-Green 즉시 교체 실행",
+    description=(
+        "스케줄(1시간 간격)을 기다리지 않고 blue-green 재색인을 즉시 실행합니다.\n\n"
+        "현재 green이 활성이면 blue 슬롯에 재색인 후 alias를 blue로 교체하고, "
+        "반대로 blue가 활성이면 green으로 교체합니다."
+    ),
+)
+def post_bluegreen_refresh() -> dict:
+    return bluegreen_refresh_global()
 
 
-@router.post("/preprocess/run", summary="전처리/wiki 정리/vectorstore refresh/application preprocess 실행")
+# ── [chatbot] 전처리 파이프라인 실행 ─────────────────────────────────────
+
+@router.post(
+    "/preprocess/run",
+    summary="전처리 파이프라인 실행",
+    description=(
+        "`mode` 파라미터로 실행할 작업을 선택합니다.\n\n"
+        "| mode | 설명 |\n"
+        "|------|------|\n"
+        "| `normalize_wiki` | 승인 wiki 데이터를 분야별 approved_context.md로 정규화 |\n"
+        "| `refresh_vectorstore` | wiki 정규화 + 전체 vectorstore 재생성 |\n"
+        "| `auto_audit_refresh` | wiki 자동 감사 → 저품질 제외 → vectorstore 재생성 |\n"
+        "| `audit` | 데이터 품질 감사만 실행 (vectorstore 변경 없음) |\n"
+        "| `shared_index` | data/patent/ → skipa_patent_docs blue-green 재색인 |\n"
+        "| `visual_index` | 신규 특허 원본 PDF 도표·이미지 증분 색인 |\n"
+        "| `application_preprocess` | 출원 공식팩 전처리 + vectorstore 갱신 |\n"
+        "| `nightly_reindex` | 전체 야간 재색인 워크플로우 실행 |\n"
+        "| `all` | wiki 정규화 + vectorstore + visual + application 전체 |\n"
+    ),
+)
 def post_preprocess_run(request: PreprocessRunRequest) -> dict:
     result: dict[str, object] = {"mode": request.mode}
     if request.mode == "normalize_wiki":
@@ -267,18 +428,30 @@ def post_preprocess_run(request: PreprocessRunRequest) -> dict:
     return result
 
 
-@router.post("/vectorstore/refresh", summary="감사 자동 적용 후 전체 vectorstore 재생성")
-def post_vectorstore_refresh(auto_audit: bool = Query(True, description="true면 주의/나쁜 데이터 자동 제외 후 승인본으로 refresh")) -> dict:
-    result = run_wiki_audit_graph(mode="auto_refresh" if auto_audit else "refresh")
-    return result.get("apply_result") or result.get("refresh_result", result)
+# ── [chatbot] Visual(이미지·도표) Vectorstore ────────────────────────────
 
-
-@router.get("/visual-vectorstore/status", summary="특허 원본 도표/표/이미지 전용 Qdrant 상태")
+@router.get(
+    "/visual-vectorstore/status",
+    summary="Visual Vectorstore 상태 조회 (특허 원본 도표·이미지)",
+    description=(
+        "CLIP 이미지 임베딩 + OpenAI 텍스트 임베딩으로 구성된 "
+        "`skipa_patent_visual_clip` 컬렉션의 존재 여부와 문서 수를 반환합니다."
+    ),
+)
 def get_visual_vectorstore_status() -> dict:
     return patent_visual_index_status()
 
 
-@router.post("/visual-vectorstore/refresh", summary="신규 특허 원본 visual asset만 증분 색인")
+@router.post(
+    "/visual-vectorstore/refresh",
+    summary="Visual Vectorstore 증분 색인",
+    description=(
+        "특허 원본 PDF에서 추출한 도표·표·이미지를 CLIP 이미지 임베딩으로 색인합니다.\n\n"
+        "- `force=false`(기본값): 이미 manifest가 있는 특허는 건너뜀 (증분 색인)\n"
+        "- `force=true`: 전체 특허 visual index 강제 재생성\n"
+        "- `patent_id` 지정: 해당 특허 1건만 처리"
+    ),
+)
 def post_visual_vectorstore_refresh(
     force: bool = Query(False, description="true면 기존 manifest가 있어도 모든 특허 visual index를 다시 생성"),
     patent_id: str | None = Query(None, description="특정 특허 1건만 처리. 비우면 누락/신규 특허 전체 처리"),
@@ -288,7 +461,15 @@ def post_visual_vectorstore_refresh(
     return build_missing_patent_visual_indexes(force=force)
 
 
-@router.post("/visual-vectorstore/search", summary="특허 원본 도표/표/이미지 전용 Qdrant 검색")
+@router.post(
+    "/visual-vectorstore/search",
+    summary="Visual Vectorstore 검색 (이미지·도표 의미 검색)",
+    description=(
+        "CLIP 텍스트 인코더(cross-modal) + OpenAI 텍스트 임베딩을 RRF로 결합해 "
+        "특허 원본의 도표·표·이미지를 의미 기반으로 검색합니다.\n\n"
+        "Request body: `{\"query\": \"...\", \"patent_id\": \"...(선택)\", \"top_k\": 6}`"
+    ),
+)
 def post_visual_vectorstore_search(body: dict) -> dict:
     return search_patent_visuals(
         str(body.get("query") or ""),
@@ -297,7 +478,18 @@ def post_visual_vectorstore_search(body: dict) -> dict:
     )
 
 
-@router.post("/search", response_model=SearchResponse, summary="챗봇 RAG 검색 확인")
+# ── [chatbot] RAG 검색 · 답변 (디버그용) ─────────────────────────────────
+
+@router.post(
+    "/search",
+    response_model=SearchResponse,
+    summary="RAG 검색 직접 호출 (디버그용)",
+    description=(
+        "Qdrant vectorstore에서 유사도 검색을 직접 실행하고 결과를 반환합니다. "
+        "챗봇 답변 없이 근거 검색 결과만 확인할 때 사용합니다. "
+        "실제 채팅은 `patent-chat` 태그의 `/chat` 엔드포인트를 사용하세요."
+    ),
+)
 def post_search(request: SearchRequest) -> dict:
     return search_chunks(
         request.query,
@@ -307,12 +499,25 @@ def post_search(request: SearchRequest) -> dict:
     )
 
 
-@router.post("/query", response_model=SearchResponse, summary="챗봇 질의 API 확인")
+@router.post(
+    "/query",
+    response_model=SearchResponse,
+    summary="RAG 검색 alias (= /search)",
+    description="`/chatbot/search` 와 동일한 핸들러입니다. 하위 호환용으로 유지됩니다.",
+)
 def post_query(request: SearchRequest) -> dict:
     return post_search(request)
 
 
-@router.post("/answer", response_model=AnswerResponse, summary="챗봇 답변 API")
+@router.post(
+    "/answer",
+    response_model=AnswerResponse,
+    summary="챗봇 답변 생성 (SearchRequest 기반, 디버그용)",
+    description=(
+        "SearchRequest 형식으로 챗봇 답변을 생성합니다. "
+        "주요 채팅 API는 `patent-chat` 태그의 `POST /chat`을 사용하세요."
+    ),
+)
 def post_answer(request: SearchRequest) -> dict:
     return run_chat_agent(
         request.query,
@@ -322,24 +527,36 @@ def post_answer(request: SearchRequest) -> dict:
     )
 
 
-@patent_chat_router.post("/query", response_model=SearchResponse, summary="특허 챗봇 근거 검색")
+# ── [patent-chat] 검색·답변 alias (rag_router는 Swagger 미노출) ──────────
+
+@patent_chat_router.post("/query", response_model=SearchResponse, summary="특허 RAG 근거 검색")
 @rag_router.post("/query", response_model=SearchResponse, summary="RAG 질의 alias")
 def rag_query(request: SearchRequest) -> dict:
     return post_search(request)
 
 
-@agent_router.post("/query", response_model=SearchResponse, summary="Agent 질의 alias")
+@agent_router.post(
+    "/query",
+    response_model=SearchResponse,
+    summary="[alias] 근거 검색 — patent-chat/query 와 동일",
+    description="내부 호환용 alias입니다. 신규 개발 시 `POST /api/v1/patent-chat/query` 를 사용하세요.",
+)
 def agent_query(request: SearchRequest) -> dict:
     return post_search(request)
 
 
-@patent_chat_router.post("/answer", response_model=AnswerResponse, summary="특허 챗봇 답변 생성")
+@patent_chat_router.post("/answer", response_model=AnswerResponse, summary="특허 챗봇 답변 생성 (SearchRequest)")
 @rag_router.post("/answer", response_model=AnswerResponse, summary="RAG 답변 alias")
 def rag_answer(request: SearchRequest) -> dict:
     return post_answer(request)
 
 
-@agent_router.post("/answer", response_model=AnswerResponse, summary="Agent 답변 alias")
+@agent_router.post(
+    "/answer",
+    response_model=AnswerResponse,
+    summary="[alias] 챗봇 답변 — patent-chat/answer 와 동일",
+    description="내부 호환용 alias입니다. 신규 개발 시 `POST /api/v1/patent-chat/answer` 를 사용하세요.",
+)
 def agent_answer(request: SearchRequest) -> dict:
     return post_answer(request)
 
@@ -366,14 +583,30 @@ def rag_patents() -> dict:
     return {"items": patents, "count": len(patents), "engine": legacy_engine_status()}
 
 
-@patent_chat_router.get("/patent-summary-cards", summary="특허 요약 카드")
+# ── [patent-chat] 주요 채팅 엔드포인트 ───────────────────────────────────
+
+@patent_chat_router.get(
+    "/patent-summary-cards",
+    summary="특허 요약 카드 목록",
+    description="UI에서 특허 선택 드롭다운에 표시할 특허별 요약 정보(제목·점수·등급)를 반환합니다.",
+)
 @rag_router.get("/patent-summary-cards", summary="통합 RAG 특허 요약 카드")
 @legacy_rag_router.get("/patent-summary-cards", summary="특허 챗봇 호환 특허 요약 카드")
 def rag_patent_summary_cards() -> dict:
     return patent_summary_cards()
 
 
-@patent_chat_router.post("/chat", response_model=AnswerResponse, summary="특허별 챗봇 답변")
+@patent_chat_router.post(
+    "/chat",
+    response_model=AnswerResponse,
+    summary="특허 선택 챗봇 답변",
+    description=(
+        "선택한 특허(`patent_id`)를 기준으로 원문·보고서·wiki·웹 근거를 통합해 답변합니다.\n\n"
+        "- `patent_id` 없이 호출하면 전체 특허 DB에서 검색합니다.\n"
+        "- `chat_history`: 최근 대화 목록을 전달하면 후속 질문 컨텍스트를 유지합니다.\n"
+        "- `context_patent_id`: 프론트엔드가 기억한 현재 대화 기준 특허 ID"
+    ),
+)
 @rag_router.post("/chat", response_model=AnswerResponse, summary="통합 RAG 특허별 챗봇 답변")
 @legacy_rag_router.post("/chat", response_model=AnswerResponse, summary="특허 챗봇 호환 답변")
 def rag_chat(request: ChatRequest) -> dict:
@@ -386,7 +619,15 @@ def rag_chat(request: ChatRequest) -> dict:
     )
 
 
-@patent_chat_router.post("/global/chat", response_model=AnswerResponse, summary="전체 특허 챗봇 답변")
+@patent_chat_router.post(
+    "/global/chat",
+    response_model=AnswerResponse,
+    summary="전체 특허 챗봇 답변 (특허 미선택)",
+    description=(
+        "특정 특허를 선택하지 않고 전체 특허 DB(`skipa_patent_docs`)에서 관련 근거를 탐색해 답변합니다. "
+        "전체 탐색이므로 특허 선택 채팅보다 응답 근거 범위가 넓습니다."
+    ),
+)
 @rag_router.post("/global/chat", response_model=AnswerResponse, summary="통합 RAG 전체 특허 챗봇 답변")
 @legacy_rag_router.post("/global/chat", response_model=AnswerResponse, summary="전체 특허 챗봇 호환 답변")
 def rag_global_chat(request: ChatRequest) -> dict:
@@ -399,7 +640,15 @@ def rag_global_chat(request: ChatRequest) -> dict:
     )
 
 
-@patent_chat_router.post("/reindex", summary="특허별 검색 인덱스 재생성")
+@patent_chat_router.post(
+    "/reindex",
+    summary="특허별 Qdrant 인덱스 재생성",
+    description=(
+        "특정 특허의 Qdrant 인덱스를 재생성합니다. "
+        "새 특허 데이터가 추가됐거나 원문·보고서가 갱신된 경우 호출합니다. "
+        "`refresh_reviewed_vectorstore=true`면 사람 승인 데이터 기반 vectorstore도 함께 갱신합니다."
+    ),
+)
 @rag_router.post("/reindex", summary="특허별 Qdrant 인덱스 재생성")
 @legacy_rag_router.post("/reindex", summary="특허별 Qdrant 인덱스 재생성")
 def rag_reindex(request: ReindexRequest) -> dict:
@@ -411,7 +660,15 @@ def rag_reindex(request: ReindexRequest) -> dict:
     )
 
 
-@patent_chat_router.post("/global/reindex", summary="전체 특허 검색 인덱스 재생성")
+@patent_chat_router.post(
+    "/global/reindex",
+    summary="전체 특허 글로벌 인덱스 재생성",
+    description=(
+        "전체 특허를 하나의 글로벌 Qdrant 컬렉션으로 재색인합니다. "
+        "특허가 대거 추가·삭제됐을 때 사용합니다. "
+        "일반적으로는 `/chatbot/vectorstore/full-rebuild` 또는 blue-green refresh를 사용하세요."
+    ),
+)
 @rag_router.post("/global/reindex", summary="전체 특허 global Qdrant 인덱스 재생성")
 @legacy_rag_router.post("/global/reindex", summary="전체 특허 global Qdrant 인덱스 재생성")
 def rag_global_reindex(request: BusinessReindexRequest) -> dict:
@@ -422,7 +679,11 @@ def rag_global_reindex(request: BusinessReindexRequest) -> dict:
     )
 
 
-@patent_chat_router.post("/business/reindex", summary="업무/공통 검색 인덱스 재생성")
+@patent_chat_router.post(
+    "/business/reindex",
+    summary="업무 공통 인덱스 재생성",
+    description="업무 공통 데이터(business/) 기반 Qdrant 인덱스를 재생성합니다. 현재는 비활성화된 데이터 소스입니다.",
+)
 @rag_router.post("/business/reindex", summary="업무/공통 Qdrant 인덱스 재생성")
 @legacy_rag_router.post("/business/reindex", summary="업무/공통 Qdrant 인덱스 재생성")
 def rag_business_reindex(request: BusinessReindexRequest) -> dict:
@@ -433,35 +694,68 @@ def rag_business_reindex(request: BusinessReindexRequest) -> dict:
     )
 
 
-@patent_chat_router.get("/ingestion/mermaid", summary="전처리/재색인 LangGraph Mermaid")
+@patent_chat_router.get(
+    "/ingestion/mermaid",
+    summary="전처리·재색인 LangGraph 워크플로우 다이어그램",
+    description="전처리/RAG 재색인 LangGraph 그래프를 Mermaid 형식으로 반환합니다. UI의 워크플로우 탭에서 표시합니다.",
+)
 @rag_router.get("/ingestion/mermaid", summary="전처리/RAG 재색인 LangGraph Mermaid")
 @legacy_rag_router.get("/ingestion/mermaid", summary="전처리/RAG 재색인 LangGraph Mermaid")
 def get_ingestion_mermaid() -> dict:
     return {"format": "mermaid", "diagram": ingestion_graph_mermaid()}
 
 
-@patent_chat_router.post("/feedback", summary="챗봇 답변 피드백 저장")
+@patent_chat_router.post(
+    "/feedback",
+    summary="챗봇 답변 피드백 저장",
+    description="사용자가 챗봇 답변에 남긴 평가(rating, reason)를 저장합니다. 데이터 품질 개선에 활용됩니다.",
+)
 @rag_router.post("/feedback", summary="챗봇 답변 피드백 저장")
 @legacy_rag_router.post("/feedback", summary="챗봇 답변 피드백 저장")
 def rag_feedback(request: FeedbackRequest) -> dict:
     return write_feedback(request.model_dump())
 
 
-@patent_chat_router.get("/page-image", summary="특허 PDF page image 렌더링")
+@patent_chat_router.get(
+    "/page-image",
+    summary="특허 PDF 페이지 이미지 렌더링",
+    description="특허 원본 PDF의 특정 페이지를 이미지로 렌더링해 반환합니다. UI에서 원문 페이지 미리보기에 사용합니다.",
+)
 @rag_router.get("/page-image", summary="특허 PDF page image 렌더링")
 @legacy_rag_router.get("/page-image", summary="특허 PDF page image 렌더링")
 def rag_page_image(patent_id: str, file_name: str = Query("original.pdf"), page_no: int = Query(1, ge=1)):
     return render_page_image(patent_id, file_name=file_name, page_no=page_no)
 
 
-@router.get("/wiki-audit/report", summary="wiki 감사 리포트")
-@wiki_router.get("/audit-report", summary="wiki 감사 리포트")
+# ── [wiki] 감사 · 검토 엔드포인트 ────────────────────────────────────────
+
+@router.get(
+    "/wiki-audit/report",
+    summary="Wiki 감사 리포트 조회",
+    description="가장 최근 감사 결과의 Markdown 리포트를 반환합니다. `/wiki/audit-report` 와 동일합니다.",
+)
+@wiki_router.get(
+    "/audit-report",
+    summary="Wiki 감사 리포트 조회",
+    description="가장 최근 감사 결과의 Markdown 리포트를 반환합니다.",
+)
 def get_wiki_audit_report() -> dict:
     return wiki_audit_report()
 
 
-@router.post("/wiki-audit/run", summary="wiki/챗봇 데이터 감사 실행 및 나쁜 데이터 후보 추출")
-@wiki_router.post("/audit", summary="wiki/챗봇 데이터 감사 실행 및 나쁜 데이터 후보 추출")
+@router.post(
+    "/wiki-audit/run",
+    summary="Wiki 데이터 품질 감사 실행",
+    description=(
+        "특허·보고서·wiki chunk를 스캔해 품질 문제(빈 텍스트, OCR 노이즈, 민감정보, 중복)를 탐지합니다. "
+        "결과는 finding 목록으로 반환되며, 사람이 검토 후 `/wiki-audit/apply`로 적용합니다."
+    ),
+)
+@wiki_router.post(
+    "/audit",
+    summary="Wiki 데이터 품질 감사 실행",
+    description="특허·보고서·wiki chunk 품질 감사를 실행합니다. 결과는 `/audit-review`에서 확인합니다.",
+)
 def post_wiki_audit(refresh_vectorstore: bool = Query(False, description="사람 검토 전 raw vectorstore 강제 갱신 여부")) -> dict:
     result = run_wiki_audit_graph(mode="audit", refresh_vectorstore=refresh_vectorstore)
     audit = result.get("audit", result)
@@ -470,8 +764,19 @@ def post_wiki_audit(refresh_vectorstore: bool = Query(False, description="사람
     return audit
 
 
-@router.get("/wiki-audit/review", summary="사람 검토용 감사 Markdown 조회")
-@wiki_router.get("/audit-review", summary="사람 검토용 감사 Markdown 조회")
+@router.get(
+    "/wiki-audit/review",
+    summary="Wiki 감사 사람 검토용 Markdown 조회",
+    description=(
+        "감사 결과를 사람이 검토할 수 있는 Markdown 형식으로 반환합니다. "
+        "각 finding 항목의 rule_id, severity, excerpt를 포함합니다."
+    ),
+)
+@wiki_router.get(
+    "/audit-review",
+    summary="Wiki 감사 사람 검토용 Markdown 조회",
+    description="감사 finding 목록을 Markdown 형식으로 반환합니다. `/wiki-audit/apply` 전 검토에 사용합니다.",
+)
 def get_wiki_audit_review(audit_id: str | None = Query(None, description="조회할 audit_id. 비우면 최신 감사")) -> dict:
     result = run_wiki_audit_graph(mode="review", audit_id=audit_id)
     review = result.get("review", result)
