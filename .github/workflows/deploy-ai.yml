@@ -25,7 +25,7 @@ jobs:
       INFRA_PATH: k8s/ai
 
     steps:
-      - name: Checkout repository
+      - name: Checkout AI repository
         uses: actions/checkout@v4
 
       - name: Set image variables
@@ -58,6 +58,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
           platforms: linux/amd64
           push: true
           provenance: false
@@ -83,7 +84,7 @@ jobs:
           sudo mv /tmp/kustomize /usr/local/bin/kustomize
           kustomize version
 
-      - name: Update image tag in kustomization
+      - name: Update AI image tag in kustomization
         working-directory: skipa-infra/${{ env.INFRA_PATH }}
         run: |
           if [ ! -f kustomization.yml ] && [ ! -f kustomization.yaml ]; then
