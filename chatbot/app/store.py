@@ -110,6 +110,8 @@ def _is_shared_patent(patent_id: str | None) -> bool:
 def data_overview() -> dict[str, Any]:
     from .shared_data import list_shared_patent_ids, shared_vectorstore_status
     from .config import SHARED_DATA_ROOT, SHARED_PATENT_ROOT
+    from .visual_data import patent_visual_index_status
+
     return {
         "data_root": _file_summary(DATA_ROOT),
         "patents_root": _file_summary(PATENTS_ROOT),
@@ -123,6 +125,7 @@ def data_overview() -> dict[str, Any]:
             "qdrant": collection_info(patent_collection("_business")),
         },
         "shared_vectorstore": shared_vectorstore_status(),
+        "shared_visual_vectorstore": patent_visual_index_status(),
         "vectorstore": vectorstore_status(),
         "qdrant": qdrant_status(),
     }

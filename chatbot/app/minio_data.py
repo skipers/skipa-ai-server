@@ -286,8 +286,10 @@ def sync_patent_data_from_minio(*, rebuild_index: bool | None = None) -> dict[st
         should_rebuild = MINIO_REINDEX_AFTER_SYNC if rebuild_index is None else rebuild_index
         if should_rebuild:
             from .shared_data import build_shared_vectorstore
+            from .visual_data import build_missing_patent_visual_indexes
 
             result["shared_index"] = build_shared_vectorstore()
+            result["shared_visual_index"] = build_missing_patent_visual_indexes(force=False)
         return result
     except Exception as exc:
         return {

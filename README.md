@@ -12,6 +12,7 @@
 - 가벼운 LLM 의도 라우팅 기반 특허 챗봇
 - OpenAI 기반 의도 분류, 답변 생성, embedding 설정 지원
 - Qdrant + OpenAI embedding 기반 retrieval
+- 특허 원본 PDF의 표/도표/도면/이미지를 별도 visual Qdrant collection으로 관리. 기존 처리 특허는 manifest SHA1로 건너뛰고, 신규 특허만 매일 00시 증분 색인
 - **분야별 wiki gate**: 웹검색 결과를 특허별이 아닌 기술 분야(소프트웨어_IT / 화학_소재 / 반도체_전자 등) 폴더로 관리하고, 감사 후 승인 데이터만 분야별 Qdrant collection에 반영. Tavily/web 검색 보강 포함. 매일 00시 자동 재빌드.
 - 특허 출원 공식팩 기반 출원 도우미 챗봇
 - 실패특허 원본 PDF 업로드, 선택 거절사유 업로드, 재평가 보고서 생성, 케이스별 vectorstore 분리
@@ -72,6 +73,7 @@ flowchart TB
     SHARED["/data<br>공유 특허 DB"]
     MP["/data/patent/&lt;patent_id&gt;<br>patent.pdf / parsed.json / report.json"]
     SIDX["Qdrant<br>공유 특허 collection"]
+    VIDX["Qdrant<br>visual collection<br>표/도표/도면/이미지"]
     WIKID["/data/wiki<br>분야별 wiki gate"]
     PREEVAL["/data/pre_application_cases<br>사전평가 case"]
     CDATA["chatbot/data<br>챗봇 전용 데이터"]
@@ -95,6 +97,8 @@ flowchart TB
   PROUTER --> CORE
   CORE --> MP
   CORE --> SIDX
+  PROUTER -->|도면/표/이미지 질문| VIDX
+  VIDX --> ANSWER
   PROUTER -->|외부정보 필요| WGATE
   WGATE --> WIKID
   WGATE -->|충분하면 wiki 답변| ANSWER
@@ -229,6 +233,20 @@ data/patent/<patent_id>/
 
 Qdrant collection:
   skipa_shared_patents        # data/patent 전체 공유 특허 DB
+  skipa_patent_visuals        # patent.pdf에서 추출한 표/도표/도면/이미지 전용 DB
+```
+
+특허 원본 visual index는 보고서 생성 여부와 무관하게 `patent.pdf`만 있으면 처리합니다.
+
+```text
+data/patent/<patent_id>/
+  patent.pdf
+  extracted/
+    assets/original_pdf/*.png           # 표/이미지/도면 crop
+    visual_index_manifest.json          # patent.pdf SHA1, asset 수, Qdrant collection 기록
+
+Qdrant collection:
+  skipa_patent_visuals                  # payload에 asset_url, page_no, bbox, caption/OCR/문맥 저장
 ```
 
 wiki는 특허별이 아닌 **기술 분야별** 공유 폴더로 관리합니다:
@@ -252,6 +270,9 @@ data/wiki/                               ← WIKI_ROOT
 중요한 규칙:
 
 - 원문/보고서 질문은 Qdrant `skipa_shared_patents`와 해당 특허의 `patent.pdf`, `parsed.json`, `report.json`을 먼저 사용합니다.
+- 도면/표/도표/이미지/다이어그램 질문은 Qdrant `skipa_patent_visuals`를 추가 검색하고, 검색된 asset URL을 근거 카드에 붙입니다.
+- visual index는 원본 PDF SHA1 기반 manifest를 사용합니다. 원본은 변하지 않는 데이터로 보고, 매일 00:00 refresh 때 manifest가 없는 신규 특허 또는 Qdrant collection이 비어 있는 경우만 처리합니다.
+- 신규 특허에 `report.json`이 없어도 visual index는 `patent.pdf`만으로 생성됩니다. 텍스트 평가 보고서 검색은 보고서 생성 후 별도로 반영됩니다.
 - wiki는 core vectorstore에 섞지 않고 분야별 Qdrant collection으로만 관리합니다.
 - 특허가 어느 분야인지는 제목 키워드 매칭으로 자동 결정하고 `_patent_topics.json`에 캐시합니다.
 - wiki gate: 외부정보 필요 질문 → 해당 특허의 분야 wiki 먼저 검색 → 없으면 web 검색으로 넘어갑니다.
@@ -663,6 +684,10 @@ QDRANT_API_KEY=...
 QDRANT_COLLECTION_PREFIX=skipa
 QDRANT_VECTOR_SIZE=3072
 
+ENABLE_VISUAL_ASSET_EXTRACTION=true
+ENABLE_VISUAL_BASE64=true
+MAX_VISUAL_ASSETS_PER_DOCUMENT=80
+
 INTENT_PROVIDER=openai
 OPENAI_INTENT_MODEL=gpt-4.1-mini
 
@@ -736,6 +761,9 @@ GET  /api/v1/chatbot/preprocess/status
 GET  /api/v1/chatbot/minio/status
 POST /api/v1/chatbot/minio/sync
 GET  /api/v1/chatbot/qdrant/status
+GET  /api/v1/chatbot/visual-vectorstore/status
+POST /api/v1/chatbot/visual-vectorstore/refresh
+POST /api/v1/chatbot/visual-vectorstore/search
 POST /api/v1/chatbot/preprocess/run
 POST /api/v1/chatbot/vectorstore/refresh
 POST /api/v1/chatbot/search
@@ -849,8 +877,9 @@ supervisor
  -> chat_history 반영
  -> OpenAI 기반 가벼운 의도 분류
  -> 원문/보고서 검색 또는 wiki gate 또는 web 검색 결정
+ -> 도면/표/이미지 의도면 visual Qdrant collection 추가 검색
  -> OpenAI 답변 생성
- -> 표/다이어그램/체크리스트 형식화
+ -> 표/다이어그램/체크리스트 형식화 + visual asset 근거 카드 연결
  -> 근거 카드와 품질 지표 반환
 ```
 
@@ -882,6 +911,7 @@ audit 실행 → 나쁜 데이터 후보 추출
 매일 00:00 CronJob (nightly_reindex_all)
  -> 모든 분야 wiki vectorstore 재빌드
  -> Qdrant `skipa_wiki_global` 병합 재빌드
+ -> 신규/누락 특허 원본 PDF의 visual asset만 증분 추출 및 `skipa_patent_visuals` 갱신
 
 다음 외부정보 질문에서 해당 분야 wiki gate로 사용
 ```
@@ -896,6 +926,12 @@ bash chatbot/scripts/preprocess_chatbot_data.sh --mode status
 
 # 특허 챗봇 core/wiki refresh
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode refresh
+
+# 신규 특허 원본 PDF의 표/도표/도면/이미지만 증분 색인
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode visual-index
+
+# visual index를 강제로 전체 재생성
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode visual-index --force
 
 # wiki 자동 감사 후 승인 데이터만 refresh
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode auto-audit

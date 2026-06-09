@@ -100,10 +100,17 @@ class PreprocessRunRequest(BaseModel):
         "auto_audit_refresh",
         "audit",
         "application_preprocess",
+        "visual_index",
         "nightly_reindex",
         "shared_index",
         "all",
-    ] = Field("refresh_vectorstore", description="실행할 전처리/리프레시 작업. shared_index: PROJECT_ROOT/data/ 특허 색인")
+    ] = Field(
+        "refresh_vectorstore",
+        description=(
+            "실행할 전처리/리프레시 작업. shared_index: PROJECT_ROOT/data/ 특허 색인, "
+            "visual_index: 신규 특허 원본 PDF의 표/도면/이미지만 Qdrant에 증분 색인"
+        ),
+    )
     use_reviewed: bool = Field(True, description="vectorstore refresh 시 승인 데이터만 사용할지 여부")
     refresh_application: bool = Field(True, description="all/application_preprocess 모드에서 출원 공식팩 index도 갱신")
 

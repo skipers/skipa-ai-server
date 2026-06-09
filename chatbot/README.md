@@ -5,6 +5,7 @@
 ## 역할
 
 - 특허 챗봇: 특허 원문 PDF, 표준 input JSON, eval_logic 보고서 JSON을 검색해 유지 판단, 리스크, 청구항, 기술 내용, 용어 설명을 답변합니다.
+- 특허 visual RAG: 원본 PDF에서 표/도표/도면/이미지를 crop asset으로 저장하고, caption/문맥/asset URL을 visual 전용 Qdrant collection에 증분 색인합니다.
 - 출원 도우미: 공식 출원 자료팩과 선택한 실패특허 케이스만 검색해 출원 절차, 거절 대응, 실패 원인, 등록 가능성 개선 방향을 답변합니다.
 - 출원 전 사전평가: 출원 예정 아이디어/청구항을 케이스로 만들고 보고서 전용 vectorstore로 보강 방향을 답변합니다.
 - wiki gate: 외부정보가 필요한 질문에서 특허가 속한 분야의 승인 wiki를 먼저 검색하고, 부족할 때만 web 검색으로 넘어갑니다.
@@ -143,6 +144,10 @@ OPENAI_ANSWER_MODEL=gpt-4.1
 EMBEDDING_PROVIDER=openai
 OPENAI_EMBEDDING_MODEL=text-embedding-3-large
 
+ENABLE_VISUAL_ASSET_EXTRACTION=true
+ENABLE_VISUAL_BASE64=true
+MAX_VISUAL_ASSETS_PER_DOCUMENT=80
+
 TAVILY_API_KEY=...
 ENABLE_WEB_SEARCH=true
 ```
@@ -158,7 +163,11 @@ data/
       patent.pdf
       parsed.json
       report.json
+      extracted/
+        assets/original_pdf/*.png
+        visual_index_manifest.json
   Qdrant collection: skipa_shared_patents
+  Qdrant collection: skipa_patent_visuals
   wiki/
     <topic_slug>/
       web_search_data/
@@ -191,6 +200,9 @@ chatbot/data/
 중요한 격리 규칙:
 
 - 특허 원문/보고서 공유 DB는 루트 `data/patent/<patent_id>`와 Qdrant `skipa_shared_patents` collection을 사용합니다.
+- 특허 원본 visual DB는 `data/patent/<patent_id>/patent.pdf`만 있으면 생성됩니다. `report.json`이 아직 없어도 표/도표/도면/이미지 index는 만들 수 있습니다.
+- visual DB는 `data/patent/<patent_id>/extracted/assets/original_pdf/`에 crop PNG를 저장하고, Qdrant `skipa_patent_visuals` payload에 `asset_url`, `page_no`, `asset_bbox`, `section_title`, caption/문맥을 저장합니다.
+- visual DB는 `visual_index_manifest.json`의 `patent.pdf` SHA1을 기준으로 이미 처리된 특허를 건너뜁니다. 매일 00:00 refresh 때는 신규/누락 특허만 증분 처리합니다.
 - MinIO `s3://skipa/patent/` 데이터는 서버 시작 또는 UI의 `MinIO에서 가져오기` 버튼으로 `data/patent/`에 동기화합니다.
 - wiki는 루트 `data/wiki/<topic_slug>`에서 관리하고, 외부검색 전 gate로만 사용합니다.
 - 출원 도우미 공용 공식팩 index에는 `downloads/`와 4개 guide Markdown만 들어갑니다.
@@ -208,10 +220,12 @@ flowchart TD
   H --> I[OpenAI 의도 분류]
   I --> R{검색 경로}
   R -->|원문/청구항/보고서/평가| CORE[core vectorstore]
+  R -->|도면/표/이미지| VISUAL[visual vectorstore]
   R -->|최신/시장/외부자료| WIKI[분야별 wiki gate]
   WIKI -->|유사도 충분| WC[approved wiki 근거]
   WIKI -->|부족| WEB[web 검색 draft 생성]
   CORE --> A[OpenAI 답변 생성]
+  VISUAL --> A
   WC --> A
   WEB --> A
   A --> F[답변 형식화<br/>문단/표/Mermaid/체크리스트]
@@ -260,6 +274,10 @@ POST /api/v1/patent-chat/global/chat
 POST /api/v1/patent-chat/query
 POST /api/v1/patent-chat/reindex
 GET  /api/v1/patent-chat/chat/mermaid
+
+GET  /api/v1/chatbot/visual-vectorstore/status
+POST /api/v1/chatbot/visual-vectorstore/refresh
+POST /api/v1/chatbot/visual-vectorstore/search
 ```
 
 출원 도우미:
@@ -317,11 +335,20 @@ bash chatbot/scripts/preprocess_chatbot_data.sh --mode status
 # 특허 챗봇 Qdrant vectorstore refresh
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode refresh
 
+# 신규 특허 원본 PDF의 표/도표/도면/이미지 visual index만 증분 갱신
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode visual-index
+
+# visual index 강제 전체 재생성
+bash chatbot/scripts/preprocess_chatbot_data.sh --mode visual-index --force
+
 # wiki 자동 감사 후 승인 데이터만 반영
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode auto-audit
 
 # Kubernetes CronJob에서 매일 00:00 실행할 전체 작업
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode nightly-reindex
+
+# nightly-reindex에는 wiki 감사/승인 refresh, 공유 특허 DB refresh,
+# 신규/누락 원본 PDF visual index 증분 갱신, 출원팩/실패특허 case refresh가 포함됩니다.
 
 # 출원 공식팩 전처리 + index 갱신
 bash chatbot/scripts/preprocess_chatbot_data.sh --mode application-preprocess

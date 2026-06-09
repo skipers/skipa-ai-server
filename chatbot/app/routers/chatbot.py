@@ -46,6 +46,12 @@ from ..rag.legacy_adapter import (
 )
 from ..minio_data import minio_patent_status, sync_patent_data_from_minio
 from ..qdrant_store import collection_info, qdrant_status, wiki_collection
+from ..visual_data import (
+    build_missing_patent_visual_indexes,
+    build_patent_visual_index,
+    patent_visual_index_status,
+    search_patent_visuals,
+)
 from ..schemas import (
     AnswerResponse,
     AuditApplyRequest,
@@ -77,7 +83,16 @@ from ..store import (
     search_chunks,
     wiki_audit_report,
 )
-from ..vectorstore import nightly_reindex_all, normalize_wiki_context_files, refresh_vectorstores, run_audit, vectorstore_status
+from ..vectorstore import (
+    bluegreen_refresh_global,
+    bluegreen_reindex_status,
+    full_rebuild_vectorstores,
+    nightly_reindex_all,
+    normalize_wiki_context_files,
+    refresh_vectorstores,
+    run_audit,
+    vectorstore_status,
+)
 from ..wiki.topics import (
     TOPIC_SLUGS,
     all_active_topic_slugs,
@@ -191,6 +206,27 @@ def get_qdrant_status() -> dict:
     return qdrant_status()
 
 
+@router.get("/bluegreen/status", summary="Blue-green 글로벌 색인 현황 — alias·슬롯 상태·마지막 실행 시각")
+def get_bluegreen_status() -> dict:
+    return bluegreen_reindex_status()
+
+
+@router.post("/bluegreen/refresh", summary="Blue-green 글로벌 색인 즉시 실행 (스케줄 대기 없이)")
+def post_bluegreen_refresh() -> dict:
+    return bluegreen_refresh_global()
+
+
+@router.post(
+    "/vectorstore/full-rebuild",
+    summary=(
+        "전체 벡터스토어 완전 재구축 — 특허·wiki 컬렉션 삭제 후 처음부터 재색인. "
+        "application/pre-eval/visual 컬렉션은 건드리지 않음."
+    ),
+)
+def post_vectorstore_full_rebuild() -> dict:
+    return full_rebuild_vectorstores()
+
+
 @router.get("/minio/status", summary="MinIO patent 데이터 연결 상태")
 def get_minio_status() -> dict:
     return minio_patent_status()
@@ -220,9 +256,12 @@ def post_preprocess_run(request: PreprocessRunRequest) -> dict:
     elif request.mode == "shared_index":
         from ..shared_data import build_shared_vectorstore
         result["shared_index"] = build_shared_vectorstore()
+    elif request.mode == "visual_index":
+        result["visual_index"] = build_missing_patent_visual_indexes(force=False)
     elif request.mode == "all":
         result["wiki_normalize"] = normalize_wiki_context_files()
         result["vectorstore"] = refresh_vectorstores(use_reviewed=True)
+        result["visual_index"] = build_missing_patent_visual_indexes(force=False)
         result["application"] = preprocess_application_pack(refresh_index=request.refresh_application)
     result["status"] = "ok"
     return result
@@ -232,6 +271,30 @@ def post_preprocess_run(request: PreprocessRunRequest) -> dict:
 def post_vectorstore_refresh(auto_audit: bool = Query(True, description="true면 주의/나쁜 데이터 자동 제외 후 승인본으로 refresh")) -> dict:
     result = run_wiki_audit_graph(mode="auto_refresh" if auto_audit else "refresh")
     return result.get("apply_result") or result.get("refresh_result", result)
+
+
+@router.get("/visual-vectorstore/status", summary="특허 원본 도표/표/이미지 전용 Qdrant 상태")
+def get_visual_vectorstore_status() -> dict:
+    return patent_visual_index_status()
+
+
+@router.post("/visual-vectorstore/refresh", summary="신규 특허 원본 visual asset만 증분 색인")
+def post_visual_vectorstore_refresh(
+    force: bool = Query(False, description="true면 기존 manifest가 있어도 모든 특허 visual index를 다시 생성"),
+    patent_id: str | None = Query(None, description="특정 특허 1건만 처리. 비우면 누락/신규 특허 전체 처리"),
+) -> dict:
+    if patent_id:
+        return build_patent_visual_index(patent_id, force=force)
+    return build_missing_patent_visual_indexes(force=force)
+
+
+@router.post("/visual-vectorstore/search", summary="특허 원본 도표/표/이미지 전용 Qdrant 검색")
+def post_visual_vectorstore_search(body: dict) -> dict:
+    return search_patent_visuals(
+        str(body.get("query") or ""),
+        patent_id=body.get("patent_id"),
+        top_k=int(body.get("top_k") or 6),
+    )
 
 
 @router.post("/search", response_model=SearchResponse, summary="챗봇 RAG 검색 확인")

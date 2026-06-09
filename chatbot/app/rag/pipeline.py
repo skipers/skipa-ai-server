@@ -200,7 +200,10 @@ def _build_format_instruction(
     elif fmt == "diagram" or needs_diagram:
         parts.append(
             "기술 흐름·시스템 구성을 ```mermaid\\nflowchart TD\\n ... \\n``` 형식으로 표현하세요. "
-            "블록 수는 5-8개로 유지하세요."
+            "블록 수는 5-8개로 유지하세요. "
+            "노드 라벨에 소괄호 ( ) 는 절대 사용하지 마세요 — Mermaid 파싱 오류가 발생합니다. "
+            "소괄호가 필요하면 대괄호 [ ] 로 감싸거나 생략하세요. "
+            "예: 결함 이미지 생성[제1 생성단계] 또는 결함 이미지 생성_제1"
         )
     elif fmt == "bullets":
         parts.append("핵심 항목을 번호 목록(1. 2. 3.) 또는 불릿(- )으로 구조화해 나열하세요.")

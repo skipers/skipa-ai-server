@@ -9,6 +9,7 @@ Examples:
   scripts/preprocess_chatbot_data.sh --mode application-case --original-pdf "failed.pdf" --rejection-file "notice.pdf"
   scripts/preprocess_chatbot_data.sh --mode application-case-refresh --case-id "failed_20260604"
   scripts/preprocess_chatbot_data.sh --mode application-case-generate --case-id "failed_20260604"
+  scripts/preprocess_chatbot_data.sh --mode visual-index
   scripts/preprocess_chatbot_data.sh --mode nightly-reindex
   scripts/preprocess_chatbot_data.sh --mode all
   scripts/preprocess_chatbot_data.sh --mode status
@@ -48,6 +49,7 @@ def main() -> int:
             "application-case-generate",
             "application-case-report",
             "application-status",
+            "visual-index",
             "nightly-reindex",
             "all",
         ],
@@ -57,6 +59,7 @@ def main() -> int:
             "audit=audit only, normalize-wiki=rewrite approved wiki markdown, "
             "application-preprocess=preprocess application pack, all=chatbot refresh+application preprocess, "
             "application-feedback=create rejection/opinion feedback HTML and refresh application index, "
+            "visual-index=extract missing patent original visuals and upsert to Qdrant, "
             "nightly-reindex=auto-audit wiki and Qdrant refresh for every chatbot index, "
             "status=show status"
         ),
@@ -65,6 +68,11 @@ def main() -> int:
         "--raw",
         action="store_true",
         help="Use raw documents instead of human-approved documents for refresh mode.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force rebuild for incremental modes such as visual-index.",
     )
     parser.add_argument("--title", default="특허거절의견서 기반 출원 피드백", help="Feedback report title.")
     parser.add_argument("--patent-id", default=None, help="Patent ID to connect with original/report data.")
@@ -100,12 +108,14 @@ def main() -> int:
         refresh_failed_patent_case_index,
         save_failed_patent_case_report,
     )
+    from chatbot.app.visual_data import build_missing_patent_visual_indexes, patent_visual_index_status
 
     if args.mode == "status":
         _print_json(
             {
                 "status": "ok",
                 "vectorstore": vectorstore_status(),
+                "visual_vectorstore": patent_visual_index_status(),
                 "application": application_index_status(),
                 "application_external": application_external_status(),
             }
@@ -123,6 +133,9 @@ def main() -> int:
         return 0
     if args.mode == "nightly-reindex":
         _print_json(nightly_reindex_all())
+        return 0
+    if args.mode == "visual-index":
+        _print_json(build_missing_patent_visual_indexes(force=args.force))
         return 0
     if args.mode == "application-preprocess":
         _print_json(preprocess_application_pack(refresh_index=True))

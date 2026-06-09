@@ -12,6 +12,7 @@ from ..rag.quality import compact_text, filter_usable_hits
 from ..rag.sources import cards_from_hits, cards_from_web
 from ..rag.web_answers import search_web
 from ..vectorstore import CORE_SEARCH_SOURCE_TYPES
+# visual_data는 데이터/API 전용 — 챗봇 답변에는 주입하지 않음
 from .state import ChatAgentState
 
 
@@ -35,7 +36,6 @@ _WHOLE_PATENT_DETAIL_TERMS = (
 )
 
 _ORIGINAL_ONLY_TERMS = ("청구항", "청구범위", "원문", "명세서", "도면", "pdf", "발명의 설명")
-
 
 def _is_low_evidence_answer(result: dict) -> bool:
     answer = str(result.get("answer") or "")
@@ -169,6 +169,7 @@ def _source_types_from_intent(intent: dict, *, fallback_requested: set[str]) -> 
     return requested or set(CORE_SEARCH_SOURCE_TYPES)
 
 
+
 def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
     patent_id = state.get("resolved_patent_id") or state.get("patent_id")
     wiki_available = _has_wiki_context(state)
@@ -218,6 +219,7 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
         web_context["enabled"] = True
 
     result = _merge_context_sections(result, state, web_context)
+
     intent_needs_web = bool((state.get("intent") or {}).get("needs_web"))
     wiki_hits = filter_usable_hits(list((state.get("wiki_context") or {}).get("hits") or []), limit=3) if intent_needs_web else []
     existing_snippets = {

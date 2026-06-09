@@ -34,6 +34,7 @@ uvicorn apps.api.main:app --reload --app-dir src --port 8000
 /Users/kgw/skipers-ai/data/patent/<patent_id>      patent.pdf / parsed.json / report.json
 /Users/kgw/skipers-ai/data/patent                  MinIO에서 동기화되는 공유 특허 cache
 Qdrant collection skipa_shared_patents             공유 특허 DB index
+Qdrant collection skipa_patent_visuals             원본 PDF 표/도표/도면/이미지 visual index
 /Users/kgw/skipers-ai/data/wiki                    분야별 wiki gate
 /Users/kgw/skipers-ai/chatbot/data                 출원팩, 챗봇 전용 데이터
 /Users/kgw/skipers-ai/chatbot/data/artifacts       챗봇 검증 산출물
@@ -131,6 +132,9 @@ Qdrant collection skipa_shared_patents             공유 특허 DB index
 | `GET` | `/api/v1/chatbot/minio/status` | MinIO `s3://skipa/patent/` 연결과 로컬 cache 상태 |
 | `POST` | `/api/v1/chatbot/minio/sync` | MinIO patent prefix를 `data/patent/`로 동기화 |
 | `GET` | `/api/v1/chatbot/qdrant/status` | Qdrant 연결과 dashboard URL 확인 |
+| `GET` | `/api/v1/chatbot/visual-vectorstore/status` | 특허 원본 visual index 상태, 누락 특허 목록 |
+| `POST` | `/api/v1/chatbot/visual-vectorstore/refresh` | 신규/누락 특허 원본 PDF의 표/도표/도면/이미지만 증분 색인 |
+| `POST` | `/api/v1/chatbot/visual-vectorstore/search` | visual Qdrant collection 직접 검색 |
 | `POST` | `/api/v1/chatbot/search` | RAG 검색 결과만 확인 |
 | `POST` | `/api/v1/chatbot/query` | `/search`와 같은 검색 확인 |
 | `POST` | `/api/v1/chatbot/answer` | 검색과 답변 생성을 한 번에 확인 |
@@ -158,9 +162,36 @@ Qdrant collection skipa_shared_patents             공유 특허 DB index
 | `auto_audit_refresh` | wiki 자동 감사 후 승인 데이터만 vectorstore 반영 |
 | `audit` | 나쁜 데이터 후보 감사만 실행 |
 | `application_preprocess` | 출원 공식팩 전처리와 공용 index 갱신 |
+| `visual_index` | `data/patent/<patent_id>/patent.pdf`에서 신규/누락 visual asset만 Qdrant에 증분 색인 |
 | `nightly_reindex` | 매일 00:00 작업과 같은 전체 Qdrant 재색인 |
 | `shared_index` | 루트 `data/patent/<patent_id>` 공유 특허 DB index 재생성 |
 | `all` | wiki 정규화, vectorstore refresh, 출원팩 전처리 |
+
+### Visual vectorstore 정책
+
+`skipa_patent_visuals`는 일반 텍스트 RAG와 분리된 visual 전용 collection입니다.
+
+```text
+source: data/patent/<patent_id>/patent.pdf
+assets: data/patent/<patent_id>/extracted/assets/original_pdf/*.png
+manifest: data/patent/<patent_id>/extracted/visual_index_manifest.json
+payload: asset_url, source_url, page_no, asset_bbox, asset_kind, section_title, caption/문맥
+```
+
+규칙:
+
+- `report.json`이 없어도 `patent.pdf`만 있으면 visual index를 생성합니다.
+- `visual_index_manifest.json`에 저장한 `patent.pdf` SHA1이 같으면 다음 refresh에서 건너뜁니다.
+- Qdrant collection이 비어 있거나 없어졌으면 전체 후보를 다시 처리합니다.
+- 챗봇 질문에 `도면`, `표`, `도표`, `이미지`, `다이어그램`, `차트` 의도가 있으면 visual collection을 추가 검색합니다.
+
+검색 예:
+
+```bash
+curl -X POST http://127.0.0.1:8001/api/v1/chatbot/visual-vectorstore/search \
+  -H "Content-Type: application/json" \
+  -d '{"patent_id":"10-1959619","query":"대표도와 결함 시각화 흐름","top_k":4}'
+```
 
 ### MinIO patent sync
 
@@ -506,11 +537,12 @@ Dev API:
 3. MinIO 데이터를 먼저 확인하려면 `GET /api/v1/chatbot/minio/status`를 호출합니다.
 4. 필요하면 `POST /api/v1/chatbot/minio/sync?rebuild_index=true`로 `s3://skipa/patent/`를 `data/patent/`에 동기화합니다.
 5. 필요하면 `POST /api/v1/chatbot/preprocess/run`에 `{"mode":"shared_index"}`를 보내 공유 특허 DB index만 다시 갱신합니다.
-6. wiki 데이터 검증은 `POST /api/v1/wiki/audit-auto-refresh` 또는 `{"mode":"auto_audit_refresh"}`로 실행합니다.
-7. 일반 특허 질문은 `POST /api/v1/patent-chat/chat`으로 테스트합니다.
-8. 출원 도우미는 먼저 `/api/v1/application/failed-patents/upload`로 실패특허 PDF를 올리고, case ID를 받은 뒤 `/failed-patents/{case_id}/chat`을 호출합니다.
-9. 실패특허 보고서가 필요하면 `/failed-patents/{case_id}/report/generate`를 호출한 뒤 같은 case chat으로 결과를 확인합니다.
-10. 출원 전 아이디어 평가는 `/api/v1/pre-eval/evaluate`로 케이스를 만들고 `/pre-eval/cases/{case_id}/chat`으로 질문합니다.
+6. 도면/표/이미지 검색까지 확인하려면 `POST /api/v1/chatbot/visual-vectorstore/refresh`를 한 번 실행합니다.
+7. wiki 데이터 검증은 `POST /api/v1/wiki/audit-auto-refresh` 또는 `{"mode":"auto_audit_refresh"}`로 실행합니다.
+8. 일반 특허 질문은 `POST /api/v1/patent-chat/chat`으로 테스트합니다.
+9. 출원 도우미는 먼저 `/api/v1/application/failed-patents/upload`로 실패특허 PDF를 올리고, case ID를 받은 뒤 `/failed-patents/{case_id}/chat`을 호출합니다.
+10. 실패특허 보고서가 필요하면 `/failed-patents/{case_id}/report/generate`를 호출한 뒤 같은 case chat으로 결과를 확인합니다.
+11. 출원 전 아이디어 평가는 `/api/v1/pre-eval/evaluate`로 케이스를 만들고 `/pre-eval/cases/{case_id}/chat`으로 질문합니다.
 
 ## CLI 대응표
 
@@ -518,6 +550,8 @@ Dev API:
 | --- | --- |
 | 챗봇 서버 실행 | `bash chatbot/scripts/start_chatbot_server.sh` |
 | 상태 확인 | `bash chatbot/scripts/preprocess_chatbot_data.sh --mode status` |
+| 원본 visual 증분 색인 | `bash chatbot/scripts/preprocess_chatbot_data.sh --mode visual-index` |
+| 원본 visual 강제 재색인 | `bash chatbot/scripts/preprocess_chatbot_data.sh --mode visual-index --force` |
 | wiki 자동 감사와 refresh | `bash chatbot/scripts/preprocess_chatbot_data.sh --mode auto-audit` |
 | 전체 nightly 재색인 | `bash chatbot/scripts/preprocess_chatbot_data.sh --mode nightly-reindex` |
 | 출원 공식팩 전처리 | `bash chatbot/scripts/preprocess_chatbot_data.sh --mode application-preprocess` |

@@ -13,6 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+import os
+
 from .config import BUSINESS_ROOT, DATA_ROOT, MINIO_SYNC_ON_STARTUP, PATENT_APPLICATION_ROOT, PATENTS_ROOT, PRE_EVAL_ROOT, SHARED_DATA_ROOT
 from .routers.pre_eval import router as pre_eval_router
 from .routers.chatbot import (
@@ -29,27 +31,44 @@ logger = logging.getLogger(__name__)
 
 KST = timezone(timedelta(hours=9))
 
-
-def _seconds_until_midnight_kst() -> float:
-    """현재 시각부터 다음 KST 자정까지 남은 초."""
-    now = datetime.now(KST)
-    midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    return (midnight - now).total_seconds()
+# 환경변수 REINDEX_INTERVAL_SECONDS 로 조정 가능 (기본 3600 = 1시간)
+_REINDEX_INTERVAL = int(os.environ.get("REINDEX_INTERVAL_SECONDS", "3600"))
+# 앱 시작 후 첫 실행까지 대기 시간 (기본 60초, 빠른 확인을 위해 단축 가능)
+_REINDEX_INITIAL_DELAY = int(os.environ.get("REINDEX_INITIAL_DELAY_SECONDS", "60"))
 
 
-async def _nightly_reindex_loop() -> None:
-    """매일 00:00 KST 에 nightly_reindex_all 을 실행하는 백그라운드 태스크."""
+def _next_run_iso() -> str:
+    return (datetime.now(KST) + timedelta(seconds=_REINDEX_INTERVAL)).replace(microsecond=0).isoformat()
+
+
+async def _bluegreen_reindex_loop() -> None:
+    """blue-green 글로벌 색인 교체 루프.
+
+    - 시작 후 _REINDEX_INITIAL_DELAY 초 대기 → 첫 실행
+    - 이후 _REINDEX_INTERVAL 초(기본 1시간)마다 반복
+    - 실행 함수: bluegreen_refresh_global() — 글로벌 patent·wiki 컬렉션만 교체
+    - 전체 재인덱싱(application pack 등)은 /preprocess/run?mode=nightly_reindex 로 수동 실행
+    """
+    logger.info(
+        "blue-green reindex 스케줄러 시작 — 초기 대기 %d초 후 첫 실행, 이후 %d초 간격",
+        _REINDEX_INITIAL_DELAY, _REINDEX_INTERVAL,
+    )
+    await asyncio.sleep(_REINDEX_INITIAL_DELAY)
     while True:
-        wait = _seconds_until_midnight_kst()
-        logger.info("nightly reindex 스케줄: %.0f초 후 (다음 KST 자정)", wait)
-        await asyncio.sleep(wait)
         try:
-            from .vectorstore import nightly_reindex_all
-            logger.info("nightly reindex 시작")
-            result = nightly_reindex_all()
-            logger.info("nightly reindex 완료: status=%s", result.get("status"))
+            from .vectorstore import bluegreen_refresh_global
+            logger.info("blue-green reindex 시작")
+            result = bluegreen_refresh_global()
+            logger.info(
+                "blue-green reindex 완료: patent_color=%s wiki_color=%s patent_docs=%s wiki_docs=%s",
+                result.get("global_patent", {}).get("active_color"),
+                result.get("global_wiki", {}).get("active_color"),
+                result.get("patent_doc_count"),
+                result.get("wiki_doc_count"),
+            )
         except Exception as exc:
-            logger.error("nightly reindex 실패: %s", exc)
+            logger.error("blue-green reindex 실패: %s", exc, exc_info=True)
+        await asyncio.sleep(_REINDEX_INTERVAL)
 
 
 @asynccontextmanager
@@ -67,8 +86,11 @@ async def lifespan(application: FastAPI):
             )
         except Exception as exc:
             logger.error("MinIO patent sync failed: %s", exc)
-    task = asyncio.create_task(_nightly_reindex_loop())
-    logger.info("nightly reindex 스케줄러 시작 (매일 00:00 KST)")
+    task = asyncio.create_task(_bluegreen_reindex_loop())
+    logger.info(
+        "blue-green reindex 스케줄러 등록 (초기 대기 %ds → 이후 %ds 간격)",
+        _REINDEX_INITIAL_DELAY, _REINDEX_INTERVAL,
+    )
     yield
     task.cancel()
     try:
