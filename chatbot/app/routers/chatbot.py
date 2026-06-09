@@ -59,6 +59,7 @@ from ..store import (
 )
 from ..vectorstore import (
     bluegreen_refresh_global,
+    bluegreen_refresh_patent_only,
     bluegreen_reindex_status,
     full_rebuild_vectorstores,
     nightly_reindex_all,
@@ -326,9 +327,10 @@ def post_vectorstore_full_rebuild() -> dict:
     "/bluegreen/status",
     summary="Blue-Green Vectorstore 현황 조회",
     description=(
-        "모든 blue-green 관리 컬렉션의 현재 활성 슬롯(green/blue), "
-        "각 슬롯의 문서 수, 마지막 교체 시각, 다음 예정 교체 시각을 반환합니다.\n\n"
-        "1시간마다 자동으로 inactive 슬롯에 재색인 후 alias를 교체합니다."
+        "특허·wiki blue-green 컬렉션 상태를 반환합니다.\n\n"
+        "- **특허** (`global_patent`): API 호출 시 교체 (`POST /bluegreen/refresh`)\n"
+        "- **Wiki** (`global_wiki`): 1시간 스케줄러가 자동 교체\n\n"
+        "각 항목에는 활성 슬롯(green/blue), 문서 수, 마지막 교체 시각이 포함됩니다."
     ),
 )
 def get_bluegreen_status() -> dict:
@@ -337,15 +339,82 @@ def get_bluegreen_status() -> dict:
 
 @router.post(
     "/bluegreen/refresh",
-    summary="Blue-Green 즉시 교체 실행",
+    summary="특허 Blue-Green 즉시 교체 실행",
     description=(
-        "스케줄(1시간 간격)을 기다리지 않고 blue-green 재색인을 즉시 실행합니다.\n\n"
-        "현재 green이 활성이면 blue 슬롯에 재색인 후 alias를 blue로 교체하고, "
-        "반대로 blue가 활성이면 green으로 교체합니다."
+        "특허 원본 PDF·보고서 글로벌 컬렉션을 blue-green으로 즉시 재색인합니다.\n\n"
+        "Wiki 컬렉션은 1시간 스케줄러가 별도로 관리하므로 이 API로는 교체되지 않습니다.\n\n"
+        "현재 green이 활성이면 blue 슬롯에 재색인 후 alias를 blue로 교체합니다."
     ),
 )
 def post_bluegreen_refresh() -> dict:
-    return bluegreen_refresh_global()
+    return bluegreen_refresh_patent_only()
+
+
+@router.get(
+    "/vectorstore/patent/status",
+    summary="특허 Blue-Green Vectorstore 상세 상태",
+    description=(
+        "글로벌 특허 컬렉션의 blue-green 슬롯 상태, 문서 수, 마지막 교체 시각을 반환합니다.\n\n"
+        "재색인: `POST /bluegreen/refresh`"
+    ),
+)
+def get_patent_vectorstore_status() -> dict:
+    from ..qdrant_store import bluegreen_collection_status, bluegreen_patent_alias, collection_info, patent_collection
+    alias = bluegreen_patent_alias()
+    green = f"{alias}_green"
+    blue = f"{alias}_blue"
+    bg_status = bluegreen_collection_status(alias, green, blue)
+    last = {}
+    try:
+        from ..vectorstore import _load_bluegreen_status
+        last = _load_bluegreen_status()
+    except Exception:
+        pass
+    return {
+        "type": "patent",
+        "schedule": "on_api_call",
+        "alias": alias,
+        "patent_refreshed_at": last.get("patent_refreshed_at"),
+        "bluegreen": bg_status,
+    }
+
+
+@router.get(
+    "/vectorstore/wiki/status",
+    summary="Wiki Blue-Green Vectorstore 상세 상태",
+    description=(
+        "글로벌 wiki 컬렉션의 blue-green 슬롯 상태, 문서 수, 다음 자동 교체 시각을 반환합니다.\n\n"
+        "재색인 주기: 1시간 자동 스케줄"
+    ),
+)
+def get_wiki_vectorstore_status() -> dict:
+    from ..qdrant_store import bluegreen_collection_status, bluegreen_wiki_alias
+    alias = bluegreen_wiki_alias()
+    green = f"{alias}_green"
+    blue = f"{alias}_blue"
+    bg_status = bluegreen_collection_status(alias, green, blue)
+    last = {}
+    try:
+        from ..vectorstore import _load_bluegreen_status
+        last = _load_bluegreen_status()
+    except Exception:
+        pass
+    from datetime import datetime, timedelta
+    next_run: str | None = None
+    wiki_at = last.get("wiki_refreshed_at")
+    if wiki_at:
+        try:
+            next_run = (datetime.fromisoformat(wiki_at) + timedelta(hours=1)).isoformat(timespec="seconds")
+        except Exception:
+            pass
+    return {
+        "type": "wiki",
+        "schedule": "every_1_hour",
+        "alias": alias,
+        "wiki_refreshed_at": wiki_at,
+        "next_scheduled_run": next_run,
+        "bluegreen": bg_status,
+    }
 
 
 # ── [chatbot] 전처리 파이프라인 실행 ─────────────────────────────────────

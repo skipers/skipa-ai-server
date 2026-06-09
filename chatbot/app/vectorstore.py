@@ -1705,18 +1705,15 @@ def _load_bluegreen_status() -> dict[str, Any]:
         return {}
 
 
-def bluegreen_refresh_global() -> dict[str, Any]:
-    """글로벌 특허·wiki 컬렉션만 blue-green으로 무중단 재색인.
+def bluegreen_refresh_patent_only() -> dict[str, Any]:
+    """특허 원본 PDF·보고서 글로벌 컬렉션만 blue-green 재색인.
 
-    nightly_reindex_all()의 전체 워크플로(wiki 감사, shared index, visual index 등)와 달리
-    글로벌 검색 컬렉션만 교체하므로 시간이 짧아 매시간 실행에 적합합니다.
+    API 호출 시 트리거됩니다 (POST /api/v1/chatbot/bluegreen/refresh).
+    wiki는 1시간 스케줄러(bluegreen_refresh_wiki_only)가 담당합니다.
     """
-    from .wiki.topics import all_active_topic_slugs, topic_approved_md
-
     started_at = _now()
-    source = "bluegreen_hourly"
+    source = "bluegreen_api_trigger"
 
-    # 전체 특허 문서 수집
     global_docs: list[dict[str, Any]] = []
     patent_results = []
     for patent_id in _patent_ids():
@@ -1725,7 +1722,6 @@ def bluegreen_refresh_global() -> dict[str, Any]:
         global_docs.extend(core_docs)
         patent_results.append({"patent_id": patent_id, "doc_count": len(core_docs)})
 
-    # 글로벌 특허 컬렉션 blue-green 교체
     global_patent_result = _write_vectorstore(
         PATENTS_ROOT / "_global" / "index" / "qdrant",
         global_docs,
@@ -1733,7 +1729,35 @@ def bluegreen_refresh_global() -> dict[str, Any]:
         source=source,
     )
 
-    # 전체 wiki 문서 수집 + 글로벌 wiki 컬렉션 blue-green 교체
+    result: dict[str, Any] = {
+        "status": "completed",
+        "workflow": "bluegreen_patent_refresh",
+        "started_at": started_at,
+        "finished_at": _now(),
+        "patent_doc_count": len(global_docs),
+        "patents": patent_results,
+        "global_patent": {
+            "collection": global_patent_result.get("collection"),
+            "document_count": global_patent_result.get("document_count"),
+            "active_color": (global_patent_result.get("qdrant") or {}).get("active_color"),
+            "alias": (global_patent_result.get("qdrant") or {}).get("alias"),
+        },
+    }
+    last = _load_bluegreen_status()
+    _save_bluegreen_status({**last, **result, "patent_refreshed_at": started_at})
+    return result
+
+
+def bluegreen_refresh_wiki_only() -> dict[str, Any]:
+    """글로벌 wiki 컬렉션만 blue-green 재색인.
+
+    1시간 스케줄러에서 호출됩니다.
+    """
+    from .wiki.topics import all_active_topic_slugs
+
+    started_at = _now()
+    source = "bluegreen_hourly"
+
     all_wiki_docs: list[dict[str, Any]] = []
     for topic_slug in all_active_topic_slugs():
         all_wiki_docs.extend(list(_topic_wiki_documents(topic_slug)))
@@ -1747,23 +1771,39 @@ def bluegreen_refresh_global() -> dict[str, Any]:
 
     result: dict[str, Any] = {
         "status": "completed",
-        "workflow": "bluegreen_hourly_refresh",
+        "workflow": "bluegreen_wiki_hourly",
         "started_at": started_at,
         "finished_at": _now(),
-        "patent_doc_count": len(global_docs),
         "wiki_doc_count": len(all_wiki_docs),
-        "global_patent": {
-            "collection": global_patent_result.get("collection"),
-            "document_count": global_patent_result.get("document_count"),
-            "active_color": (global_patent_result.get("qdrant") or {}).get("active_color"),
-            "alias": (global_patent_result.get("qdrant") or {}).get("alias"),
-        },
         "global_wiki": {
             "collection": global_wiki_result.get("collection"),
             "document_count": global_wiki_result.get("document_count"),
             "active_color": (global_wiki_result.get("qdrant") or {}).get("active_color"),
             "alias": (global_wiki_result.get("qdrant") or {}).get("alias"),
         },
+    }
+    last = _load_bluegreen_status()
+    _save_bluegreen_status({**last, **result, "wiki_refreshed_at": started_at})
+    return result
+
+
+def bluegreen_refresh_global() -> dict[str, Any]:
+    """특허·wiki 글로벌 컬렉션 모두 blue-green 재색인 (수동/레거시 호환).
+
+    일반 운영에서는 특허는 API 트리거(bluegreen_refresh_patent_only),
+    wiki는 1시간 스케줄러(bluegreen_refresh_wiki_only)로 각각 실행합니다.
+    """
+    patent_result = bluegreen_refresh_patent_only()
+    wiki_result = bluegreen_refresh_wiki_only()
+    result: dict[str, Any] = {
+        "status": "completed",
+        "workflow": "bluegreen_full_refresh",
+        "started_at": patent_result["started_at"],
+        "finished_at": wiki_result["finished_at"],
+        "patent_doc_count": patent_result["patent_doc_count"],
+        "wiki_doc_count": wiki_result["wiki_doc_count"],
+        "global_patent": patent_result["global_patent"],
+        "global_wiki": wiki_result["global_wiki"],
     }
     _save_bluegreen_status(result)
     return result
@@ -1798,10 +1838,13 @@ def bluegreen_reindex_status() -> dict[str, Any]:
         collections[alias_name] = bluegreen_collection_status(alias_name, green, blue)
 
     return {
-        "strategy": "blue_green_alias_all",
-        "schedule": "every_1_hour",
+        "strategy": "blue_green_alias_split",
+        "patent_schedule": "on_api_call",
+        "wiki_schedule": "every_1_hour",
         "last_run_at": last_run_at,
-        "next_run_at": next_run_at,
+        "next_wiki_run_at": next_run_at,
+        "patent_refreshed_at": last_run.get("patent_refreshed_at"),
+        "wiki_refreshed_at": last_run.get("wiki_refreshed_at"),
         "last_run_status": last_run.get("status"),
         "managed_collections": len(collections),
         "collections": collections,

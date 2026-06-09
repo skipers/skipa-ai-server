@@ -10,9 +10,13 @@ from ..agents.pre_eval_graph import pre_eval_graph_mermaid, run_pre_eval_chat_ag
 from ..pre_eval_data import (
     create_pre_eval_case,
     get_pre_eval_report,
+    handle_report_complete_webhook,
+    list_pre_application_vectorstores,
     list_pre_eval_cases,
+    pre_application_vectorstore_status,
     pre_eval_case_status,
     refresh_pre_eval_case_index,
+    search_pre_application_vectorstore,
     search_pre_eval_vectorstore,
 )
 
@@ -20,36 +24,110 @@ from ..pre_eval_data import (
 router = APIRouter(prefix="/api/v1/pre-eval", tags=["pre-eval"])
 
 
-@router.post("/evaluate", summary="출원 전 사전평가 실행 및 케이스 생성")
-def post_evaluate(body: dict[str, Any]) -> dict:
-    """특허명·기술설명·청구항 등을 받아 사전평가를 실행하고 결과를 케이스 폴더에 저장합니다.
-    평가 완료 후 케이스 전용 vectorstore가 자동 생성되어 바로 채팅을 시작할 수 있습니다.
+# ── 🟢 외부 공개 API ──────────────────────────────────────────────────────
 
-    요청 필드:
-    - patentName (필수): 특허명
-    - technologyDescription (필수): 기술 설명
-    - claims (선택): 청구항 목록
-    - relatedBusiness (선택): 관련 사업
-    - targetCountries (선택): 출원 예정 국가 목록
-    - enable_llm (선택, 기본 true): LLM 종합 코멘트 생성 여부
-    - run_web_search (선택, 기본 true): wiki 웹 검색 실행 여부
+@router.post(
+    "/webhook/report-complete",
+    summary="[외부] 사전 출원 보고서 생성 완료 알림",
+    description=(
+        "외부 시스템(사전 출원 평가 서비스)이 보고서 생성 완료를 알릴 때 호출합니다.\n\n"
+        "- `patent_id`: 보고서가 생성된 특허 ID (예: `10-2142205`)\n\n"
+        "MinIO에서 `report.json`을 탐색하여 `pre-{patent_id}` 컬렉션에 임베딩·저장합니다.\n"
+        "저장 후 `/cases/{patent_id}/chat` 으로 바로 챗봇 사용이 가능합니다.\n\n"
+        "벡터스토어는 blue-green 없이 단순 upsert 방식으로 누적 생성됩니다."
+    ),
+)
+def post_report_complete_webhook(body: dict[str, Any]) -> dict:
+    patent_id = str(body.get("patent_id") or "").strip()
+    if not patent_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="patent_id는 필수입니다.")
+    return handle_report_complete_webhook(patent_id)
+
+
+@router.post(
+    "/cases/{patent_id}/chat",
+    summary="[외부] 사전 출원 특허 보고서 기반 챗봇",
+    description=(
+        "사전 출원 특허 `pre-{patent_id}` 벡터스토어를 기반으로 질문에 답변합니다.\n\n"
+        "웹훅(`/webhook/report-complete`)으로 인덱싱이 완료된 후 사용 가능합니다.\n\n"
+        "요청 필드:\n"
+        "- `question` (필수): 질문\n"
+        "- `user_id` (선택): 사용자 식별자\n"
+        "- `chat_history` (선택): 이전 대화 목록\n"
+        "- `top_k` (선택, 기본 8): 검색 청크 수"
+    ),
+)
+def post_pre_application_chat(patent_id: str, body: dict[str, Any]) -> dict:
+    return run_pre_eval_chat_agent(
+        str(body.get("question") or ""),
+        case_id=patent_id,
+        user_id=body.get("user_id"),
+        chat_history=list(body.get("chat_history") or []),
+        top_k=int(body.get("top_k") or 8),
+    )
+
+
+@router.get(
+    "/vectorstore/status",
+    summary="[외부] 사전 출원 특허 벡터스토어 전체 목록 및 상태",
+    description=(
+        "`pre-{patent_id}` 패턴으로 생성된 모든 사전 출원 특허 벡터스토어의 상태를 반환합니다.\n\n"
+        "각 항목에는 컬렉션 이름, 문서 수, 인덱싱 시각이 포함됩니다."
+    ),
+)
+def get_pre_application_vectorstore_status() -> dict:
+    items = list_pre_application_vectorstores()
+    return {"count": len(items), "items": items}
+
+
+@router.get(
+    "/vectorstore/{patent_id}/status",
+    summary="[외부] 사전 출원 특허 개별 벡터스토어 상태",
+    description="특정 `patent_id`에 대한 `pre-{patent_id}` 컬렉션의 상세 상태를 반환합니다.",
+)
+def get_pre_application_single_vectorstore_status(patent_id: str) -> dict:
+    return pre_application_vectorstore_status(patent_id)
+
+
+@router.post(
+    "/cases/{patent_id}/search",
+    summary="[외부] 사전 출원 특허 벡터스토어 직접 검색",
+    description="`pre-{patent_id}` 컬렉션에서 쿼리와 유사한 청크를 반환합니다.",
+)
+def post_pre_application_search(patent_id: str, body: dict[str, Any]) -> dict:
+    query = str(body.get("query") or "")
+    top_k = int(body.get("top_k") or 8)
+    return search_pre_application_vectorstore(patent_id, query, top_k=top_k)
+
+
+# ── 🔧 내부 운영 API — 레거시 사전평가 케이스 (내부용) ───────────────────
+
+@router.post(
+    "/evaluate",
+    summary="사전평가 실행 및 케이스 생성 (내부 운영용)",
+    include_in_schema=False,
+)
+def post_evaluate(body: dict[str, Any]) -> dict:
+    """내부 운영용: 직접 평가 로직을 실행합니다.
+    외부 연동은 /webhook/report-complete 를 사용하세요.
     """
     enable_llm = bool(body.pop("enable_llm", True))
     run_web_search = bool(body.pop("run_web_search", True))
     return create_pre_eval_case(body, enable_llm=enable_llm, run_web_search=run_web_search)
 
 
-@router.get("/cases", summary="사전평가 케이스 목록")
+@router.get("/cases", summary="사전평가 케이스 목록", include_in_schema=False)
 def get_cases() -> dict:
     return {"items": list_pre_eval_cases()}
 
 
-@router.get("/cases/{case_id}", summary="사전평가 케이스 상태 및 vectorstore 정보")
+@router.get("/cases/{case_id}", summary="사전평가 케이스 상태 및 vectorstore 정보", include_in_schema=False)
 def get_case(case_id: str) -> dict:
     return pre_eval_case_status(case_id)
 
 
-@router.get("/cases/{case_id}/report", summary="사전평가 보고서 원본 JSON")
+@router.get("/cases/{case_id}/report", summary="사전평가 보고서 원본 JSON", include_in_schema=False)
 def get_case_report(case_id: str) -> dict:
     return get_pre_eval_report(case_id)
 
@@ -63,11 +141,8 @@ def post_case_index_refresh(case_id: str) -> dict:
     return refresh_pre_eval_case_index(case_id)
 
 
-@router.post("/cases/{case_id}/chat", summary="사전평가 보고서 기반 챗봇")
-def post_case_chat(case_id: str, body: dict[str, Any]) -> dict:
-    """사전평가 케이스 보고서 전용 vectorstore를 검색해 질문에 답변합니다.
-    챗봇 성능은 특허 챗봇과 동일합니다 (의도 분류 + wiki gate + web 검색 보강).
-    """
+@router.post("/cases/{case_id}/chat/legacy", summary="레거시 사전평가 케이스 챗봇", include_in_schema=False)
+def post_case_chat_legacy(case_id: str, body: dict[str, Any]) -> dict:
     return run_pre_eval_chat_agent(
         str(body.get("question") or ""),
         case_id=case_id,
@@ -77,11 +152,8 @@ def post_case_chat(case_id: str, body: dict[str, Any]) -> dict:
     )
 
 
-@router.post("/cases/{case_id}/search", summary="사전평가 케이스 vectorstore 직접 검색")
-def post_case_search(
-    case_id: str,
-    body: dict[str, Any],
-) -> dict:
+@router.post("/cases/{case_id}/search/legacy", summary="레거시 사전평가 케이스 vectorstore 직접 검색", include_in_schema=False)
+def post_case_search_legacy(case_id: str, body: dict[str, Any]) -> dict:
     query = str(body.get("query") or "")
     top_k = int(body.get("top_k") or 8)
     return search_pre_eval_vectorstore(case_id, query, top_k=top_k)

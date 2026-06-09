@@ -264,6 +264,53 @@ def _sync_aws() -> dict[str, Any]:
     return {"backend": "aws_cli", "sync_output_count": len(uploaded_lines), "sync_output_preview": uploaded_lines[:20]}
 
 
+def fetch_pre_application_report_from_minio(patent_id: str) -> dict[str, Any]:
+    """MinIO에서 사전 출원 특허 보고서(report.json)를 가져옵니다.
+
+    탐색 경로 우선순위:
+    1. {MINIO_PATENT_PREFIX}/{patent_id}/report.json
+    2. pre_application/{patent_id}/report.json
+    3. {patent_id}/report.json
+
+    반환: { "found": bool, "patent_id": str, "report": dict | None,
+             "source_key": str | None, "error": str | None }
+    """
+    if not _configured():
+        return {"found": False, "patent_id": patent_id, "report": None, "error": "MinIO not configured"}
+
+    client = _boto3_client()
+    if client is None:
+        return {"found": False, "patent_id": patent_id, "report": None, "error": "boto3 not installed"}
+
+    prefix = _prefix().strip("/")
+    candidates = [
+        f"{prefix}/{patent_id}/report.json" if prefix else f"{patent_id}/report.json",
+        f"pre_application/{patent_id}/report.json",
+        f"{patent_id}/report.json",
+    ]
+
+    import io
+    import json as _json
+
+    for key in candidates:
+        key = key.lstrip("/")
+        try:
+            obj = client.get_object(Bucket=MINIO_BUCKET, Key=key)
+            body = obj["Body"].read()
+            report = _json.loads(body.decode("utf-8"))
+            return {"found": True, "patent_id": patent_id, "report": report, "source_key": key, "error": None}
+        except Exception:
+            continue
+
+    return {
+        "found": False,
+        "patent_id": patent_id,
+        "report": None,
+        "source_key": None,
+        "error": f"report.json not found in MinIO for patent_id={patent_id} (tried: {candidates})",
+    }
+
+
 def sync_patent_data_from_minio(*, rebuild_index: bool | None = None) -> dict[str, Any]:
     status_before = minio_patent_status()
     if not status_before.get("configured"):
