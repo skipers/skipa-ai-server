@@ -7,7 +7,7 @@
         "반도체 결함 시각화 방법 및 시스템"
       ],
       "search_source": "KIPRIS",
-      "search_date": "2026-06-09",
+      "search_date": "2026-06-10",
       "total_retrieved": 100,
       "excluded_self_count": 1,
       "selection_criteria": [
@@ -22,7 +22,7 @@
         "to": ""
       }
     },
-    "fetched_at": "2026-06-09T10:31:38",
+    "fetched_at": "2026-06-10T14:17:27",
     "api_enabled": true,
     "limit": 10,
     "extra_operations": []

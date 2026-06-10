@@ -8,9 +8,27 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO
 
+from core.env import load_runtime_env
+
+load_runtime_env()
+
 
 def _truthy(value: str | None) -> bool:
     return str(value or "").lower() in {"1", "true", "yes", "on"}
+
+
+def _float_env(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
 
 
 @dataclass(frozen=True)
@@ -66,7 +84,7 @@ class MinioObjectStorage(ObjectStorage):
             or "skipa"
         )
         self.region = os.getenv("MINIO_REGION") or os.getenv("AWS_REGION") or "us-east-1"
-        self.prefix = os.getenv("EVAL_LOGIC_OBJECT_PREFIX", "eval-logic").strip("/")
+        self.prefix = os.getenv("EVAL_LOGIC_OBJECT_PREFIX", "").strip("/")
         explicit = os.getenv("EVAL_LOGIC_STORAGE_BACKEND", "").lower() in {"minio", "s3"}
         self._enabled = bool(endpoint and access_key and secret_key) or explicit
         self._client: Any | None = None
@@ -96,7 +114,13 @@ class MinioObjectStorage(ObjectStorage):
             aws_secret_access_key=self.secret_key,
             region_name=self.region,
             use_ssl=secure,
-            config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+            config=Config(
+                signature_version="s3v4",
+                s3={"addressing_style": "path"},
+                connect_timeout=_float_env("MINIO_CONNECT_TIMEOUT", 3.0),
+                read_timeout=_float_env("MINIO_READ_TIMEOUT", 10.0),
+                retries={"max_attempts": _int_env("MINIO_MAX_ATTEMPTS", 2)},
+            ),
         )
         return self._client
 

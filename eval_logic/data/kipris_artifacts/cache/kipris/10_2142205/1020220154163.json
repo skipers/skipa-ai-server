@@ -1,0 +1,344 @@
+{
+  "application_number": "1020220154163",
+  "raw": {
+    "bibliography_detail": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 16:39:06.396",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "item": {
+            "biblioSummaryInfoArray": {
+              "biblioSummaryInfo": {
+                "applicationDate": "2022.11.17",
+                "applicationFlag": "",
+                "applicationNumber": "10-2022-0154163",
+                "claimCount": "2",
+                "examinerName": "김재철",
+                "finalDisposal": "등록결정(재심사후)",
+                "inventionTitle": "인공지능 공조 제어 시스템",
+                "inventionTitleEng": "air conditioning control system with  AI(artificial intelligence)",
+                "openDate": "2024.05.24",
+                "openNumber": "10-2024-0072509",
+                "originalApplicationDate": "",
+                "originalApplicationKind": "국내출원/신규",
+                "originalApplicationNumber": "",
+                "originalExaminationRequestDate": "2022.11.17",
+                "originalExaminationRequestFlag": "Y",
+                "publicationDate": "2025.09.09",
+                "publicationNumber": "",
+                "registerDate": "2025.09.03",
+                "registerNumber": "10-2856809-0000",
+                "registerStatus": "등록",
+                "translationSubmitDate": ""
+              }
+            },
+            "ipcInfoArray": {
+              "ipcInfo": [
+                {
+                  "ipcDate": "(2018.01.01)",
+                  "ipcNumber": "F24F 11/63"
+                },
+                {
+                  "ipcDate": "(2020.01.01)",
+                  "ipcNumber": "G06F 30/28"
+                },
+                {
+                  "ipcDate": "(2019.01.01)",
+                  "ipcNumber": "G06N 20/00"
+                },
+                {
+                  "ipcDate": "(2018.01.01)",
+                  "ipcNumber": "F24F 110/10"
+                },
+                {
+                  "ipcDate": "(2018.01.01)",
+                  "ipcNumber": "F24F 110/70"
+                },
+                {
+                  "ipcDate": "(2018.01.01)",
+                  "ipcNumber": "F24F 120/10"
+                },
+                {
+                  "ipcDate": "(2018.01.01)",
+                  "ipcNumber": "F24F 130/10"
+                }
+              ]
+            },
+            "familyInfoArray": {
+              "familyInfo": ""
+            },
+            "abstractInfoArray": {
+              "abstractInfo": {
+                "astrtCont": "본 발명은 인공지능 공조 제어 시스템에 관한 것으로서, 더욱 상세하게는 인공지능을 통하여 공조 장치를 제어하도록 함으로써, 공조 장치의 사용에 따른 에너지 및 비용을 절감할 수 있을 뿐만 아니라, 공조 장치의 제어를 위한 인공지능을 학습하기 위한 데이터를 대상 건물을 모델링하여 도출하도록 함으로써, 학습에 필요한 시간 및 비용을 상당량 절감할 수 있는 인공지능 공조 제어 시스템에 관한 것이다. 상기한 목적을 달성하기 위한 본 발명은 건물에 설치된 공조 장치와, 건물에 설치된 센서 모듈과, 상기 센서 모듈을 통하여 수집된 정보를 고려하여 상기 공조 장치를 제어하는 제어 장치로 이루어지고, 상기 제어 장치에는 학습된 인공지능이 적용되며, 상기 인공지능은 기상청으로부터 수신한 건물 주변의 외기 정보와 상기 센서 모듈을 통하여 측정한 내부 정보를 고려하여 상기 공조 장치를 제어하는 것을 특징으로 한다."
+              }
+            },
+            "internationalInfoArray": {
+              "internationalInfo": {
+                "internationOpenDate": "",
+                "internationOpenNumber": "",
+                "internationalApplicationDate": "",
+                "internationalApplicationNumber": ""
+              }
+            },
+            "claimInfoArray": {
+              "claimInfo": [
+                {
+                  "claim": "1. 인공지능 공조 제어 시스템에 있어서,건물에 설치된 공조 장치와,상기 건물에 설치된 센서 모듈과,상기 센서 모듈을 통하여 수집된 정보를 고려하여 상기 공조 장치를 제어하는 제어 장치를 구비하고,상기 제어 장치에는 학습된 인공지능이 적용되며,상기 인공지능은 기상청으로부터 수신한 건물 주변의 외기 정보와 상기 센서 모듈을 통하여 측정한 내부 정보를 고려하여 상기 공조 장치를 제어하고,상기 인공지능은 별도로 구비되는 시뮬레이션 장치에서 건물을 모델링한 가상 모델을 통하여 도출된 정보를 통하여 학습되고,상기 시뮬레이션 장치는 소정 기간 동안 수집한 상기 센서 모듈 및 기상청 정보를 통한 건물의 실내외 환경 데이터와 상기 건물에서 생성된 냉난방 에너지를 통한 열평형 방정식 기반의 그레이 박스(grey-box) 모델링을 수행하여 도출된 모델을 사용하여 시뮬레이션하고,상기 시뮬레이션 장치는 에너지 효율 및 에너지 가격을 고려하여 상기 모델을 통한 모델 기반 예측 제어(Model-based Predictive Control, MPC) 시뮬레이션을 수행하여 도출된 정보로 상기 인공지능을 학습하고,상기 제어 장치에 적용된 인공지능은 상기 시뮬레이션 장치에서 상기 건물을 모델링한 가상 모델을 통하여 도출된 정보를 사용하여 학습함으로써, 인공지능 학습에 소요되는 비용 및 시간을 절감할 수 있는 것을 특징으로 하는 인공지능 공조 제어 시스템."
+                },
+                {
+                  "claim": "2. 삭제"
+                },
+                {
+                  "claim": "3. 삭제"
+                },
+                {
+                  "claim": "4. 삭제"
+                },
+                {
+                  "claim": "5. 삭제"
+                },
+                {
+                  "claim": "6. 제1항에 있어서,상기 열평형 방정식 기반의 그레이 박스(grey-box) 모델링을 수행할 때, 상기 건물의 외벽에 설치된 창호의 틈새를 통한 손실인 침기 열저항을 더 고려하여 모델을 형성하는 것을 특징으로 하는 인공지능 공조 제어 시스템."
+                }
+              ]
+            },
+            "applicantInfoArray": {
+              "applicantInfo": {
+                "address": "인천광역시 미추홀구...",
+                "code": "220040085404",
+                "country": "대한민국",
+                "engName": "Inha University Research and Business Foundation",
+                "name": "인하대학교 산학협력단"
+              }
+            },
+            "inventorInfoArray": {
+              "inventorInfo": [
+                {
+                  "address": "인천광역시 미추홀구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "Joe Jaewan",
+                  "name": "조재완"
+                },
+                {
+                  "address": "경기도 가평군...",
+                  "code": "",
+                  "country": "",
+                  "engName": "KWANGWON CHOI",
+                  "name": "최광원"
+                },
+                {
+                  "address": "인천광역시 미추홀구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "PARK SEMI",
+                  "name": "박세미"
+                },
+                {
+                  "address": "전라남도 영암군...",
+                  "code": "",
+                  "country": "",
+                  "engName": "ParkJinHyeong",
+                  "name": "박진형"
+                }
+              ]
+            },
+            "agentInfoArray": {
+              "agentInfo": {
+                "address": "인천광역시 연수구 송도과학로 ** 송도테크노파크IT센터 S동 ****호",
+                "code": "920201000214",
+                "country": "대한민국",
+                "engName": "IDUS PATENT LAW FIRM",
+                "name": "특허법인아이더스"
+              }
+            },
+            "priorityInfoArray": "",
+            "designatedStateInfoArray": "",
+            "priorArtDocumentsInfoArray": {
+              "priorArtDocumentsInfo": [
+                {
+                  "documentsNumber": "KR101875489 B1",
+                  "examinerQuotationFlag": "Y"
+                },
+                {
+                  "documentsNumber": "KR102051600 B1",
+                  "examinerQuotationFlag": "Y"
+                },
+                {
+                  "documentsNumber": "KR102114989 B1",
+                  "examinerQuotationFlag": "Y"
+                },
+                {
+                  "documentsNumber": "US20170206615 A1",
+                  "examinerQuotationFlag": "Y"
+                },
+                {
+                  "documentsNumber": "US20180180314 A1",
+                  "examinerQuotationFlag": "Y"
+                }
+              ]
+            },
+            "legalStatusInfoArray": {
+              "legalStatusInfo": [
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "[Patent Application] Patent Application",
+                  "documentName": "[특허출원]특허출원서",
+                  "receiptDate": "2022.11.17",
+                  "receiptNumber": "1-1-2022-1224467-71"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Request for Prior Art Search",
+                  "documentName": "선행기술조사의뢰서",
+                  "receiptDate": "2023.02.15",
+                  "receiptNumber": "9-1-9999-9999999-89"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Report of Prior Art Search",
+                  "documentName": "선행기술조사보고서",
+                  "receiptDate": "2023.04.13",
+                  "receiptNumber": "9-6-2024-0055409-84"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Notification of reason for refusal",
+                  "documentName": "의견제출통지서",
+                  "receiptDate": "2024.04.29",
+                  "receiptNumber": "9-5-2024-0356162-50"
+                },
+                {
+                  "commonCodeName": "보정승인간주 (Regarded as an acceptance of amendment)",
+                  "documentEngName": "[Amendment to Description, etc.] Amendment",
+                  "documentName": "[명세서등 보정]보정서",
+                  "receiptDate": "2024.06.25",
+                  "receiptNumber": "1-1-2024-0683888-12"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "",
+                  "documentName": "[거절이유 등 통지에 따른 의견]의견서·답변서·소명서",
+                  "receiptDate": "2024.06.25",
+                  "receiptNumber": "1-1-2024-0683892-06"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Decision to Refuse a Patent",
+                  "documentName": "거절결정서",
+                  "receiptDate": "2025.01.07",
+                  "receiptNumber": "9-5-2025-0021957-18"
+                },
+                {
+                  "commonCodeName": "보정승인 (Acceptance of amendment)",
+                  "documentEngName": "Amendment to Description, etc(Reexamination)",
+                  "documentName": "[명세서등 보정]보정서(재심사)",
+                  "receiptDate": "2025.04.04",
+                  "receiptNumber": "1-1-2025-0381399-37"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "",
+                  "documentName": "[거절이유 등 통지에 따른 의견]의견서·답변서·소명서",
+                  "receiptDate": "2025.04.04",
+                  "receiptNumber": "1-1-2025-0381412-44"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "",
+                  "documentName": "특허고객번호 정보변경(경정)신고서·정정신고서",
+                  "receiptDate": "2025.05.02",
+                  "receiptNumber": "4-1-2025-5120048-15"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Decision to Grant Registration",
+                  "documentName": "등록결정서",
+                  "receiptDate": "2025.09.02",
+                  "receiptNumber": "9-5-2025-0844961-16"
+                }
+              ]
+            },
+            "imagePathInfo": {
+              "docName": "1020220154163.jpg",
+              "largePath": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=6c650beb4cee9ce4122b704b88878c939309c52d8757be159c0a4374c2e15409f4e1c4b42d9eb5473367517ae7e3bba377bf2db4a03731b3be456c94bbf7cbc7bad37e7b2e6ce1bb",
+              "path": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=ed43a0609e94d6e22d01c5c32ba711cf611291e9d10145cbdf45a0b46cfcfffb50f0325801a903a7e07b05c15ae2463310cf4f7f2ccd52e7a91ce8af13c944e55d6a2375dcd4a99d"
+            },
+            "rndInfoArray": {
+              "rndInfo": {
+                "rndDepartmentName": "과학기술정보통신부",
+                "rndDuration": "2022.03.01 ~ 2023.02.28",
+                "rndManagingInstituteName": "인하대학교",
+                "rndProjectName": "집단연구지원",
+                "rndSpecialInstituteName": "한국연구재단",
+                "rndTaskContribution": "1/1",
+                "rndTaskName": "건물 압력분포 기반 공기유동 Mapping과 이에 따른 Multiphysics 현상 규명",
+                "rndTaskNumber": "1711170451"
+              }
+            }
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    },
+    "bibliography_summary": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 16:39:06.396",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "items": {
+            "item": {
+              "applicationDate": "2022.11.17",
+              "applicationFlag": "",
+              "applicationNumber": "10-2022-0154163",
+              "claimCount": "2",
+              "examinerName": "김재철",
+              "finalDisposal": "등록결정(재심사후)",
+              "inventionTitle": "인공지능 공조 제어 시스템",
+              "inventionTitleEng": "air conditioning control system with  AI(artificial intelligence)",
+              "openDate": "2024.05.24",
+              "openNumber": "10-2024-0072509",
+              "originalApplicationDate": "",
+              "originalApplicationKind": "국내출원/신규",
+              "originalApplicationNumber": "",
+              "originalExaminationRequestDate": "2022.11.17",
+              "originalExaminationRequestFlag": "Y",
+              "publicationDate": "2025.09.09",
+              "publicationNumber": "",
+              "registerDate": "2025.09.03",
+              "registerNumber": "10-2856809-0000",
+              "registerStatus": "등록",
+              "translationSubmitDate": ""
+            }
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    }
+  },
+  "citation_count": null,
+  "errors": [
+    "citing_info: KIPRIS CitingService error 101: AccessKey&ServiceID Is Not Registerd Error"
+  ],
+  "fetched_at": "2026-06-09T16:39:06"
+}

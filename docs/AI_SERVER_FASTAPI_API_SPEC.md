@@ -789,7 +789,7 @@ skipa-ai-server/data/{registration_number}/report.json
 MinIO object key 후보:
 
 ```text
-patents/{registration_number}/report.json
+patent/{registration_number}/report.json
 reports/{registration_number}/report.json
 {registration_number}/report.json
 ```
@@ -801,7 +801,7 @@ reports/{registration_number}/report.json
 | `EVAL_LOGIC_REPORT_OBJECT_KEY_TEMPLATE` | 기본 object key template |
 | `EVAL_LOGIC_REPORT_OBJECT_KEY_CANDIDATES` | 추가 후보 template, comma-separated |
 | `EVAL_LOGIC_REPORT_OBJECT_PREFIX` | object key prefix |
-| `EVAL_LOGIC_REPORT_LIST_PREFIX` | 목록 조회 prefix. 기본값 `patents/` |
+| `EVAL_LOGIC_REPORT_LIST_PREFIX` | 목록 조회 prefix. 기본값 `MINIO_PATENT_PREFIX/` (`patent/`) |
 | `EVAL_LOGIC_REPORT_STRICT_MINIO` | MinIO 실패를 502로 노출할지 여부 |
 
 ## 2.1 Health

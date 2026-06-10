@@ -1,0 +1,314 @@
+{
+  "application_number": "1020230159608",
+  "raw": {
+    "bibliography_detail": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 16:39:09.399",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "item": {
+            "biblioSummaryInfoArray": {
+              "biblioSummaryInfo": {
+                "applicationDate": "2023.11.16",
+                "applicationFlag": "",
+                "applicationNumber": "10-2023-0159608",
+                "claimCount": "8",
+                "examinerName": "김춘석",
+                "finalDisposal": "등록결정(일반)",
+                "inventionTitle": "이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 컴퓨팅 장치 및 이의 분석 방법",
+                "inventionTitleEng": "AI MODEL-BASED COMPUTING DEVICE AND METHOD FOR OPTIMIZING  DESIGN OF SECONDARY BATTERY ELECTROLYTE",
+                "openDate": "2025.05.26",
+                "openNumber": "10-2025-0072682",
+                "originalApplicationDate": "",
+                "originalApplicationKind": "국내출원/신규",
+                "originalApplicationNumber": "",
+                "originalExaminationRequestDate": "2023.11.16",
+                "originalExaminationRequestFlag": "Y",
+                "publicationDate": "2026.05.14",
+                "publicationNumber": "",
+                "registerDate": "2026.05.07",
+                "registerNumber": "10-2963487-0000",
+                "registerStatus": "등록",
+                "translationSubmitDate": ""
+              }
+            },
+            "ipcInfoArray": {
+              "ipcInfo": [
+                {
+                  "ipcDate": "(2020.01.01)",
+                  "ipcNumber": "G06F 30/28"
+                },
+                {
+                  "ipcDate": "(2020.01.01)",
+                  "ipcNumber": "G06F 30/27"
+                },
+                {
+                  "ipcDate": "(2019.01.01)",
+                  "ipcNumber": "G16C 60/00"
+                },
+                {
+                  "ipcDate": "(2026.01.01)",
+                  "ipcNumber": "G06T 11/00"
+                },
+                {
+                  "ipcDate": "(2023.01.01)",
+                  "ipcNumber": "G06N 3/096"
+                },
+                {
+                  "ipcDate": "(2023.01.01)",
+                  "ipcNumber": "G06N 3/0464"
+                },
+                {
+                  "ipcDate": "(2023.01.01)",
+                  "ipcNumber": "G06N 3/045"
+                },
+                {
+                  "ipcDate": "(2010.01.01)",
+                  "ipcNumber": "H01M 10/056"
+                },
+                {
+                  "ipcDate": "(2010.01.01)",
+                  "ipcNumber": "H01M 10/052"
+                },
+                {
+                  "ipcDate": "(2020.01.01)",
+                  "ipcNumber": "G06F 113/08"
+                },
+                {
+                  "ipcDate": "(2020.01.01)",
+                  "ipcNumber": "G06F 111/18"
+                },
+                {
+                  "ipcDate": "(2020.01.01)",
+                  "ipcNumber": "G06F 111/06"
+                }
+              ]
+            },
+            "familyInfoArray": {
+              "familyInfo": ""
+            },
+            "abstractInfoArray": {
+              "abstractInfo": {
+                "astrtCont": "이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 분석 방법이 제공된다. 상기 방법은 캘린더링된 배터리 물질의 단층 촬영 이미지를 획득하는 단계; 상기 단층 촬영 이미지를 미리 학습된 인공지능 모델에 입력하는 단계; 및 상기 인공지능 모델을 통해 배터리 전해질의 점성도 및 투과율을 출력하는 단계를 포함한다. 이때, 상기 인공지능 모델은 입력되는 단층 촬영 이미지에 대하여 공극 분포 및 굴곡률 정보를 분석하는 제1 인공지능 모델과, 상기 공극 분포 및 굴곡률 정보를 기반으로 상기 전해질에 상응하는 점성도 및 투과율을 출력하는 제2 인공지능 모델을 포함한다."
+              }
+            },
+            "internationalInfoArray": {
+              "internationalInfo": {
+                "internationOpenDate": "",
+                "internationOpenNumber": "",
+                "internationalApplicationDate": "",
+                "internationalApplicationNumber": ""
+              }
+            },
+            "claimInfoArray": {
+              "claimInfo": [
+                {
+                  "claim": "1. 컴퓨터에 의해 수행되는 단계에 있어서,캘린더링된 배터리 물질의 단층 촬영 이미지를 획득하는 단계;상기 단층 촬영 이미지를 미리 학습된 인공지능 모델에 입력하는 단계; 및상기 인공지능 모델을 통해 배터리 전해질의 점성도 및 투과율을 출력하는 단계를 포함하되,상기 인공지능 모델은 입력되는 단층 촬영 이미지에 대하여 공극 분포 및 굴곡률 정보를 분석하는 제1 인공지능 모델과, 상기 공극 분포 및 굴곡률 정보를 기반으로 상기 전해질에 상응하는 점성도 및 투과율을 출력하는 제2 인공지능 모델을 포함하는,이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 분석 방법."
+                },
+                {
+                  "claim": "2. 제1항에 있어서,실제 배터리의 단층면 이미지 데이터를 수집하는 단계;상기 실제 배터리의 단층면 이미지 데이터를 기반으로 가상환경 기반 시뮬레이션 이미지 데이터를 생성하는 단계; 및상기 실제 배터리의 단층면 이미지 데이터와 상기 시뮬레이션 이미지 데이터를 기반으로 상기 제1 인공지능 모델을 학습 및 생성하는 단계를 더 포함하는,이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 분석 방법."
+                },
+                {
+                  "claim": "3. 제2항에 있어서,상기 제1 인공지능 모델을 학습 및 생성하는 단계는,U-Net(3D U-Net) Mask R-CNN 및 BiSeNet (Bilateral Segmentation Network) 세분화 모델 중 적어도 하나를 기반으로 하는 백본 모델을 구성하는 단계; 및 상기 백본 모델을 전이학습 환경을 기반으로 재학습을 수행하여 상기 제1 인공지능 모델을 생성하는 단계를 포함하는,이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 분석 방법."
+                },
+                {
+                  "claim": "4. 제1항에 있어서,상기 제1 인공지능 모델을 통해 출력된 공극 분포 및 굴곡률 정보를 획득하는 단계;상기 공극 분포 및 굴곡률 정보를 대상으로 전산유체해석 기반의 시뮬레이션을 통해 복수의 시뮬레이션된 데이터를 획득하는 단계; 및상기 복수의 시뮬레이션된 데이터를 기반으로 상기 제2 인공지능 모델을 학습 및 생성하는 단계를 더 포함하는,이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 분석 방법."
+                },
+                {
+                  "claim": "5. 배터리 물질의 단층 촬영 이미지를 획득하는 통신모듈,상기 미리 학습된 인공지능 모델을 저장하는 메모리 및상기 메모리에 저장된 프로그램을 실행시킴에 따라, 상기 단층 촬영 이미지를 인공지능 모델에 입력하여, 배터리 전해질의 점성도 및 투과율을 출력하는 프로세서를 포함하되,상기 인공지능 모델은 입력되는 단층 촬영 이미지에 대하여 공극 분포 및 굴곡률을 분석하는 제1 인공지능 모델과, 상기 공극 분포 및 굴곡률을 기반으로 상기 전해질에 상응하는 점성도 및 투과율을 출력하는 제2 인공지능 모델을 포함하는,이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 컴퓨팅 장치."
+                },
+                {
+                  "claim": "6. 제5항에 있어서,상기 프로세서는 상기 통신모듈을 통해 실제 배터리의 단층면 이미지 데이터를 수집함에 따라, 상기 실제 배터리의 단층면 이미지 데이터를 기반으로 가상환경 기반 시뮬레이션 이미지 데이터를 생성하고, 상기 실제 배터리의 단층면 이미지 데이터와 상기 시뮬레이션 이미지 데이터를 기반으로 상기 제1 인공지능 모델을 학습 및 생성하는 것인,이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 컴퓨팅 장치."
+                },
+                {
+                  "claim": "7. 제6항에 있어서,상기 프로세서는 U-Net(3D U-Net) Mask R-CNN 및 BiSeNet (Bilateral Segmentation Network) 세분화 모델 중 적어도 하나를 기반으로 하는 백본 모델을 구성하고, 상기 백본 모델을 전이학습 환경을 기반으로 재학습을 수행하여 상기 제1 인공지능 모델을 생성하는 것인,이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 컴퓨팅 장치."
+                },
+                {
+                  "claim": "8. 제5항에 있어서,상기 프로세서는 상기 제1 인공지능 모델을 통해 출력된 공극 분포 및 굴곡률 정보를 획득하고, 상기 공극 분포 및 굴곡률 정보를 대상으로 전산유체해석 기반의 시뮬레이션을 통해 복수의 시뮬레이션된 데이터를 획득한 후, 상기 복수의 시뮬레이션된 데이터를 기반으로 상기 제2 인공지능 모델을 학습 및 생성하는 것인,이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 컴퓨팅 장치."
+                }
+              ]
+            },
+            "applicantInfoArray": {
+              "applicantInfo": {
+                "address": "경기도 성남시 분당구...",
+                "code": "319990193847",
+                "country": "대한민국",
+                "engName": "KOREA ELECTRONICS TECHNOLOGY INSTITUTE",
+                "name": "한국전자기술연구원"
+              }
+            },
+            "inventorInfoArray": {
+              "inventorInfo": [
+                {
+                  "address": "경기도 용인시 기흥구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "LEE, Jae Kyu",
+                  "name": "이재규"
+                },
+                {
+                  "address": "경기도 용인시 기흥구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "LEE, Sang Yub",
+                  "name": "이상엽"
+                },
+                {
+                  "address": "경기도 용인시 수지구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "CHO, In Pyo",
+                  "name": "조인표"
+                }
+              ]
+            },
+            "agentInfoArray": {
+              "agentInfo": {
+                "address": "서울특별시 강남구 남부순환로**** 차우빌딩*층",
+                "code": "920071000215",
+                "country": "대한민국",
+                "engName": "JIMYUNG Patent Firm",
+                "name": "특허법인지명"
+              }
+            },
+            "priorityInfoArray": "",
+            "designatedStateInfoArray": "",
+            "priorArtDocumentsInfoArray": {
+              "priorArtDocumentsInfo": [
+                {
+                  "documentsNumber": "JP2022123349 A",
+                  "examinerQuotationFlag": ""
+                },
+                {
+                  "documentsNumber": "KR1020190128111 A",
+                  "examinerQuotationFlag": ""
+                },
+                {
+                  "documentsNumber": "JP2008123866 A",
+                  "examinerQuotationFlag": ""
+                },
+                {
+                  "documentsNumber": "KR102169047 B1",
+                  "examinerQuotationFlag": ""
+                },
+                {
+                  "documentsNumber": "KR1020230037780 A",
+                  "examinerQuotationFlag": ""
+                }
+              ]
+            },
+            "legalStatusInfoArray": {
+              "legalStatusInfo": [
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "[Patent Application] Patent Application",
+                  "documentName": "[특허출원]특허출원서",
+                  "receiptDate": "2023.11.16",
+                  "receiptNumber": "1-1-2023-1273250-43"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Request for Prior Art Search",
+                  "documentName": "선행기술조사의뢰서",
+                  "receiptDate": "2025.09.18",
+                  "receiptNumber": "9-1-9999-9999999-89"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Report of Prior Art Search",
+                  "documentName": "선행기술조사보고서",
+                  "receiptDate": "2025.10.27",
+                  "receiptNumber": "9-6-2026-0049730-19"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Decision to grant",
+                  "documentName": "등록결정서",
+                  "receiptDate": "2026.04.30",
+                  "receiptNumber": "9-5-2026-0398083-94"
+                }
+              ]
+            },
+            "imagePathInfo": {
+              "docName": "1020230159608.jpg",
+              "largePath": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=6c650beb4cee9ce4122b704b88878c934a677ec7646dfd8dd04e9e114dd36228da24ef5fb39ba622cbd3d9a76ac9d903c15c566db6b39fee19b3f4e6d2e8b878d858d2840ce261c0",
+              "path": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=ed43a0609e94d6e22d01c5c32ba711cf9334a0db9493f020838fa90fd79cf503cda305c95c33a192c6b8412bf37665530729afae495f27ef43c71ffed5414e2d68ae7c10ca521940"
+            },
+            "rndInfoArray": {
+              "rndInfo": {
+                "rndDepartmentName": "과학기술정보통신부",
+                "rndDuration": "2023.04.01 ~ 2025.12.31",
+                "rndManagingInstituteName": "한국전자기술연구원",
+                "rndProjectName": "정보통신방송기술개발",
+                "rndSpecialInstituteName": "정보통신기획평가원",
+                "rndTaskContribution": "1/1",
+                "rndTaskName": "차세대 이차전지 성능개선 및 문제해결이 가능한 전해질개발용 AI 시뮬레이터 개발",
+                "rndTaskNumber": "1711195744"
+              }
+            }
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    },
+    "bibliography_summary": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 16:39:09.399",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "items": {
+            "item": {
+              "applicationDate": "2023.11.16",
+              "applicationFlag": "",
+              "applicationNumber": "10-2023-0159608",
+              "claimCount": "8",
+              "examinerName": "김춘석",
+              "finalDisposal": "등록결정(일반)",
+              "inventionTitle": "이차전지 전해질 최적 설계를 위한 인공지능 모델 기반 컴퓨팅 장치 및 이의 분석 방법",
+              "inventionTitleEng": "AI MODEL-BASED COMPUTING DEVICE AND METHOD FOR OPTIMIZING  DESIGN OF SECONDARY BATTERY ELECTROLYTE",
+              "openDate": "2025.05.26",
+              "openNumber": "10-2025-0072682",
+              "originalApplicationDate": "",
+              "originalApplicationKind": "국내출원/신규",
+              "originalApplicationNumber": "",
+              "originalExaminationRequestDate": "2023.11.16",
+              "originalExaminationRequestFlag": "Y",
+              "publicationDate": "2026.05.14",
+              "publicationNumber": "",
+              "registerDate": "2026.05.07",
+              "registerNumber": "10-2963487-0000",
+              "registerStatus": "등록",
+              "translationSubmitDate": ""
+            }
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    }
+  },
+  "citation_count": null,
+  "errors": [
+    "citing_info: KIPRIS CitingService error 101: AccessKey&ServiceID Is Not Registerd Error"
+  ],
+  "fetched_at": "2026-06-09T16:39:09"
+}

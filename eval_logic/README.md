@@ -19,9 +19,10 @@
 skipa-ai-server/
   README.md
 
+  .env                    # 공통 로컬 환경변수, 커밋 금지
+
   eval_logic/
     requirements.txt
-    .env                    # 로컬 환경변수, 커밋 금지
     STRUCTURE.md            # eval_logic 구조 요약
 
     src/
@@ -215,7 +216,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-`.env` 파일은 로컬에서만 생성합니다. API 키가 들어가므로 GitHub에 올리면 안 됩니다.
+`.env` 파일은 `skipa-ai-server/.env` 하나로 공통 관리합니다. API 키가
+들어가므로 GitHub에 올리면 안 됩니다. 예전 `eval_logic/.env`가 남아 있으면
+하위 호환으로 함께 읽지만, 새 값은 서버 루트 `.env`에 둡니다.
 
 예시:
 
@@ -259,36 +262,40 @@ GET /health
 
 ```text
 GET /api/v1/reports/patent-valuation
+GET /api/v1/reports/patent-valuation/patents/{patent_id}/reports/{report_id}
 GET /api/v1/reports/patent-valuation/{registration_number}
 ```
 
 이 API는 보고서를 실시간 생성하지 않습니다. 로컬 CLI/배치로 미리 생성한
-`report.json`을 MinIO에 업로드해 두고, 화면에서는 특허 등록번호로 해당
-JSON을 조회합니다.
+`report.json`을 MinIO에 업로드해 두고, 화면에서는 백엔드 RDB의 patent ID와
+report ID로 해당 JSON을 조회합니다. 기존 등록번호 조회 경로는 로컬/과거
+데이터 호환용입니다.
 
 기본 MinIO object key 규칙:
 
 ```text
-patents/{registration_number}/report.json
+patents/{patent_id}/reports/{report_id}/report.json
 ```
 
 예:
 
 ```text
-patents/10-2142205/report.json
+patents/1/reports/4/report.json
 ```
 
 필요하면 환경변수로 key 규칙을 바꿀 수 있습니다.
 
 ```bash
-EVAL_LOGIC_REPORT_OBJECT_KEY_TEMPLATE='reports/{registration_number}/report.json'
-EVAL_LOGIC_REPORT_LIST_PREFIX='reports/'
+EVAL_LOGIC_REPORT_OBJECT_KEY_TEMPLATE='patents/{patent_id}/reports/{report_id}/report.json'
+EVAL_LOGIC_REPORT_LIST_PREFIX='patents/'
 ```
 
 상세 조회 응답 예:
 
 ```json
 {
+  "patent_id": "1",
+  "report_id": "4",
   "registration_number": "10-2142205",
   "report": {
     "schema_version": "patent-reevaluation-report/v1"
@@ -296,7 +303,7 @@ EVAL_LOGIC_REPORT_LIST_PREFIX='reports/'
   "storage": {
     "backend": "minio",
     "bucket": "skipa",
-    "object_key": "patents/10-2142205/report.json"
+    "object_key": "patents/1/reports/4/report.json"
   }
 }
 ```
@@ -321,17 +328,40 @@ working cache에 임시 저장됩니다.
 
 ## API 테스트 흐름
 
-### MinIO 기반 보고서 조회
+### MinIO 기반 보고서 생성/조회
 
 1. 서버 실행
-2. MinIO에 `patents/{registration_number}/report.json` 업로드
-3. `GET /api/v1/reports/patent-valuation/{registration_number}` 호출
-4. 응답의 `report`, `storage.object_key` 확인
+2. MinIO에 `patents/{patent_id}/parsed.json` 저장
+3. CLI/워커로 MinIO 입력을 읽어 `patents/{patent_id}/reports/{report_id}/report.json` 생성
+4. `GET /api/v1/reports/patent-valuation/patents/{patent_id}/reports/{report_id}` 호출
+5. 응답의 `report`, `storage.object_key` 확인
+
+```bash
+export MINIO_ENDPOINT='http://localhost:9000'
+export MINIO_ACCESS_KEY='minioadmin'
+export MINIO_SECRET_KEY='minioadmin'
+export MINIO_BUCKET='skipa'
+
+python3 src/apps/cli/run_agent.py --profile quick --patent-id 1 --report-id 4
+```
+
+기본 입력/출력 object key 규칙:
+
+```text
+patents/{patent_id}/original.pdf
+patents/{patent_id}/parsed.json
+patents/{patent_id}/reports/{report_id}/report.json
+```
+
+공통 prefix를 쓰는 환경에서는 `EVAL_LOGIC_OBJECT_PREFIX`를 지정합니다. 예를
+들어 `EVAL_LOGIC_OBJECT_PREFIX=eval-logic`이면 실제 저장 key는
+`eval-logic/patents/{patent_id}/reports/{report_id}/report.json`입니다.
 
 로컬 fallback 구조:
 
 ```text
-eval_logic/data/{registration_number}/report.json
+eval_logic/data/patents/{patent_id}/parsed.json
+eval_logic/data/patents/{patent_id}/reports/{report_id}/report.json
 ```
 
 ## 로컬 CLI
@@ -463,6 +493,8 @@ python3 -c "import sys; sys.path.insert(0, 'src'); from apps.api.main import app
 ```text
 eval_logic/.env
 eval_logic/.env.*
+skipa-ai-server/.env
+skipa-ai-server/.env.*
 ```
 
 다음 디렉토리는 생성 산출물/캐시 성격입니다. 필요 시 비우거나 gitignore 대상으로 관리합니다.
@@ -493,7 +525,7 @@ eval_logic/data/resources/산업_KSIC_-특허_IPC__연계표.xlsx
 
 ```bash
 git status --short
-git check-ignore -v eval_logic/.env
+git check-ignore -v ../.env
 ```
 
 ## Legacy

@@ -1,0 +1,344 @@
+{
+  "application_number": "1020190131575",
+  "raw": {
+    "bibliography_detail": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 16:39:07.397",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "item": {
+            "biblioSummaryInfoArray": {
+              "biblioSummaryInfo": {
+                "applicationDate": "2019.10.22",
+                "applicationFlag": "",
+                "applicationNumber": "10-2019-0131575",
+                "claimCount": "18",
+                "examinerName": "",
+                "finalDisposal": "거절결정(일반)",
+                "inventionTitle": "자율형 CPS 제어 장치의 기능 검증 및 성능 향상을 위한 분산 시뮬레이션",
+                "inventionTitleEng": "DISTRIBUTED SIMULATION FOR FUNCTIONAL  VERIFICATION AND PERFORMANCE ENHANCEMENT OF  AUTONOMOUS CPS CONTROL DEVICE",
+                "openDate": "2021.04.30",
+                "openNumber": "10-2021-0047686",
+                "originalApplicationDate": "",
+                "originalApplicationKind": "국내출원/신규",
+                "originalApplicationNumber": "",
+                "originalExaminationRequestDate": "2019.10.22",
+                "originalExaminationRequestFlag": "Y",
+                "publicationDate": "",
+                "publicationNumber": "",
+                "registerDate": "",
+                "registerNumber": "",
+                "registerStatus": "거절",
+                "translationSubmitDate": ""
+              }
+            },
+            "ipcInfoArray": {
+              "ipcInfo": {
+                "ipcDate": "(2020.01.01)",
+                "ipcNumber": "G06F 30/00"
+              }
+            },
+            "familyInfoArray": {
+              "familyInfo": ""
+            },
+            "abstractInfoArray": {
+              "abstractInfo": {
+                "astrtCont": "본 명세서에 개시된 분산 시뮬레이션 프레임워크는 자율형 CPS 제어 장치에 하드웨어-인-더-루프-시뮬레이션(Hardware in the Loop Simulation)을 제공하도록 검증 시뮬레이션 구동 환경과 자율형 CPS (Cyber-Physical Systems) 제어 장치의 구동 환경을 연동시키는 하드웨어 연동 게이트웨이, 상기 자율형 CPS 제어 장치에 대한 모델-인-더-루프-시뮬레이션(Model in the Loop Simulation) 기반의 분산 동역학 시뮬레이션을 수행하는 분산 동역학 시뮬레이터, 상기 분산 동역학 시뮬레이터와 연동하여 상기 자율형 CPS 제어 장치에 대한 환경 시뮬레이션을 수행하는 환경 시뮬레이터, 상기 분산 동역학 시뮬레이션 결과 및 상기 환경 시뮬레이션 결과에 기초하여 상기 자율형 CPS 제어 장치에 대한 기능 검증 및 성능 평가를 수행하는 기능 검증 및 성능 평가 모듈, 및 상기 기능 검증 및 성능 평가 결과 데이터에 기초하여 상기 자율형 CPS 제어 장치의 성능 개선을 위한 업데이트 정보를 제공하는 하드웨어 제어 로직 강화 모듈을 포함할 수 있다."
+              }
+            },
+            "internationalInfoArray": {
+              "internationalInfo": {
+                "internationOpenDate": "",
+                "internationOpenNumber": "",
+                "internationalApplicationDate": "",
+                "internationalApplicationNumber": ""
+              }
+            },
+            "claimInfoArray": {
+              "claimInfo": [
+                {
+                  "claim": "1. 자율형 CPS (Cyber-Physical Systems) 제어 장치에 하드웨어-인-더-루프-시뮬레이션(Hardware in the Loop Simulation)을 제공하도록 검증 시뮬레이션 구동 환경과 자율형 CPS 제어 장치의 구동 환경을 연동시키는 하드웨어 연동 게이트웨이;상기 자율형 CPS 제어 장치에 대한 모델-인-더-루프-시뮬레이션(Model in the Loop Simulation) 기반의 분산 동역학 시뮬레이션을 수행하는 분산 동역학 시뮬레이터;상기 분산 동역학 시뮬레이터와 연동하여 상기 자율형 CPS 제어 장치에 대한 환경 시뮬레이션을 수행하는 환경 시뮬레이터;상기 분산 동역학 시뮬레이션 결과 및 상기 환경 시뮬레이션 결과에 기초하여 상기 자율형 CPS 제어 장치에 대한 기능 검증 및 성능 평가를 수행하는 기능 검증 및 성능 평가 모듈; 및상기 기능 검증 및 성능 평가 결과 데이터에 기초하여 상기 자율형 CPS 제어 장치의 성능 개선을 위한 업데이트 정보를 제공하는 하드웨어 제어 로직 강화 모듈을 포함하는 분산 시뮬레이션 프레임워크."
+                },
+                {
+                  "claim": "2. 제1 항에 있어서, 상기 하드웨어 연동 게이트웨이는상기 자율형 CPS 제어 장치로부터 상기 자율형 CPS 제어 장치가 제어하는 하드웨어 정보를 수신하여 상기 자율형 CPS 제어 장치를 등록하고,상기 하드웨어 정보에 기초하여 상기 검증 시뮬레이션 구동 환경과 상기 자율형 CPS 제어 장치의 구동 환경을 연동시키는 분산 시뮬레이션 프레임워크."
+                },
+                {
+                  "claim": "3. 제1 항에 있어서, 상기 분산 동역학 시뮬레이터는분산 동역학 시뮬레이션 마스터 시뮬레이터; 및적어도 하나의 분산 동역학 시뮬레이션 슬레이브 시뮬레이터를 포함하되,상기 분산 동역학 시뮬레이션 마스터 시뮬레이터는 상기 검증 시뮬레이션에 대한 세션을 설정하고, 상기 검증 시뮬레이션에 대한 시뮬레이션 세션 설정 정보를 생성하고,상기 분산 동역학 시뮬레이션 슬레이브 시뮬레이터는 상기 시뮬레이션 세션 설정 정보에 적어도 일부 기초하여 상기 자율형 CPS 제어 장치가 제어하는 하드웨어의 동역학 부분을 구성하는 분산 모델들의 분산 시뮬레이션을 수행하는 분산 시뮬레이션 프레임워크."
+                },
+                {
+                  "claim": "4. 제3 항에 있어서, 상기 환경 시뮬레이터는,상기 시뮬레이션 세션 설정 정보에 기초하여 검증 시나리오에 적합한 환경 모델을 선택하여 3D 환경을 구성하고,상기 하드웨어에 대한 3D 구동 모델을 선택하여 상기 3D 환경과 상호작용하는 개체를 생성하여 시뮬레이션을 수행하는 분산 시뮬레이션 프레임워크."
+                },
+                {
+                  "claim": "5. 제3 항에 있어서, 상기 분산 동역학 시뮬레이션 마스터 시뮬레이터는상기 환경 시뮬레이션 데이터, 상기 자율형 CPS 제어 장치에 대한 상기 하드웨어-인-더-루프-시뮬레이션 데이터 및 상기 분산 동역학 시뮬레이션 데이터를 연동시켜 하이브리드 시뮬레이션을 수행하는 분산 시뮬레이션 프레임워크."
+                },
+                {
+                  "claim": "6. 제1 항에 있어서, 상기 기능 검증 및 성능 평가 모듈은상기 검증 시뮬레이션 결과에 기초하여 상기 자율형 CPS 제어 장치에 적합한 평가 모델을 선택하고,상기 평가 모델에 따라 상기 자율형 CPS 제어 장치에 대한 기능 검증 및 성능 평가를 수행하는 분산 시뮬레이션 프레임워크."
+                },
+                {
+                  "claim": "7. 제3 항에 있어서, 상기 분산 동역학 시뮬레이션 마스터 시뮬레이터는상기 검증 시뮬레이션을 통해 생성된 상기 분산 동역학 시뮬레이션 결과 및 상기 환경 시뮬레이션 결과 데이터를 누적하여 저장하는 분산 시뮬레이션 프레임워크."
+                },
+                {
+                  "claim": "8. 제7 항에 있어서, 상기 하드웨어 제어 로직 강화 모듈은상기 자율형 CPS 제어 장치에 포함되어 있는 제어 로직의 화이트박스 모델링을 수행하고,상기 기능 검증 및 성능 평가 결과 데이터에 기초하여 인공지능 기반의 결과 데이터 분석을 수행하고,상기 인공지능 기반의 결과 데이터 분석에 기초하여 상기 제어 로직 모델의 취약점을 판단하고,상기 취약점 판단 결과에 기초하여 상기 제어 로직 모델에 포함된 가중치 계수 조정으로 상기 제어 로직 모델의 성능을 개선하는 분산 시뮬레이션 프레임워크."
+                },
+                {
+                  "claim": "9. 제8 항에 있어서, 상기 하드웨어 제어 로직 강화 모듈은상기 누적된 검증 시뮬레이션 결과 데이터에 기초하여 상기 개선된 제어 로직 모델을 검증하고,상기 개선된 제어 로직 모델의 검증 결과를 기초로 상기 제어 로직에 대한 업데이트 정보를 생성하고,상기 생성된 제어 로직 업데이트 정보를 상기 자율형 CPS 제어 장치로 전송하는 분산 시뮬레이션 프레임워크."
+                },
+                {
+                  "claim": "10. 하드웨어 연동 게이트웨이가 자율형 CPS 제어 장치에 하드웨어-인-더-루프-시뮬레이션을 제공하도록 검증 시뮬레이션 구동 환경과 자율형 CPS 제어 장치의 구동 환경을 연동시키는 동작;분산 동역학 시뮬레이터가 상기 자율형 CPS 제어 장치에 대한 모델-인-더-루프-시뮬레이션 기반의 분산 동역학 시뮬레이션을 수행하는 동작;환경 시뮬레이터가 상기 분산 동역학 시뮬레이터와 연동하여 상기 자율형 CPS 제어 장치에 대한 환경 시뮬레이션을 수행하는 동작;기능 검증 및 성능 평가 모듈이 상기 분산 동역학 시뮬레이션 결과 및 상기 환경 시뮬레이션 결과에 기초하여 상기 자율형 CPS 제어 장치에 대한 기능 검증 및 성능 평가를 수행하는 동작; 및하드웨어 제어 로직 강화 모듈이 상기 기능 검증 및 성능 평가 결과 데이터에 기초하여 상기 자율형 CPS 제어 장치의 성능 개선을 위한 업데이트 정보를 제공하는 동작을 포함하는 분산 시뮬레이션 프레임워크의 자율형 CPS 제어 장치의 기능 강화 및 성능 개선 방법."
+                },
+                {
+                  "claim": "11. 제10 항에 있어서, 상기 구동 환경을 연동시키는 동작은상기 하드웨어 연동 게이트웨이가상기 자율형 CPS 제어 장치로부터 상기 자율형 CPS 제어 장치가 제어하는 하드웨어 정보를 수신하여 상기 자율형 CPS 제어 장치를 등록하고,상기 하드웨어 정보에 기초하여 상기 검증 시뮬레이션 구동 환경과 상기 자율형 CPS 제어 장치의 구동 환경을 연동시키는 분산 시뮬레이션 프레임워크의 자율형 CPS 제어 장치의 기능 강화 및 성능 개선 방법."
+                },
+                {
+                  "claim": "12. 제10 항에 있어서,상기 분산 동역학 시뮬레이터는 분산 동역학 시뮬레이션 마스터 시뮬레이터 및 적어도 하나의 분산 동역학 시뮬레이션 슬레이브 시뮬레이터를 포함하고,상기 분산 동역학 시뮬레이터가 분산 동역학 시뮬레이션을 수행하는 동작은,상기 분산 동역학 시뮬레이션 마스터 시뮬레이터는 상기 검증 시뮬레이션에 대한 세션을 설정하고, 상기 검증 시뮬레이션에 대한 시뮬레이션 세션 설정 정보를 생성하고,상기 분산 동역학 시뮬레이션 슬레이브 시뮬레이터는 상기 시뮬레이션 세션 설정 정보에 적어도 일부 기초하여 상기 자율형 CPS 제어 장치가 제어하는 하드웨어의 동역학 부분을 구성하는 분산 모델들의 분산 시뮬레이션을 수행하는 분산 시뮬레이션 프레임워크의 자율형 CPS 제어 장치의 기능 강화 및 성능 개선 방법."
+                },
+                {
+                  "claim": "13. 제12 항에 있어서, 상기 분산 동역학 시뮬레이션 마스터 시뮬레이터는상기 환경 시뮬레이션 데이터, 상기 자율형 CPS 제어 장치에 대한 상기 하드웨어-인-더-루프-시뮬레이션 데이터 및 상기 분산 동역학 시뮬레이션 데이터를 연동시켜 하이브리드 시뮬레이션을 수행하는 분산 시뮬레이션 프레임워크의 자율형 CPS 제어 장치의 기능 강화 및 성능 개선 방법."
+                },
+                {
+                  "claim": "14. 제12 항에 있어서, 상기 환경 시뮬레이터가 환경 시뮬레이션을 수행하는 동작은,상기 시뮬레이션 세션 설정 정보에 기초하여 검증 시나리오에 적합한 환경 모델을 선택하여 3D 환경을 구성하고,상기 하드웨어에 대한 3D 구동 모델을 선택하여 상기 3D 환경과 상호작용하는 개체를 생성하여 시뮬레이션을 수행하는 분산 시뮬레이션 프레임워크의 자율형 CPS 제어 장치의 기능 강화 및 성능 개선 방법."
+                },
+                {
+                  "claim": "15. 제10 항에 있어서, 상기 기능 검증 및 성능 평가 모듈이 상기 자율형 CPS 제어 장치에 대한 기능 검증 및 성능 평가를 수행하는 동작은,상기 검증 시뮬레이션 결과에 기초하여 상기 자율형 CPS 제어 장치에 적합한 평가 모델을 선택하고,상기 평가 모델에 따라 상기 자율형 CPS 제어 장치에 대한 기능 검증 및 성능 평가를 수행하는 분산 시뮬레이션 프레임워크의 자율형 CPS 제어 장치의 기능 강화 및 성능 개선 방법."
+                },
+                {
+                  "claim": "16. 제12 항에 있어서, 상기 분산 동역학 시뮬레이션 마스터 시뮬레이터는상기 검증 시뮬레이션을 통해 생성된 상기 분산 동역학 시뮬레이션 결과 및 상기 환경 시뮬레이션 결과 데이터를 누적하여 저장하는 분산 시뮬레이션 프레임워크의 자율형 CPS 제어 장치의 기능 강화 및 성능 개선 방법."
+                },
+                {
+                  "claim": "17. 제16 항에 있어서, 상기 하드웨어 제어 로직 강화 모듈은상기 자율형 CPS 제어 장치에 포함되어 있는 제어 로직의 화이트박스 모델링을 수행하고,상기 기능 검증 및 성능 평가 결과 데이터에 기초하여 인공지능 기반의 결과 데이터 분석을 수행하고,상기 인공지능 기반의 결과 데이터 분석에 기초하여 상기 제어 로직 모델의 취약점을 판단하고,상기 취약점 판단 결과에 기초하여 상기 제어 로직 모델에 포함된 가중치 계수 조정으로 상기 제어 로직 모델의 성능을 개선하고,상기 누적된 검증 시뮬레이션 결과 데이터에 기초하여 상기 개선된 제어 로직 모델을 검증하고,상기 개선된 제어 로직 모델의 검증 결과를 기초로 상기 제어 로직에 대한 업데이트 정보를 생성하고,상기 생성된 제어 로직 업데이트 정보를 상기 자율형 CPS 제어 장치로 전송하는 분산 시뮬레이션 프레임워크의 자율형 CPS 제어 장치의 기능 강화 및 성능 개선 방법."
+                },
+                {
+                  "claim": "18. 하드웨어 연동 게이트웨이가 자율형 CPS 제어 장치로부터 상기 자율형 CPS 제어 장치가 제어하는 하드웨어 정보를 수신하여 상기 자율형 CPS 제어 장치를 등록하는 동작;상기 하드웨어 연동 게이트웨이가 검증 시뮬레이션 구동 환경과 상기 자율형 CPS 제어 장치의 구동 환경을 연동시키는 동작;분산 동역학 시뮬레이션 마스터 시뮬레이터가 상기 검증 시뮬레이션에 대한 세션을 설정하고, 상기 검증 시뮬레이션에 대한 시뮬레이션 세션 설정 정보를 생성하는 동작;분산 동역학 시뮬레이션 슬레이브 시뮬레이터가 상기 시뮬레이션 세션 설정 정보에 적어도 일부 기초하여 상기 자율형 CPS 제어 장치가 제어하는 하드웨어의 동역학 부분을 구성하는 분산 모델들의 분산 동역학 시뮬레이션을 수행하는 동작;환경 시뮬레이터가 상기 분산 동역학 시뮬레이션 마스터 시뮬레이터 및 상기 분산 동역학 시뮬레이션 슬레이브 시뮬레이터와 연동하여 상기 자율형 CPS 제어 장치에 대한 3D 환경 시뮬레이션을 수행하는 동작;기능 검증 및 성능 평가 모듈이 상기 분산 동역학 시뮬레이션 결과 및 상기 환경 시뮬레이션 결과에 기초하여 상기 자율형 CPS 제어 장치에 대한 기능 검증 및 성능 평가를 수행하는 동작; 및하드웨어 제어 로직 강화 모듈이 상기 기능 검증 및 성능 평가 결과 데이터에 기초하여 인공지능 기반의 결과 데이터 분석을 수행하고, 상기 인공지능 기반의 결과 데이터 분석에 기초하여 상기 자율형 CPS 제어 장치의 제어 로직을 개선하는 업데이트 정보를 제공하는 동작을 포함하는 분산 시뮬레이션 프레임워크의 자율형 CPS 제어 장치의 기능 강화 및 성능 개선 방법."
+                }
+              ]
+            },
+            "applicantInfoArray": {
+              "applicantInfo": {
+                "address": "충청남도 천안시 동남구...",
+                "code": "220050243361",
+                "country": "대한민국",
+                "engName": "Korea University Of Technology And Education Industry-University Cooperation Foundation",
+                "name": "한국기술교육대학교 산학협력단"
+              }
+            },
+            "inventorInfoArray": {
+              "inventorInfo": [
+                {
+                  "address": "충청남도 아산시 ...",
+                  "code": "",
+                  "country": "",
+                  "engName": "KIM, Won-Tae",
+                  "name": "김원태"
+                },
+                {
+                  "address": "충청북도 청주시 청원구...",
+                  "code": "",
+                  "country": "",
+                  "engName": "YUN, Seong Jin",
+                  "name": "윤성진"
+                }
+              ]
+            },
+            "agentInfoArray": {
+              "agentInfo": [
+                {
+                  "address": "경기도 성남시 판교로 ***번길 *-**, ***호(삼평동, 판교우림W-CITY)(특허법인지명(판교분사무소))",
+                  "code": "920120009088",
+                  "country": "대한민국",
+                  "engName": "PARK BYEONG CHEON",
+                  "name": "박병천"
+                },
+                {
+                  "address": "경기도 성남시 판교로 ***번길 *-**, ***호(삼평동, 판교우림W-CITY)(특허법인지명(판교분사무소))",
+                  "code": "920090015830",
+                  "country": "대한민국",
+                  "engName": "Jeong Seong Hoon",
+                  "name": "정성훈"
+                }
+              ]
+            },
+            "priorityInfoArray": "",
+            "designatedStateInfoArray": "",
+            "priorArtDocumentsInfoArray": {
+              "priorArtDocumentsInfo": [
+                {
+                  "documentsNumber": "JP2006285474 A",
+                  "examinerQuotationFlag": "Y"
+                },
+                {
+                  "documentsNumber": "KR101347748 B1",
+                  "examinerQuotationFlag": "Y"
+                }
+              ]
+            },
+            "legalStatusInfoArray": {
+              "legalStatusInfo": [
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "[Patent Application] Patent Application",
+                  "documentName": "[특허출원]특허출원서",
+                  "receiptDate": "2019.10.22",
+                  "receiptNumber": "1-1-2019-1079443-24"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "[Appointment of Sub-agent] Report on Agent (Representative)",
+                  "documentName": "[복대리인선임]대리인(대표자)에 관한 신고서",
+                  "receiptDate": "2020.11.04",
+                  "receiptNumber": "1-1-2020-1179486-13"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "[Resignation of Agent] Report on Agent (Representative)",
+                  "documentName": "[대리인사임]대리인(대표자)에 관한 신고서",
+                  "receiptDate": "2021.01.06",
+                  "receiptNumber": "1-1-2021-0016735-76"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "Request for Prior Art Search",
+                  "documentName": "선행기술조사의뢰서",
+                  "receiptDate": "2021.01.18",
+                  "receiptNumber": "9-1-9999-9999999-89"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Report of Prior Art Search",
+                  "documentName": "선행기술조사보고서",
+                  "receiptDate": "2021.02.18",
+                  "receiptNumber": "9-6-2021-0035555-69"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Notification of reason for refusal",
+                  "documentName": "의견제출통지서",
+                  "receiptDate": "2021.02.23",
+                  "receiptNumber": "9-5-2021-0156514-89"
+                },
+                {
+                  "commonCodeName": "발송처리완료 (Completion of Transmission)",
+                  "documentEngName": "Decision to Refuse a Patent",
+                  "documentName": "거절결정서",
+                  "receiptDate": "2021.05.27",
+                  "receiptNumber": "9-5-2021-0422933-13"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "",
+                  "documentName": "특허고객번호 정보변경(경정)신고서·정정신고서",
+                  "receiptDate": "2022.05.30",
+                  "receiptNumber": "4-1-2022-5126885-28"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "",
+                  "documentName": "특허고객번호 정보변경(경정)신고서·정정신고서",
+                  "receiptDate": "2023.01.30",
+                  "receiptNumber": "4-1-2023-5022136-89"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "",
+                  "documentName": "특허고객번호 정보변경(경정)신고서·정정신고서",
+                  "receiptDate": "2023.06.28",
+                  "receiptNumber": "4-1-2023-5167406-12"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "",
+                  "documentName": "특허고객번호 정보변경(경정)신고서·정정신고서",
+                  "receiptDate": "2023.08.17",
+                  "receiptNumber": "4-1-2023-5213789-07"
+                },
+                {
+                  "commonCodeName": "수리 (Accepted)",
+                  "documentEngName": "",
+                  "documentName": "특허고객번호 정보변경(경정)신고서·정정신고서",
+                  "receiptDate": "2024.11.11",
+                  "receiptNumber": "4-1-2024-5328663-51"
+                }
+              ]
+            },
+            "imagePathInfo": {
+              "docName": "1020190131575.jpg",
+              "largePath": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=6c650beb4cee9ce4122b704b88878c938a1ae8dbb96705739564bc5ca7e393f10e8498e0e8de100d9d442170c44e84eeb05638b7e7d5d7fa893a16ab000ba1e87a273bfc1ac80402",
+              "path": "http://plus.kipris.or.kr/openapi/fileToss.jsp?arg=ed43a0609e94d6e22d01c5c32ba711cfa192ff0ba7594340a39ae0f7a656eadf379efc32e1569759aecacbbb66655c6ce4873c8696590628ac45fa503691706135198189bda113f0"
+            },
+            "rndInfoArray": {
+              "rndInfo": {
+                "rndDepartmentName": "과학기술정보통신부",
+                "rndDuration": "2019.01.01 ~ 2019.12.31",
+                "rndManagingInstituteName": "한양대학교산학협력단",
+                "rndProjectName": "SW컴퓨팅산업원천기술개발(R＆D)",
+                "rndSpecialInstituteName": "정보통신기획평가원",
+                "rndTaskContribution": "1/1",
+                "rndTaskName": "(SW-창조씨앗2단계) 고신뢰 컴퓨팅을 위한 소프트웨어 블랙박스 기술 개발",
+                "rndTaskNumber": "1711081159"
+              }
+            }
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    },
+    "bibliography_summary": {
+      "response": {
+        "header": {
+          "requestMsgID": "",
+          "responseTime": "2026-06-09 16:39:07.397",
+          "responseMsgID": "",
+          "successYN": "Y",
+          "resultCode": "00",
+          "resultMsg": "NORMAL SERVICE."
+        },
+        "body": {
+          "items": {
+            "item": {
+              "applicationDate": "2019.10.22",
+              "applicationFlag": "",
+              "applicationNumber": "10-2019-0131575",
+              "claimCount": "18",
+              "examinerName": "",
+              "finalDisposal": "거절결정(일반)",
+              "inventionTitle": "자율형 CPS 제어 장치의 기능 검증 및 성능 향상을 위한 분산 시뮬레이션",
+              "inventionTitleEng": "DISTRIBUTED SIMULATION FOR FUNCTIONAL  VERIFICATION AND PERFORMANCE ENHANCEMENT OF  AUTONOMOUS CPS CONTROL DEVICE",
+              "openDate": "2021.04.30",
+              "openNumber": "10-2021-0047686",
+              "originalApplicationDate": "",
+              "originalApplicationKind": "국내출원/신규",
+              "originalApplicationNumber": "",
+              "originalExaminationRequestDate": "2019.10.22",
+              "originalExaminationRequestFlag": "Y",
+              "publicationDate": "",
+              "publicationNumber": "",
+              "registerDate": "",
+              "registerNumber": "",
+              "registerStatus": "거절",
+              "translationSubmitDate": ""
+            }
+          }
+        },
+        "count": {
+          "numOfRows": "1",
+          "pageNo": "1",
+          "totalCount": "1"
+        }
+      }
+    }
+  },
+  "citation_count": null,
+  "errors": [
+    "citing_info: KIPRIS CitingService error 101: AccessKey&ServiceID Is Not Registerd Error"
+  ],
+  "fetched_at": "2026-06-09T16:39:08"
+}

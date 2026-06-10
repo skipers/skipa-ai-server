@@ -22,15 +22,11 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
-try:
-    from dotenv import load_dotenv
-except ImportError:
-    load_dotenv = None
+from core.env import load_runtime_env
 from core.paths import RUNTIME_ANALYSIS_DIR, ROOT_DIR, SAMPLE_DATA_DIR
 from core.schemas import normalize_patent_input
 
-if load_dotenv:
-    load_dotenv(ROOT_DIR / ".env")
+load_runtime_env()
 
 
 DEFAULT_TARGET = SAMPLE_DATA_DIR / "patent_input.json"
