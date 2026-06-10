@@ -101,3 +101,9 @@ chatbot/data/wiki/**/draft_index.json
 chatbot/data/pre_application_cases/
 data/wiki/**/qdrant/
 data/pre_application_cases/**/index/qdrant/
+
+# Pre-application valuation local development artifacts
+pre_application_valuation/inputs/
+pre_application_valuation/evidence/
+pre_application_valuation/tmp/
+pre_application_valuation/*.local.json
