@@ -24,10 +24,10 @@ from __future__ import annotations
 import os
 import requests
 from urllib.parse import urlparse
-from dotenv import load_dotenv
+from core.env import load_runtime_env
 from core.paths import ROOT_DIR
 
-load_dotenv(ROOT_DIR / ".env")
+load_runtime_env()
 
 TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY")
 TAVILY_URL = "https://api.tavily.com/search"

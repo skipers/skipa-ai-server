@@ -14,13 +14,20 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypedDict
 
 from agent.report_builder import build_structured_report
-from core.paths import ARTIFACT_OUTPUT_DIR, RUNTIME_ANALYSIS_DIR, SAMPLE_DATA_DIR
+from core.paths import (
+    KIPRIS_CACHE_DIR,
+    KIPRIS_CRAWLING_DIR,
+    KIPRIS_OUTPUT_DIR,
+    LEGACY_SRC_DIR,
+    RUNTIME_ANALYSIS_DIR,
+)
 from core.schemas import PatentEvaluationInput, normalize_patent_input
 from services.evidence_collection_service import EvidenceCollectionOptions, EvidenceCollectionService
 from services.report_verification_service import ReportVerificationService
@@ -56,14 +63,26 @@ class PatentValuationWorkflowOptions:
     enable_market: bool = True
     enable_auto: bool = True
     enable_llm: bool = False
-    enable_pdf_metadata_extraction: bool = True
+    enable_pdf_metadata_extraction: bool = False
     enable_business_rag: bool = False
     enable_similar_analysis: bool = True
+    similar_use_kipris_crawler: bool = True
+    similar_force_refresh: bool = True
+    similar_max_pages: int = 5
+    similar_max_results: int = 10
+    similar_date_from: str = "2015-01-01"
+    similar_date_to: str = ""
     similar_use_llm: bool = False
     rag_top_k: int | None = None
     fail_on_validation_error: bool = True
     enable_human_review: bool = False
     human_review_low_score_threshold: float = 2.8
+
+    def __post_init__(self) -> None:
+        self.enable_pdf_metadata_extraction = False
+        self.enable_similar_analysis = True
+        self.similar_use_kipris_crawler = True
+        self.similar_force_refresh = True
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> "PatentValuationWorkflowOptions":
@@ -72,9 +91,15 @@ class PatentValuationWorkflowOptions:
             enable_market=bool(raw.get("enable_market", True)),
             enable_auto=bool(raw.get("enable_auto", True)),
             enable_llm=bool(raw.get("enable_llm", False)),
-            enable_pdf_metadata_extraction=bool(raw.get("enable_pdf_metadata_extraction", True)),
+            enable_pdf_metadata_extraction=False,
             enable_business_rag=bool(raw.get("enable_business_rag", False)),
-            enable_similar_analysis=bool(raw.get("enable_similar_analysis", True)),
+            enable_similar_analysis=True,
+            similar_use_kipris_crawler=True,
+            similar_force_refresh=True,
+            similar_max_pages=int(raw.get("similar_max_pages", 5)),
+            similar_max_results=int(raw.get("similar_max_results", 10)),
+            similar_date_from=str(raw.get("similar_date_from", "2015-01-01") or ""),
+            similar_date_to=str(raw.get("similar_date_to", "") or ""),
             similar_use_llm=bool(raw.get("similar_use_llm", False)),
             rag_top_k=raw.get("rag_top_k"),
             fail_on_validation_error=bool(raw.get("fail_on_validation_error", True)),
@@ -90,6 +115,12 @@ class PatentValuationWorkflowOptions:
             "enable_pdf_metadata_extraction": self.enable_pdf_metadata_extraction,
             "enable_business_rag": self.enable_business_rag,
             "enable_similar_analysis": self.enable_similar_analysis,
+            "similar_use_kipris_crawler": self.similar_use_kipris_crawler,
+            "similar_force_refresh": self.similar_force_refresh,
+            "similar_max_pages": self.similar_max_pages,
+            "similar_max_results": self.similar_max_results,
+            "similar_date_from": self.similar_date_from,
+            "similar_date_to": self.similar_date_to,
             "similar_use_llm": self.similar_use_llm,
             "rag_top_k": self.rag_top_k,
             "fail_on_validation_error": self.fail_on_validation_error,
@@ -156,54 +187,178 @@ def _strip_legacy_decision_fields(value: Any) -> Any:
     return value
 
 
-def _load_or_run_similar_analysis(patent_data: dict[str, Any], use_llm: bool) -> dict[str, Any] | None:
+def _title_for_kipris_search(patent_data: dict[str, Any]) -> str:
+    meta = patent_data.get("meta") if isinstance(patent_data.get("meta"), dict) else {}
+    return str(
+        patent_data.get("title")
+        or meta.get("title")
+        or patent_data.get("description_summary")
+        or patent_data.get("patent_id")
+        or ""
+    ).strip()
+
+
+def _write_runtime_patent_input(patent_data: dict[str, Any], norm_id: str) -> Path:
+    RUNTIME_ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+    target_path = RUNTIME_ANALYSIS_DIR / f"patent_{norm_id}_input.json"
+    with target_path.open("w", encoding="utf-8") as file:
+        json.dump(patent_data, file, ensure_ascii=False, indent=2)
+    return target_path
+
+
+def _ensure_legacy_crawling_imports() -> None:
+    legacy_path = str(LEGACY_SRC_DIR)
+    if legacy_path not in sys.path:
+        sys.path.append(legacy_path)
+
+
+def _valid_kipris_analysis(path: Path, norm_id: str) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        with path.open(encoding="utf-8") as file:
+            analysis = json.load(file)
+    except Exception:
+        return None
+    meta = analysis.get("meta") if isinstance(analysis, dict) else {}
+    if not isinstance(meta, dict):
+        return None
+    analyzed_id = _normalize_id_for_path(str(meta.get("target_patent_id") or ""))
+    source_search = meta.get("source_search") if isinstance(meta.get("source_search"), dict) else {}
+    if analyzed_id != norm_id or source_search.get("method") != "legacy_kipris_crawler":
+        return None
+    if not analysis.get("similar_patents"):
+        return None
+    return analysis
+
+
+def _load_last_valid_kipris_analysis(norm_id: str, warning: str) -> dict[str, Any] | None:
+    for path in [
+        RUNTIME_ANALYSIS_DIR / f"similar_analysis_{norm_id}.json",
+        RUNTIME_ANALYSIS_DIR / f"similar_analysis_{norm_id.replace('_', '-')}.json",
+        KIPRIS_OUTPUT_DIR / f"similar_analysis_{norm_id}.json",
+        KIPRIS_OUTPUT_DIR / f"similar_analysis_{norm_id.replace('_', '-')}.json",
+    ]:
+        analysis = _valid_kipris_analysis(path, norm_id)
+        if analysis:
+            meta = analysis.setdefault("meta", {})
+            meta["source_search_warning"] = warning
+            meta["source_search_reused_after_failure"] = True
+            return analysis
+    return None
+
+
+def _collect_kipris_similar_details(
+    patent_data: dict[str, Any],
+    norm_id: str,
+    *,
+    max_pages: int,
+    max_results: int,
+    date_from: str,
+    date_to: str,
+) -> tuple[Path, Path]:
+    _ensure_legacy_crawling_imports()
+
+    from crawling.kipris import search_similar_patents
+    from crawling.similar_patent_collector import collect_similar_patent_details
+
+    keyword = _title_for_kipris_search(patent_data)
+    if not keyword:
+        raise ValueError("KIPRIS 유사 특허 검색어를 만들 수 없습니다.")
+
+    target_path = _write_runtime_patent_input(patent_data, norm_id)
+    refs_path = KIPRIS_OUTPUT_DIR / f"similar_refs_{norm_id}.json"
+    details_path = KIPRIS_OUTPUT_DIR / f"similar_details_{norm_id}.json"
+    csv_path = KIPRIS_CRAWLING_DIR / f"kipris_results_{norm_id}.csv"
+    cache_dir = KIPRIS_CACHE_DIR / "kipris" / norm_id
+    for directory in {KIPRIS_OUTPUT_DIR, KIPRIS_CRAWLING_DIR, cache_dir, RUNTIME_ANALYSIS_DIR}:
+        directory.mkdir(parents=True, exist_ok=True)
+
+    records = search_similar_patents(
+        keyword=keyword,
+        date_from=date_from,
+        date_to=date_to,
+        max_pages=max_pages,
+        headless=True,
+        output_csv=str(csv_path),
+        output_json=str(refs_path),
+        max_results=max_results,
+        target_json=str(target_path),
+    )
+    if not records or not refs_path.exists():
+        raise RuntimeError("KIPRIS 유사도 검색 결과를 수집하지 못했습니다.")
+
+    details = collect_similar_patent_details(
+        candidates_path=refs_path,
+        output_path=details_path,
+        cache_dir=cache_dir,
+        limit=max_results,
+        use_cache=True,
+    )
+    if not details.get("patents"):
+        raise RuntimeError("KIPRIS 유사 특허 상세 데이터를 생성하지 못했습니다.")
+
+    return target_path, details_path
+
+
+def _load_or_run_similar_analysis(
+    patent_data: dict[str, Any],
+    *,
+    use_llm: bool,
+    max_pages: int,
+    max_results: int,
+    date_from: str,
+    date_to: str,
+) -> dict[str, Any] | None:
     patent_data = normalize_patent_input(patent_data)
     patent_id = patent_data.get("patent_id") or (patent_data.get("meta") or {}).get("registration_number") or ""
     norm_id = _normalize_id_for_path(patent_id)
+    if not norm_id:
+        raise ValueError("유사 특허 분석에는 patent_id 또는 등록번호가 필요합니다.")
 
-    for output_dir in [RUNTIME_ANALYSIS_DIR, ARTIFACT_OUTPUT_DIR]:
-        for suffix in [norm_id, norm_id.replace("_", "-")]:
-            path = output_dir / f"similar_analysis_{suffix}.json"
-            if path.exists():
-                with path.open(encoding="utf-8") as file:
-                    return _strip_legacy_decision_fields(json.load(file))
-
-    details_path = next(
-        (
-            path
-            for path in [
-                ARTIFACT_OUTPUT_DIR / f"similar_details_{norm_id}.json",
-                ARTIFACT_OUTPUT_DIR / f"similar_details_{norm_id.replace('_', '-')}.json",
-                SAMPLE_DATA_DIR / "similar_patent_details.json",
-            ]
-            if path.exists()
-        ),
-        None,
-    )
-    target_path = next(
-        (
-            path
-            for path in [
-                ARTIFACT_OUTPUT_DIR / f"patent_{norm_id}_output.json",
-                ARTIFACT_OUTPUT_DIR / f"patent_{norm_id.replace('_', '-')}_output.json",
-                SAMPLE_DATA_DIR / "patent_input.json",
-            ]
-            if path.exists()
-        ),
-        None,
-    )
-    if not details_path or not target_path:
-        return None
+    try:
+        target_path, details_path = _collect_kipris_similar_details(
+            patent_data,
+            norm_id,
+            max_pages=max_pages,
+            max_results=max_results,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    except Exception as exc:
+        existing = _load_last_valid_kipris_analysis(norm_id, str(exc))
+        if existing:
+            return _strip_legacy_decision_fields(existing)
+        raise
 
     from patent_analysis.similar_patent_analyzer import analyze_similar_patents
 
     out_path = RUNTIME_ANALYSIS_DIR / f"similar_analysis_{norm_id}.json"
-    return _strip_legacy_decision_fields(analyze_similar_patents(
+    analysis = analyze_similar_patents(
         target_path=target_path,
         details_path=details_path,
         output_path=out_path,
         use_llm=use_llm,
-    ))
+    )
+    meta = analysis.setdefault("meta", {})
+    analyzed_id = _normalize_id_for_path(str(meta.get("target_patent_id") or ""))
+    if analyzed_id != norm_id:
+        raise RuntimeError(
+            f"KIPRIS 유사 특허 분석 대상 불일치: expected={norm_id}, actual={analyzed_id or '-'}"
+        )
+    meta["source_search"] = {
+        "source": "KIPRIS",
+        "method": "legacy_kipris_crawler",
+        "candidate_details": str(details_path),
+        "target_input": str(target_path),
+        "force_refresh": True,
+        "max_pages": max_pages,
+        "max_results": max_results,
+        "date_range": {"from": date_from, "to": date_to},
+    }
+    with out_path.open("w", encoding="utf-8") as file:
+        json.dump(analysis, file, ensure_ascii=False, indent=2)
+    return _strip_legacy_decision_fields(analysis)
 
 
 def _valuation_analysis_text(valuation: dict[str, Any]) -> str:
@@ -447,6 +602,10 @@ class PatentValuationWorkflow:
             state["similar_analysis"] = _load_or_run_similar_analysis(
                 state["patent_data"],
                 use_llm=self.options.similar_use_llm,
+                max_pages=self.options.similar_max_pages,
+                max_results=self.options.similar_max_results,
+                date_from=self.options.similar_date_from,
+                date_to=self.options.similar_date_to,
             )
             status = "success" if state.get("similar_analysis") else "skipped"
             _append_trace(state, "analyze_similar_patents", status, start, "유사 특허 분석 처리 완료")

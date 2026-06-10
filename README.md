@@ -659,7 +659,8 @@ http://127.0.0.1:8001/docs
 
 ## 환경변수
 
-실제 키는 커밋하지 않고 `chatbot/.env`, `eval_logic/.env`에 둡니다.
+실제 키는 커밋하지 않고 서버 루트의 `.env`에 둡니다. `eval_logic`도 이
+공통 `.env`를 먼저 읽습니다.
 
 챗봇 주요 변수:
 
@@ -975,4 +976,6 @@ git diff --check
 chatbot/.env
 eval_logic/.env
 eval_logic/.env.*
+.env
+.env.*
 ```

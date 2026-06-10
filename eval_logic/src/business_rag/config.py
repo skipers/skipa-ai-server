@@ -1,8 +1,8 @@
 import os
-from dotenv import load_dotenv
-from core.paths import BUSINESS_RAG_DATA_DIR, ROOT_DIR
+from core.env import load_runtime_env
+from core.paths import BUSINESS_RAG_DATA_DIR
 
-load_dotenv(ROOT_DIR / ".env")
+load_runtime_env()
 
 DATA_DIR = BUSINESS_RAG_DATA_DIR
 RAW_DIR = DATA_DIR / "raw"

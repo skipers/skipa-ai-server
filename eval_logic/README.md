@@ -19,9 +19,10 @@
 skipa-ai-server/
   README.md
 
+  .env                    # 공통 로컬 환경변수, 커밋 금지
+
   eval_logic/
     requirements.txt
-    .env                    # 로컬 환경변수, 커밋 금지
     STRUCTURE.md            # eval_logic 구조 요약
 
     src/
@@ -43,7 +44,7 @@ skipa-ai-server/
       resources/            # 체크리스트, KSIC-IPC 매핑표, RAG 리소스
       api_test/             # Swagger/API 테스트 입력과 보고서 결과
       runtime_artifacts/    # CLI/agent 런타임 산출물
-      legacy_artifacts/     # 이전 프로토타입 산출물과 캐시
+      kipris_artifacts/     # KIPRIS 유사도 검색/상세 크롤링 산출물과 캐시
 
     legacy/                 # 이전 코드
 ```
@@ -215,7 +216,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-`.env` 파일은 로컬에서만 생성합니다. API 키가 들어가므로 GitHub에 올리면 안 됩니다.
+`.env` 파일은 `skipa-ai-server/.env` 하나로 공통 관리합니다. API 키가
+들어가므로 GitHub에 올리면 안 됩니다. 예전 `eval_logic/.env`가 남아 있으면
+하위 호환으로 함께 읽지만, 새 값은 서버 루트 `.env`에 둡니다.
 
 예시:
 
@@ -255,95 +258,60 @@ GET /health
 
 ## API 엔드포인트
 
-### 보고서 생성 API
+### 저장된 재평가 보고서 조회 API
 
 ```text
-POST /api/v1/reports/patent-valuation/from-json
-POST /api/v1/reports/patent-valuation/from-json-file
-POST /api/v1/reports/patent-valuation/from-pdf
-GET  /api/v1/reports/{job_id}
-GET  /api/v1/reports/{job_id}/status
-GET  /api/v1/reports/{job_id}/result
+GET /api/v1/reports/patent-valuation
+GET /api/v1/reports/patent-valuation/patents/{patent_id}/reports/{report_id}
+GET /api/v1/reports/patent-valuation/{registration_number}
 ```
 
-`from-json` 요청 예:
+이 API는 보고서를 실시간 생성하지 않습니다. 로컬 CLI/배치로 미리 생성한
+`report.json`을 MinIO에 업로드해 두고, 화면에서는 백엔드 RDB의 patent ID와
+report ID로 해당 JSON을 조회합니다. 기존 등록번호 조회 경로는 로컬/과거
+데이터 호환용입니다.
+
+기본 MinIO object key 규칙:
+
+```text
+patents/{patent_id}/reports/{report_id}/report.json
+```
+
+예:
+
+```text
+patents/1/reports/4/report.json
+```
+
+필요하면 환경변수로 key 규칙을 바꿀 수 있습니다.
+
+```bash
+EVAL_LOGIC_REPORT_OBJECT_KEY_TEMPLATE='patents/{patent_id}/reports/{report_id}/report.json'
+EVAL_LOGIC_REPORT_LIST_PREFIX='patents/'
+```
+
+상세 조회 응답 예:
 
 ```json
 {
-  "patent": {
-    "patent_id": "10-0000000",
-    "meta": {
-      "title": "특허 제목",
-      "registration_number": "10-0000000",
-      "ipc": ["G06Q10/04"]
-    },
-    "claims_text": {
-      "claim_1": {
-        "type": "독립항",
-        "category": "방법",
-        "text": "청구항 내용"
-      }
-    },
-    "description_summary": "발명의 요약"
-  }
-}
-```
-
-`from-json-file`은 Swagger에서 JSON 파일을 업로드합니다. 샘플 파일은 아래에 있습니다.
-
-```text
-eval_logic/data/samples/input/*.json
-```
-
-`from-pdf`는 Swagger에서 특허 PDF 파일을 업로드합니다. PDF에서 input JSON을 추출한 뒤 보고서 workflow까지 실행합니다.
-
-### 개발/디버그 API
-
-```text
-POST /api/v1/dev/patent-valuation/evaluate
-POST /api/v1/dev/patent-valuation/evaluate-sample/{sample_name}
-```
-
-샘플 실행 예:
-
-```text
-POST /api/v1/dev/patent-valuation/evaluate-sample/patent_10_1306409.json
-```
-
-옵션 직접 제어 예:
-
-```json
-{
-  "patent_data": {
-    "patent_id": "10-0000000",
-    "meta": {
-      "title": "특허 제목",
-      "registration_number": "10-0000000"
-    },
-    "claims_text": {
-      "claim_1": {
-        "type": "독립항",
-        "text": "청구항 내용"
-      }
-    },
-    "description_summary": "발명의 요약"
+  "patent_id": "1",
+  "report_id": "4",
+  "registration_number": "10-2142205",
+  "report": {
+    "schema_version": "patent-reevaluation-report/v1"
   },
-  "options": {
-    "enable_market": true,
-    "enable_auto": true,
-    "enable_llm": true,
-    "enable_pdf_metadata_extraction": false,
-    "enable_business_rag": true,
-    "enable_similar_analysis": true,
-    "similar_use_llm": true,
-    "rag_top_k": 5,
-    "fail_on_validation_error": true,
-    "enable_human_review": false
+  "storage": {
+    "backend": "minio",
+    "bucket": "skipa",
+    "object_key": "patents/1/reports/4/report.json"
   }
 }
 ```
 
-### 기능별 Tool API
+### 재평가 도구 API
+
+보고서 자체를 API에서 생성하지는 않지만, 보고서를 만들 때 사용되는 개별
+도구는 Swagger에서 직접 실행할 수 있습니다.
 
 ```text
 POST /api/v1/tools/patent-metadata
@@ -354,44 +322,46 @@ POST /api/v1/tools/llm-evaluation
 POST /api/v1/tools/similar-patents
 ```
 
-`patent-metadata`는 Swagger에서 PDF 파일을 직접 업로드합니다.
-
-PDF tool 결과 저장 위치:
-
-```text
-data/api_test/input/pdf/
-data/api_test/input/extracted/
-```
+`patent-metadata`는 특허 원문 PDF를 업로드하면 `raw`, `keywords`,
+`brief_summary`, `normalized_patent`를 반환합니다. 업로드한 PDF는 로컬
+working cache에 임시 저장됩니다.
 
 ## API 테스트 흐름
 
-### JSON 파일 기반 보고서 생성
+### MinIO 기반 보고서 생성/조회
 
 1. 서버 실행
-2. Swagger 접속
-3. `POST /api/v1/reports/patent-valuation/from-json-file`
-4. `data/samples/input/*.json` 파일 선택
-5. 응답의 `job_id`, `status_url`, `result_url`, `output_path` 확인
-6. `GET /api/v1/reports/{job_id}/result` 호출
-7. `report_verification`과 `report.quality_assurance` 확인
+2. MinIO에 `patents/{patent_id}/parsed.json` 저장
+3. CLI/워커로 MinIO 입력을 읽어 `patents/{patent_id}/reports/{report_id}/report.json` 생성
+4. `GET /api/v1/reports/patent-valuation/patents/{patent_id}/reports/{report_id}` 호출
+5. 응답의 `report`, `storage.object_key` 확인
 
-생성된 보고서:
+```bash
+export MINIO_ENDPOINT='http://localhost:9000'
+export MINIO_ACCESS_KEY='minioadmin'
+export MINIO_SECRET_KEY='minioadmin'
+export MINIO_BUCKET='skipa'
 
-```text
-data/api_test/output/reports/{등록번호}.json
+python3 src/apps/cli/run_agent.py --profile quick --patent-id 1 --report-id 4
 ```
 
-### PDF 기반 보고서 생성
-
-1. `POST /api/v1/reports/patent-valuation/from-pdf`
-2. PDF 파일 업로드
-3. 응답의 `input_path`, `output_path`, `result_url` 확인
-4. `GET /api/v1/reports/{job_id}/result` 호출
-
-PDF에서 추출된 input JSON:
+기본 입력/출력 object key 규칙:
 
 ```text
-data/api_test/input/extracted/
+patents/{patent_id}/original.pdf
+patents/{patent_id}/parsed.json
+patents/{patent_id}/reports/{report_id}/report.json
+```
+
+공통 prefix를 쓰는 환경에서는 `EVAL_LOGIC_OBJECT_PREFIX`를 지정합니다. 예를
+들어 `EVAL_LOGIC_OBJECT_PREFIX=eval-logic`이면 실제 저장 key는
+`eval-logic/patents/{patent_id}/reports/{report_id}/report.json`입니다.
+
+로컬 fallback 구조:
+
+```text
+eval_logic/data/patents/{patent_id}/parsed.json
+eval_logic/data/patents/{patent_id}/reports/{report_id}/report.json
 ```
 
 ## 로컬 CLI
@@ -485,8 +455,8 @@ data/runtime_artifacts/graphs/
 data/runtime_artifacts/uploads/
   PDF 보고서 API가 처리 중 저장하는 로컬 업로드 파일
 
-data/legacy_artifacts/
-  이전 프로토타입 산출물과 캐시
+data/kipris_artifacts/
+  KIPRIS 유사도 검색/상세 크롤링 산출물과 캐시
 ```
 
 ## 로컬 검증 명령
@@ -523,6 +493,8 @@ python3 -c "import sys; sys.path.insert(0, 'src'); from apps.api.main import app
 ```text
 eval_logic/.env
 eval_logic/.env.*
+skipa-ai-server/.env
+skipa-ai-server/.env.*
 ```
 
 다음 디렉토리는 생성 산출물/캐시 성격입니다. 필요 시 비우거나 gitignore 대상으로 관리합니다.
@@ -533,7 +505,7 @@ eval_logic/data/api_test/input/uploads/
 eval_logic/data/api_test/input/pdf/
 eval_logic/data/api_test/input/extracted/
 eval_logic/data/api_test/output/reports/
-eval_logic/data/legacy_artifacts/
+eval_logic/data/kipris_artifacts/
 eval_logic/data/resources/business_rag/index/
 eval_logic/data/resources/business_rag/raw/
 eval_logic/data/resources/business_rag/processed/
@@ -553,7 +525,7 @@ eval_logic/data/resources/산업_KSIC_-특허_IPC__연계표.xlsx
 
 ```bash
 git status --short
-git check-ignore -v eval_logic/.env
+git check-ignore -v ../.env
 ```
 
 ## Legacy
@@ -564,10 +536,10 @@ git check-ignore -v eval_logic/.env
 eval_logic/legacy/
 ```
 
-이전 프로토타입 산출물과 캐시는 아래에 보관합니다.
+KIPRIS 유사도 검색/상세 크롤링 산출물과 캐시는 아래에 보관합니다.
 
 ```text
-eval_logic/data/legacy_artifacts/
+eval_logic/data/kipris_artifacts/
 ```
 
-신규 API/서비스 코드는 `legacy`에 의존하지 않도록 관리합니다. 다만 유사 특허 분석은 일부 이전 캐시를 fallback으로 조회할 수 있으므로, `data/legacy_artifacts`를 지우면 특정 샘플의 유사 특허 분석 결과가 줄어들 수 있습니다.
+신규 API/서비스 코드는 `legacy`에 의존하지 않도록 관리합니다. 다만 KIPRIS 유사 특허 크롤러는 현재 `legacy/src/crawling` 구현을 사용하며, 유사 특허 분석은 `data/kipris_artifacts`의 수집 결과와 캐시를 생성/조회합니다.

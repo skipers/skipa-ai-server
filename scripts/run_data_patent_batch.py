@@ -81,7 +81,7 @@ def build_workflow() -> PatentValuationWorkflow:
         enable_market=True,
         enable_auto=True,
         enable_llm=True,
-        enable_pdf_metadata_extraction=True,
+        enable_pdf_metadata_extraction=False,
         enable_business_rag=True,
         enable_similar_analysis=True,
         similar_use_llm=True,
@@ -151,7 +151,7 @@ def main() -> None:
 
     print(f"data root: {data_root}")
     print(f"targets: {len(patent_dirs)}")
-    print("options: market/auto/llm/pdf_metadata/business_rag/similar/similar_llm 모두 활성화")
+    print("options: market/auto/llm/business_rag/similar/similar_llm 활성화, workflow pdf_metadata 비활성화")
 
     for index, patent_dir in enumerate(patent_dirs, 1):
         parsed_path = patent_dir / "parsed.json"

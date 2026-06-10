@@ -6,13 +6,13 @@ import textwrap
 import warnings
 from pathlib import Path
 from collections import defaultdict
-from dotenv import load_dotenv
 import pdfplumber
 import pypdf
 from wcwidth import wcswidth
+from core.env import load_runtime_env
 from core.paths import SAMPLE_PATENT_DOCUMENT_DIR
 
-load_dotenv()
+load_runtime_env()
 
 PATENT_DIR = SAMPLE_PATENT_DOCUMENT_DIR
 

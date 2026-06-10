@@ -27,15 +27,15 @@ LLM 기반 특허 평가 모듈
 import os
 import json
 import requests
-from dotenv import load_dotenv
 from pathlib import Path
 import re
 
 from evaluation.web_searcher import search_patent_evidence, get_search_strategy
 from evaluation.ipc_ksic_mapper import load_mapping_table, map_ipc_to_ksic
+from core.env import load_runtime_env
 from core.paths import RESOURCES_DIR, ROOT_DIR
 
-load_dotenv(ROOT_DIR / ".env")
+load_runtime_env()
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_MODEL   = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 CHECKLIST_PATH = RESOURCES_DIR / "checklist_fixed.md"

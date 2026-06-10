@@ -36,11 +36,11 @@ import json
 import requests
 from typing import Optional
 from datetime import datetime
-from dotenv import load_dotenv
 import pandas as pd
+from core.env import load_runtime_env
 from core.paths import RESOURCES_DIR, ROOT_DIR
 
-load_dotenv(ROOT_DIR / ".env")
+load_runtime_env()
 KOSIS_API_KEY = os.environ.get("KOSIS_API_KEY")
 KSIC_RESOURCE_PATH = RESOURCES_DIR / "산업_KSIC_-특허_IPC__연계표.xlsx"
 

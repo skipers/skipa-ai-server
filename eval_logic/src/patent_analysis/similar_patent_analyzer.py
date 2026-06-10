@@ -22,15 +22,11 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
-try:
-    from dotenv import load_dotenv
-except ImportError:
-    load_dotenv = None
+from core.env import load_runtime_env
 from core.paths import RUNTIME_ANALYSIS_DIR, ROOT_DIR, SAMPLE_DATA_DIR
 from core.schemas import normalize_patent_input
 
-if load_dotenv:
-    load_dotenv(ROOT_DIR / ".env")
+load_runtime_env()
 
 
 DEFAULT_TARGET = SAMPLE_DATA_DIR / "patent_input.json"
@@ -523,6 +519,8 @@ def compare_one(target: dict[str, Any], detail: dict[str, Any], use_llm: bool = 
         overall = 0.18 * title_score + 0.22 * abstract_score + 0.30 * claim_score + 0.15 * keyword_score + 0.15 * ipc_score
     else:
         overall = 0.25 * title_score + 0.30 * abstract_score + 0.25 * keyword_score + 0.20 * ipc_score
+    source_candidate = detail.get("source_candidate") if isinstance(detail.get("source_candidate"), dict) else {}
+    kipris_similarity = detail.get("similarity_score") or source_candidate.get("similarity_score")
 
     signals = {
         "overall": round(overall, 4),
@@ -532,6 +530,8 @@ def compare_one(target: dict[str, Any], detail: dict[str, Any], use_llm: bool = 
         "keywords": round(keyword_score, 4),
         "ipc": round(ipc_score, 4),
     }
+    if isinstance(kipris_similarity, (int, float)):
+        signals["kipris"] = round(float(kipris_similarity), 2)
     common_keywords = top_common_keywords(target_text, detail_text)
     technical_analysis = infer_technical_analysis(target, detail, signals, common_keywords)
 
@@ -564,6 +564,8 @@ def compare_one(target: dict[str, Any], detail: dict[str, Any], use_llm: bool = 
         "applicant": detail.get("applicant"),
         "legal_status": detail.get("legal_status"),
         "citation_count": detail.get("citation_count"),
+        "similarity_score": kipris_similarity,
+        "similarity_basis": detail.get("similarity_basis") or source_candidate.get("similarity_basis"),
         "similarity": signals,
         "comparison": {
             "risk_level": risk_level(detail, signals["overall"]),
