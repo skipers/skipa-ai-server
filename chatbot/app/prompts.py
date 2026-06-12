@@ -18,8 +18,8 @@ search_scope: internal | mixed | external | clarify
 - 내부 검색(search_scope=internal): 특허/보고서/원문을 찾거나, 평가 점수·유지판단·청구항 등 내부 데이터가 답이 되는 질문
 - 외부 검색(needs_web=true): "시장", "동향", "최근", "뉴스", 또는 내부 데이터와 무관한 일반 기술 개념("뭐야", "이란") 질문
 - 명확화 필요(needs_clarification=true): "이거", "그거"처럼 대상이 불분명하고 [대화 이력]에서도 특허를 특정할 수 없을 때
-- [현재 선택 특허]가 있으면 "이 특허", "해당 특허", "자세하게", "알려줘" 같은 표현은 선택 특허의 상세 설명으로 해석한다.
-- 선택 특허 상세 설명은 intent=patent_original, source_plan=["original","report","reviewed_vectorstore"], answer_format=text, search_scope=internal 로 둔다.
+- [현재 재평가 특허]가 있으면 "이 특허", "해당 특허", "자세하게", "알려줘" 같은 표현은 재평가 특허의 상세 설명으로 해석한다.
+- 재평가 특허 상세 설명은 intent=patent_original, source_plan=["original","report","reviewed_vectorstore"], answer_format=text, search_scope=internal 로 둔다.
 - "평가", "점수", "리스크", "유지", "매각", "제각"을 묻는 경우에는 intent=patent_report 로 둔다.
 - 답변 이해에 도움이 되면 사용자가 명시하지 않아도 answer_format을 유연하게 고른다.
   - 평가 점수·리스크·비교·의사결정: table 또는 visual_summary
@@ -57,11 +57,11 @@ search_scope: internal | mixed | external | clarify
 질문: "이 특허의 평가 점수와 리스크를 보기 쉽게 알려줘"
 출력: {{"intent":"patent_report","needs_web":false,"focus":"평가 점수와 리스크 시각 요약","source_plan":["report","original","reviewed_vectorstore"],"answer_format":"visual_summary","needs_diagram":false,"needs_table":true,"use_history":true,"confidence":0.94,"reason":"점수·리스크·의사결정 포인트는 표와 간단 차트가 유용함","search_scope":"internal","needs_clarification":false,"clarification_question":""}}
 
-[현재 선택 특허]
+[현재 재평가 특허]
 patent_id: 10-1959619
 
 질문: "이 특허에 대해서 자세하게 알려줘"
-출력: {{"intent":"patent_original","needs_web":false,"focus":"선택 특허 전체 상세 설명","source_plan":["original","report","reviewed_vectorstore"],"answer_format":"text","needs_diagram":false,"needs_table":false,"use_history":true,"confidence":0.94,"reason":"선택 특허의 원문과 보고서 근거를 함께 봐야 하는 상세 설명 요청","search_scope":"internal","needs_clarification":false,"clarification_question":""}}
+출력: {{"intent":"patent_original","needs_web":false,"focus":"재평가 특허 전체 상세 설명","source_plan":["original","report","reviewed_vectorstore"],"answer_format":"text","needs_diagram":false,"needs_table":false,"use_history":true,"confidence":0.94,"reason":"재평가 특허의 원문과 보고서 근거를 함께 봐야 하는 상세 설명 요청","search_scope":"internal","needs_clarification":false,"clarification_question":""}}
 
 질문: "이거 어떻게 해" (대화 이력에 특허 없음)
 출력: {{"intent":"general","needs_web":false,"focus":"지시 대상 불명확","source_plan":["reviewed_vectorstore"],"answer_format":"text","needs_diagram":false,"needs_table":false,"use_history":true,"confidence":0.6,"reason":"지시 대상 불분명","search_scope":"clarify","needs_clarification":true,"clarification_question":"어떤 특허에 대해 질문하시나요? 특허명이나 번호를 알려주시면 바로 확인해 드릴게요."}}

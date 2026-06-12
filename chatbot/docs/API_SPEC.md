@@ -236,18 +236,18 @@ auto_audit=true
 
 ## 통합 특허 챗봇 API
 
-공개 기준 기능명은 `patent-chat`입니다. `/api/v1/rag`와 `/rag`는 호환 alias이며 Swagger schema에서는 숨겨져 있습니다.
+공개 기준 기능명은 `patent-chat`입니다. 이전 호환 alias였던 `/api/v1/rag`와 `/rag`는 제거되었습니다.
 
 | Method | Path | 기능 |
 | --- | --- | --- |
 | `GET` | `/api/v1/patent-chat/patents` | 특허 목록과 RAG 엔진 상태 |
 | `GET` | `/api/v1/patent-chat/patent-summary-cards` | UI용 특허 요약 카드 |
 | `GET` | `/api/v1/patent-chat/engine/status` | Hybrid retrieval 엔진 상태 |
-| `POST` | `/api/v1/patent-chat/query` | 선택 특허 근거 검색 |
-| `POST` | `/api/v1/patent-chat/answer` | 선택 특허 검색+답변 |
-| `POST` | `/api/v1/patent-chat/chat` | 선택 특허 기준 챗봇 답변 |
+| `POST` | `/api/v1/patent-chat/query` | 재평가 특허 근거 검색 |
+| `POST` | `/api/v1/patent-chat/answer` | 재평가 특허 검색+답변 |
+| `POST` | `/api/v1/patent-chat/chat` | 재평가 특허 기준 챗봇 답변 |
 | `POST` | `/api/v1/patent-chat/global/chat` | 전체 특허 기준 챗봇 답변 |
-| `POST` | `/api/v1/patent-chat/reindex` | 선택 특허 index 재생성 |
+| `POST` | `/api/v1/patent-chat/reindex` | 재평가 특허 index 재생성 |
 | `POST` | `/api/v1/patent-chat/global/reindex` | 전체 특허 global index 재생성 |
 | `POST` | `/api/v1/patent-chat/business/reindex` | business/common index 재생성 |
 | `POST` | `/api/v1/patent-chat/feedback` | 답변 피드백 저장 |

@@ -75,7 +75,8 @@ def _parse_float(text: str, default: float = 0.0) -> float:
 
 def collect_responses(patent_ids: list[str], top_k: int,
                       golden_qa_path: str | None = None,
-                      sample_per_pair: int | None = None) -> list[dict]:
+                      sample_per_pair: int | None = None,
+                      retrieval_only: bool = False) -> list[dict]:
     import subprocess
     helper = Path(__file__).with_name("_collect_responses.py")
     arg    = json.dumps({
@@ -83,6 +84,7 @@ def collect_responses(patent_ids: list[str], top_k: int,
         "top_k":           top_k,
         "golden_qa_path":  golden_qa_path,
         "sample_per_pair": sample_per_pair,
+        "retrieval_only":  retrieval_only,
     })
     proc = subprocess.run(
         [sys.executable, str(helper), arg],
@@ -550,7 +552,8 @@ def main() -> None:
     # Phase 1
     print("[Phase 1/4] 챗봇 응답 수집")
     samples = collect_responses(patent_ids, args.top_k, golden_qa_path,
-                                sample_per_pair=args.sample_per_pair)
+                                sample_per_pair=args.sample_per_pair,
+                                retrieval_only=args.retrieval_only)
     n_ok    = sum(1 for s in samples if s["chatbot_ok"])
     print(f"  수집 완료: {len(samples)}개 (성공 {n_ok}개)")
 

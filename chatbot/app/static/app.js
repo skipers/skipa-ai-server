@@ -24,7 +24,7 @@ const workflowGraphInfo = {
     endpoint: "/api/v1/patent-chat/chat/mermaid",
     summary: "질문 맥락을 정리한 뒤 가벼운 LLM/룰 기반 의도 라우터가 검색 위치와 답변 형식을 정합니다. 원문/보고서 질문은 core 근거만 쓰고, web 필요 질문만 특허별 wiki gate와 Tavily 경로로 넘어갑니다.",
     steps: [
-      ["resolve_history_context", "이전 대화와 선택 특허를 현재 질문 맥락으로 정리"],
+      ["resolve_history_context", "이전 대화와 재평가 특허를 현재 질문 맥락으로 정리"],
       ["route_question", "의도, 웹검색 필요 여부, 표/다이어그램 필요 여부 판단"],
       ["retrieve_wiki_context", "web 필요 질문일 때만 해당 특허의 기술 분야(topic) wiki vectorstore 근거 검색"],
       ["retrieve_web_context", "wiki 근거가 없고 최신성/외부 정보가 필요할 때만 웹 근거 수집"],
@@ -671,12 +671,12 @@ function sourceModalBody(source) {
   return `${detailList([
     ["문서 제목", sourceTitle(source)],
     ["근거 위치", sourceLocation(source)],
-    ["기존 인용", source?.metadata?.citation_label || source?.label],
+    ["기존 인용", source?.label || source?.metadata?.citation_label],
     ["자료 유형", source?.source_type],
     ["페이지", source?.page_no],
     ["파일/경로", sourcePath(source)],
     ["URL", source?.url],
-  ])}<h2>근거로 사용된 부분</h2><pre class="source-highlight">${highlightedEvidence(source)}</pre><h2>Metadata</h2>${jsonBlock(source?.metadata)}`;
+  ])}<h2>근거로 사용된 부분</h2><pre class="source-highlight">${highlightedEvidence(source)}</pre>`;
 }
 
 function renderPatentOptions() {
@@ -917,7 +917,7 @@ function appendSources(sourceCards, containerId = "messages") {
     card.className = "source-card";
     const title = sourceTitle(source);
     const location = sourceLocation(source);
-    const originalLabel = source?.metadata?.citation_label || source.label || "";
+    const originalLabel = source?.label || source?.metadata?.citation_label || "";
     card.innerHTML = `
       <button class="source-card-main" type="button" aria-label="${escapeHtml(title)} 근거 보기">
         <strong>${escapeHtml(title)}</strong>
@@ -958,7 +958,7 @@ async function loadBaseData() {
   const vector = status.vectorstore_status || config.vectorstore || {};
   const engine = config.rag_engine?.available ? "Hybrid Retrieval" : "fallback";
   setStatus(`특허 ${config.shared_patent_count ?? config.patent_count ?? state.patents.length}개 · MinIO ${minio.connected ? "연결" : "미연결"} · ${engine}`);
-  api("/api/v1/patent-chat/patent-summary-cards")
+  api("/api/v1/patents/summary-cards")
     .then((cards) => {
       state.cards = cards.items || [];
       renderDataCards();
@@ -1186,30 +1186,26 @@ async function ask() {
   const pending = appendMessage("검색 중입니다. 승인된 vectorstore에서 근거를 찾고 답변을 구성합니다.", "assistant");
   try {
     const selected = $("patentSelect").value;
-    const path = selected === "__all__" ? "/api/v1/patent-chat/global/chat" : "/api/v1/patent-chat/chat";
+    const path = selected === "__all__"
+      ? "/api/v1/patent-chat/global/chat"
+      : `/api/v1/patents/${encodeURIComponent(selected)}/chat`;
+    const body = {
+      question: text,
+      user_id: "browser-ui",
+      chat_history: state.chatHistory,
+    };
+    if (selected === "__all__") {
+      body.patent_id = null;
+    }
     const data = await api(path, {
       method: "POST",
-      body: JSON.stringify({
-        question: text,
-        patent_id: selected === "__all__" ? null : selected,
-        user_id: "browser-ui",
-        chat_history: state.chatHistory,
-        context_patent_id: selected === "__all__" ? null : selected,
-      }),
+      body: JSON.stringify(body),
     });
     await renderAnswerProgressively(pending, data.answer || "");
     appendAnswerMeta(data.metrics || {}, data.source_cards || []);
     appendSources(data.source_cards || []);
     focusAnswerStart(pending);
-    // source_cards의 patent_id를 빈도순으로 저장해 후속 질문 컨텍스트 유지
-    const sourceCardPatentIds = [...new Set(
-      (data.source_cards || []).map(c => c?.metadata?.patent_id).filter(Boolean)
-    )];
-    rememberHistory("chat", text, data.answer, {
-      patent_id: selected === "__all__" ? null : selected,
-      source_card_patent_ids: sourceCardPatentIds,
-      resolved_patent_id: data.metrics?.resolved_patent_id || null,
-    });
+    rememberHistory("chat", text, data.answer);
     setStatus(`답변 완료 · 근거 ${(data.source_cards || []).length}개`);
   } catch (error) {
     pending.textContent = `요청 실패: ${error.message}`;

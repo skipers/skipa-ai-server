@@ -91,6 +91,9 @@ def _score_grade(score: float) -> str:
 
 
 def _optional_bert_score(answer: str, evidence_text: str) -> dict[str, Any]:
+    import os
+    if os.environ.get("SKIP_BERT_SCORE", "").lower() in ("1", "true", "yes"):
+        return {"available": False, "reason": "SKIP_BERT_SCORE=1", "fallback_metric": "semantic_answer_evidence_score"}
     if not answer.strip() or not evidence_text.strip():
         return {
             "available": False,

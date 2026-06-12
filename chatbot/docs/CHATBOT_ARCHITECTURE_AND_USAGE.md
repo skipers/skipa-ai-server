@@ -335,17 +335,17 @@ CMP Pad 물류 관리 시스템의 유지 판단 근거를 알려줘
 
 | API | 기능 |
 | --- | --- |
-| `POST /api/v1/patent-chat/chat` | 선택 특허 기준 답변 |
+| `POST /api/v1/patent-chat/chat` | 재평가 특허 기준 답변 |
 | `POST /api/v1/patent-chat/global/chat` | 전체 특허 기준 답변 |
 | `POST /api/v1/patent-chat/query` | retrieval hit 확인 |
 | `POST /api/v1/patent-chat/answer` | 검색+답변 생성 확인 |
-| `POST /api/v1/patent-chat/reindex` | 선택 특허 index 재생성 |
+| `POST /api/v1/patent-chat/reindex` | 재평가 특허 index 재생성 |
 | `POST /api/v1/patent-chat/global/reindex` | 전체 특허 index 재생성 |
 | `GET /api/v1/patent-chat/chat/mermaid` | 특허 챗봇 Mermaid |
 | `GET /api/v1/patent-chat/ingestion/mermaid` | 전처리 Mermaid |
 | `GET /api/v1/patent-chat/page-image` | PDF page image 렌더링 |
 
-`/api/v1/rag`와 `/rag`는 호환용 alias입니다. 새 문서와 UI에서는 기능명인 `patent-chat`을 기준으로 설명합니다.
+이전 호환 alias였던 `/api/v1/rag`와 `/rag`는 제거되었고, 새 문서와 UI에서는 기능명인 `patent-chat`을 기준으로 설명합니다.
 
 ### 출원 도우미
 

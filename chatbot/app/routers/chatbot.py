@@ -41,6 +41,8 @@ from ..schemas import (
     ChatHistoryItem,
     FeedbackRequest,
     PreprocessRunRequest,
+    PublicChatResponse,
+    ReEvalChatRequest,
     ReindexRequest,
     SearchRequest,
     SearchResponse,
@@ -81,19 +83,15 @@ from ..wiki.topics import (
 
 # ---------------------------------------------------------------------------
 # 라우터 정의
-#   patent_chat_router : /api/v1/patent-chat  → [주요] 특허 챗봇 API
+#   re_eval_router     : /api/v1/patents      → [주요] 재평가 챗봇 API
+#   patent_chat_router : /api/v1/patent-chat  → 레거시 호환 API (Swagger 숨김)
 #   wiki_router        : /api/v1/wiki         → Wiki 감사·분야 관리
 #   router (chatbot)   : /api/v1/chatbot      → 운영·인프라 관리 API
-#   agent_router       : /api/v1/agent        → patent-chat alias (내부 호환용)
-#   rag_router         : /api/v1/rag          → Swagger 미노출 alias
-#   legacy_rag_router  : /rag                 → Swagger 미노출 legacy alias
 # ---------------------------------------------------------------------------
 
 router = APIRouter(prefix="/api/v1/chatbot", tags=["chatbot"])
-patent_chat_router = APIRouter(prefix="/api/v1/patent-chat", tags=["patent-chat"])
-rag_router = APIRouter(prefix="/api/v1/rag", tags=["patent-chat"], include_in_schema=False)
-legacy_rag_router = APIRouter(prefix="/rag", tags=["patent-chat"], include_in_schema=False)
-agent_router = APIRouter(prefix="/api/v1/agent", tags=["agent"], include_in_schema=False)
+re_eval_router = APIRouter(prefix="/api/v1/patents", tags=["re-eval"])
+patent_chat_router = APIRouter(prefix="/api/v1/patent-chat", tags=["re-eval"], include_in_schema=False)
 wiki_router = APIRouter(prefix="/api/v1/wiki", tags=["wiki"])
 
 
@@ -526,7 +524,7 @@ def post_visual_vectorstore_search(body: dict) -> dict:
     description=(
         "Qdrant vectorstore에서 유사도 검색을 직접 실행하고 결과를 반환합니다. "
         "챗봇 답변 없이 근거 검색 결과만 확인할 때 사용합니다. "
-        "실제 채팅은 `patent-chat` 태그의 `/chat` 엔드포인트를 사용하세요."
+        "실제 채팅은 `re-eval` 태그의 `/api/v1/patents/{patent_id}/chat` 엔드포인트를 사용하세요."
     ),
 )
 def post_search(request: SearchRequest) -> dict:
@@ -563,57 +561,71 @@ def post_answer(request: SearchRequest) -> dict:
     )
 
 
-# ── [patent-chat] 검색·답변 alias (rag_router는 Swagger 미노출) ──────────
+# ── [re-eval] 공개 재평가 챗봇 API ───────────────────────────────────────
 
-@patent_chat_router.post("/query", response_model=SearchResponse, summary="특허 RAG 근거 검색")
-@rag_router.post("/query", response_model=SearchResponse, summary="RAG 질의 alias")
+@re_eval_router.get(
+    "",
+    summary="재평가 특허 목록",
+    description="재평가 챗봇에서 선택할 수 있는 특허 목록과 RAG 엔진 상태를 반환합니다.",
+)
+def re_eval_patents() -> dict:
+    patents = list_patents()
+    return {"items": patents, "count": len(patents), "engine": legacy_engine_status()}
+
+
+@re_eval_router.get(
+    "/summary-cards",
+    summary="재평가 특허 요약 카드 목록",
+    description="UI에서 재평가 특허 드롭다운에 표시할 특허별 요약 정보(제목·점수·등급)를 반환합니다.",
+)
+def re_eval_patent_summary_cards() -> dict:
+    return patent_summary_cards()
+
+
+@re_eval_router.post(
+    "/{patent_id}/chat",
+    response_model=PublicChatResponse,
+    summary="재평가 챗봇 답변",
+    description=(
+        "재평가 특허(`patent_id`)의 원문·평가 보고서·wiki·웹 근거를 통합해 답변합니다.\n\n"
+        "요청 body는 `chat_history`, `question`, `user_id`만 사용합니다. "
+        "`source_cards` 응답에서는 백엔드 저장 대상이 아닌 내부 `metadata`를 제외합니다."
+    ),
+)
+def re_eval_chat(patent_id: str, request: ReEvalChatRequest) -> dict:
+    result = run_chat_agent(
+        request.question,
+        patent_id=patent_id,
+        user_id=request.user_id,
+        chat_history=_chat_history_payload(request.chat_history),
+    )
+    result["patent_id"] = result.get("patent_id") or patent_id
+    return result
+
+
+# ── [patent-chat] 레거시 검색·답변 ───────────────────────────────────────
+
+@patent_chat_router.post("/query", response_model=SearchResponse, summary="재평가 특허 RAG 근거 검색")
 def rag_query(request: SearchRequest) -> dict:
     return post_search(request)
 
 
-@agent_router.post(
-    "/query",
-    response_model=SearchResponse,
-    summary="[alias] 근거 검색 — patent-chat/query 와 동일",
-    description="내부 호환용 alias입니다. 신규 개발 시 `POST /api/v1/patent-chat/query` 를 사용하세요.",
-)
-def agent_query(request: SearchRequest) -> dict:
-    return post_search(request)
-
-
-@patent_chat_router.post("/answer", response_model=AnswerResponse, summary="특허 챗봇 답변 생성 (SearchRequest)")
-@rag_router.post("/answer", response_model=AnswerResponse, summary="RAG 답변 alias")
+@patent_chat_router.post("/answer", response_model=AnswerResponse, summary="재평가 특허 챗봇 답변 생성 (SearchRequest)")
 def rag_answer(request: SearchRequest) -> dict:
     return post_answer(request)
 
 
-@agent_router.post(
-    "/answer",
-    response_model=AnswerResponse,
-    summary="[alias] 챗봇 답변 — patent-chat/answer 와 동일",
-    description="내부 호환용 alias입니다. 신규 개발 시 `POST /api/v1/patent-chat/answer` 를 사용하세요.",
-)
-def agent_answer(request: SearchRequest) -> dict:
-    return post_answer(request)
-
-
 @patent_chat_router.get("/chat/mermaid", summary="챗봇 LangGraph 워크플로우 다이어그램", include_in_schema=False)
-@rag_router.get("/chat/mermaid", summary="챗봇 LangGraph 답변 workflow Mermaid")
-@agent_router.get("/chat/mermaid", summary="챗봇 LangGraph 답변 workflow Mermaid")
 def get_chat_graph_mermaid() -> dict:
     return {"format": "mermaid", "diagram": chat_graph_mermaid()}
 
 
 @patent_chat_router.get("/engine/status", summary="Hybrid Retrieval 엔진 상태", include_in_schema=False)
-@rag_router.get("/engine/status", summary="복구된 rag.zip 엔진 사용 가능 여부")
-@legacy_rag_router.get("/engine/status", summary="복구된 rag.zip 엔진 사용 가능 여부")
 def get_rag_engine_status() -> dict:
     return legacy_engine_status()
 
 
-@patent_chat_router.get("/patents", summary="특허 챗봇 특허 목록", include_in_schema=False)
-@rag_router.get("/patents", summary="통합 RAG 특허 목록")
-@legacy_rag_router.get("/patents", summary="특허 챗봇 호환 특허 목록")
+@patent_chat_router.get("/patents", summary="재평가 특허 챗봇 특허 목록", include_in_schema=False)
 def rag_patents() -> dict:
     patents = list_patents()
     return {"items": patents, "count": len(patents), "engine": legacy_engine_status()}
@@ -624,10 +636,8 @@ def rag_patents() -> dict:
 @patent_chat_router.get(
     "/patent-summary-cards",
     summary="특허 요약 카드 목록",
-    description="UI에서 특허 선택 드롭다운에 표시할 특허별 요약 정보(제목·점수·등급)를 반환합니다.",
+    description="UI에서 재평가 특허 드롭다운에 표시할 특허별 요약 정보(제목·점수·등급)를 반환합니다.",
 )
-@rag_router.get("/patent-summary-cards", summary="통합 RAG 특허 요약 카드")
-@legacy_rag_router.get("/patent-summary-cards", summary="특허 챗봇 호환 특허 요약 카드")
 def rag_patent_summary_cards() -> dict:
     return patent_summary_cards()
 
@@ -635,15 +645,13 @@ def rag_patent_summary_cards() -> dict:
 @patent_chat_router.post(
     "/chat",
     response_model=AnswerResponse,
-    summary="특허 선택 챗봇 답변",
+    summary="재평가 특허 챗봇 답변",
     description=(
-        "선택한 특허(`patent_id`)를 기준으로 원문·보고서·wiki·웹 근거를 통합해 답변합니다.\n\n"
+        "재평가 특허(`patent_id`)를 기준으로 원문·보고서·wiki·웹 근거를 통합해 답변합니다.\n\n"
         "- `patent_id` 없이 호출하면 전체 특허 DB에서 검색합니다.\n"
         "- `chat_history`: 최근 대화 목록을 전달하면 후속 질문 컨텍스트를 유지합니다."
     ),
 )
-@rag_router.post("/chat", response_model=AnswerResponse, summary="통합 RAG 특허별 챗봇 답변")
-@legacy_rag_router.post("/chat", response_model=AnswerResponse, summary="특허 챗봇 호환 답변")
 def rag_chat(request: ChatRequest) -> dict:
     return run_chat_agent(
         request.question,
@@ -656,14 +664,12 @@ def rag_chat(request: ChatRequest) -> dict:
 @patent_chat_router.post(
     "/global/chat",
     response_model=AnswerResponse,
-    summary="전체 특허 챗봇 답변 (특허 미선택)",
+    summary="전체 특허 챗봇 답변 (재평가 특허 미선택)",
     description=(
         "특정 특허를 선택하지 않고 전체 특허 DB(`skipa_patent_docs`)에서 관련 근거를 탐색해 답변합니다. "
-        "전체 탐색이므로 특허 선택 채팅보다 응답 근거 범위가 넓습니다."
+        "전체 탐색이므로 재평가 특허 채팅보다 응답 근거 범위가 넓습니다."
     ),
 )
-@rag_router.post("/global/chat", response_model=AnswerResponse, summary="통합 RAG 전체 특허 챗봇 답변")
-@legacy_rag_router.post("/global/chat", response_model=AnswerResponse, summary="전체 특허 챗봇 호환 답변")
 def rag_global_chat(request: ChatRequest) -> dict:
     return run_chat_agent(
         request.question,
@@ -676,15 +682,13 @@ def rag_global_chat(request: ChatRequest) -> dict:
 @patent_chat_router.post(
     "/reindex",
     include_in_schema=False,
-    summary="특허별 Qdrant 인덱스 재생성",
+    summary="재평가 특허 Qdrant 인덱스 재생성",
     description=(
         "특정 특허의 Qdrant 인덱스를 재생성합니다. "
         "새 특허 데이터가 추가됐거나 원문·보고서가 갱신된 경우 호출합니다. "
         "`refresh_reviewed_vectorstore=true`면 사람 승인 데이터 기반 vectorstore도 함께 갱신합니다."
     ),
 )
-@rag_router.post("/reindex", summary="특허별 Qdrant 인덱스 재생성")
-@legacy_rag_router.post("/reindex", summary="특허별 Qdrant 인덱스 재생성")
 def rag_reindex(request: ReindexRequest) -> dict:
     return run_ingestion_graph(
         scope="patent",
@@ -704,8 +708,6 @@ def rag_reindex(request: ReindexRequest) -> dict:
         "일반적으로는 `/chatbot/vectorstore/full-rebuild` 또는 blue-green refresh를 사용하세요."
     ),
 )
-@rag_router.post("/global/reindex", summary="전체 특허 global Qdrant 인덱스 재생성")
-@legacy_rag_router.post("/global/reindex", summary="전체 특허 global Qdrant 인덱스 재생성")
 def rag_global_reindex(request: BusinessReindexRequest) -> dict:
     return run_ingestion_graph(
         scope="global",
@@ -719,8 +721,6 @@ def rag_global_reindex(request: BusinessReindexRequest) -> dict:
     summary="업무 공통 인덱스 재생성 (비활성)",
     include_in_schema=False,
 )
-@rag_router.post("/business/reindex", summary="업무/공통 Qdrant 인덱스 재생성")
-@legacy_rag_router.post("/business/reindex", summary="업무/공통 Qdrant 인덱스 재생성")
 def rag_business_reindex(request: BusinessReindexRequest) -> dict:
     return run_ingestion_graph(
         scope="business",
@@ -734,8 +734,6 @@ def rag_business_reindex(request: BusinessReindexRequest) -> dict:
     summary="전처리·재색인 워크플로우 다이어그램",
     include_in_schema=False,
 )
-@rag_router.get("/ingestion/mermaid", summary="전처리/RAG 재색인 LangGraph Mermaid")
-@legacy_rag_router.get("/ingestion/mermaid", summary="전처리/RAG 재색인 LangGraph Mermaid")
 def get_ingestion_mermaid() -> dict:
     return {"format": "mermaid", "diagram": ingestion_graph_mermaid()}
 
@@ -745,8 +743,6 @@ def get_ingestion_mermaid() -> dict:
     summary="챗봇 답변 피드백 저장",
     description="사용자가 챗봇 답변에 남긴 평가(rating, reason)를 저장합니다. 데이터 품질 개선에 활용됩니다.",
 )
-@rag_router.post("/feedback", summary="챗봇 답변 피드백 저장")
-@legacy_rag_router.post("/feedback", summary="챗봇 답변 피드백 저장")
 def rag_feedback(request: FeedbackRequest) -> dict:
     return write_feedback(request.model_dump())
 
@@ -756,8 +752,6 @@ def rag_feedback(request: FeedbackRequest) -> dict:
     summary="특허 PDF 페이지 이미지 렌더링",
     description="특허 원본 PDF의 특정 페이지를 이미지로 렌더링해 반환합니다. UI에서 원문 페이지 미리보기에 사용합니다.",
 )
-@rag_router.get("/page-image", summary="특허 PDF page image 렌더링")
-@legacy_rag_router.get("/page-image", summary="특허 PDF page image 렌더링")
 def rag_page_image(patent_id: str, file_name: str = Query("original.pdf"), page_no: int = Query(1, ge=1)):
     return render_page_image(patent_id, file_name=file_name, page_no=page_no)
 

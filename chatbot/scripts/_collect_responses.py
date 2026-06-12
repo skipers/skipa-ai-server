@@ -23,6 +23,9 @@ os.chdir(Path(__file__).resolve().parents[2])
 from dotenv import load_dotenv
 load_dotenv("chatbot/.env")
 
+# 평가 수집 시 bert_score 실행 비용(~15s/query) 방지
+os.environ.setdefault("SKIP_BERT_SCORE", "1")
+
 # 기본 고정 질문 (golden_qa 없을 때 fallback)
 DEFAULT_QUESTIONS = [
     ("overview",   "이 특허를 사업부 관점에서 핵심 가치 중심으로 3줄로 요약해줘."),
@@ -71,12 +74,14 @@ def _extract_reference(report_path: Path, category: str) -> str:
 
 def main():
     args = json.loads(sys.argv[1])
-    patent_ids       = args["patent_ids"]
-    top_k            = args["top_k"]
-    golden_qa_path   = args.get("golden_qa_path")
-    sample_per_pair  = args.get("sample_per_pair")  # None = 전체 사용
+    patent_ids        = args["patent_ids"]
+    top_k             = args["top_k"]
+    golden_qa_path    = args.get("golden_qa_path")
+    sample_per_pair   = args.get("sample_per_pair")  # None = 전체 사용
+    retrieval_only    = args.get("retrieval_only", False)
 
-    from chatbot.app.agents.graph import run_chat_agent
+    if not retrieval_only:
+        from chatbot.app.agents.graph import run_chat_agent
     from chatbot.app.store import list_patents
 
     patent_map  = {p["patent_id"]: p for p in list_patents()}
@@ -85,6 +90,7 @@ def main():
     # golden Q&A 로드 또는 기본 질문 사용
     if golden_qa_path and Path(golden_qa_path).exists():
         import random
+        random.seed(int(os.environ.get("EVAL_SAMPLE_SEED", "42")))
         raw_qa = json.loads(Path(golden_qa_path).read_text(encoding="utf-8"))
         # (patent_id, category) 별로 그룹핑 + 샘플링
         from collections import defaultdict
@@ -125,17 +131,31 @@ def main():
 
             print(f"  [{idx:03d}/{total}] [{category:10s}] {pid}", end=" ... ", flush=True, file=sys.stderr)
             t0 = time.time()
-            try:
-                result    = run_chat_agent(question, patent_id=pid, chat_history=[], top_k=top_k)
-                answer    = result.get("answer") or ""
-                src_cards = result.get("source_cards") or []
-                contexts  = [" ".join(str(c.get("snippet") or "").split())
-                             for c in src_cards if c.get("snippet")]
-                ok = True
-            except Exception as e:
-                print(f"[ERROR] {e}", file=sys.stderr)
-                answer, contexts = "", []
-                ok = False
+            if retrieval_only:
+                # 직접 벡터 검색 — LLM 없이 top-k 청크를 바로 가져옴
+                try:
+                    from chatbot.app.vectorstore import search_vectorstore
+                    eval_rerank = os.environ.get("EVAL_RERANK", "false").lower() == "true"
+                    sr = search_vectorstore(question, patent_id=pid, source_types=None, top_k=top_k, rerank=eval_rerank)
+                    contexts = [" ".join(str(h.get("page_content") or "").split()) for h in sr.get("hits", []) if h.get("page_content")]
+                    answer = ""
+                    ok = True
+                except Exception as e:
+                    print(f"[ERROR] {e}", file=sys.stderr)
+                    answer, contexts = "", []
+                    ok = False
+            else:
+                try:
+                    result    = run_chat_agent(question, patent_id=pid, chat_history=[], top_k=top_k)
+                    answer    = result.get("answer") or ""
+                    src_cards = result.get("source_cards") or []
+                    contexts  = [" ".join(str(c.get("snippet") or "").split())
+                                 for c in src_cards if c.get("snippet")]
+                    ok = True
+                except Exception as e:
+                    print(f"[ERROR] {e}", file=sys.stderr)
+                    answer, contexts = "", []
+                    ok = False
 
             elapsed   = round(time.time() - t0, 2)
             reference = _extract_reference(report_path, category)

@@ -198,7 +198,7 @@ APPLICATION_QUESTION_TEMPLATES: list[tuple[str, str]] = [
 
 def _build_patent_questions(count: int, patents: list[dict[str, Any]], exclude_categories: set[str] | None = None) -> list[dict[str, Any]]:
     if not patents:
-        patents = [{"patent_id": None, "title": "선택 특허"}]
+        patents = [{"patent_id": None, "title": "재평가 특허"}]
     templates = [
         (cat, tmpl) for cat, tmpl in PATENT_QUESTION_TEMPLATES
         if not (exclude_categories and cat in exclude_categories)
@@ -209,7 +209,7 @@ def _build_patent_questions(count: int, patents: list[dict[str, Any]], exclude_c
     for index in range(count):
         patent = patents[index % len(patents)]
         category, template = templates[index % len(templates)]
-        title = patent.get("title") or patent.get("patent_id") or "선택 특허"
+        title = patent.get("title") or patent.get("patent_id") or "재평가 특허"
         question = template.format(title=title, patent_id=patent.get("patent_id"))
         chat_history: list[dict[str, Any]] = []
         if category == "history":

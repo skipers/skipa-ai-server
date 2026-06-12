@@ -443,7 +443,7 @@ def classify_intent(
 
     selected_context = ""
     if selected_patent_id:
-        selected_context = f"[현재 선택 특허]\npatent_id: {selected_patent_id}\n\n"
+        selected_context = f"[현재 재평가 특허]\npatent_id: {selected_patent_id}\n\n"
 
     user_prompt = f"{selected_context}{context_prefix}사용자 질문:\n{query}"
     if INTENT_PROVIDER == "openai":

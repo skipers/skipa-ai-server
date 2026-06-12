@@ -124,7 +124,7 @@ def collection_name(kind: str, identifier: Any | None = None) -> str:
 # PREFIX=skipa 기준 전체 목록:
 #
 #  skipa_patent_docs          ← parsed.json / report.json 텍스트 검색 (메인 특허 DB)
-#  skipa_patent_docs_global   ← 전체 특허 통합 텍스트 검색 (특허 선택 없을 때)
+#  skipa_patent_docs_global   ← 전체 특허 통합 텍스트 검색 (재평가 특허 선택 없을 때)
 #  skipa_patent_visual_clip   ← CLIP 이미지(512-dim) + 텍스트(3072-dim) named vectors
 #  skipa_wiki_docs_global     ← 전체 wiki 통합 텍스트
 #  skipa_wiki_topic_<topic>   ← 분야별(반도체_전자 / 소프트웨어_IT / ...) wiki 텍스트
@@ -351,7 +351,7 @@ def upsert_visual_documents(
 
     for start in range(0, len(docs), UPSERT_BATCH_SIZE):
         batch = docs[start : start + UPSERT_BATCH_SIZE]
-        texts = [str(doc.get("page_content") or "") for doc in batch]
+        texts = [str(doc.get("embed_text") or doc.get("page_content") or "") for doc in batch]
 
         # Text embeddings via OpenAI
         text_vectors, provider, error = embed_texts(texts)
@@ -520,7 +520,7 @@ def upsert_documents(
     total = 0
     for start in range(0, len(docs), UPSERT_BATCH_SIZE):
         batch = docs[start : start + UPSERT_BATCH_SIZE]
-        texts = [str(doc.get("page_content") or "") for doc in batch]
+        texts = [str(doc.get("embed_text") or doc.get("page_content") or "") for doc in batch]
         vectors: list[list[float]] = []
         providers: set[str] = set()
         for embed_start in range(0, len(texts), EMBED_BATCH_SIZE):

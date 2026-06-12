@@ -176,7 +176,7 @@ def answer_from_patent_context(state: ChatAgentState) -> ChatAgentState:
     intent = state.get("intent") or {}
     intent_type = str(intent.get("intent") or "general")
 
-    # LLM intent/source_plan을 우선 사용하고, 애매한 경우에만 선택 특허 상세 fallback을 적용한다.
+    # LLM intent/source_plan을 우선 사용하고, 애매한 경우에만 재평가 특허 상세 fallback을 적용한다.
     query_text = state.get("query", "")
     if _needs_whole_patent_detail(query_text, intent_type, patent_id):
         source_types = set(CORE_SEARCH_SOURCE_TYPES) | {"SHARED_PATENT", "SHARED_REPORT"}

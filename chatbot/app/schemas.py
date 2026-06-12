@@ -18,13 +18,28 @@ class ChatHistoryItem(BaseModel):
     question: str | None = Field(None, description="이전 사용자 질문")
     query: str | None = Field(None, description="이전 검색/질의 문장")
     answer: str | None = Field(None, description="이전 챗봇 답변")
-    patent_id: str | None = Field(None, description="이전 대화가 참조한 특허 ID")
-    resolved_patent_id: str | None = Field(None, description="백엔드가 이전 턴에서 확정한 특허 ID")
-    source_card_patent_ids: list[str] | None = Field(
-        None,
-        description="이전 답변 근거 카드에 포함된 특허 ID 목록",
-    )
+    patent_id: str | None = Field(None, description="이전 대화가 참조한 특허 또는 케이스 ID")
+    resolved_patent_id: str | None = Field(None, description="이전 턴에서 확정된 특허 또는 케이스 ID")
+    source_card_patent_ids: list[str] | None = Field(None, description="이전 답변 근거 카드의 특허 ID 목록")
     metrics: dict[str, Any] | None = Field(None, description="이전 응답 metrics")
+
+
+class ReEvalChatRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "chat_history": [],
+                    "question": "이 특허에 대해서 자세하게 알려줘",
+                    "user_id": "user-1",
+                }
+            ]
+        }
+    )
+
+    chat_history: list[ChatHistoryItem] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
+    question: str = Field(..., min_length=1, description="사용자 질문")
+    user_id: str | None = Field(None, description="질문자 식별자. 없으면 생략 가능")
 
 
 class SearchRequest(BaseModel):
@@ -51,7 +66,7 @@ class ChatRequest(BaseModel):
         }
     )
 
-    patent_id: str | None = Field(None, description="선택한 특허 ID. 특허 상세/보고서 채팅이면 전달")
+    patent_id: str | None = Field(None, description="재평가 특허 ID. 특허 상세/보고서 채팅이면 전달")
     question: str = Field(..., min_length=1, description="사용자 질문")
     user_id: str | None = Field(None, description="질문자 식별자. 없으면 생략 가능")
     chat_history: list[ChatHistoryItem] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
@@ -79,10 +94,9 @@ class PreEvalChatRequest(BaseModel):
         json_schema_extra={
             "examples": [
                 {
+                    "chat_history": [],
                     "question": "이 사전평가 보고서의 주요 리스크를 알려줘",
                     "user_id": "user-1",
-                    "chat_history": [],
-                    "top_k": 8,
                 }
             ]
         }
@@ -177,6 +191,33 @@ class AnswerResponse(BaseModel):
     patent_id: str | None
     answer: str
     source_cards: list[AnswerSourceCard] = Field(default_factory=list)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+
+
+class PublicAnswerSourceCard(BaseModel):
+    """Source card shape returned by public chat APIs.
+
+    Internal retrieval metadata is intentionally omitted so backend chat logs can
+    persist `source_cards` directly without storing debug payloads.
+    """
+
+    label: str
+    title: str | None = None
+    display_title: str | None = None
+    source_type: str
+    page_no: int | None = None
+    url: str | None = None
+    location_label: str | None = None
+    source_path: str | None = None
+    match_terms: list[str] = Field(default_factory=list)
+    snippet: str
+
+
+class PublicChatResponse(BaseModel):
+    query: str
+    patent_id: str | None
+    answer: str
+    source_cards: list[PublicAnswerSourceCard] = Field(default_factory=list)
     metrics: dict[str, Any] = Field(default_factory=dict)
 
 

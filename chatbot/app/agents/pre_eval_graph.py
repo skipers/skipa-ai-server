@@ -222,9 +222,11 @@ def run_pre_eval_chat_agent(
     result = dict(final_state.get("result") or {})
     metrics = dict(result.get("metrics") or {})
     metrics["agent_trace"] = final_state.get("trace", [])
+    metrics["patent_id"] = case_id
     result["metrics"] = metrics
     return {
         "query": query,
+        "patent_id": case_id,
         "case_id": case_id,
         "answer": result.get("answer") or "",
         "source_cards": result.get("source_cards") or [],

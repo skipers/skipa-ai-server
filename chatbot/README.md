@@ -265,15 +265,12 @@ flowchart TD
 
 ## 주요 API
 
-특허 챗봇:
+재평가 챗봇:
 
 ```text
-GET  /api/v1/patent-chat/patents
-POST /api/v1/patent-chat/chat
-POST /api/v1/patent-chat/global/chat
-POST /api/v1/patent-chat/query
-POST /api/v1/patent-chat/reindex
-GET  /api/v1/patent-chat/chat/mermaid
+GET  /api/v1/patents
+GET  /api/v1/patents/summary-cards
+POST /api/v1/patents/{patent_id}/chat
 
 GET  /api/v1/chatbot/visual-vectorstore/status
 POST /api/v1/chatbot/visual-vectorstore/refresh

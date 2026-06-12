@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SKIPA Patent Chat</title>
+    <title>SKIPA 재평가 챗봇</title>
     <link rel="stylesheet" href="/ui/static/styles.css" />
   </head>
   <body>
     <div class="app">
       <header>
-        <h1>SKIPA Patent Chat</h1>
+        <h1>SKIPA 재평가 챗봇</h1>
         <div class="header-tools">
           <label for="patentSelect">검색 범위</label>
           <select id="patentSelect">
@@ -32,11 +32,11 @@
       <section id="chatTab" class="tab-panel active">
         <main id="messages" aria-live="polite">
           <div class="message assistant">
-            <h2>특허 챗봇</h2>
-            <p>위의 <strong>검색 범위</strong>에서 특허를 선택하거나 <em>전체 특허</em>로 두고 질문하세요.</p>
+            <h2>재평가 챗봇</h2>
+            <p>위의 <strong>검색 범위</strong>에서 재평가 특허를 선택하거나 <em>전체 특허</em>로 두고 질문하세요.</p>
             <p>특허 원문·보고서·wiki 근거를 통합해 답변하며, 최신 정보가 필요하면 웹 검색도 자동으로 보강합니다.</p>
-            <p>답변 아래 <strong>근거 카드</strong>를 클릭하면 출처 metadata와 발췌문을 확인할 수 있습니다.</p>
-            <p style="font-size:12px;color:#888;">API: <code>POST /api/v1/patent-chat/chat</code> (특허 선택) · <code>POST /api/v1/patent-chat/global/chat</code> (전체)</p>
+            <p>답변 아래 <strong>근거 카드</strong>를 클릭하면 출처 정보와 발췌문을 확인할 수 있습니다.</p>
+            <p style="font-size:12px;color:#888;">API: <code>POST /api/v1/patents/{patent_id}/chat</code> (재평가) · <code>POST /api/v1/patent-chat/global/chat</code> (전체 호환)</p>
           </div>
         </main>
 
@@ -200,7 +200,7 @@
               <div class="button-row">
                 <button id="loadDataButton" type="button">데이터</button>
                 <button id="refreshApprovedVectorstoreButton" type="button">승인 Vectorstore 갱신</button>
-                <button id="reindexButton" type="button">선택 특허 재색인</button>
+                <button id="reindexButton" type="button">재평가 특허 재색인</button>
                 <button id="globalReindexButton" type="button">전체 인덱스 확인</button>
               </div>
             </div>

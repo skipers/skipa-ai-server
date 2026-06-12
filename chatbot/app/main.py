@@ -17,12 +17,11 @@ import os
 
 from .config import BUSINESS_ROOT, DATA_ROOT, MINIO_SYNC_ON_STARTUP, PATENTS_ROOT, PRE_EVAL_ROOT, SHARED_DATA_ROOT
 from .routers.admin import router as admin_router
+from .routers.insights import router as insights_router
 from .routers.pre_eval import router as pre_eval_router
 from .routers.chatbot import (
-    agent_router,
-    legacy_rag_router,
     patent_chat_router,
-    rag_router,
+    re_eval_router,
     router as chatbot_router,
     wiki_router,
 )
@@ -113,16 +112,16 @@ app = FastAPI(
     lifespan=lifespan,
     title="SKIPA AI Chatbot API",
     description=(
-        "## SKIPA 특허 챗봇 · 사전 출원 통합 API\n\n"
+        "## SKIPA 재평가 챗봇 · 사전평가 · Portfolio Insights 통합 API\n\n"
         "---\n\n"
         "### 🟢 외부 공개 API — 프론트엔드·파트너 서비스 연동\n\n"
         "| 태그 | 대표 엔드포인트 | 설명 |\n"
         "|------|----------------|------|\n"
-        "| **patent-chat** | `POST /api/v1/patent-chat/chat` | `patent_id` 포함 특허 챗봇 |\n"
-        "| **patent-chat** | `POST /api/v1/patent-chat/global/chat` | 전체 특허 DB 챗봇 |\n"
+        "| **re-eval** | `POST /api/v1/patents/{patent_id}/chat` | 재평가 챗봇 |\n"
         "| **pre-eval** | `POST /api/v1/pre-eval/webhook/report-complete` | 보고서 완료 알림 → 인덱싱 |\n"
-        "| **pre-eval** | `POST /api/v1/pre-eval/cases/{patent_id}/chat` | 사전 출원 챗봇 |\n"
-        "| **pre-eval** | `GET /api/v1/pre-eval/vectorstore/status` | 사전 출원 벡터스토어 현황 |\n\n"
+        "| **pre-eval** | `POST /api/v1/pre-eval/cases/{case_id}/chat` | 사전평가 챗봇 |\n"
+        "| **pre-eval** | `GET /api/v1/pre-eval/vectorstore/status` | 사전 출원 벡터스토어 현황 |\n"
+        "| **insights** | `POST /portfolio/insights` | 포트폴리오 AI 인사이트 생성 |\n"
         "---\n\n"
         "### 🔧 내부 운영 API — 백오피스·배포 파이프라인 전용\n\n"
         "| 태그 | 설명 |\n"
@@ -134,27 +133,23 @@ app = FastAPI(
         "|--------|----------|------|\n"
         "| 특허 원본 PDF·보고서 (`global_patent`) | Blue-Green | API 호출 시 (`POST /chatbot/bluegreen/refresh`) |\n"
         "| Wiki (`global_wiki`) | Blue-Green | 1시간 자동 스케줄 |\n"
-        "| 사전 출원 특허 (`pre-{patent_id}`) | 단순 upsert 누적 | 웹훅 수신 시 즉시 인덱싱 |\n\n"
-        "> `agent` 태그 엔드포인트는 내부 alias로 Swagger에서 숨겨져 있습니다.\n"
+        "| 사전평가 케이스 (`pre-{case_id}`) | 단순 upsert 누적 | 웹훅 수신 시 즉시 인덱싱 |\n"
     ),
     version="1.0.0",
     openapi_tags=[
         # ── 🟢 외부 공개 API ──────────────────────────────────────────────────
         {
-            "name": "patent-chat",
+            "name": "re-eval",
             "description": (
-                "**🟢 [외부 공개] 특허 챗봇 답변·검색·피드백**\n\n"
+                "**🟢 [외부 공개] 재평가 챗봇 답변**\n\n"
                 "LangGraph 의도 라우팅 → Qdrant Hybrid Retrieval → OpenAI 답변 생성 파이프라인입니다.\n\n"
-                "모든 채팅 요청에 `patent_id`를 포함하면 해당 특허 우선 검색이 적용됩니다.\n\n"
+                "`POST /api/v1/patents/{patent_id}/chat` 요청 body에는 "
+                "`chat_history`, `question`, `user_id`만 전달합니다.\n\n"
                 "| 엔드포인트 | 설명 |\n"
                 "|------------|------|\n"
-                "| `POST /chat` | 특허 선택 채팅 — `patent_id` 지정 시 해당 특허 우선 검색 |\n"
-                "| `POST /global/chat` | 전체 특허 DB 채팅 — 특허 미선택 시 사용 |\n"
-                "| `GET /patents` | 특허 목록 (드롭다운용) |\n"
-                "| `GET /patent-summary-cards` | 특허 요약 카드 |\n"
-                "| `POST /query` | RAG 근거 검색만 (답변 없음) |\n"
-                "| `POST /feedback` | 답변 피드백 저장 |\n"
-                "| `GET /page-image` | PDF 페이지 이미지 렌더링 |"
+                "| `POST /api/v1/patents/{patent_id}/chat` | 재평가 특허 기준 채팅 |\n"
+                "| `GET /api/v1/patents` | 재평가 특허 목록 |\n"
+                "| `GET /api/v1/patents/summary-cards` | 재평가 특허 요약 카드 |"
             ),
         },
         {
@@ -162,19 +157,29 @@ app = FastAPI(
             "description": (
                 "**🟢 [외부 공개] 사전 출원 특허 챗봇**\n\n"
                 "외부 사전 출원 평가 서비스가 보고서 생성 완료를 웹훅으로 알리면,\n"
-                "MinIO에서 `report.json`을 가져와 `pre-{patent_id}` 벡터스토어에 인덱싱합니다.\n"
-                "이후 해당 특허 ID로 챗봇을 바로 사용할 수 있습니다.\n\n"
+                "MinIO에서 `report.json`을 가져와 `pre-{case_id}` 벡터스토어에 인덱싱합니다.\n"
+                "이후 해당 케이스 ID로 챗봇을 바로 사용할 수 있습니다.\n\n"
                 "**외부 연동 플로우:**\n"
                 "1. 외부 시스템이 MinIO에 `report.json` 업로드\n"
                 "2. `POST /webhook/report-complete` 호출 → 자동 인덱싱\n"
-                "3. `POST /cases/{patent_id}/chat` 으로 챗봇 사용\n\n"
+                "3. `POST /cases/{case_id}/chat` 으로 챗봇 사용\n\n"
                 "| 엔드포인트 | 설명 |\n"
                 "|------------|------|\n"
                 "| `POST /webhook/report-complete` | 보고서 완료 알림 수신 + MinIO 인덱싱 |\n"
-                "| `POST /cases/{patent_id}/chat` | 사전 출원 보고서 기반 챗봇 |\n"
-                "| `POST /cases/{patent_id}/search` | 벡터스토어 직접 검색 |\n"
+                "| `POST /cases/{case_id}/chat` | 사전평가 보고서 기반 챗봇 |\n"
+                "| `POST /cases/{case_id}/search` | 벡터스토어 직접 검색 |\n"
                 "| `GET /vectorstore/status` | 전체 사전 출원 벡터스토어 목록 |\n"
                 "| `GET /vectorstore/{patent_id}/status` | 특정 특허 벡터스토어 상태 |"
+            ),
+        },
+        {
+            "name": "insights",
+            "description": (
+                "**🟢 [외부 공개] Portfolio AI Insights**\n\n"
+                "`ai-insights` 앱의 포트폴리오 인사이트 생성 API를 같은 FastAPI 앱/포트에서 제공합니다.\n\n"
+                "| 엔드포인트 | 설명 |\n"
+                "|------------|------|\n"
+                "| `POST /portfolio/insights` | 포트폴리오 추이·분포·유지/포기 데이터를 3개 한국어 인사이트로 생성 |"
             ),
         },
         # ── 🔧 내부 운영 API ──────────────────────────────────────────────────
@@ -191,7 +196,7 @@ app = FastAPI(
                 "| Blue-Green 색인 | `/bluegreen/status`, `/bluegreen/refresh` (특허 전용, API 트리거) |\n"
                 "| 전처리 파이프라인 | `/preprocess/run`, `/preprocess/status` |\n"
                 "| Wiki 감사 | `/wiki-audit/run`, `/wiki-audit/apply` |\n"
-                "| 인덱스 재생성 | `/patent-chat/reindex`, `/patent-chat/global/reindex` |\n"
+                "| 인덱스 재생성 | `/patent-chat/reindex`, `/patent-chat/global/reindex` (레거시 호환) |\n"
                 "| Visual 색인 | `/visual-vectorstore/status`, `/refresh`, `/search` |"
             ),
         },
@@ -229,12 +234,11 @@ app.add_middleware(
 )
 
 app.include_router(chatbot_router)
+app.include_router(re_eval_router)
 app.include_router(patent_chat_router)
-app.include_router(rag_router)
-app.include_router(legacy_rag_router)
-app.include_router(agent_router)
 app.include_router(wiki_router)
 app.include_router(pre_eval_router)
+app.include_router(insights_router)
 app.include_router(admin_router)
 
 if STATIC_ROOT.exists():

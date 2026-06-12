@@ -4,6 +4,15 @@
 
 ## Run
 
+통합 서버에서는 `chatbot.app.main`에 이 API가 함께 등록됩니다. 따라서 챗봇 서버 포트에서 같은 Swagger로 확인할 수 있습니다.
+
+```text
+Swagger: http://127.0.0.1:8001/docs
+API:     POST http://127.0.0.1:8001/portfolio/insights
+```
+
+단독 실행이 필요할 때만 아래처럼 실행합니다.
+
 ```bash
 cd /Users/kgw/skipers-ai
 python3 -m uvicorn app.main:app --app-dir ai-insights --host 127.0.0.1 --port 8000

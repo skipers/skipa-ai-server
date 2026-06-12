@@ -12,6 +12,7 @@ from ..schemas import (
     PreEvalChatRequest,
     PreEvalReportCompleteRequest,
     PreEvalReportCompleteResponse,
+    PublicChatResponse,
 )
 from ..pre_eval_data import (
     create_pre_eval_case,
@@ -53,22 +54,23 @@ def post_report_complete_webhook(body: PreEvalReportCompleteRequest) -> dict:
 
 
 @router.post(
-    "/cases/{patent_id}/chat",
-    summary="[외부] 사전 출원 특허 보고서 기반 챗봇",
+    "/cases/{case_id}/chat",
+    response_model=PublicChatResponse,
+    summary="[외부] 사전평가 챗봇 답변",
     description=(
-        "사전 출원 특허 `pre-{patent_id}` 벡터스토어를 기반으로 질문에 답변합니다.\n\n"
+        "사전평가 케이스 `pre-{case_id}` 벡터스토어를 기반으로 질문에 답변합니다.\n\n"
         "웹훅(`/webhook/report-complete`)으로 인덱싱이 완료된 후 사용 가능합니다.\n\n"
         "요청 필드:\n"
+        "- `chat_history` (선택): 이전 대화 목록\n"
         "- `question` (필수): 질문\n"
         "- `user_id` (선택): 사용자 식별자\n"
-        "- `chat_history` (선택): 이전 대화 목록\n"
         "- `top_k` (선택, 기본 8): 검색 청크 수"
     ),
 )
-def post_pre_application_chat(patent_id: str, body: PreEvalChatRequest) -> dict:
+def post_pre_application_chat(case_id: str, body: PreEvalChatRequest) -> dict:
     return run_pre_eval_chat_agent(
         body.question,
-        case_id=patent_id,
+        case_id=case_id,
         user_id=body.user_id,
         chat_history=_chat_history_payload(body.chat_history),
         top_k=body.top_k,
@@ -98,14 +100,14 @@ def get_pre_application_single_vectorstore_status(patent_id: str) -> dict:
 
 
 @router.post(
-    "/cases/{patent_id}/search",
+    "/cases/{case_id}/search",
     summary="[외부] 사전 출원 특허 벡터스토어 직접 검색",
-    description="`pre-{patent_id}` 컬렉션에서 쿼리와 유사한 청크를 반환합니다.",
+    description="`pre-{case_id}` 컬렉션에서 쿼리와 유사한 청크를 반환합니다.",
 )
-def post_pre_application_search(patent_id: str, body: dict[str, Any]) -> dict:
+def post_pre_application_search(case_id: str, body: dict[str, Any]) -> dict:
     query = str(body.get("query") or "")
     top_k = int(body.get("top_k") or 8)
-    return search_pre_application_vectorstore(patent_id, query, top_k=top_k)
+    return search_pre_application_vectorstore(case_id, query, top_k=top_k)
 
 
 # ── 🔧 내부 운영 API — 레거시 사전평가 케이스 (내부용) ───────────────────

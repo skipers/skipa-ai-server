@@ -772,26 +772,15 @@ POST /api/v1/chatbot/query
 POST /api/v1/chatbot/answer
 ```
 
-### 특허 챗봇
+### 재평가 챗봇
 
 ```text
-GET  /api/v1/patent-chat/patents
-GET  /api/v1/patent-chat/patent-summary-cards
-GET  /api/v1/patent-chat/engine/status
-POST /api/v1/patent-chat/chat
-POST /api/v1/patent-chat/global/chat
-POST /api/v1/patent-chat/query
-POST /api/v1/patent-chat/answer
-POST /api/v1/patent-chat/reindex
-POST /api/v1/patent-chat/global/reindex
-POST /api/v1/patent-chat/business/reindex
-POST /api/v1/patent-chat/feedback
-GET  /api/v1/patent-chat/page-image
-GET  /api/v1/patent-chat/chat/mermaid
-GET  /api/v1/patent-chat/ingestion/mermaid
+GET  /api/v1/patents
+GET  /api/v1/patents/summary-cards
+POST /api/v1/patents/{patent_id}/chat
 ```
 
-`/api/v1/rag`와 `/rag`는 호환 alias입니다. 기능 기준 이름은 `patent-chat`입니다.
+기존 `/api/v1/patent-chat/*` 경로는 레거시 호환용으로 유지하지만 Swagger 공개 계약은 `re-eval` 기준입니다.
 
 ### wiki 감사 및 분야별 vectorstore
 
