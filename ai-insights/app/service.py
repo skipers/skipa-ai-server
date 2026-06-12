@@ -18,6 +18,7 @@ SYSTEM_PROMPT = """
 주어진 데이터 안에서만 판단하고, 없는 원인이나 외부 시장 상황을 추측하지 마세요.
 LEGAL 사용자가 바로 의사결정에 참고할 수 있도록 정확히 3개의 한국어 인사이트 문장을 JSON으로 반환하세요.
 각 문장은 근거 수치를 짧게 포함하되, 결론은 "무엇을 알 수 있는지" 또는 "무엇을 검토해야 하는지"가 드러나야 합니다.
+모든 문장은 LEGAL 사용자에게 보고하는 존댓말/격식체로 작성하고, 반말이나 평서체 종결형을 쓰지 마세요.
 반환 형식은 {"insights": ["문장1", "문장2", "문장3"]} 뿐입니다.
 """.strip()
 
@@ -26,7 +27,7 @@ def generate_portfolio_insights(request: PortfolioInsightsRequest) -> list[str]:
     payload = request.model_dump()
     prompt = build_prompt(request)
     try:
-        insights = _repair_date_phrases(_request_openai_insights(prompt), payload)
+        insights = _normalize_insight_style(_request_openai_insights(prompt), payload)
         validation_error = _insights_validation_error(insights)
         if validation_error:
             retry_prompt = (
@@ -34,9 +35,10 @@ def generate_portfolio_insights(request: PortfolioInsightsRequest) -> list[str]:
                 "[재작성 요청]\n"
                 f"이전 응답은 사용할 수 없습니다: {validation_error}\n"
                 "고정 예시 문장이나 템플릿 문장을 쓰지 말고, 위 입력 데이터에서 새로 해석한 3개의 인사이트만 JSON으로 다시 반환하세요.\n"
-                "각 문장은 서로 다른 판단 포인트를 가져야 하며, 단순 수치 요약으로 끝나면 안 됩니다."
+                "각 문장은 서로 다른 판단 포인트를 가져야 하며, 단순 수치 요약으로 끝나면 안 됩니다.\n"
+                "반드시 존댓말/격식체로 끝내세요."
             )
-            insights = _repair_date_phrases(_request_openai_insights(retry_prompt), payload)
+            insights = _normalize_insight_style(_request_openai_insights(retry_prompt), payload)
             validation_error = _insights_validation_error(insights)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"OpenAI portfolio insight generation failed: {exc}") from exc
@@ -75,6 +77,8 @@ def build_prompt(request: PortfolioInsightsRequest) -> str:
 [작성 규칙]
 - 정확히 3개 문장을 insights 배열에 넣습니다.
 - 각 문장은 한국어 한 문장으로 작성합니다.
+- 모든 문장은 LEGAL 사용자에게 보고하는 존댓말/격식체로 작성합니다.
+- `필요하다`, `요구된다`, `시급하다`, `검토해야 한다`, `할 수 있다` 같은 반말/평서체 종결형은 금지하고 `필요합니다`, `요구됩니다`, `시급합니다`, `검토해야 합니다`, `할 수 있습니다`처럼 끝냅니다.
 - 예시 문장, 고정 문장, 템플릿 문장을 따라 쓰지 말고 입력 데이터의 값과 조합에 맞춰 새로 작성합니다.
 - 단순히 "몇 건입니다", "가장 큽니다", "분포가 나타납니다"로 끝나는 요약형 문장은 금지합니다.
 - 각 문장은 권리화 효율, 집중 리스크, 비용 부담, 유지/포기 기준, 리밸런싱 필요성 중 하나의 판단으로 끝나야 합니다.
@@ -222,7 +226,44 @@ def _insights_validation_error(insights: list[str]) -> str | None:
         return "insights must not contain empty strings"
     if _has_malformed_date_phrase(insights):
         return "date phrases must include concrete year or quarter numbers"
+    if any(not _has_polite_ending(insight) for insight in insights):
+        return "insights must use polite Korean endings"
     return None
+
+
+def _normalize_insight_style(insights: list[str], payload: dict[str, Any]) -> list[str]:
+    return [_repair_polite_ending(text) for text in _repair_date_phrases(insights, payload)]
+
+
+def _has_polite_ending(text: str) -> bool:
+    cleaned = str(text or "").strip().rstrip(".!?。")
+    return bool(re.search(r"(습니다|합니다|됩니다|있습니다|없습니다|입니다|필요합니다|권장됩니다|요구됩니다|시급합니다|바람직합니다)$", cleaned))
+
+
+def _repair_polite_ending(text: str) -> str:
+    cleaned = str(text or "").strip()
+    replacements = [
+        (r"해야 한다([.!?。]?)$", r"해야 합니다\1"),
+        (r"할 수 있다([.!?。]?)$", r"할 수 있습니다\1"),
+        (r"볼 수 있다([.!?。]?)$", r"볼 수 있습니다\1"),
+        (r"알 수 있다([.!?。]?)$", r"알 수 있습니다\1"),
+        (r"필요하다([.!?。]?)$", r"필요합니다\1"),
+        (r"요구된다([.!?。]?)$", r"요구됩니다\1"),
+        (r"권장된다([.!?。]?)$", r"권장됩니다\1"),
+        (r"시급하다([.!?。]?)$", r"시급합니다\1"),
+        (r"중요하다([.!?。]?)$", r"중요합니다\1"),
+        (r"바람직하다([.!?。]?)$", r"바람직합니다\1"),
+        (r"가능하다([.!?。]?)$", r"가능합니다\1"),
+        (r"존재한다([.!?。]?)$", r"존재합니다\1"),
+        (r"나타난다([.!?。]?)$", r"나타납니다\1"),
+        (r"보여준다([.!?。]?)$", r"보여줍니다\1"),
+        (r"의미한다([.!?。]?)$", r"의미합니다\1"),
+    ]
+    for pattern, replacement in replacements:
+        repaired = re.sub(pattern, replacement, cleaned)
+        if repaired != cleaned:
+            return repaired
+    return cleaned
 
 
 def _repair_date_phrases(insights: list[str], payload: dict[str, Any]) -> list[str]:
