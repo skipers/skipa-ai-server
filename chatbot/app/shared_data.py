@@ -220,13 +220,43 @@ def _file_summary(path: Path) -> dict[str, Any]:
     }
 
 
+def _report_json_path(patent_id: str) -> Path:
+    return _report_json_path_for_folder(SHARED_PATENT_ROOT / patent_id)
+
+
+def _report_json_path_for_folder(folder: Path) -> Path:
+    direct = folder / "report.json"
+    if direct.exists():
+        return direct
+    reports_root = folder / "reports"
+    candidates = sorted(
+        reports_root.glob("*/report.json"),
+        key=lambda path: (_natural_sort_key(path.parent.name), path.name),
+    )
+    return candidates[-1] if candidates else direct
+
+
+def _patent_pdf_path(patent_id: str) -> Path:
+    folder = SHARED_PATENT_ROOT / patent_id
+    direct = folder / "patent.pdf"
+    if direct.exists():
+        return direct
+    original = folder / "original.pdf"
+    return original if original.exists() else direct
+
+
+def _natural_sort_key(value: Any) -> tuple[int, int | str]:
+    text = str(value or "")
+    return (0, int(text)) if text.isdigit() else (1, text)
+
+
 def _shared_patent_dir(patent_id: str) -> Path | None:
     if not patent_id or "/" in patent_id or "\\" in patent_id:
         return None
     folder = SHARED_PATENT_ROOT / patent_id
     if not folder.is_dir():
         return None
-    if not ((folder / "parsed.json").exists() or (folder / "report.json").exists()):
+    if not ((folder / "parsed.json").exists() or _report_json_path(patent_id).exists()):
         return None
     return folder
 
@@ -256,35 +286,37 @@ def list_shared_patent_ids() -> list[str]:
     for d in sorted(SHARED_PATENT_ROOT.iterdir()):
         if not d.is_dir() or d.name.startswith("_") or d.name.startswith("."):
             continue
-        if (d / "parsed.json").exists() or (d / "report.json").exists():
+        if (d / "parsed.json").exists() or _report_json_path(d.name).exists():
             ids.append(d.name)
     return ids
 
 
 def shared_patent_summary(patent_id: str) -> dict[str, Any]:
     folder = SHARED_PATENT_ROOT / patent_id
+    report_path = _report_json_path(patent_id)
+    pdf_path = _patent_pdf_path(patent_id)
     parsed = _read_json(folder / "parsed.json")
     patent = parsed.get("normalized_patent") if isinstance(parsed.get("normalized_patent"), dict) else {}
     meta = patent.get("meta") if isinstance(patent.get("meta"), dict) else {}
     brief = parsed.get("brief_summary") if isinstance(parsed.get("brief_summary"), dict) else {}
-    has_report = (folder / "report.json").exists()
-    all_chunks_estimate = len(_parsed_to_docs(patent_id, parsed)) + len(_report_to_docs(patent_id, _read_json(folder / "report.json")))
+    has_report = report_path.exists()
+    all_chunks_estimate = len(_parsed_to_docs(patent_id, parsed)) + len(_report_to_docs(patent_id, _read_json(report_path)))
     return {
         "patent_id": patent_id,
         "title": meta.get("title") or patent.get("title") or patent_id,
         "patent_dir": str(folder),
         "relative_path": _safe_relative(folder),
         "updated_at": max(
-            [value for value in [_iso_mtime(folder / "parsed.json"), _iso_mtime(folder / "report.json")] if value],
+            [value for value in [_iso_mtime(folder / "parsed.json"), _iso_mtime(report_path)] if value],
             default=None,
         ),
         "data_origin": "shared_project_data",
         "has_parsed": (folder / "parsed.json").exists(),
         "has_report": has_report,
-        "has_pdf": (folder / "patent.pdf").exists(),
+        "has_pdf": pdf_path.exists(),
         "has_manifest": False,
         "has_latest_input": (folder / "parsed.json").exists(),
-        "has_latest_pdf": (folder / "patent.pdf").exists(),
+        "has_latest_pdf": pdf_path.exists(),
         "has_latest_report": has_report,
         "has_patent_index": False,
         "has_local_vectorstore": bool(collection_info(shared_patents_collection()).get("exists")),
@@ -302,22 +334,24 @@ def shared_patent_detail(patent_id: str, include_files: bool = True) -> dict[str
     if folder is None:
         raise FileNotFoundError(patent_id)
     detail = shared_patent_summary(patent_id)
+    report_path = _report_json_path(patent_id)
+    pdf_path = _patent_pdf_path(patent_id)
     parsed = _read_json(folder / "parsed.json")
-    report = _read_json(folder / "report.json")
+    report = _read_json(report_path)
     detail["manifest"] = {
         "patent_id": patent_id,
         "title": detail.get("title"),
         "data_origin": "shared_project_data",
         "paths": {
             "parsed_json": str(folder / "parsed.json"),
-            "report_json": str(folder / "report.json"),
-            "patent_pdf": str(folder / "patent.pdf"),
+            "report_json": str(report_path),
+            "patent_pdf": str(pdf_path),
         },
     }
     detail["paths"] = {
         "latest_input": _file_summary(folder / "parsed.json"),
-        "latest_pdf": _file_summary(folder / "patent.pdf"),
-        "latest_report": _file_summary(folder / "report.json"),
+        "latest_pdf": _file_summary(pdf_path),
+        "latest_report": _file_summary(report_path),
         "all_chunks": _file_summary(SHARED_VECTORSTORE_ROOT),
         "patent_index": _file_summary(SHARED_VECTORSTORE_ROOT),
         "local_vectorstore": collection_info(shared_patents_collection()),
@@ -352,7 +386,7 @@ def shared_latest_json(patent_id: str, kind: str) -> dict[str, Any]:
     if kind == "input":
         path = folder / "parsed.json"
     elif kind == "report":
-        path = folder / "report.json"
+        path = _report_json_path(patent_id)
     else:
         raise ValueError(kind)
     if not path.exists():
@@ -372,7 +406,7 @@ def shared_patent_chunks(
         raise FileNotFoundError(patent_id)
     allowed = _normalize_shared_source_types(source_types)
     docs = _parsed_to_docs(patent_id, _read_json(folder / "parsed.json"))
-    docs.extend(_report_to_docs(patent_id, _read_json(folder / "report.json")))
+    docs.extend(_report_to_docs(patent_id, _read_json(_report_json_path(patent_id))))
     items = []
     matched = 0
     for index, doc in enumerate(docs, 1):
@@ -536,7 +570,8 @@ def _parsed_to_docs(patent_id: str, parsed: dict[str, Any]) -> list[dict[str, An
 def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[str, Any]]:
     """Convert report.json into natural-language chunks for embedding quality."""
     docs: list[dict[str, Any]] = []
-    source_path = str(SHARED_PATENT_ROOT / patent_id / "report.json")
+    report_path = _report_json_path(patent_id)
+    source_path = str(report_path)
 
     # Extract title from multiple possible paths
     _val_top = report_data.get("valuation") if isinstance(report_data.get("valuation"), dict) else {}
@@ -551,7 +586,7 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
         "patent_id": patent_id,
         "source_type": SHARED_REPORT_SOURCE_TYPE,
         "source_path": source_path,
-        "relative_source_path": f"data/patent/{patent_id}/report.json",
+        "relative_source_path": _safe_relative(report_path),
         "file_name": "report.json",
         "title": _title,
     }
@@ -702,6 +737,7 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
     rpt_section2 = report.get("section_2_detailed_scores") if isinstance(report.get("section_2_detailed_scores"), dict) else {}
     rpt_section3 = report.get("section_3_project_utilization") if isinstance(report.get("section_3_project_utilization"), dict) else {}
     rpt_section5 = report.get("section_5_review_items") if isinstance(report.get("section_5_review_items"), dict) else {}
+    _mkt_sector = ""
 
     # Q0,5,6,7,11: 사업부 관점 요약 / 종합점수 / 유지판단 / 포기근거 / 유지매각
     _s1_overall = rpt_section1.get("overall_score")
@@ -944,7 +980,7 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
             "inferred_from_rule_based_method": "규칙 기반 방법으로 추론",
             "inferred_from_llm_sources": "LLM 소스 기반 추론",
         }
-        for it in _rights_items[:8]:
+        for it in _rights_items[:12]:
             _it_name = str(it.get("item") or "").strip()
             _it_score = it.get("score")
             _it_basis = str(it.get("judgment_basis") or "").strip()
@@ -1684,7 +1720,7 @@ def build_shared_vectorstore() -> dict[str, Any]:
         parsed = _read_json(folder / "parsed.json")
         if parsed:
             all_docs.extend(_parsed_to_docs(pid, parsed))
-        report = _read_json(folder / "report.json")
+        report = _read_json(_report_json_path(pid))
         if report:
             all_docs.extend(_report_to_docs(pid, report))
 
@@ -1815,7 +1851,7 @@ def build_patent_vectorstore_from_path(path: str | Path) -> dict[str, Any]:
     folder = Path(path)
     if not folder.is_dir():
         raise FileNotFoundError(f"Folder not found: {folder}")
-    if not ((folder / "parsed.json").exists() or (folder / "report.json").exists()):
+    if not ((folder / "parsed.json").exists() or _report_json_path_for_folder(folder).exists()):
         raise FileNotFoundError(f"No parsed.json or report.json in: {folder}")
     patent_id = folder.name
     return _build_patent_vectorstore_from_folder(patent_id, folder)
@@ -1827,7 +1863,7 @@ def _build_patent_vectorstore_from_folder(patent_id: str, folder: Path) -> dict[
     parsed = _read_json(folder / "parsed.json")
     if parsed:
         docs.extend(_parsed_to_docs(patent_id, parsed))
-    report = _read_json(folder / "report.json")
+    report = _read_json(_report_json_path_for_folder(folder))
     if report:
         docs.extend(_report_to_docs(patent_id, report))
 

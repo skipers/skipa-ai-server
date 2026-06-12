@@ -1,7 +1,8 @@
 """Visual asset extraction and Qdrant indexing for shared patent originals.
 
 This module indexes only stable patent-original visuals: tables, figures,
-diagram-like pages, and embedded images from ``data/patent/<patent_id>/patent.pdf``.
+diagram-like pages, and embedded images from ``data/patent/<patent_id>/patent.pdf``
+or ``data/patent/<patent_id>/original.pdf``.
 Reports are intentionally optional and not required for visual indexing.
 """
 
@@ -80,11 +81,20 @@ def _manifest_path(patent_id: str) -> Path:
     return _patent_dir(patent_id) / "extracted" / MANIFEST_NAME
 
 
+def _source_pdf_path(patent_id: str) -> Path:
+    patent_dir = _patent_dir(patent_id)
+    direct = patent_dir / "patent.pdf"
+    if direct.exists():
+        return direct
+    original = patent_dir / "original.pdf"
+    return original if original.exists() else direct
+
+
 def _visual_candidate_ids() -> list[str]:
     ids = set(list_shared_patent_ids())
     if SHARED_PATENT_ROOT.exists():
         for path in SHARED_PATENT_ROOT.iterdir():
-            if path.is_dir() and not path.name.startswith((".", "_")) and (path / "patent.pdf").exists():
+            if path.is_dir() and not path.name.startswith((".", "_")) and ((path / "patent.pdf").exists() or (path / "original.pdf").exists()):
                 ids.add(path.name)
     return sorted(ids)
 
@@ -94,8 +104,8 @@ def _visual_url(patent_id: str, relative_asset_path: str) -> str:
     return f"/files/shared/patent/{quote(patent_id)}/{'/'.join(parts)}"
 
 
-def _source_pdf_url(patent_id: str, page_no: int | None = None) -> str:
-    url = f"/files/shared/patent/{quote(patent_id)}/patent.pdf"
+def _source_pdf_url(patent_id: str, page_no: int | None = None, *, file_name: str = "patent.pdf") -> str:
+    url = f"/files/shared/patent/{quote(patent_id)}/{quote(file_name)}"
     if page_no:
         url += f"#page={page_no}"
     return url
@@ -127,8 +137,9 @@ def _document_to_qdrant_dict(document: Any, *, patent_id: str, patent_dir: Path,
     relative_asset = str(metadata.get("asset_file_name") or "")
     asset_path = patent_dir / relative_asset if relative_asset else None
     page_no = metadata.get("page_no")
+    pdf_file_name = pdf_path.name
     asset_url = _visual_url(patent_id, relative_asset) if relative_asset else None
-    source_url = _source_pdf_url(patent_id, int(page_no)) if isinstance(page_no, int) else _source_pdf_url(patent_id)
+    source_url = _source_pdf_url(patent_id, int(page_no), file_name=pdf_file_name) if isinstance(page_no, int) else _source_pdf_url(patent_id, file_name=pdf_file_name)
     if metadata.get("asset_url") and asset_url:
         page_content = page_content.replace(str(metadata.get("asset_url")), asset_url)
     if metadata.get("source_url"):
@@ -140,11 +151,11 @@ def _document_to_qdrant_dict(document: Any, *, patent_id: str, patent_dir: Path,
             "content_type": "VISUAL_ASSET",
             "source_pdf_path": str(pdf_path),
             "source_path": str(asset_path) if asset_path else str(pdf_path),
-            "relative_source_path": f"data/patent/{patent_id}/{relative_asset}" if relative_asset else f"data/patent/{patent_id}/patent.pdf",
+            "relative_source_path": f"data/patent/{patent_id}/{relative_asset}" if relative_asset else f"data/patent/{patent_id}/{pdf_file_name}",
             "asset_path": str(asset_path) if asset_path else None,
             "asset_url": asset_url,
             "source_url": source_url,
-            "file_name": Path(relative_asset).name if relative_asset else "patent.pdf",
+            "file_name": Path(relative_asset).name if relative_asset else pdf_file_name,
             "visual_index_scope": "shared_patent_original",
         }
     )
@@ -162,7 +173,7 @@ def build_patent_visual_index(
     """Extract and upsert one patent's original visual assets into Qdrant."""
     safe_id = _safe_patent_id(patent_id)
     patent_dir = _patent_dir(safe_id)
-    pdf_path = patent_dir / "patent.pdf"
+    pdf_path = _source_pdf_path(safe_id)
     manifest_path = _manifest_path(safe_id)
     if not pdf_path.exists():
         return {
@@ -198,7 +209,7 @@ def build_patent_visual_index(
             patent_id=safe_id,
             source_document_type="ORIGINAL_PDF",
             public_file_base_url="/files/shared",
-            file_name_for_url="patent.pdf",
+            file_name_for_url=pdf_path.name,
             meta=_meta_from_shared_patent(safe_id),
             max_assets=max_assets or MAX_VISUAL_ASSETS_PER_DOCUMENT,
         )

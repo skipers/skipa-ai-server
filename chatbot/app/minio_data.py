@@ -59,7 +59,7 @@ def _local_patent_count() -> int:
     return sum(
         1
         for path in SHARED_PATENT_ROOT.iterdir()
-        if path.is_dir() and ((path / "parsed.json").exists() or (path / "report.json").exists())
+        if path.is_dir() and ((path / "parsed.json").exists() or (path / "report.json").exists() or any((path / "reports").glob("*/report.json")))
     )
 
 
@@ -269,8 +269,9 @@ def fetch_pre_application_report_from_minio(patent_id: str) -> dict[str, Any]:
 
     탐색 경로 우선순위:
     1. {MINIO_PATENT_PREFIX}/{patent_id}/report.json
-    2. pre_application/{patent_id}/report.json
-    3. {patent_id}/report.json
+    2. {MINIO_PATENT_PREFIX}/{patent_id}/reports/{patent_id}/report.json
+    3. pre_application/{patent_id}/report.json
+    4. {patent_id}/report.json
 
     반환: { "found": bool, "patent_id": str, "report": dict | None,
              "source_key": str | None, "error": str | None }
@@ -285,6 +286,7 @@ def fetch_pre_application_report_from_minio(patent_id: str) -> dict[str, Any]:
     prefix = _prefix().strip("/")
     candidates = [
         f"{prefix}/{patent_id}/report.json" if prefix else f"{patent_id}/report.json",
+        f"{prefix}/{patent_id}/reports/{patent_id}/report.json" if prefix else f"{patent_id}/reports/{patent_id}/report.json",
         f"pre_application/{patent_id}/report.json",
         f"{patent_id}/report.json",
     ]

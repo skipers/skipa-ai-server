@@ -131,6 +131,11 @@ def _patent_id_from_parsed(parsed: dict[str, Any]) -> str | None:
     return meta.get("registration_number") or None
 
 
+def _patent_id_from_prefix(base_prefix: str) -> str:
+    """Use the MinIO folder name as the patent id (patents/1/ -> 1)."""
+    return base_prefix.rstrip("/").split("/")[-1]
+
+
 # ---------------------------------------------------------------------------
 # Document builders
 # ---------------------------------------------------------------------------
@@ -153,7 +158,7 @@ def _make_doc(patent_id: str, text: str, section: str, base_meta: dict[str, Any]
     }
 
 
-def _minio_report_to_docs(patent_id: str, report_inner: dict[str, Any]) -> list[dict[str, Any]]:
+def _minio_report_to_docs(patent_id: str, report_inner: dict[str, Any], *, source_key: str | None = None) -> list[dict[str, Any]]:
     """Convert MinIO report schema → indexable chunks.
 
     MinIO report schema (inside {"report": {...}}):
@@ -172,7 +177,7 @@ def _minio_report_to_docs(patent_id: str, report_inner: dict[str, Any]) -> list[
         "source_type": "SHARED_REPORT",
         "title": title,
         "file_name": "report.json",
-        "relative_source_path": f"minio/patents/report.json",
+        "relative_source_path": f"minio/{source_key}" if source_key else f"minio/patents/{patent_id}/report.json",
     }
     header = f"[특허번호: {patent_id}] [{title}]\n"
 
@@ -465,31 +470,31 @@ def build_patent_vectorstore_from_minio(minio_path: str) -> dict[str, Any]:
     """MinIO 경로를 받아 특허 per-patent 벡터스토어를 (재)생성합니다.
 
     처리 순서:
-      1. parsed.json 다운로드 → registration_number 추출 (patent_id)
+      1. parsed.json 다운로드 (있으면 텍스트 청크 생성)
       2. 최신 reports/{N}/report.json 다운로드 (N 최대값)
       3. original.pdf 다운로드 → PDF 시각 텍스트 추출
-      4. 모든 청크를 skipa_patent_doc_{patent_id}에 upsert (recreate=True → 기존 삭제)
+      4. 모든 청크를 skipa_patent_doc_{folder_id}에 upsert (recreate=True → 기존 삭제)
 
     Args:
         minio_path: 'patents/1', '1', 'patents/1/' 등을 모두 수용
     """
     client = _boto3_client()
     base_prefix = _normalize_minio_prefix(minio_path, "patents")
+    patent_id = _patent_id_from_prefix(base_prefix)
     started_at = datetime.now().isoformat(timespec="seconds")
 
     # ── 1. parsed.json ────────────────────────────────────────────────────────
     parsed_key = base_prefix + "parsed.json"
     parsed = _get_json(client, parsed_key)
-    if not parsed:
-        raise FileNotFoundError(f"MinIO에서 parsed.json을 찾을 수 없습니다: {parsed_key}")
-
-    patent_id = _patent_id_from_parsed(parsed)
-    if not patent_id:
-        raise ValueError(f"parsed.json에서 registration_number를 찾을 수 없습니다: {parsed_key}")
-
-    from .shared_data import _parsed_to_docs
-    text_docs = _parsed_to_docs(patent_id, parsed)
-    logger.info("parsed.json → %d chunks for %s", len(text_docs), patent_id)
+    text_docs: list[dict[str, Any]] = []
+    registration_number: str | None = None
+    if parsed:
+        registration_number = _patent_id_from_parsed(parsed)
+        from .shared_data import _parsed_to_docs
+        text_docs = _parsed_to_docs(patent_id, parsed)
+        logger.info("parsed.json → %d chunks for %s", len(text_docs), patent_id)
+    else:
+        logger.warning("No parsed.json for %s (prefix: %s); report/PDF chunks will still be indexed", patent_id, base_prefix)
 
     # ── 2. latest report.json ─────────────────────────────────────────────────
     report_key = _latest_report_key(client, base_prefix)
@@ -497,9 +502,20 @@ def build_patent_vectorstore_from_minio(minio_path: str) -> dict[str, Any]:
     report_version: str | None = None
     if report_key:
         report_raw = _get_json(client, report_key)
-        report_inner = report_raw.get("report", report_raw)
-        if report_inner:
-            report_docs = _minio_report_to_docs(patent_id, report_inner)
+        if report_raw:
+            from .shared_data import _report_to_docs
+
+            report_docs = _report_to_docs(patent_id, report_raw)
+            for doc in report_docs:
+                metadata = dict(doc.get("metadata") or {})
+                metadata.update(
+                    {
+                        "source_path": f"s3://{_bucket()}/{report_key}",
+                        "relative_source_path": f"minio/{report_key}",
+                        "file_name": "report.json",
+                    }
+                )
+                doc["metadata"] = metadata
             report_version = report_key.split("/")[-2]  # e.g. '1', '2'
             logger.info("report.json (v%s) → %d chunks for %s", report_version, len(report_docs), patent_id)
     else:
@@ -536,6 +552,7 @@ def build_patent_vectorstore_from_minio(minio_path: str) -> dict[str, Any]:
     return {
         "status": "built",
         "patent_id": patent_id,
+        "registration_number": registration_number,
         "collection": coll,
         "minio_path": base_prefix,
         "parsed_chunks": len(text_docs),

@@ -257,7 +257,7 @@ def get_minio_status() -> dict:
     "/minio/sync",
     summary="MinIO → 로컬 특허 데이터 동기화",
     description=(
-        "MinIO `s3://{bucket}/patent/` 의 특허 데이터를 로컬 공유 patent 캐시(`data/patent/`)로 동기화합니다. "
+        "MinIO `s3://{bucket}/patents/` 의 특허 데이터를 로컬 공유 patent 캐시(`data/patent/`)로 동기화합니다. "
         "`rebuild_index=true`(기본값)면 동기화 후 shared vectorstore(`skipa_patent_docs`)도 blue-green 재색인합니다."
     ),
 )
