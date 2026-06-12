@@ -69,13 +69,15 @@ ARG INSTALL_LOCAL_EMBEDDINGS=false
 
 COPY chatbot/requirements.txt /tmp/chatbot-requirements.txt
 COPY eval_logic/requirements.txt /tmp/eval-logic-requirements.txt
+COPY ai-insights/requirements.txt /tmp/ai-insights-requirements.txt
 
 RUN set -eux; \
     grep -vE '^(sentence-transformers|bert-score|langchain-huggingface)($|[<>=])' /tmp/chatbot-requirements.txt > /tmp/chatbot-docker-requirements.txt; \
     python -m pip install --upgrade pip setuptools wheel; \
     python -m pip install \
       -r /tmp/eval-logic-requirements.txt \
-      -r /tmp/chatbot-docker-requirements.txt; \
+      -r /tmp/chatbot-docker-requirements.txt \
+      -r /tmp/ai-insights-requirements.txt; \
     if [ "$INSTALL_LOCAL_EMBEDDINGS" = "true" ]; then \
       python -m pip install 'langchain-huggingface>=0.0.3' 'sentence-transformers>=3.0.0' 'bert-score>=0.3.13'; \
     fi
@@ -93,7 +95,7 @@ RUN mkdir -p \
     /tmp/matplotlib \
   && chmod +x /app/docker/entrypoint.sh
 
-EXPOSE 8000 8001
+EXPOSE 8000
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
-CMD ["chatbot"]
+CMD ["api"]

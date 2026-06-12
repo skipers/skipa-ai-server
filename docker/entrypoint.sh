@@ -8,6 +8,12 @@ if [ "$#" -gt 0 ]; then
 fi
 
 case "$service" in
+  api|unified-api|unified_api|all-api|all_api)
+    exec python -m uvicorn unified_api.main:app \
+      --host "${HOST:-0.0.0.0}" \
+      --port "${PORT:-8000}" \
+      "$@"
+    ;;
   chatbot)
     exec python -m uvicorn chatbot.app.main:app \
       --host "${HOST:-0.0.0.0}" \
@@ -46,7 +52,7 @@ case "$service" in
     ;;
   *)
     echo "Unknown APP_SERVICE or command: $service" >&2
-    echo "Use one of: chatbot, eval-logic, worker, report-worker, patent-extract-worker, pre-evaluation-worker, nightly-reindex, bash, sh, python, uvicorn" >&2
+    echo "Use one of: api, chatbot, eval-logic, worker, report-worker, patent-extract-worker, pre-evaluation-worker, nightly-reindex, bash, sh, python, uvicorn" >&2
     exit 64
     ;;
 esac
