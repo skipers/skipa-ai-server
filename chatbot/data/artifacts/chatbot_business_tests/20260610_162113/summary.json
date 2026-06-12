@@ -1,0 +1,178 @@
+{
+  "generated_at": "2026-06-10T16:25:55",
+  "execution_mode": "full",
+  "patent_runner": "graph",
+  "bert_score_enabled": false,
+  "output_dir": "/Users/kgw/skipers-ai/chatbot/data/artifacts/chatbot_business_tests/20260610_162113",
+  "patents_used": [
+    {
+      "patent_id": "10-1959619",
+      "title": "반도체 결함 시각화 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-1959627",
+      "title": "실제 반도체 제조물을 복제한 가상 반도체 제조물 제공 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2042318",
+      "title": "스마트 팩토리 레이아웃 설계 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2142205",
+      "title": "설명 가능한 인공지능 모델링 및 시뮬레이션 시스템 및 방법"
+    },
+    {
+      "patent_id": "10-2663094",
+      "title": "단일 엔드포인트를 이용한 AI 모델 운영 장치 및 방법"
+    },
+    {
+      "patent_id": "10-2686678",
+      "title": "이상치 제거를 위한 금융시장 데이터 처리 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2737902",
+      "title": "예측 근거를 함께 제시하는 인공지능 모델 기반 금융시장 예측 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2753879",
+      "title": "주식 시장 예측을 위한 비정형 데이터 분석 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2762042",
+      "title": "NF3 가스 생산 설비 내 이물질 제거 시스템 및 방법"
+    },
+    {
+      "patent_id": "10-2839217",
+      "title": "반도체 소재 개발 관련 후보물질 물성예측 시스템 및 방법"
+    }
+  ],
+  "patent": {
+    "total": 20,
+    "success": 20,
+    "failed": 0,
+    "avg_elapsed_sec": 14.019,
+    "p95_elapsed_sec": 31.79,
+    "avg_source_count": 8.1,
+    "avg_quality_score": 0.5818,
+    "category_counts": {
+      "overview": 2,
+      "original": 3,
+      "report": 3,
+      "risk": 2,
+      "business": 2,
+      "market": 2,
+      "comparison": 2,
+      "table": 1,
+      "diagram": 2,
+      "evidence": 1
+    },
+    "intent_counts": {
+      "patent_original": 8,
+      "patent_report": 7,
+      "general": 2,
+      "comparison": 3
+    },
+    "answer_mode_counts": {
+      "None": 20
+    },
+    "quality_grade_counts": {
+      "medium": 20
+    },
+    "source_type_counts": {
+      "SHARED_REPORT": 20,
+      "SHARED_PATENT": 16,
+      "WIKI": 1
+    },
+    "errors": []
+  },
+  "application": {
+    "total": 10,
+    "success": 0,
+    "failed": 10,
+    "avg_elapsed_sec": 0.0,
+    "p95_elapsed_sec": null,
+    "avg_source_count": 0,
+    "avg_quality_score": null,
+    "category_counts": {
+      "application_procedure": 4,
+      "forms_and_filing": 4,
+      "fees": 2
+    },
+    "intent_counts": {},
+    "answer_mode_counts": {},
+    "quality_grade_counts": {},
+    "source_type_counts": {},
+    "errors": [
+      {
+        "index": 1,
+        "chatbot": "application",
+        "category": "application_procedure",
+        "question": "처음 특허 출원할 때 어떤 순서로 준비해야 해? 근거 자료 제목도 같이 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 2,
+        "chatbot": "application",
+        "category": "application_procedure",
+        "question": "발명 아이디어가 있는데 출원 전에 무엇부터 정리해야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 3,
+        "chatbot": "application",
+        "category": "application_procedure",
+        "question": "제품 출시 전에 특허 출원을 준비하는 체크리스트를 표로 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 4,
+        "chatbot": "application",
+        "category": "application_procedure",
+        "question": "처음 출원 절차를 다이어그램으로 보여줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 5,
+        "chatbot": "application",
+        "category": "forms_and_filing",
+        "question": "특허고객번호와 인증서는 어떤 순서로 준비해야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 6,
+        "chatbot": "application",
+        "category": "forms_and_filing",
+        "question": "전자출원에 필요한 서류와 준비물을 표로 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 7,
+        "chatbot": "application",
+        "category": "forms_and_filing",
+        "question": "출원서, 명세서, 청구범위, 요약서, 도면 각각의 역할을 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 8,
+        "chatbot": "application",
+        "category": "forms_and_filing",
+        "question": "공동출원일 때 추가로 확인할 서류가 뭐야?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 9,
+        "chatbot": "application",
+        "category": "fees",
+        "question": "특허 출원 수수료와 심사청구료를 어떻게 확인해야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 10,
+        "chatbot": "application",
+        "category": "fees",
+        "question": "개인이나 중소기업 감면은 어떤 자료를 확인해야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      }
+    ]
+  }
+}

@@ -196,13 +196,19 @@ APPLICATION_QUESTION_TEMPLATES: list[tuple[str, str]] = [
 ]
 
 
-def _build_patent_questions(count: int, patents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _build_patent_questions(count: int, patents: list[dict[str, Any]], exclude_categories: set[str] | None = None) -> list[dict[str, Any]]:
     if not patents:
         patents = [{"patent_id": None, "title": "선택 특허"}]
+    templates = [
+        (cat, tmpl) for cat, tmpl in PATENT_QUESTION_TEMPLATES
+        if not (exclude_categories and cat in exclude_categories)
+    ]
+    if not templates:
+        templates = PATENT_QUESTION_TEMPLATES
     questions = []
     for index in range(count):
         patent = patents[index % len(patents)]
-        category, template = PATENT_QUESTION_TEMPLATES[index % len(PATENT_QUESTION_TEMPLATES)]
+        category, template = templates[index % len(templates)]
         title = patent.get("title") or patent.get("patent_id") or "선택 특허"
         question = template.format(title=title, patent_id=patent.get("patent_id"))
         chat_history: list[dict[str, Any]] = []
@@ -312,12 +318,23 @@ def _record_result(
         "engine": metrics.get("engine"),
         "answer_mode": metrics.get("answer_mode") or metrics.get("answer_strategy"),
         "quality": {
-            "composite_score": quality.get("composite_score"),
-            "grade": quality.get("grade"),
+            # v1 (기존)
+            "composite_score":                quality.get("composite_score"),
+            "grade":                          quality.get("grade"),
+            # v2 (신규 종합)
+            "composite_v2":                   quality.get("composite_v2"),
+            "grade_v2":                       quality.get("grade_v2"),
+            # 기존 지표
+            "retrieval_mean_score":           quality.get("retrieval_mean_score"),
             "semantic_answer_evidence_score": quality.get("semantic_answer_evidence_score"),
-            "keyword_answer_coverage": quality.get("keyword_answer_coverage"),
-            "keyword_evidence_coverage": quality.get("keyword_evidence_coverage"),
-            "bert_score": quality.get("bert_score"),
+            "keyword_evidence_coverage":      quality.get("keyword_evidence_coverage"),
+            "keyword_answer_coverage":        quality.get("keyword_answer_coverage"),
+            # 신규 지표
+            "faithfulness":                   quality.get("faithfulness"),
+            "answer_relevance":               quality.get("answer_relevance"),
+            "context_precision":              quality.get("context_precision"),
+            "context_recall_approx":          quality.get("context_recall_approx"),
+            "bert_score":                     quality.get("bert_score"),
         },
         "trace_nodes": [step.get("node") for step in trace if isinstance(step, dict)],
         "metrics": metrics,
@@ -339,7 +356,7 @@ def _patent_source_types_from_intent(intent: dict[str, Any]) -> set[str]:
     return source_types or set(CORE_SEARCH_SOURCE_TYPES)
 
 
-def _run_patent_retrieval_item(item: dict[str, Any], top_k: int) -> dict[str, Any]:
+def _run_patent_retrieval_item(item: dict[str, Any], top_k: int, rerank: bool = False) -> dict[str, Any]:
     from chatbot.app.rag.evaluation import answer_quality_metrics
     from chatbot.app.rag.policy import classify_intent
     from chatbot.app.rag.sources import cards_from_hits
@@ -352,6 +369,7 @@ def _run_patent_retrieval_item(item: dict[str, Any], top_k: int) -> dict[str, An
         patent_id=item.get("patent_id"),
         source_types=source_types,
         top_k=top_k,
+        rerank=rerank,
     )
     hits = list(search_result.get("hits") or [])
     source_cards = cards_from_hits(hits, query=item["question"])
@@ -407,9 +425,9 @@ def _run_patent_retrieval_item(item: dict[str, Any], top_k: int) -> dict[str, An
     }
 
 
-def _run_patent_item(item: dict[str, Any], top_k: int, runner: str) -> dict[str, Any]:
+def _run_patent_item(item: dict[str, Any], top_k: int, runner: str, rerank: bool = False) -> dict[str, Any]:
     if runner == "retrieval":
-        return _run_patent_retrieval_item(item, top_k=top_k)
+        return _run_patent_retrieval_item(item, top_k=top_k, rerank=rerank)
 
     from chatbot.app.agents.graph import run_chat_agent
 
@@ -438,6 +456,7 @@ def _run_batch(
     top_k: int,
     patent_runner: str,
     progress_every: int,
+    rerank: bool = False,
 ) -> list[dict[str, Any]]:
     output_path.unlink(missing_ok=True)
     records = []
@@ -446,7 +465,7 @@ def _run_batch(
         call_started = time.perf_counter()
         try:
             if item["chatbot"] == "patent":
-                result = _run_patent_item(item, top_k=top_k, runner=patent_runner)
+                result = _run_patent_item(item, top_k=top_k, runner=patent_runner, rerank=rerank)
             else:
                 result = _run_application_item(item, top_k=top_k)
             record = _record_result(item=item, result=result, elapsed_sec=time.perf_counter() - call_started)
@@ -575,6 +594,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--patent-count", type=int, default=200)
     parser.add_argument("--application-count", type=int, default=200)
     parser.add_argument("--patent-limit", type=int, default=None, help="Use only the first N patent folders.")
+    parser.add_argument("--patent-ids", type=str, default=None, help="Comma-separated patent IDs to test (e.g. 10-1959619,10-2663094). Overrides --patent-limit.")
     parser.add_argument("--patent-top-k", type=int, default=4)
     parser.add_argument("--application-top-k", type=int, default=5)
     parser.add_argument(
@@ -590,6 +610,8 @@ def parse_args() -> argparse.Namespace:
         help="functional skips network LLM calls; full uses the live configured LLM.",
     )
     parser.add_argument("--enable-bert-score", action="store_true")
+    parser.add_argument("--rerank", action="store_true", help="Apply cross-encoder reranking after vector retrieval.")
+    parser.add_argument("--exclude-categories", type=str, default=None, help="Comma-separated question categories to exclude (e.g. diagram).")
     parser.add_argument("--progress-every", type=int, default=20)
     parser.add_argument("--output-dir", type=Path, default=None)
     return parser.parse_args()
@@ -602,8 +624,14 @@ def main() -> int:
 
     _patch_expensive_optional_calls(enable_bert_score=args.enable_bert_score, execution_mode=args.execution_mode)
 
-    patents = _load_patents(limit=args.patent_limit)
-    patent_questions = _build_patent_questions(args.patent_count, patents)
+    if args.patent_ids:
+        id_set = {pid.strip() for pid in args.patent_ids.split(",") if pid.strip()}
+        all_patents = _load_patents(limit=None)
+        patents = [p for p in all_patents if p.get("patent_id") in id_set]
+    else:
+        patents = _load_patents(limit=args.patent_limit)
+    exclude_categories = {c.strip() for c in args.exclude_categories.split(",") if c.strip()} if args.exclude_categories else None
+    patent_questions = _build_patent_questions(args.patent_count, patents, exclude_categories=exclude_categories)
     application_questions = _build_application_questions(args.application_count)
 
     patent_questions_path = output_dir / "patent_questions.jsonl"
@@ -625,6 +653,7 @@ def main() -> int:
         top_k=args.patent_top_k,
         patent_runner=args.patent_runner,
         progress_every=max(args.progress_every, 1),
+        rerank=args.rerank,
     )
     application_records = _run_batch(
         items=application_questions,

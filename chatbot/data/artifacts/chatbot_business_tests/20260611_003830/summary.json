@@ -1,0 +1,262 @@
+{
+  "generated_at": "2026-06-11T00:46:12",
+  "execution_mode": "full",
+  "patent_runner": "graph",
+  "bert_score_enabled": false,
+  "output_dir": "/Users/kgw/skipers-ai/chatbot/data/artifacts/chatbot_business_tests/20260611_003830",
+  "patents_used": [
+    {
+      "patent_id": "10-1959619",
+      "title": "반도체 결함 시각화 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-1959627",
+      "title": "실제 반도체 제조물을 복제한 가상 반도체 제조물 제공 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2042318",
+      "title": "스마트 팩토리 레이아웃 설계 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2142205",
+      "title": "설명 가능한 인공지능 모델링 및 시뮬레이션 시스템 및 방법"
+    },
+    {
+      "patent_id": "10-2663094",
+      "title": "단일 엔드포인트를 이용한 AI 모델 운영 장치 및 방법"
+    }
+  ],
+  "patent": {
+    "total": 40,
+    "success": 37,
+    "failed": 3,
+    "avg_elapsed_sec": 11.539,
+    "p95_elapsed_sec": 31.694,
+    "avg_source_count": 0.243,
+    "avg_quality_score": 0.0363,
+    "category_counts": {
+      "overview": 3,
+      "original": 5,
+      "report": 6,
+      "risk": 3,
+      "business": 4,
+      "market": 3,
+      "comparison": 3,
+      "table": 2,
+      "diagram": 3,
+      "evidence": 3,
+      "history": 3,
+      "wiki": 1,
+      "web": 1
+    },
+    "intent_counts": {
+      "patent_original": 13,
+      "patent_report": 18,
+      "general": 1,
+      "comparison": 4,
+      "wiki": 1
+    },
+    "answer_mode_counts": {
+      "None": 37
+    },
+    "quality_grade_counts": {
+      "none": 35,
+      "medium": 2
+    },
+    "source_type_counts": {
+      "WEB": 2
+    },
+    "errors": [
+      {
+        "index": 13,
+        "chatbot": "patent",
+        "category": "market",
+        "question": "스마트 팩토리 레이아웃 설계 방법 및 시스템 관련 최신 시장 동향이 필요한지 판단하고 근거를 알려줘",
+        "error": "RuntimeError: Qdrant PUT /collections/skipa_wiki_topic_%EC%8A%A4%EB%A7%88%ED%8A%B8_%ED%8C%A9%ED%86%A0%EB%A6%AC_green failed: <urlopen error [Errno 61] Connection refused>"
+      },
+      {
+        "index": 25,
+        "chatbot": "patent",
+        "category": "web",
+        "question": "단일 엔드포인트를 이용한 AI 모델 운영 장치 및 방법 관련 최근 뉴스나 시장 변화가 답변에 필요한지 알려줘",
+        "error": "RuntimeError: Qdrant PUT /collections/skipa_wiki_topic_%EC%86%8C%ED%94%84%ED%8A%B8%EC%9B%A8%EC%96%B4_IT_green failed: <urlopen error [Errno 61] Connection refused>"
+      },
+      {
+        "index": 38,
+        "chatbot": "patent",
+        "category": "market",
+        "question": "스마트 팩토리 레이아웃 설계 방법 및 시스템 시장 규모나 경쟁 상황은 웹검색이 필요한지 판단해줘",
+        "error": "RuntimeError: Qdrant PUT /collections/skipa_wiki_topic_%EC%8A%A4%EB%A7%88%ED%8A%B8_%ED%8C%A9%ED%86%A0%EB%A6%AC_green failed: <urlopen error [Errno 61] Connection refused>"
+      }
+    ]
+  },
+  "application": {
+    "total": 40,
+    "success": 0,
+    "failed": 40,
+    "avg_elapsed_sec": 0.0,
+    "p95_elapsed_sec": 0.0,
+    "avg_source_count": 0,
+    "avg_quality_score": null,
+    "category_counts": {
+      "application_procedure": 4,
+      "forms_and_filing": 4,
+      "fees": 3,
+      "drafting_claims": 4,
+      "prior_art_search": 4,
+      "rejection_response": 5,
+      "application_strategy": 5,
+      "history": 3,
+      "evidence": 2,
+      "report_connection": 2,
+      "external": 2,
+      "table_diagram": 2
+    },
+    "intent_counts": {},
+    "answer_mode_counts": {},
+    "quality_grade_counts": {},
+    "source_type_counts": {},
+    "errors": [
+      {
+        "index": 1,
+        "chatbot": "application",
+        "category": "application_procedure",
+        "question": "처음 특허 출원할 때 어떤 순서로 준비해야 해? 근거 자료 제목도 같이 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 2,
+        "chatbot": "application",
+        "category": "application_procedure",
+        "question": "발명 아이디어가 있는데 출원 전에 무엇부터 정리해야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 3,
+        "chatbot": "application",
+        "category": "application_procedure",
+        "question": "제품 출시 전에 특허 출원을 준비하는 체크리스트를 표로 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 4,
+        "chatbot": "application",
+        "category": "application_procedure",
+        "question": "처음 출원 절차를 다이어그램으로 보여줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 5,
+        "chatbot": "application",
+        "category": "forms_and_filing",
+        "question": "특허고객번호와 인증서는 어떤 순서로 준비해야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 6,
+        "chatbot": "application",
+        "category": "forms_and_filing",
+        "question": "전자출원에 필요한 서류와 준비물을 표로 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 7,
+        "chatbot": "application",
+        "category": "forms_and_filing",
+        "question": "출원서, 명세서, 청구범위, 요약서, 도면 각각의 역할을 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 8,
+        "chatbot": "application",
+        "category": "forms_and_filing",
+        "question": "공동출원일 때 추가로 확인할 서류가 뭐야?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 9,
+        "chatbot": "application",
+        "category": "fees",
+        "question": "특허 출원 수수료와 심사청구료를 어떻게 확인해야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 10,
+        "chatbot": "application",
+        "category": "fees",
+        "question": "개인이나 중소기업 감면은 어떤 자료를 확인해야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 11,
+        "chatbot": "application",
+        "category": "fees",
+        "question": "출원료, 심사청구료, 등록료를 단계별 표로 정리해줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 12,
+        "chatbot": "application",
+        "category": "drafting_claims",
+        "question": "넓은 독립항과 방어용 종속항은 어떻게 설계해야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 13,
+        "chatbot": "application",
+        "category": "drafting_claims",
+        "question": "명세서 작성할 때 해결과제와 효과를 어떻게 써야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 14,
+        "chatbot": "application",
+        "category": "drafting_claims",
+        "question": "청구항 초안 검토 체크리스트를 만들어줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 15,
+        "chatbot": "application",
+        "category": "drafting_claims",
+        "question": "청구범위를 너무 좁게 쓰지 않으려면 무엇을 봐야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 16,
+        "chatbot": "application",
+        "category": "prior_art_search",
+        "question": "선행기술조사는 KIPRIS에서 어떤 순서로 해야 해?",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 17,
+        "chatbot": "application",
+        "category": "prior_art_search",
+        "question": "CPC와 IPC를 이용한 유사특허 검색 플로우를 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 18,
+        "chatbot": "application",
+        "category": "prior_art_search",
+        "question": "신규성과 진보성 판단을 위한 검색 키워드 확장 방법을 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 19,
+        "chatbot": "application",
+        "category": "prior_art_search",
+        "question": "선행기술 조사 결과를 표로 정리하는 양식을 만들어줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      },
+      {
+        "index": 20,
+        "chatbot": "application",
+        "category": "rejection_response",
+        "question": "거절의견서를 받으면 먼저 무엇을 확인해야 해? 근거 자료 제목도 같이 알려줘",
+        "error": "ModuleNotFoundError: No module named 'chatbot.app.agents.application_graph'"
+      }
+    ]
+  }
+}

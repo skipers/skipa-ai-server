@@ -34,20 +34,12 @@ def _resolve_path(raw: str | None, default: Path) -> Path:
 
 
 _load_env_file(CHATBOT_ROOT / ".env")
+_load_env_file(PROJECT_ROOT / ".env")
 
 DEFAULT_DATA_ROOT = CHATBOT_ROOT / "data" if (CHATBOT_ROOT / "data").exists() else PROJECT_ROOT / "data"
 DATA_ROOT = _resolve_path(os.getenv("DATA_ROOT") or os.getenv("SKIPA_DATA_ROOT"), DEFAULT_DATA_ROOT)
 PATENTS_ROOT = _resolve_path(os.getenv("PATENTS_ROOT"), DATA_ROOT / "mapped_patent_reports")
 BUSINESS_ROOT = _resolve_path(os.getenv("BUSINESS_ROOT"), DATA_ROOT / "business")
-DEFAULT_PATENT_APPLICATION_ROOT = (
-    DATA_ROOT / "patent_application_official_pack"
-    if (DATA_ROOT / "patent_application_official_pack").exists()
-    else DATA_ROOT / "patent_application_official_pack(1)"
-)
-PATENT_APPLICATION_ROOT = _resolve_path(
-    os.getenv("PATENT_APPLICATION_ROOT"),
-    DEFAULT_PATENT_APPLICATION_ROOT,
-)
 LOG_ROOT = _resolve_path(os.getenv("LOG_ROOT"), CHATBOT_ROOT / "logs")
 WIKI_AUDITOR_ROOT = _resolve_path(os.getenv("WIKI_AUDITOR_ROOT"), CHATBOT_ROOT / "logs" / "wiki_auditor")
 # Shared project data root: PROJECT_ROOT/data (patent PDFs, reports, wiki)
@@ -65,6 +57,10 @@ MINIO_PATENT_PREFIX = os.getenv("MINIO_PATENT_PREFIX", "patent/").strip("/")
 MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() in ("1", "true", "yes")
 MINIO_SYNC_ON_STARTUP = os.getenv("MINIO_SYNC_ON_STARTUP", "true").lower() in ("1", "true", "yes")
 MINIO_REINDEX_AFTER_SYNC = os.getenv("MINIO_REINDEX_AFTER_SYNC", "true").lower() in ("1", "true", "yes")
+
+BACKEND_INTERNAL_BASE_URL = os.getenv("BACKEND_INTERNAL_BASE_URL", "").rstrip("/")
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
+BACKEND_CALLBACK_TIMEOUT = min(int(os.getenv("BACKEND_CALLBACK_TIMEOUT", "15")), 120)
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333").rstrip("/")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
@@ -98,6 +94,8 @@ ANSWER_LLM_TIMEOUT = min(int(os.getenv("ANSWER_LLM_TIMEOUT", os.getenv("CHATBOT_
 TOP_K = int(os.getenv("TOP_K", "10"))
 
 ENABLE_WEB_SEARCH = os.getenv("ENABLE_WEB_SEARCH", "true").lower() == "true"
+ENABLE_RERANK = os.getenv("ENABLE_RERANK", "true").lower() == "true"
+ENABLE_QUERY_EXPANSION = os.getenv("ENABLE_QUERY_EXPANSION", "true").lower() == "true"
 WEB_SEARCH_LIMIT = int(os.getenv("WEB_SEARCH_LIMIT", "5"))
 WEB_SEARCH_TIMEOUT = min(int(os.getenv("WEB_SEARCH_TIMEOUT", "12")), 12)
 WEB_SEARCH_API_URL = os.getenv("WEB_SEARCH_API_URL", "")

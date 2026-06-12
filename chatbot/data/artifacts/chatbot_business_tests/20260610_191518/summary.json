@@ -1,0 +1,80 @@
+{
+  "generated_at": "2026-06-10T19:16:32",
+  "execution_mode": "full",
+  "patent_runner": "retrieval",
+  "bert_score_enabled": false,
+  "output_dir": "/Users/kgw/skipers-ai/chatbot/data/artifacts/chatbot_business_tests/20260610_191518",
+  "patents_used": [
+    {
+      "patent_id": "10-0764636",
+      "title": "10-0764636"
+    },
+    {
+      "patent_id": "10-0784835",
+      "title": "10-0784835"
+    },
+    {
+      "patent_id": "10-0790755",
+      "title": "10-0790755"
+    },
+    {
+      "patent_id": "10-0800458",
+      "title": "10-0800458"
+    },
+    {
+      "patent_id": "10-0801854",
+      "title": "10-0801854"
+    }
+  ],
+  "patent": {
+    "total": 20,
+    "success": 20,
+    "failed": 0,
+    "avg_elapsed_sec": 3.451,
+    "p95_elapsed_sec": 5.689,
+    "avg_source_count": 1,
+    "avg_quality_score": 0.4769,
+    "category_counts": {
+      "overview": 2,
+      "original": 3,
+      "report": 3,
+      "risk": 2,
+      "business": 2,
+      "market": 2,
+      "comparison": 2,
+      "table": 1,
+      "diagram": 2,
+      "evidence": 1
+    },
+    "intent_counts": {
+      "patent_original": 7,
+      "patent_report": 11,
+      "comparison": 2
+    },
+    "answer_mode_counts": {
+      "None": 20
+    },
+    "quality_grade_counts": {
+      "low": 20
+    },
+    "source_type_counts": {
+      "SHARED_REPORT": 20
+    },
+    "errors": []
+  },
+  "application": {
+    "total": 0,
+    "success": 0,
+    "failed": 0,
+    "avg_elapsed_sec": 0,
+    "p95_elapsed_sec": null,
+    "avg_source_count": 0,
+    "avg_quality_score": null,
+    "category_counts": {},
+    "intent_counts": {},
+    "answer_mode_counts": {},
+    "quality_grade_counts": {},
+    "source_type_counts": {},
+    "errors": []
+  }
+}

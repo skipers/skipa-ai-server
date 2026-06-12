@@ -23,6 +23,204 @@
 }
 ```
 
+## 프론트 통신용 핵심 4개 API 계약
+
+아래 4개 API만 프론트 통신에 우선 사용합니다. Swagger 예시에서 보이던 내부/레거시 필드는 제거하고, 백엔드가 실제로 사용하는 필드만 남깁니다.
+
+### 1. 특허 보고서 채팅
+
+`POST /api/v1/patent-chat/chat`
+
+이전 버전과 달라진 점:
+
+| 항목 | 이전 | 현재 |
+| --- | --- | --- |
+| `context_patent_id` | 요청 body에 노출 | 제거. `patent_id`와 `chat_history`로 충분 |
+| `chat_history` | `additionalProp1` 같은 임의 object로 표시 | 명시적 대화 이력 item으로 표시 |
+
+요청:
+
+```json
+{
+  "patent_id": "10-2142205",
+  "question": "이 특허에 대해서 자세하게 알려줘",
+  "user_id": "user-1",
+  "chat_history": []
+}
+```
+
+요청 필드:
+
+| 필드 | 타입 | 필수 | 설명 | 필요한 이유 |
+| --- | --- | --- | --- | --- |
+| `patent_id` | string? | 권장 | 선택한 특허 등록번호 | 해당 특허의 원문/보고서 근거를 우선 검색하기 위해 필요 |
+| `question` | string | O | 사용자 질문 | 답변 생성 및 검색 질의의 기준 |
+| `user_id` | string? | X | 사용자 식별자 | 로그, 피드백, 사용자별 추적이 필요할 때 사용 |
+| `chat_history` | array | X | 최근 대화 이력 | “이어서 설명해줘” 같은 후속 질문의 맥락 복원 |
+
+`chat_history[]` item:
+
+```json
+{
+  "role": "user",
+  "content": "이 특허의 리스크는?",
+  "patent_id": "10-2142205"
+}
+```
+
+`chat_history[]`에서 사용할 수 있는 필드:
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `role` | `user`, `assistant`, `system` | 메시지 작성 주체 |
+| `content` | string | 메시지 본문 |
+| `question` | string? | 이전 사용자 질문 |
+| `query` | string? | 이전 검색/질의 문장 |
+| `answer` | string? | 이전 챗봇 답변 |
+| `patent_id` | string? | 이전 대화가 참조한 특허 |
+| `resolved_patent_id` | string? | 백엔드가 이전 턴에서 확정한 특허 |
+| `source_card_patent_ids` | string[]? | 이전 답변 근거 카드의 특허 ID 목록 |
+| `metrics` | object? | 이전 응답 metrics |
+
+응답:
+
+```json
+{
+  "query": "이 특허에 대해서 자세하게 알려줘",
+  "patent_id": "10-2142205",
+  "answer": "...",
+  "source_cards": [],
+  "metrics": {}
+}
+```
+
+응답 필드:
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `query` | string | 백엔드가 처리한 질문 |
+| `patent_id` | string? | 답변 기준 특허 ID |
+| `answer` | string | 챗봇 답변 |
+| `source_cards` | array | 답변 근거 카드 목록 |
+| `metrics` | object | 검색/라우팅/품질 관련 디버그 정보 |
+
+`source_cards[]` 주요 필드:
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `label` | string | 근거 번호. 예: `S1` |
+| `title` | string? | 원본 파일명 또는 문서 제목 |
+| `display_title` | string? | UI 표시용 제목 |
+| `source_type` | string | 근거 타입. 예: `REPORT_PDF`, `ORIGINAL_PDF`, `WIKI`, `WEB` |
+| `page_no` | number? | PDF 페이지 번호 |
+| `url` | string? | 웹/파일 접근 URL |
+| `location_label` | string? | UI 표시 위치. 예: `p.3` |
+| `source_path` | string? | 서버 내부 원본 경로 |
+| `match_terms` | string[] | 매칭 키워드 |
+| `snippet` | string | 답변에 사용된 근거 발췌 |
+| `metadata` | object | 백엔드 상세 메타데이터 |
+
+### 2. 사전평가 보고서 기반 채팅
+
+`POST /api/v1/pre-eval/cases/{patent_id}/chat`
+
+이전 버전과 달라진 점:
+
+| 항목 | 이전 | 현재 |
+| --- | --- | --- |
+| path 변수 | `{case_id}`로 표시될 수 있음 | 외부 연동 기준은 `{patent_id}`. 실제 URL 값은 특허 ID |
+| 요청 body | 임의 object | `question`, `user_id`, `chat_history`, `top_k`만 사용 |
+
+요청:
+
+```json
+{
+  "question": "이 사전평가 보고서의 주요 리스크를 알려줘",
+  "user_id": "user-1",
+  "chat_history": [],
+  "top_k": 8
+}
+```
+
+요청 필드:
+
+| 필드 | 타입 | 필수 | 설명 | 필요한 이유 |
+| --- | --- | --- | --- | --- |
+| `question` | string | O | 사용자 질문 | 사전평가 보고서 검색 및 답변 생성 기준 |
+| `user_id` | string? | X | 사용자 식별자 | 로그/사용자 추적용 |
+| `chat_history` | array | X | 최근 대화 이력 | 후속 질문 맥락 유지 |
+| `top_k` | integer | X | 검색할 청크 수. 기본 `8` | 답변 근거량 조절 |
+
+응답은 특허 보고서 채팅과 동일한 `AnswerResponse`입니다.
+
+### 3. 사전평가 보고서 완료 알림 및 벡터스토어 갱신
+
+`POST /api/v1/pre-eval/webhook/report-complete`
+
+역할:
+
+외부 사전출원 평가 서비스가 MinIO에 `report.json`을 업로드한 뒤 호출합니다. 백엔드는 MinIO에서 보고서를 찾아 `pre-{patent_id}` Qdrant 컬렉션에 인덱싱합니다.
+
+요청:
+
+```json
+{
+  "patent_id": "10-2142205"
+}
+```
+
+요청 필드:
+
+| 필드 | 타입 | 필수 | 설명 | 필요한 이유 |
+| --- | --- | --- | --- | --- |
+| `patent_id` | string | O | 보고서가 생성된 특허 ID | MinIO report 탐색 및 `pre-{patent_id}` 컬렉션 생성 기준 |
+
+응답:
+
+```json
+{
+  "status": "indexed",
+  "patent_id": "10-2142205",
+  "collection": "pre-10-2142205",
+  "document_count": 12,
+  "source_key": "pre-application/10-2142205/report.json",
+  "indexed_at": "2026-06-11T10:00:00"
+}
+```
+
+응답 필드:
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `status` | `indexed` | 인덱싱 완료 상태 |
+| `patent_id` | string | 인덱싱된 특허 ID |
+| `collection` | string | 생성/갱신된 Qdrant 컬렉션 |
+| `document_count` | integer | 인덱싱된 문서 청크 수 |
+| `source_key` | string? | MinIO에서 읽은 report object key |
+| `indexed_at` | string | 인덱싱 시각 |
+
+### 4. 특허 Blue-Green 즉시 교체
+
+`POST /api/v1/chatbot/bluegreen/refresh`
+
+요청 body 없음.
+
+역할:
+
+특허 원본/보고서 글로벌 컬렉션을 blue-green 방식으로 재색인하고 alias를 새 슬롯으로 교체합니다. Wiki, 사전평가, visual 컬렉션은 이 API의 대상이 아닙니다.
+
+프론트/운영 UI에서 필요한 값:
+
+| 값 | 설명 |
+| --- | --- |
+| 호출 버튼 | “특허 벡터스토어 재색인/교체” 같은 운영 액션 |
+| 성공 판단 | 응답 내 `status`, `active_color`, `collection`, `document_count` 계열 값 |
+| 후속 확인 | `GET /api/v1/chatbot/bluegreen/status` 또는 `GET /api/v1/chatbot/vectorstore/patent/status` |
+
+주의:
+
+이 API는 사용자가 채팅할 때마다 호출하는 API가 아니라, 데이터 갱신 후 운영자가 실행하는 관리 API입니다.
+
 ---
 
 # 1. Chatbot FastAPI
@@ -299,8 +497,7 @@ Base prefix: `/api/v1/patent-chat`
   "patent_id": "10-2142205",
   "question": "이 특허의 차별점은?",
   "user_id": "user-1",
-  "chat_history": [],
-  "context_patent_id": "10-2142205"
+  "chat_history": []
 }
 ```
 
@@ -742,7 +939,7 @@ Base prefix: `/api/v1/pre-eval`
 
 사전평가 케이스 vectorstore를 재빌드합니다.
 
-### `POST /api/v1/pre-eval/cases/{case_id}/chat`
+### `POST /api/v1/pre-eval/cases/{patent_id}/chat`
 
 사전평가 보고서 기반 챗봇입니다.
 
@@ -757,7 +954,7 @@ Base prefix: `/api/v1/pre-eval`
 }
 ```
 
-### `POST /api/v1/pre-eval/cases/{case_id}/search`
+### `POST /api/v1/pre-eval/cases/{patent_id}/search`
 
 사전평가 케이스 vectorstore 직접 검색입니다.
 
@@ -1071,8 +1268,7 @@ KIPRIS 유사도 검색 기반 유사 특허 분석을 실행합니다.
   "patent_id": "10-2142205",
   "question": "사용자 질문",
   "user_id": "user-1",
-  "chat_history": [],
-  "context_patent_id": "10-2142205"
+  "chat_history": []
 }
 ```
 

@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-06-10T20:10:29",
+  "execution_mode": "full",
+  "patent_runner": "retrieval",
+  "bert_score_enabled": false,
+  "output_dir": "/Users/kgw/skipers-ai/chatbot/data/artifacts/chatbot_business_tests/20260610_200915",
+  "patents_used": [
+    {
+      "patent_id": "10-1959619",
+      "title": "반도체 결함 시각화 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-1959627",
+      "title": "실제 반도체 제조물을 복제한 가상 반도체 제조물 제공 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2042318",
+      "title": "스마트 팩토리 레이아웃 설계 방법 및 시스템"
+    },
+    {
+      "patent_id": "10-2142205",
+      "title": "설명 가능한 인공지능 모델링 및 시뮬레이션 시스템 및 방법"
+    },
+    {
+      "patent_id": "10-2663094",
+      "title": "단일 엔드포인트를 이용한 AI 모델 운영 장치 및 방법"
+    }
+  ],
+  "patent": {
+    "total": 20,
+    "success": 20,
+    "failed": 0,
+    "avg_elapsed_sec": 3.483,
+    "p95_elapsed_sec": 5.977,
+    "avg_source_count": 12,
+    "avg_quality_score": 0.7315,
+    "category_counts": {
+      "overview": 2,
+      "original": 3,
+      "report": 3,
+      "risk": 2,
+      "business": 2,
+      "market": 2,
+      "comparison": 2,
+      "table": 1,
+      "diagram": 2,
+      "evidence": 1
+    },
+    "intent_counts": {
+      "patent_report": 9,
+      "patent_original": 4,
+      "general": 4,
+      "comparison": 3
+    },
+    "answer_mode_counts": {
+      "None": 20
+    },
+    "quality_grade_counts": {
+      "medium": 18,
+      "high": 2
+    },
+    "source_type_counts": {
+      "SHARED_REPORT": 20,
+      "SHARED_PATENT": 16
+    },
+    "errors": []
+  },
+  "application": {
+    "total": 0,
+    "success": 0,
+    "failed": 0,
+    "avg_elapsed_sec": 0,
+    "p95_elapsed_sec": null,
+    "avg_source_count": 0,
+    "avg_quality_score": null,
+    "category_counts": {},
+    "intent_counts": {},
+    "answer_mode_counts": {},
+    "quality_grade_counts": {},
+    "source_type_counts": {},
+    "errors": []
+  }
+}

@@ -13,7 +13,14 @@ from typing import Any, Iterable
 from fastapi import HTTPException
 
 from .config import PRE_EVAL_ROOT, PROJECT_ROOT, WIKI_ROOT
-from .qdrant_store import collection_exists, collection_info, pre_eval_collection, search_documents, upsert_documents
+from .qdrant_store import (
+    collection_exists,
+    collection_info,
+    pre_application_collection,
+    pre_eval_collection,
+    search_documents,
+    upsert_documents,
+)
 from .rag.quality import compact_text, is_usable_evidence
 
 
@@ -501,3 +508,131 @@ def get_pre_eval_report(case_id: str) -> dict[str, Any]:
     if not report_path.exists():
         raise HTTPException(status_code=404, detail=f"보고서 없음: {safe_id}")
     return _read_json(report_path)
+
+
+# ---------------------------------------------------------------------------
+# 사전 출원 특허 보고서 웹훅 — MinIO → pre-{patent_id} vectorstore
+# ---------------------------------------------------------------------------
+
+def _pre_application_case_dir(patent_id: str) -> Path:
+    safe = re.sub(r"[^0-9A-Za-z가-힣_.-]", "_", str(patent_id or "")).strip("._")[:80]
+    return PRE_EVAL_ROOT / f"pre_{safe}"
+
+
+def _index_pre_application_report(patent_id: str, report: dict[str, Any]) -> dict[str, Any]:
+    """보고서 dict를 pre-{patent_id} 컬렉션에 인덱싱합니다."""
+    # 보고서 텍스트를 청크로 변환 (기존 _report_to_docs 활용)
+    case_dir = _pre_application_case_dir(patent_id)
+    case_dir.mkdir(parents=True, exist_ok=True)
+
+    report_path = case_dir / "report.json"
+    _write_json(report_path, report)
+
+    report_md = _build_report_markdown(patent_id, report)
+    (case_dir / "report.md").write_text(report_md, encoding="utf-8")
+
+    docs = _report_to_docs(patent_id, report, report_md)
+
+    collection = pre_application_collection(patent_id)
+    result = upsert_documents(
+        collection,
+        docs,
+        collection_scope=f"pre_application:{patent_id}",
+        recreate=False,
+        extra_payload={"patent_id": patent_id, "source": "pre_application_webhook"},
+    )
+
+    manifest = {
+        "patent_id": patent_id,
+        "collection": collection,
+        "indexed_at": _now(),
+        "document_count": len(docs),
+        "source": "minio_webhook",
+        "qdrant": result,
+    }
+    _write_json(case_dir / "manifest.json", manifest)
+    return manifest
+
+
+def handle_report_complete_webhook(patent_id: str) -> dict[str, Any]:
+    """외부 시스템이 보고서 생성 완료를 알릴 때 호출됩니다.
+
+    MinIO에서 report.json을 찾아 pre-{patent_id} 컬렉션에 임베딩·저장합니다.
+    blue-green 없이 단순 upsert — 컬렉션은 누적 생성됩니다.
+    """
+    from .minio_data import fetch_pre_application_report_from_minio
+
+    fetch = fetch_pre_application_report_from_minio(patent_id)
+    if not fetch.get("found"):
+        raise HTTPException(
+            status_code=404,
+            detail=f"MinIO에서 report.json을 찾을 수 없습니다: {fetch.get('error')}",
+        )
+
+    report = fetch["report"]
+    manifest = _index_pre_application_report(patent_id, report)
+
+    return {
+        "status": "indexed",
+        "patent_id": patent_id,
+        "collection": manifest["collection"],
+        "document_count": manifest["document_count"],
+        "source_key": fetch.get("source_key"),
+        "indexed_at": manifest["indexed_at"],
+    }
+
+
+def pre_application_vectorstore_status(patent_id: str) -> dict[str, Any]:
+    """pre-{patent_id} 컬렉션 상태를 반환합니다."""
+    collection = pre_application_collection(patent_id)
+    info = collection_info(collection)
+    case_dir = _pre_application_case_dir(patent_id)
+    manifest = _read_json(case_dir / "manifest.json") if case_dir.exists() else {}
+    return {
+        "patent_id": patent_id,
+        "collection": collection,
+        "exists": bool(info.get("exists")),
+        "document_count": info.get("points_count", 0),
+        "indexed_at": manifest.get("indexed_at"),
+        "source_key": manifest.get("source_key"),
+        "qdrant": info,
+    }
+
+
+def list_pre_application_vectorstores() -> list[dict[str, Any]]:
+    """PRE_EVAL_ROOT 아래 pre_ 접두사 디렉터리를 스캔하여 각 컬렉션 상태를 반환합니다."""
+    if not PRE_EVAL_ROOT.exists():
+        return []
+    results: list[dict[str, Any]] = []
+    for d in sorted(PRE_EVAL_ROOT.iterdir(), reverse=True):
+        if not d.is_dir() or not d.name.startswith("pre_"):
+            continue
+        patent_id = d.name[len("pre_"):]
+        manifest = _read_json(d / "manifest.json")
+        collection = pre_application_collection(patent_id)
+        info = collection_info(collection)
+        results.append({
+            "patent_id": patent_id,
+            "collection": collection,
+            "exists": bool(info.get("exists")),
+            "document_count": info.get("points_count", 0),
+            "indexed_at": manifest.get("indexed_at"),
+            "source_key": manifest.get("source_key"),
+        })
+    return results
+
+
+def search_pre_application_vectorstore(patent_id: str, query: str, top_k: int = 8) -> dict[str, Any]:
+    """pre-{patent_id} 컬렉션 검색."""
+    collection = pre_application_collection(patent_id)
+    if not collection_exists(collection):
+        return {"query": query, "patent_id": patent_id, "collection": collection, "hit_count": 0, "hits": []}
+    result = search_documents(collection, query, top_k=top_k)
+    return {
+        "query": query,
+        "patent_id": patent_id,
+        "collection": collection,
+        "hit_count": result.get("hit_count", 0),
+        "hits": result.get("hits", []),
+        "embedding_provider": result.get("embedding_provider"),
+    }

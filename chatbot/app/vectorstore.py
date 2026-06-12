@@ -54,7 +54,7 @@ from .rag.quality import is_usable_evidence, preprocess_evidence_text
 VECTOR_DIMENSIONS = 256
 MAX_TEXT_CHARS = 20000
 CORE_SEARCH_SOURCE_TYPES = frozenset(
-    {"ORIGINAL_PDF", "REPORT_PDF", "PATENT_INPUT_JSON", "REPORT_JSON", "APPLICATION_FEEDBACK_REPORT"}
+    {"ORIGINAL_PDF", "REPORT_PDF", "PATENT_INPUT_JSON", "REPORT_JSON"}
 )
 WIKI_SEARCH_SOURCE_TYPES = frozenset({"WIKI"})
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
@@ -361,21 +361,6 @@ def _topic_wiki_documents(topic_slug: str) -> Iterable[dict[str, Any]]:
         yield doc
 
 
-def _application_feedback_documents(patent_id: str, patent_dir: Path) -> Iterable[dict[str, Any]]:
-    feedback_root = patent_dir / "reports" / "application_feedback"
-    latest_md = feedback_root / "latest.md"
-    if not latest_md.exists():
-        return
-    doc = _document(
-        patent_id=patent_id,
-        text=latest_md.read_text(encoding="utf-8", errors="ignore"),
-        source_path=latest_md,
-        source_type="APPLICATION_FEEDBACK_REPORT",
-        metadata={"file_name": latest_md.name, "section_title": "출원/실패 피드백 리포트"},
-    )
-    if doc:
-        yield doc
-
 
 def _business_documents() -> list[dict[str, Any]]:
     path = BUSINESS_ROOT / "index" / "all_chunks.jsonl"
@@ -517,7 +502,6 @@ def collect_patent_documents(patent_id: str, *, use_reviewed: bool = True) -> li
         if doc:
             docs.append(doc)
 
-    docs.extend(_application_feedback_documents(patent_id, patent_dir) or [])
     return docs
 
 
@@ -724,10 +708,10 @@ def _vector_collection(*, patent_id: str | None, source_types: set[str] | None) 
         return wiki_collection(None)
 
     if patent_id:
-        per_col = patent_collection(patent_id)
-        if collection_exists(per_col) and (collection_info(per_col).get("points_count") or 0) > 0:
-            return per_col
-        return shared_patents_collection()  # alias → 실제 데이터 있는 슬롯
+        # Per-patent 컬렉션은 SHARED_PATENT/SHARED_REPORT source_type을 사용하므로
+        # CORE_SEARCH_SOURCE_TYPES 필터와 맞지 않음 → shared_patents_collection()을 반환해
+        # search_shared_vectorstore 경로를 타게 하면 내부에서 per-patent 컬렉션으로 라우팅됨.
+        return shared_patents_collection()
 
     # 전체 검색: 문서가 있는 alias 우선, 없으면 shared collection
     for candidate in [bluegreen_patent_alias(), patent_collection(None), shared_patents_collection()]:
@@ -748,27 +732,45 @@ def _excerpt(text: str, query: str, size: int = 360) -> str:
     return f"{'...' if start else ''}{text[start:end]}{'...' if end < len(text) else ''}"
 
 
-def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int) -> dict[str, Any]:
+def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int, rerank: bool = False) -> dict[str, Any]:
     effective_source_types = set(source_types) if source_types is not None else set(CORE_SEARCH_SOURCE_TYPES)
     collection = _vector_collection(patent_id=patent_id, source_types=effective_source_types)
-    filter_patent_id = None if patent_id and effective_source_types <= WIKI_SEARCH_SOURCE_TYPES else patent_id
 
-    # shared_patents_collection 사용 시 소스 타입을 SHARED_* 로 정규화
-    # (ORIGINAL_PDF→SHARED_PATENT, REPORT_PDF→SHARED_REPORT 등)
-    filter_source_types: set[str] | None = effective_source_types
-    if collection == shared_patents_collection():
+    # shared_patents_collection 경로 → 공유 벡터스토어 검색 (APPLICATION_FEEDBACK_REPORT 등 모든 특허 소스 타입 포함)
+    if collection == shared_patents_collection() and not (effective_source_types <= WIKI_SEARCH_SOURCE_TYPES):
         try:
-            from .shared_data import _normalize_shared_source_types
+            from .shared_data import _normalize_shared_source_types, search_shared_vectorstore
             filter_source_types = _normalize_shared_source_types(effective_source_types) or None
+            result = search_shared_vectorstore(
+                query,
+                top_k=top_k,
+                patent_id=patent_id,
+                source_types=filter_source_types,
+                rerank=rerank,
+            )
+            usable_hits = [hit for hit in result.get("hits", []) if is_usable_evidence(hit.get("page_content"))]
+            return {
+                "query": query,
+                "mode": result.get("mode", "shared_qdrant_hybrid_search"),
+                "patent_id": patent_id,
+                "top_k": top_k,
+                "source_types": sorted(effective_source_types),
+                "collection": collection,
+                "hit_count": len(usable_hits),
+                "hits": usable_hits,
+                "embedding_provider": result.get("embedding_provider"),
+                "embedding_error": result.get("embedding_error"),
+            }
         except Exception:
-            filter_source_types = None  # 필터 없이 전체 검색
+            pass  # fallback to standard search below
 
+    filter_patent_id = None if patent_id and effective_source_types <= WIKI_SEARCH_SOURCE_TYPES else patent_id
     result = search_documents(
         collection,
         query,
         top_k=top_k,
         patent_id=filter_patent_id,
-        source_types=filter_source_types,
+        source_types=effective_source_types,
     )
     usable_hits = [hit for hit in result.get("hits", []) if is_usable_evidence(hit.get("page_content"))]
     return {
@@ -1285,35 +1287,6 @@ def nightly_reindex_all() -> dict[str, Any]:
     started_at = _now()
     wiki_result = auto_audit_apply_and_refresh(refresh_vectorstore=True)
 
-    application_result: dict[str, Any] | None = None
-    failed_case_results: list[dict[str, Any]] = []
-    try:
-        from .application_data import (
-            list_failed_patent_cases,
-            preprocess_application_pack,
-            refresh_failed_patent_case_index,
-        )
-
-        application_result = preprocess_application_pack(refresh_index=True)
-        cases = list_failed_patent_cases()
-        for item in cases.get("items") or []:
-            case_id = item.get("case_id") if isinstance(item, dict) else None
-            if not case_id:
-                continue
-            if item.get("has_original_pdf") is False:
-                failed_case_results.append(
-                    {"case_id": case_id, "status": "skipped", "reason": "missing_original_pdf"}
-                )
-                continue
-            try:
-                failed_case_results.append(refresh_failed_patent_case_index(str(case_id)))
-            except Exception as exc:
-                failed_case_results.append(
-                    {"case_id": case_id, "status": "error", "error": f"{type(exc).__name__}: {exc}"}
-                )
-    except Exception as exc:
-        application_result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
-
     # Rebuild shared patent vectorstore (PROJECT_ROOT/data/patent)
     shared_index_result: dict[str, Any] | None = None
     try:
@@ -1338,8 +1311,6 @@ def nightly_reindex_all() -> dict[str, Any]:
         "finished_at": _now(),
         "schedule_hint": "Kubernetes CronJob: 0 0 * * *",
         "wiki_auto_audit": wiki_result,
-        "application_pack": application_result,
-        "failed_patent_cases": failed_case_results,
         "shared_patent_index": shared_index_result,
         "shared_patent_visual_index": visual_index_result,
         "vectorstore_status": vectorstore_status(),
@@ -1606,7 +1577,7 @@ def auto_approve_web_draft(
 def full_rebuild_vectorstores() -> dict[str, Any]:
     """모든 특허·wiki Qdrant 컬렉션을 삭제하고 처음부터 재구축.
 
-    삭제 대상 (application/pre-eval/visual 은 건드리지 않음):
+    삭제 대상 (pre-eval/visual 은 건드리지 않음):
       - skipa_patent_docs, skipa_patent_docs_global
       - skipa_wiki_docs_global, skipa_wiki_topic_* 컬렉션
       - skipa_patent_live*, skipa_wiki_live* (blue-green 슬롯)
@@ -1752,18 +1723,15 @@ def _load_bluegreen_status() -> dict[str, Any]:
         return {}
 
 
-def bluegreen_refresh_global() -> dict[str, Any]:
-    """글로벌 특허·wiki 컬렉션만 blue-green으로 무중단 재색인.
+def bluegreen_refresh_patent_only() -> dict[str, Any]:
+    """특허 원본 PDF·보고서 글로벌 컬렉션만 blue-green 재색인.
 
-    nightly_reindex_all()의 전체 워크플로(application pack, visual index 등)와 달리
-    글로벌 검색 컬렉션만 교체하므로 시간이 짧아 매시간 실행에 적합합니다.
+    API 호출 시 트리거됩니다 (POST /api/v1/chatbot/bluegreen/refresh).
+    wiki는 1시간 스케줄러(bluegreen_refresh_wiki_only)가 담당합니다.
     """
-    from .wiki.topics import all_active_topic_slugs, topic_approved_md
-
     started_at = _now()
-    source = "bluegreen_hourly"
+    source = "bluegreen_api_trigger"
 
-    # 전체 특허 문서 수집
     global_docs: list[dict[str, Any]] = []
     patent_results = []
     for patent_id in _patent_ids():
@@ -1772,7 +1740,6 @@ def bluegreen_refresh_global() -> dict[str, Any]:
         global_docs.extend(core_docs)
         patent_results.append({"patent_id": patent_id, "doc_count": len(core_docs)})
 
-    # 글로벌 특허 컬렉션 blue-green 교체
     global_patent_result = _write_vectorstore(
         PATENTS_ROOT / "_global" / "index" / "qdrant",
         global_docs,
@@ -1780,7 +1747,35 @@ def bluegreen_refresh_global() -> dict[str, Any]:
         source=source,
     )
 
-    # 전체 wiki 문서 수집 + 글로벌 wiki 컬렉션 blue-green 교체
+    result: dict[str, Any] = {
+        "status": "completed",
+        "workflow": "bluegreen_patent_refresh",
+        "started_at": started_at,
+        "finished_at": _now(),
+        "patent_doc_count": len(global_docs),
+        "patents": patent_results,
+        "global_patent": {
+            "collection": global_patent_result.get("collection"),
+            "document_count": global_patent_result.get("document_count"),
+            "active_color": (global_patent_result.get("qdrant") or {}).get("active_color"),
+            "alias": (global_patent_result.get("qdrant") or {}).get("alias"),
+        },
+    }
+    last = _load_bluegreen_status()
+    _save_bluegreen_status({**last, **result, "patent_refreshed_at": started_at})
+    return result
+
+
+def bluegreen_refresh_wiki_only() -> dict[str, Any]:
+    """글로벌 wiki 컬렉션만 blue-green 재색인.
+
+    1시간 스케줄러에서 호출됩니다.
+    """
+    from .wiki.topics import all_active_topic_slugs
+
+    started_at = _now()
+    source = "bluegreen_hourly"
+
     all_wiki_docs: list[dict[str, Any]] = []
     for topic_slug in all_active_topic_slugs():
         all_wiki_docs.extend(list(_topic_wiki_documents(topic_slug)))
@@ -1794,23 +1789,39 @@ def bluegreen_refresh_global() -> dict[str, Any]:
 
     result: dict[str, Any] = {
         "status": "completed",
-        "workflow": "bluegreen_hourly_refresh",
+        "workflow": "bluegreen_wiki_hourly",
         "started_at": started_at,
         "finished_at": _now(),
-        "patent_doc_count": len(global_docs),
         "wiki_doc_count": len(all_wiki_docs),
-        "global_patent": {
-            "collection": global_patent_result.get("collection"),
-            "document_count": global_patent_result.get("document_count"),
-            "active_color": (global_patent_result.get("qdrant") or {}).get("active_color"),
-            "alias": (global_patent_result.get("qdrant") or {}).get("alias"),
-        },
         "global_wiki": {
             "collection": global_wiki_result.get("collection"),
             "document_count": global_wiki_result.get("document_count"),
             "active_color": (global_wiki_result.get("qdrant") or {}).get("active_color"),
             "alias": (global_wiki_result.get("qdrant") or {}).get("alias"),
         },
+    }
+    last = _load_bluegreen_status()
+    _save_bluegreen_status({**last, **result, "wiki_refreshed_at": started_at})
+    return result
+
+
+def bluegreen_refresh_global() -> dict[str, Any]:
+    """특허·wiki 글로벌 컬렉션 모두 blue-green 재색인 (수동/레거시 호환).
+
+    일반 운영에서는 특허는 API 트리거(bluegreen_refresh_patent_only),
+    wiki는 1시간 스케줄러(bluegreen_refresh_wiki_only)로 각각 실행합니다.
+    """
+    patent_result = bluegreen_refresh_patent_only()
+    wiki_result = bluegreen_refresh_wiki_only()
+    result: dict[str, Any] = {
+        "status": "completed",
+        "workflow": "bluegreen_full_refresh",
+        "started_at": patent_result["started_at"],
+        "finished_at": wiki_result["finished_at"],
+        "patent_doc_count": patent_result["patent_doc_count"],
+        "wiki_doc_count": wiki_result["wiki_doc_count"],
+        "global_patent": patent_result["global_patent"],
+        "global_wiki": wiki_result["global_wiki"],
     }
     _save_bluegreen_status(result)
     return result
@@ -1845,10 +1856,13 @@ def bluegreen_reindex_status() -> dict[str, Any]:
         collections[alias_name] = bluegreen_collection_status(alias_name, green, blue)
 
     return {
-        "strategy": "blue_green_alias_all",
-        "schedule": "every_1_hour",
+        "strategy": "blue_green_alias_split",
+        "patent_schedule": "on_api_call",
+        "wiki_schedule": "every_1_hour",
         "last_run_at": last_run_at,
-        "next_run_at": next_run_at,
+        "next_wiki_run_at": next_run_at,
+        "patent_refreshed_at": last_run.get("patent_refreshed_at"),
+        "wiki_refreshed_at": last_run.get("wiki_refreshed_at"),
         "last_run_status": last_run.get("status"),
         "managed_collections": len(collections),
         "collections": collections,

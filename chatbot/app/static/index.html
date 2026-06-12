@@ -23,7 +23,6 @@
       <nav class="tabs" aria-label="테스트 화면">
         <button type="button" class="tab-button active" data-tab="chatTab">챗봇</button>
         <button type="button" class="tab-button" data-tab="preEvalTab">사전 평가</button>
-        <button type="button" class="tab-button" data-tab="applicationTab">출원도우미</button>
         <button type="button" class="tab-button" data-tab="auditTab">감사</button>
         <button type="button" class="tab-button" data-tab="dataTab">데이터</button>
         <button type="button" class="tab-button" data-tab="workflowTab">워크플로우</button>
@@ -33,14 +32,16 @@
       <section id="chatTab" class="tab-panel active">
         <main id="messages" aria-live="polite">
           <div class="message assistant">
-            <h2>질문 테스트</h2>
-            <p>특허를 선택하고 질문을 입력하세요. 답변은 의도 분류 뒤 특허 원문, 보고서, wiki/승인 데이터, 필요 시 웹 근거를 함께 사용합니다.</p>
-            <p>답변 아래 근거 카드를 클릭하면 원문 metadata와 excerpt를 확인할 수 있습니다.</p>
+            <h2>특허 챗봇</h2>
+            <p>위의 <strong>검색 범위</strong>에서 특허를 선택하거나 <em>전체 특허</em>로 두고 질문하세요.</p>
+            <p>특허 원문·보고서·wiki 근거를 통합해 답변하며, 최신 정보가 필요하면 웹 검색도 자동으로 보강합니다.</p>
+            <p>답변 아래 <strong>근거 카드</strong>를 클릭하면 출처 metadata와 발췌문을 확인할 수 있습니다.</p>
+            <p style="font-size:12px;color:#888;">API: <code>POST /api/v1/patent-chat/chat</code> (특허 선택) · <code>POST /api/v1/patent-chat/global/chat</code> (전체)</p>
           </div>
         </main>
 
         <footer>
-          <textarea id="question" placeholder="질문을 입력하세요">CMP Pad 물류 관리 시스템의 유지 판단 근거를 알려줘</textarea>
+          <textarea id="question" placeholder="질문을 입력하세요">이 특허의 기술적 핵심과 시장성을 알려줘</textarea>
           <button id="sendButton" type="button">전송</button>
         </footer>
       </section>
@@ -54,7 +55,7 @@
               <div class="tool-head">
                 <div>
                   <h2>발명 정보 입력</h2>
-                  <p id="preEvalStatus">출원 전 발명을 AI로 사전 진단합니다.</p>
+                  <p id="preEvalStatus">출원 전 발명을 AI로 사전 진단합니다. API: <code>POST /api/v1/pre-eval/evaluate</code></p>
                 </div>
               </div>
               <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
@@ -136,46 +137,6 @@
         </div>
       </section>
 
-      <section id="applicationTab" class="tab-panel">
-        <main id="applicationMessages" aria-live="polite">
-          <div class="message assistant">
-            <h2>특허 출원 도우미</h2>
-            <p>공식 출원 자료팩을 기반으로 절차, 선행기술조사, 명세서/청구항, 거절대응, 수수료/서식을 따로 라우팅해서 답합니다.</p>
-            <p>근거 카드를 클릭하면 어떤 공식 자료에서 답변이 나왔는지 확인할 수 있습니다.</p>
-          </div>
-        </main>
-
-        <footer class="application-footer">
-          <div class="button-row">
-            <button id="prepareApplicationButton" type="button">출원 데이터 준비</button>
-            <button id="applicationStatusButton" type="button">상태</button>
-          </div>
-          <div class="application-case-row">
-            <label>
-              실패특허 케이스
-              <select id="applicationCaseSelect">
-                <option value="">케이스를 업로드하거나 선택하세요</option>
-              </select>
-            </label>
-            <label>
-              원본 PDF
-              <input id="failedPatentPdfInput" type="file" accept="application/pdf,.pdf" />
-            </label>
-            <label>
-              사유서 선택
-              <input id="failedPatentRejectionInput" type="file" />
-            </label>
-            <label>
-              케이스 제목
-              <input id="failedPatentTitleInput" type="text" placeholder="예: CMP Pad 출원 실패 케이스" />
-            </label>
-            <button id="uploadFailedPatentButton" type="button">케이스 업로드</button>
-            <button id="generateFailedPatentReportButton" type="button">보고서 생성</button>
-          </div>
-          <textarea id="applicationQuestion" placeholder="특허 출원 관련 질문을 입력하세요">처음 특허 출원할 때 어떤 순서로 준비해야 해?</textarea>
-          <button id="sendApplicationButton" type="button">전송</button>
-        </footer>
-      </section>
 
       <section id="auditTab" class="tab-panel">
         <div class="panel-inner">
@@ -276,7 +237,6 @@
               </div>
               <div class="button-row">
                 <button id="loadChatWorkflowButton" type="button">챗봇 그래프</button>
-                <button id="loadApplicationWorkflowButton" type="button">출원 그래프</button>
                 <button id="loadWorkflowButton" type="button">Wiki 그래프</button>
                 <button id="loadIngestionWorkflowButton" type="button">전처리 그래프</button>
               </div>

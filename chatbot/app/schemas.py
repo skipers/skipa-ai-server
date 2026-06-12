@@ -4,7 +4,27 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ChatHistoryItem(BaseModel):
+    """Minimal chat history item accepted by public chat APIs."""
+
+    role: Literal["user", "assistant", "system"] | None = Field(
+        None,
+        description="메시지 작성 주체. UI 대화 이력을 그대로 넘길 때 사용",
+    )
+    content: str | None = Field(None, description="메시지 본문")
+    question: str | None = Field(None, description="이전 사용자 질문")
+    query: str | None = Field(None, description="이전 검색/질의 문장")
+    answer: str | None = Field(None, description="이전 챗봇 답변")
+    patent_id: str | None = Field(None, description="이전 대화가 참조한 특허 ID")
+    resolved_patent_id: str | None = Field(None, description="백엔드가 이전 턴에서 확정한 특허 ID")
+    source_card_patent_ids: list[str] | None = Field(
+        None,
+        description="이전 답변 근거 카드에 포함된 특허 ID 목록",
+    )
+    metrics: dict[str, Any] | None = Field(None, description="이전 응답 metrics")
 
 
 class SearchRequest(BaseModel):
@@ -18,79 +38,60 @@ class SearchRequest(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    patent_id: str | None = Field(None, description="특허 상세 화면에서 전달되는 현재 특허 ID")
-    question: str = Field(..., min_length=1, description="사용자 질문")
-    user_id: str | None = Field(None, description="질문자 식별자")
-    chat_history: list[dict[str, Any]] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
-    context_patent_id: str | None = Field(None, description="프론트엔드가 기억한 현재 대화 기준 특허 ID")
-
-
-class PatentApplicationChatRequest(BaseModel):
-    question: str = Field(..., min_length=1, description="특허 출원 도우미 질문")
-    user_id: str | None = Field(None, description="질문자 식별자")
-    failed_patent_id: str | None = Field(
-        None,
-        description="출원 도우미가 참조할 실패특허 케이스 ID. 없으면 채팅이 시작되지 않고 업로드/선택을 요청",
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "patent_id": "10-2142205",
+                    "question": "이 특허에 대해서 자세하게 알려줘",
+                    "user_id": "user-1",
+                    "chat_history": [],
+                }
+            ]
+        }
     )
-    chat_history: list[dict[str, Any]] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
-    top_k: int = Field(6, ge=1, le=20, description="공식팩 + 선택 실패특허 케이스 근거 검색 개수")
-    refresh_index: bool = Field(False, description="질문 전 출원 공식팩 인덱스를 다시 생성")
+
+    patent_id: str | None = Field(None, description="선택한 특허 ID. 특허 상세/보고서 채팅이면 전달")
+    question: str = Field(..., min_length=1, description="사용자 질문")
+    user_id: str | None = Field(None, description="질문자 식별자. 없으면 생략 가능")
+    chat_history: list[ChatHistoryItem] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
 
 
-class PatentApplicationDownloadRequest(BaseModel):
-    force: bool = Field(False, description="이미 다운로드한 파일도 다시 다운로드")
-    timeout: int = Field(20, ge=3, le=60, description="URL별 다운로드 timeout 초")
-    limit: int | None = Field(None, ge=1, le=80, description="이번 실행에서 시도할 URL 개수 제한")
-    include_embedded: bool = Field(True, description="웹 페이지 안의 PDF/HWP/DOC/XLS 등 첨부 문서 링크도 따라가서 다운로드")
+class PreEvalReportCompleteRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"patent_id": "10-2142205"}]}
+    )
+
+    patent_id: str = Field(..., min_length=1, description="사전 출원 보고서가 생성된 특허 ID")
 
 
-class PatentApplicationPreprocessRequest(BaseModel):
-    refresh_index: bool = Field(True, description="전처리 리포트 생성과 함께 출원 공식팩 vectorstore도 다시 생성")
+class PreEvalReportCompleteResponse(BaseModel):
+    status: Literal["indexed"]
+    patent_id: str
+    collection: str
+    document_count: int
+    source_key: str | None = None
+    indexed_at: str
 
 
-class PatentApplicationFeedbackRequest(BaseModel):
-    title: str = Field("특허 출원 실패/거절 대응 피드백", description="생성할 피드백 리포트 제목")
-    patent_id: str | None = Field(None, description="기존 mapped_patent_reports의 특허 ID. 있으면 latest input/report를 연결")
-    opinion_text: str | None = Field(None, description="거절의견/의견서/출원 실패 사유 텍스트")
-    opinion_file_path: str | None = Field(None, description="서버 로컬 의견서/PDF 경로. data 또는 patent_application pack 하위만 허용")
-    source_report_path: str | None = Field(None, description="기존 평가 보고서 JSON/PDF/HTML 경로. 비우면 patent_id의 latest report 사용")
-    reviewer: str | None = Field(None, description="검토자")
-    notes: str | None = Field(None, description="추가 메모")
-    refresh_index: bool = Field(True, description="피드백 생성 후 출원 도우미 vectorstore refresh")
+class PreEvalChatRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "question": "이 사전평가 보고서의 주요 리스크를 알려줘",
+                    "user_id": "user-1",
+                    "chat_history": [],
+                    "top_k": 8,
+                }
+            ]
+        }
+    )
 
-
-class PatentApplicationFailedCaseCreateRequest(BaseModel):
-    case_id: str | None = Field(None, description="직접 지정할 실패특허 케이스 ID. 비우면 제목/시간 기반 자동 생성")
-    title: str | None = Field(None, description="실패특허 케이스 제목")
-    original_pdf_path: str = Field(..., description="서버 로컬 실패특허 원본 PDF 경로")
-    rejection_reason_text: str | None = Field(None, description="거절/실패 사유 텍스트. 선택")
-    rejection_file_path: str | None = Field(None, description="서버 로컬 거절의견서/사유서 파일 경로. 선택")
-    reviewer: str | None = Field(None, description="등록자/검토자")
-    notes: str | None = Field(None, description="케이스 메모")
-    refresh_index: bool = Field(True, description="생성 후 해당 실패특허 케이스 전용 vectorstore 갱신")
-
-
-class PatentApplicationFailedCaseReportSaveRequest(BaseModel):
-    title: str | None = Field(None, description="저장할 재평가/피드백 보고서 제목")
-    report: dict[str, Any] | None = Field(None, description="특허 재평가 API 결과 JSON")
-    report_text: str | None = Field(None, description="보고서 Markdown/요약 텍스트")
-    source_report_path: str | None = Field(None, description="이미 생성된 서버 로컬 보고서 파일 경로")
-    refresh_index: bool = Field(True, description="보고서 저장 후 해당 실패특허 케이스 전용 vectorstore 갱신")
-
-
-class PatentApplicationFailedCaseReportGenerateRequest(BaseModel):
-    title: str | None = Field(None, description="생성할 실패특허 재평가 보고서 제목")
-    enable_market: bool = Field(True, description="KOSIS/시장성 평가 활성화")
-    enable_auto: bool = Field(True, description="규칙 기반 자동 점수 활성화")
-    enable_llm: bool = Field(True, description="LLM 평가 활성화")
-    enable_pdf_metadata_extraction: bool = Field(True, description="PDF 메타데이터 추출 활성화")
-    enable_business_rag: bool = Field(True, description="사업화 RAG 분석 활성화")
-    enable_similar_analysis: bool = Field(True, description="유사 특허 분석 활성화")
-    similar_use_llm: bool = Field(True, description="유사 특허 비교 요약에 LLM 사용")
-    rag_top_k: int | None = Field(5, ge=1, le=20, description="사업화 RAG 검색 top_k")
-    fail_on_validation_error: bool = Field(True, description="입력 검증 실패 시 보고서 생성 중단")
-    enable_human_review: bool = Field(False, description="위험/저신뢰 단계 Human-in-the-loop 중단 활성화")
-    refresh_index: bool = Field(True, description="보고서 생성 후 해당 실패특허 케이스 전용 vectorstore 갱신")
+    question: str = Field(..., min_length=1, description="사전평가 보고서에 대해 물어볼 질문")
+    user_id: str | None = Field(None, description="질문자 식별자. 없으면 생략 가능")
+    chat_history: list[ChatHistoryItem] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
+    top_k: int = Field(8, ge=1, le=50, description="검색에 사용할 보고서 청크 수")
 
 
 class PreprocessRunRequest(BaseModel):
@@ -99,7 +100,6 @@ class PreprocessRunRequest(BaseModel):
         "refresh_vectorstore",
         "auto_audit_refresh",
         "audit",
-        "application_preprocess",
         "visual_index",
         "nightly_reindex",
         "shared_index",
@@ -112,7 +112,6 @@ class PreprocessRunRequest(BaseModel):
         ),
     )
     use_reviewed: bool = Field(True, description="vectorstore refresh 시 승인 데이터만 사용할지 여부")
-    refresh_application: bool = Field(True, description="all/application_preprocess 모드에서 출원 공식팩 index도 갱신")
 
 
 class FeedbackRequest(BaseModel):
