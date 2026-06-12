@@ -385,9 +385,9 @@ def _excerpt(text: str, query: str, size: int = 360) -> str:
     return f"{prefix}{text[start:end]}{suffix}"
 
 
-def search_chunks(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int) -> dict[str, Any]:
+def search_chunks(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int, rerank: bool = False) -> dict[str, Any]:
     effective_source_types = set(source_types) if source_types is not None else set(CORE_SEARCH_SOURCE_TYPES)
-    vector_result = search_vectorstore(query, patent_id=patent_id, source_types=effective_source_types, top_k=top_k)
+    vector_result = search_vectorstore(query, patent_id=patent_id, source_types=effective_source_types, top_k=top_k, rerank=rerank)
     if vector_result["hit_count"] > 0:
         return vector_result
 

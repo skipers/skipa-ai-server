@@ -4,7 +4,27 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ChatHistoryItem(BaseModel):
+    """Minimal chat history item accepted by public chat APIs."""
+
+    role: Literal["user", "assistant", "system"] | None = Field(
+        None,
+        description="메시지 작성 주체. UI 대화 이력을 그대로 넘길 때 사용",
+    )
+    content: str | None = Field(None, description="메시지 본문")
+    question: str | None = Field(None, description="이전 사용자 질문")
+    query: str | None = Field(None, description="이전 검색/질의 문장")
+    answer: str | None = Field(None, description="이전 챗봇 답변")
+    patent_id: str | None = Field(None, description="이전 대화가 참조한 특허 ID")
+    resolved_patent_id: str | None = Field(None, description="백엔드가 이전 턴에서 확정한 특허 ID")
+    source_card_patent_ids: list[str] | None = Field(
+        None,
+        description="이전 답변 근거 카드에 포함된 특허 ID 목록",
+    )
+    metrics: dict[str, Any] | None = Field(None, description="이전 응답 metrics")
 
 
 class SearchRequest(BaseModel):
@@ -18,11 +38,60 @@ class SearchRequest(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    patent_id: str | None = Field(None, description="특허 상세 화면에서 전달되는 현재 특허 ID")
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "patent_id": "10-2142205",
+                    "question": "이 특허에 대해서 자세하게 알려줘",
+                    "user_id": "user-1",
+                    "chat_history": [],
+                }
+            ]
+        }
+    )
+
+    patent_id: str | None = Field(None, description="선택한 특허 ID. 특허 상세/보고서 채팅이면 전달")
     question: str = Field(..., min_length=1, description="사용자 질문")
-    user_id: str | None = Field(None, description="질문자 식별자")
-    chat_history: list[dict[str, Any]] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
-    context_patent_id: str | None = Field(None, description="프론트엔드가 기억한 현재 대화 기준 특허 ID")
+    user_id: str | None = Field(None, description="질문자 식별자. 없으면 생략 가능")
+    chat_history: list[ChatHistoryItem] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
+
+
+class PreEvalReportCompleteRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"patent_id": "10-2142205"}]}
+    )
+
+    patent_id: str = Field(..., min_length=1, description="사전 출원 보고서가 생성된 특허 ID")
+
+
+class PreEvalReportCompleteResponse(BaseModel):
+    status: Literal["indexed"]
+    patent_id: str
+    collection: str
+    document_count: int
+    source_key: str | None = None
+    indexed_at: str
+
+
+class PreEvalChatRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "question": "이 사전평가 보고서의 주요 리스크를 알려줘",
+                    "user_id": "user-1",
+                    "chat_history": [],
+                    "top_k": 8,
+                }
+            ]
+        }
+    )
+
+    question: str = Field(..., min_length=1, description="사전평가 보고서에 대해 물어볼 질문")
+    user_id: str | None = Field(None, description="질문자 식별자. 없으면 생략 가능")
+    chat_history: list[ChatHistoryItem] = Field(default_factory=list, description="후속 질문 맥락용 최근 대화")
+    top_k: int = Field(8, ge=1, le=50, description="검색에 사용할 보고서 청크 수")
 
 
 class PreprocessRunRequest(BaseModel):

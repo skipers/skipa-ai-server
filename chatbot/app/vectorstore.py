@@ -708,10 +708,10 @@ def _vector_collection(*, patent_id: str | None, source_types: set[str] | None) 
         return wiki_collection(None)
 
     if patent_id:
-        per_col = patent_collection(patent_id)
-        if collection_exists(per_col) and (collection_info(per_col).get("points_count") or 0) > 0:
-            return per_col
-        return shared_patents_collection()  # alias → 실제 데이터 있는 슬롯
+        # Per-patent 컬렉션은 SHARED_PATENT/SHARED_REPORT source_type을 사용하므로
+        # CORE_SEARCH_SOURCE_TYPES 필터와 맞지 않음 → shared_patents_collection()을 반환해
+        # search_shared_vectorstore 경로를 타게 하면 내부에서 per-patent 컬렉션으로 라우팅됨.
+        return shared_patents_collection()
 
     # 전체 검색: 문서가 있는 alias 우선, 없으면 shared collection
     for candidate in [bluegreen_patent_alias(), patent_collection(None), shared_patents_collection()]:
@@ -732,27 +732,45 @@ def _excerpt(text: str, query: str, size: int = 360) -> str:
     return f"{'...' if start else ''}{text[start:end]}{'...' if end < len(text) else ''}"
 
 
-def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int) -> dict[str, Any]:
+def search_vectorstore(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int, rerank: bool = False) -> dict[str, Any]:
     effective_source_types = set(source_types) if source_types is not None else set(CORE_SEARCH_SOURCE_TYPES)
     collection = _vector_collection(patent_id=patent_id, source_types=effective_source_types)
-    filter_patent_id = None if patent_id and effective_source_types <= WIKI_SEARCH_SOURCE_TYPES else patent_id
 
-    # shared_patents_collection 사용 시 소스 타입을 SHARED_* 로 정규화
-    # (ORIGINAL_PDF→SHARED_PATENT, REPORT_PDF→SHARED_REPORT 등)
-    filter_source_types: set[str] | None = effective_source_types
-    if collection == shared_patents_collection():
+    # shared_patents_collection 경로 → 공유 벡터스토어 검색 (APPLICATION_FEEDBACK_REPORT 등 모든 특허 소스 타입 포함)
+    if collection == shared_patents_collection() and not (effective_source_types <= WIKI_SEARCH_SOURCE_TYPES):
         try:
-            from .shared_data import _normalize_shared_source_types
+            from .shared_data import _normalize_shared_source_types, search_shared_vectorstore
             filter_source_types = _normalize_shared_source_types(effective_source_types) or None
+            result = search_shared_vectorstore(
+                query,
+                top_k=top_k,
+                patent_id=patent_id,
+                source_types=filter_source_types,
+                rerank=rerank,
+            )
+            usable_hits = [hit for hit in result.get("hits", []) if is_usable_evidence(hit.get("page_content"))]
+            return {
+                "query": query,
+                "mode": result.get("mode", "shared_qdrant_hybrid_search"),
+                "patent_id": patent_id,
+                "top_k": top_k,
+                "source_types": sorted(effective_source_types),
+                "collection": collection,
+                "hit_count": len(usable_hits),
+                "hits": usable_hits,
+                "embedding_provider": result.get("embedding_provider"),
+                "embedding_error": result.get("embedding_error"),
+            }
         except Exception:
-            filter_source_types = None  # 필터 없이 전체 검색
+            pass  # fallback to standard search below
 
+    filter_patent_id = None if patent_id and effective_source_types <= WIKI_SEARCH_SOURCE_TYPES else patent_id
     result = search_documents(
         collection,
         query,
         top_k=top_k,
         patent_id=filter_patent_id,
-        source_types=filter_source_types,
+        source_types=effective_source_types,
     )
     usable_hits = [hit for hit in result.get("hits", []) if is_usable_evidence(hit.get("page_content"))]
     return {

@@ -1,0 +1,20 @@
+{"index": 1, "chatbot": "patent", "category": "overview", "patent_id": "10-0764636", "patent_title": "10-0764636", "question": "10-0764636 특허를 사업부 관점에서 5줄로 요약해줘 근거 제목도 같이 표시해줘", "chat_history": []}
+{"index": 2, "chatbot": "patent", "category": "overview", "patent_id": "10-0784835", "patent_title": "10-0784835", "question": "10-0784835의 핵심 발명 포인트와 적용 제품을 알려줘", "chat_history": []}
+{"index": 3, "chatbot": "patent", "category": "original", "patent_id": "10-0790755", "patent_title": "10-0790755", "question": "10-0790755 원문 기준으로 기술분야와 해결과제를 정리해줘", "chat_history": []}
+{"index": 4, "chatbot": "patent", "category": "original", "patent_id": "10-0800458", "patent_title": "10-0800458", "question": "10-0800458 청구항에서 반드시 지켜야 할 핵심 구성을 알려줘", "chat_history": []}
+{"index": 5, "chatbot": "patent", "category": "original", "patent_id": "10-0801854", "patent_title": "10-0801854", "question": "10-0801854 원문 PDF에서 실시예와 도면 흐름을 설명해줘", "chat_history": []}
+{"index": 6, "chatbot": "patent", "category": "report", "patent_id": "10-0764636", "patent_title": "10-0764636", "question": "10-0764636 평가 보고서의 종합 점수와 세부 점수를 설명해줘", "chat_history": []}
+{"index": 7, "chatbot": "patent", "category": "report", "patent_id": "10-0784835", "patent_title": "10-0784835", "question": "10-0784835 유지 판단 근거를 표로 알려줘", "chat_history": []}
+{"index": 8, "chatbot": "patent", "category": "report", "patent_id": "10-0790755", "patent_title": "10-0790755", "question": "10-0790755 포기 또는 제각하면 안 되는 근거를 알려줘", "chat_history": []}
+{"index": 9, "chatbot": "patent", "category": "risk", "patent_id": "10-0800458", "patent_title": "10-0800458", "question": "10-0800458의 권리 리스크와 회피설계 가능성을 정리해줘", "chat_history": []}
+{"index": 10, "chatbot": "patent", "category": "risk", "patent_id": "10-0801854", "patent_title": "10-0801854", "question": "10-0801854에서 추가 확인해야 할 법적 리스크를 알려줘", "chat_history": []}
+{"index": 11, "chatbot": "patent", "category": "business", "patent_id": "10-0764636", "patent_title": "10-0764636", "question": "10-0764636의 사업화 가능성과 현재 활용 가능성을 평가해줘", "chat_history": []}
+{"index": 12, "chatbot": "patent", "category": "business", "patent_id": "10-0784835", "patent_title": "10-0784835", "question": "10-0784835를 사업부가 유지해야 할지 매각해야 할지 판단 근거를 줘", "chat_history": []}
+{"index": 13, "chatbot": "patent", "category": "market", "patent_id": "10-0790755", "patent_title": "10-0790755", "question": "10-0790755 관련 최신 시장 동향이 필요한지 판단하고 근거를 알려줘", "chat_history": []}
+{"index": 14, "chatbot": "patent", "category": "market", "patent_id": "10-0800458", "patent_title": "10-0800458", "question": "10-0800458의 시장성 판단을 최신 외부 정보까지 고려해서 알려줘", "chat_history": []}
+{"index": 15, "chatbot": "patent", "category": "comparison", "patent_id": "10-0801854", "patent_title": "10-0801854", "question": "10-0801854와 유사 특허가 있으면 차이점을 비교해줘", "chat_history": []}
+{"index": 16, "chatbot": "patent", "category": "comparison", "patent_id": "10-0764636", "patent_title": "10-0764636", "question": "10-0764636의 유사 특허 현황을 표로 정리해줘", "chat_history": []}
+{"index": 17, "chatbot": "patent", "category": "table", "patent_id": "10-0784835", "patent_title": "10-0784835", "question": "10-0784835의 기술성 권리성 시장성을 표로 비교해줘", "chat_history": []}
+{"index": 18, "chatbot": "patent", "category": "diagram", "patent_id": "10-0790755", "patent_title": "10-0790755", "question": "10-0790755의 RAG 판단 흐름을 다이어그램으로 보여줘 근거 제목도 같이 표시해줘", "chat_history": []}
+{"index": 19, "chatbot": "patent", "category": "diagram", "patent_id": "10-0800458", "patent_title": "10-0800458", "question": "10-0800458 기술 구성 흐름을 다이어그램으로 설명해줘", "chat_history": []}
+{"index": 20, "chatbot": "patent", "category": "evidence", "patent_id": "10-0801854", "patent_title": "10-0801854", "question": "10-0801854 답변 근거가 원문인지 보고서인지 구분해서 알려줘", "chat_history": []}

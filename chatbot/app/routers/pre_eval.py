@@ -7,6 +7,12 @@ from typing import Any
 from fastapi import APIRouter, Query
 
 from ..agents.pre_eval_graph import pre_eval_graph_mermaid, run_pre_eval_chat_agent
+from ..schemas import (
+    ChatHistoryItem,
+    PreEvalChatRequest,
+    PreEvalReportCompleteRequest,
+    PreEvalReportCompleteResponse,
+)
 from ..pre_eval_data import (
     create_pre_eval_case,
     get_pre_eval_report,
@@ -24,10 +30,15 @@ from ..pre_eval_data import (
 router = APIRouter(prefix="/api/v1/pre-eval", tags=["pre-eval"])
 
 
+def _chat_history_payload(items: list[ChatHistoryItem]) -> list[dict]:
+    return [item.model_dump(exclude_none=True) for item in items]
+
+
 # ── 🟢 외부 공개 API ──────────────────────────────────────────────────────
 
 @router.post(
     "/webhook/report-complete",
+    response_model=PreEvalReportCompleteResponse,
     summary="[외부] 사전 출원 보고서 생성 완료 알림",
     description=(
         "외부 시스템(사전 출원 평가 서비스)이 보고서 생성 완료를 알릴 때 호출합니다.\n\n"
@@ -37,12 +48,8 @@ router = APIRouter(prefix="/api/v1/pre-eval", tags=["pre-eval"])
         "벡터스토어는 blue-green 없이 단순 upsert 방식으로 누적 생성됩니다."
     ),
 )
-def post_report_complete_webhook(body: dict[str, Any]) -> dict:
-    patent_id = str(body.get("patent_id") or "").strip()
-    if not patent_id:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="patent_id는 필수입니다.")
-    return handle_report_complete_webhook(patent_id)
+def post_report_complete_webhook(body: PreEvalReportCompleteRequest) -> dict:
+    return handle_report_complete_webhook(body.patent_id.strip())
 
 
 @router.post(
@@ -58,13 +65,13 @@ def post_report_complete_webhook(body: dict[str, Any]) -> dict:
         "- `top_k` (선택, 기본 8): 검색 청크 수"
     ),
 )
-def post_pre_application_chat(patent_id: str, body: dict[str, Any]) -> dict:
+def post_pre_application_chat(patent_id: str, body: PreEvalChatRequest) -> dict:
     return run_pre_eval_chat_agent(
-        str(body.get("question") or ""),
+        body.question,
         case_id=patent_id,
-        user_id=body.get("user_id"),
-        chat_history=list(body.get("chat_history") or []),
-        top_k=int(body.get("top_k") or 8),
+        user_id=body.user_id,
+        chat_history=_chat_history_payload(body.chat_history),
+        top_k=body.top_k,
     )
 
 

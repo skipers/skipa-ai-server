@@ -1,0 +1,28 @@
+{
+  "topic": "_general",
+  "drafts": [
+    {
+      "query_hash": "d0650f0ad91f",
+      "query": "설명 가능한 인공지능 모델링 및 시뮬레이션 시스템 및 방법의 시장성 판단을 최신 외부 정보까지 고려해서 알려줘",
+      "patent_id": "10-1261894",
+      "topic": "_general",
+      "created_at": "2026-06-11T00:41:02",
+      "draft_file": "20260611_004102_951624.md",
+      "result_count": 5,
+      "avg_relevance": 0.4333,
+      "status": "pending"
+    },
+    {
+      "query_hash": "8a0f91cdc9e7",
+      "query": "설명 가능한 인공지능 모델링 및 시뮬레이션 시스템 및 방법 관련 최신 외부 정보가 필요하면 wiki 먼저 확인해서 알려줘",
+      "patent_id": "10-1261894",
+      "topic": "_general",
+      "created_at": "2026-06-11T00:43:27",
+      "draft_file": "20260611_004327_444372.md",
+      "result_count": 4,
+      "avg_relevance": 0.4166,
+      "status": "pending"
+    }
+  ],
+  "updated_at": "2026-06-11T00:43:27"
+}

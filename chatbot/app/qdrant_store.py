@@ -605,6 +605,16 @@ def collection_exists(collection: str) -> bool:
     return bool(collection_info(collection).get("exists"))
 
 
+def drop_collection(collection: str) -> dict[str, Any]:
+    """Delete a Qdrant collection entirely. Safe to call even if it doesn't exist."""
+    encoded = quote(collection, safe="")
+    try:
+        _json_request("DELETE", f"/collections/{encoded}", None)
+        return {"backend": "qdrant", "collection": collection, "dropped": True}
+    except Exception as exc:
+        return {"backend": "qdrant", "collection": collection, "dropped": False, "error": str(exc)}
+
+
 def _filter_conditions(
     *,
     patent_id: str | None = None,

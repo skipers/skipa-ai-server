@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from .config import BUSINESS_ROOT, DATA_ROOT, MINIO_SYNC_ON_STARTUP, PATENTS_ROOT, PRE_EVAL_ROOT, SHARED_DATA_ROOT
+from .routers.admin import router as admin_router
 from .routers.pre_eval import router as pre_eval_router
 from .routers.chatbot import (
     agent_router,
@@ -81,6 +82,18 @@ async def lifespan(application: FastAPI):
             )
         except Exception as exc:
             logger.error("MinIO patent sync failed: %s", exc)
+
+    # BM25 인덱스 pre-warm — 첫 요청 latency 제거
+    async def _prewarm_bm25() -> None:
+        try:
+            from .shared_data import _ensure_bm25_index
+            await asyncio.to_thread(_ensure_bm25_index)
+            logger.info("BM25 index pre-warmed")
+        except Exception as exc:
+            logger.warning("BM25 pre-warm skipped: %s", exc)
+
+    asyncio.create_task(_prewarm_bm25())
+
     task = asyncio.create_task(_bluegreen_wiki_loop())
     logger.info(
         "wiki blue-green 스케줄러 등록 (초기 대기 %ds → 이후 %ds 간격, 특허는 API 트리거)",
@@ -222,6 +235,7 @@ app.include_router(legacy_rag_router)
 app.include_router(agent_router)
 app.include_router(wiki_router)
 app.include_router(pre_eval_router)
+app.include_router(admin_router)
 
 if STATIC_ROOT.exists():
     app.mount("/ui/static", StaticFiles(directory=str(STATIC_ROOT)), name="ui_static")

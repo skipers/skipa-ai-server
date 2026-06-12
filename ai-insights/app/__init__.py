@@ -1,0 +1,2 @@
+"""AI insights FastAPI app."""
+

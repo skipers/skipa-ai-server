@@ -38,6 +38,7 @@ from ..schemas import (
     AuditApplyRequest,
     BusinessReindexRequest,
     ChatRequest,
+    ChatHistoryItem,
     FeedbackRequest,
     PreprocessRunRequest,
     ReindexRequest,
@@ -94,6 +95,10 @@ rag_router = APIRouter(prefix="/api/v1/rag", tags=["patent-chat"], include_in_sc
 legacy_rag_router = APIRouter(prefix="/rag", tags=["patent-chat"], include_in_schema=False)
 agent_router = APIRouter(prefix="/api/v1/agent", tags=["agent"], include_in_schema=False)
 wiki_router = APIRouter(prefix="/api/v1/wiki", tags=["wiki"])
+
+
+def _chat_history_payload(items: list[ChatHistoryItem]) -> list[dict]:
+    return [item.model_dump(exclude_none=True) for item in items]
 
 
 # ── [chatbot] 시스템 설정 조회 ────────────────────────────────────────────
@@ -634,8 +639,7 @@ def rag_patent_summary_cards() -> dict:
     description=(
         "선택한 특허(`patent_id`)를 기준으로 원문·보고서·wiki·웹 근거를 통합해 답변합니다.\n\n"
         "- `patent_id` 없이 호출하면 전체 특허 DB에서 검색합니다.\n"
-        "- `chat_history`: 최근 대화 목록을 전달하면 후속 질문 컨텍스트를 유지합니다.\n"
-        "- `context_patent_id`: 프론트엔드가 기억한 현재 대화 기준 특허 ID"
+        "- `chat_history`: 최근 대화 목록을 전달하면 후속 질문 컨텍스트를 유지합니다."
     ),
 )
 @rag_router.post("/chat", response_model=AnswerResponse, summary="통합 RAG 특허별 챗봇 답변")
@@ -645,8 +649,7 @@ def rag_chat(request: ChatRequest) -> dict:
         request.question,
         patent_id=request.patent_id,
         user_id=request.user_id,
-        chat_history=request.chat_history,
-        context_patent_id=request.context_patent_id,
+        chat_history=_chat_history_payload(request.chat_history),
     )
 
 
@@ -666,8 +669,7 @@ def rag_global_chat(request: ChatRequest) -> dict:
         request.question,
         patent_id=None,
         user_id=request.user_id,
-        chat_history=request.chat_history,
-        context_patent_id=request.context_patent_id,
+        chat_history=_chat_history_payload(request.chat_history),
     )
 
 
@@ -963,4 +965,3 @@ def post_wiki_agent_run(request: WikiAgentRunRequest) -> dict:
 @wiki_router.get("/agent/mermaid", summary="Wiki LangGraph agent Mermaid", include_in_schema=False)
 def get_wiki_agent_mermaid() -> dict:
     return {"format": "mermaid", "diagram": wiki_audit_graph_mermaid()}
-

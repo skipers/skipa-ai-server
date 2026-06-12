@@ -7,7 +7,7 @@ from typing import Any
 
 from ..prompts import ANSWER_PROMPT
 from .answer_utils import build_metrics, fallback_answer
-from .config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT, ANSWER_PROVIDER
+from .config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT, ANSWER_PROVIDER, ENABLE_QUERY_EXPANSION, ENABLE_RERANK
 from .llm import call_ollama, call_openai_prompt
 from .policy import classify_intent
 from .quality import filter_usable_hits
@@ -338,9 +338,24 @@ def answer_question(
 
     answer_depth = _answer_depth(intent, query=query, patent_id=patent_id)
     effective_top_k = _effective_top_k(top_k, answer_depth=answer_depth)
-    local_result = retrieve_local(search_query, patent_id=patent_id, source_types=source_types, top_k=effective_top_k)
+    local_result = retrieve_local(
+        search_query,
+        patent_id=patent_id,
+        source_types=source_types,
+        top_k=effective_top_k,
+        rerank=False,                          # re-rank은 filter 이후에 적용
+        use_query_expansion=ENABLE_QUERY_EXPANSION,
+    )
     raw_local_hits = list(local_result.get("hits") or [])
     local_hits = filter_usable_hits(raw_local_hits, limit=effective_top_k)
+
+    # Re-rank: filter_usable_hits 통과한 청크에만 적용
+    if ENABLE_RERANK and local_hits:
+        try:
+            from ..reranker import rerank_hits
+            local_hits = rerank_hits(search_query, local_hits, top_k=effective_top_k)
+        except Exception as _e:
+            pass  # 실패 시 원래 순서 유지
     local_result = {**local_result, "hits": local_hits, "raw_hit_count": len(raw_local_hits), "hit_count": len(local_hits)}
 
     needs_web = allow_web and not internal_only and bool(intent.get("needs_web") or len(local_hits) < 2)
