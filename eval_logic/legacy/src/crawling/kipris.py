@@ -366,6 +366,11 @@ def is_target_patent_record(record: dict, filters: dict[str, set[str]]) -> bool:
     return False
 
 
+def date_from_year(value: str) -> int | None:
+    match = re.search(r"(19|20)\d{2}", str(value or ""))
+    return int(match.group(0)) if match else None
+
+
 def records_to_patent_references(
     records: list[dict],
     keyword: str = KEYWORD,
@@ -375,10 +380,17 @@ def records_to_patent_references(
     target_json: str = TARGET_JSON,
 ) -> dict:
     target_filters = load_target_filters(target_json)
-    filtered_records = [
+    cutoff_year = date_from_year(date_from)
+    self_filtered_records = [
         record
         for record in records
         if not is_target_patent_record(record, target_filters)
+    ]
+    filtered_records = [
+        record
+        for record in self_filtered_records
+        if cutoff_year is None
+        or (parse_application_info(record.get("출원번호", ""))[2] or 0) >= cutoff_year
     ]
     selected = filtered_records[:max_results]
     patents = []
@@ -424,12 +436,14 @@ def records_to_patent_references(
             "search_source": "KIPRIS",
             "search_date": date.today().isoformat(),
             "total_retrieved": len(records),
-            "excluded_self_count": len(records) - len(filtered_records),
+            "excluded_self_count": len(records) - len(self_filtered_records),
+            "excluded_before_date_from_count": len(self_filtered_records) - len(filtered_records),
             "selection_criteria": [
                 "KIPRIS 특화검색 유사도 상위",
                 "평가 대상 특허 본인 제외",
+                f"{cutoff_year}년 이후 출원" if cutoff_year else "출원연도 제한 없음",
                 "검색 결과 순위 기준",
-                "상위 10건 후보 저장",
+                f"상위 {max_results}건 후보 저장",
             ],
             "selected_count": len(patents),
             "date_range": {

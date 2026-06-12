@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 
@@ -99,6 +100,7 @@ class ReportVerificationService:
         self._check_numeric_integrity(report, scores, metrics, issues)
         self._check_reference_quality(report, valuation, similar_analysis, metrics, issues)
         self._check_section_availability(report, valuation, similar_analysis, issues)
+        self._check_frontend_contract(report, issues)
 
         return self._build_result(metrics, issues)
 
@@ -272,7 +274,7 @@ class ReportVerificationService:
     ) -> None:
         evidence = valuation.get("evidence") or {}
         business_use = evidence.get("business_use") if isinstance(evidence, dict) else None
-        project_section = report.get("section_3_project_utilization") or {}
+        project_section = report.get("project_association") or report.get("section_3_project_utilization") or {}
         if not business_use and not project_section.get("available"):
             issues.append(VerificationIssue(
                 "missing_business_evidence",
@@ -287,6 +289,81 @@ class ReportVerificationService:
                 "medium",
                 "유사 특허 분석 결과가 없어 경쟁/차별화 판단 신뢰도가 낮습니다.",
                 "report.section_4_similar_patents",
+            ))
+
+    def _check_frontend_contract(
+        self,
+        report: dict[str, Any],
+        issues: list[VerificationIssue],
+    ) -> None:
+        dimensions = self._report_dimensions_by_name(report)
+        for dim in ("기술성", "권리성", "시장성", "사업성"):
+            if dim not in dimensions:
+                issues.append(VerificationIssue(
+                    "missing_frontend_dimension",
+                    "critical",
+                    f"프론트 화면이 기대하는 평가 기준 '{dim}'이 없습니다.",
+                    "report.evaluation.dimensions",
+                    dim=dim,
+                ))
+
+        for dim, dim_data in dimensions.items():
+            for item in dim_data.get("items") or []:
+                summary = str(item.get("judgment_summary") or "")
+                if len(summary) > 50:
+                    issues.append(VerificationIssue(
+                        "judgment_summary_too_long",
+                        "medium",
+                        "평가 항목 판단 요지가 50자를 초과합니다.",
+                        "report.evaluation.dimensions.items.judgment_summary",
+                        item=str(item.get("name") or ""),
+                        dim=dim,
+                    ))
+                if not str(item.get("judgment_basis") or "").strip():
+                    issues.append(VerificationIssue(
+                        "missing_report_item_basis",
+                        "medium",
+                        "보고서 평가 항목의 판단 근거가 비어 있습니다.",
+                        "report.evaluation.dimensions.items.judgment_basis",
+                        item=str(item.get("name") or ""),
+                        dim=dim,
+                    ))
+
+        project = report.get("project_association") or {}
+        summary = str(project.get("summary") or "")
+        if "| 항목 |" in summary or "|------|" in summary:
+            issues.append(VerificationIssue(
+                "project_summary_markdown_table",
+                "medium",
+                "사내 프로젝트 요약에 마크다운 표가 남아 있습니다.",
+                "report.project_association.summary",
+            ))
+
+        similar = report.get("similar_patents") or {}
+        policy = similar.get("collection_policy") or {}
+        current_year = date.today().year
+        cutoff = current_year - int(policy.get("max_age_years") or 20) + 1
+        for patent in similar.get("patents") or []:
+            try:
+                year = int(str(patent.get("application_year") or "")[:4])
+            except Exception:
+                continue
+            if year and year < cutoff:
+                issues.append(VerificationIssue(
+                    "similar_patent_too_old",
+                    "medium",
+                    "20년 초과 유사 특허가 보고서에 포함되어 있습니다.",
+                    "report.similar_patents.patents.application_year",
+                    item=str(patent.get("title") or ""),
+                ))
+
+        refs = ((report.get("references") or {}).get("sources") or {}).get("tech_market") or []
+        if not refs:
+            issues.append(VerificationIssue(
+                "missing_frontend_references",
+                "high",
+                "프론트 참고문헌 섹션이 읽는 references.sources.tech_market이 비어 있습니다.",
+                "report.references.sources.tech_market",
             ))
 
     def _build_result(

@@ -1,5 +1,5 @@
 """
-RAG 엔진: 검색 + GPT 기반 3줄 답변 생성.
+RAG 엔진: 검색 + GPT 기반 구조화 사업화 현황 생성.
 
 개선 사항:
   - Query Expansion: LLM이 사용자 질문을 문서 검색에 최적화된 형태로 재작성
@@ -7,6 +7,7 @@ RAG 엔진: 검색 + GPT 기반 3줄 답변 생성.
   - 사업화 신호 스코어링: 검색 문서에서 8가지 신호 탐지 → LLM 판단 보조
   - commercialization_status 필드: 사업화 여부를 파싱된 구조화 값으로 반환
 """
+import json
 import re
 
 from openai import OpenAI
@@ -108,37 +109,28 @@ def _multi_query_retrieve(query: str, top_k: int) -> list[dict]:
 # ── 프롬프트 ─────────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """당신은 SK AX(SK AI X)의 제품/솔루션 전문가입니다.
-제공된 참고 문서와 사업화 신호 분석 결과를 바탕으로 사용자의 질문에 아래 형식으로 정확히 답변하세요.
+제공된 참고 문서와 사업화 신호 분석 결과를 바탕으로 특허 기술의 사내 사업 활용 현황을 평가하세요.
 
----
-## 사업화 현황
+반드시 하나의 JSON 객체만 반환하세요. 마크다운 표를 쓰지 마세요.
 
-| 항목 | 내용 |
-|------|------|
-| 사업화 여부 | (진행 중 / 진행됨 (과거) / 미진행 / 진행 추정 / 미진행 추정) |
-| 적용 사업·서비스 | (어떤 사업/서비스에 적용됐는지, 불확실 시 "(추정)" 명시) |
-| 사업 적용 이력 | (시기별 적용 이력, 불확실 시 "(추정)" 명시) |
-| 고객·파트너 | (알려진 고객사나 파트너, 불확실 시 "(추정)" 명시) |
-
-## 요약 설명
-(해당 제품/특허 기술의 특징과 사업 현황을 2줄 이내로 서술)
-
-## 시장 전망
-(관련 기술 시장의 현황과 전망을 2~3줄로 서술)
----
+응답 형식:
+{
+  "commercialization_status": "진행 중|진행됨 (과거)|미진행|진행 추정|미진행 추정",
+  "applied_business_service": "적용 가능하거나 확인된 사업/서비스. 불확실성을 나타내는 별도 접두어를 붙이지 않음",
+  "business_application_history": "시기별 적용 이력 또는 확인 필요 사항",
+  "customers_partners": "고객·파트너 또는 추정 고객군",
+  "market_outlook": "관련 시장 현황과 전망 2~3문장",
+  "summary": "특허 기술 특징, 사내 제조/스마트팩토리 솔루션과의 연결점, 적용 가능 업무, 현재 확인된 사업화 한계, 추가 확인 필요사항을 포함한 4~6문장",
+  "commercialization_signals": ["탐지된 신호"]
+}
 
 답변 규칙:
-1. 위 형식을 반드시 그대로 유지할 것 (표 포함)
-2. 현재 기준 연도는 2026년이다. 각 참고문서에는 '문서 작성일'이 명시되어 있다.
-3. **사업화 여부는 반드시 아래 5가지 중 하나로 결정하며 "정보 없음"은 절대 사용하지 않는다:**
-   - "진행 중" : 2025년 이후 문서에서 현재 진행 중으로 확인됨
-   - "진행됨 (과거)" : 가장 최근 문서가 2024년 이전이거나, 종료·중단이 언급됨
-   - "미진행" : 사업 적용 이력이 없음이 명확
-   - "진행 추정" : 직접 확인 불가하나, 신호 분석 결과 및 문서 맥락상 사업화 가능성이 높다고 판단 (LLM 추론)
-   - "미진행 추정" : 직접 확인 불가하나, 신호가 전무하거나 초기 개발 단계로 판단 (LLM 추론)
-4. "적용 사업·서비스", "사업 적용 이력", "고객·파트너" 항목은 빈칸으로 두지 않는다.
-   문서 내용·신호를 근거로 LLM이 추론한 내용을 "(추정)"을 붙여 기재하고, 추론 근거를 한 줄로 덧붙인다.
-5. 한국어로 답변"""
+1. 현재 기준 연도는 2026년이다. 각 참고문서에는 '문서 작성일'이 명시되어 있다.
+2. 사업화 여부는 반드시 지정된 5가지 중 하나로 결정하며 "정보 없음"은 사용하지 않는다.
+3. 직접 확인되지 않은 내용도 추정 표기를 접두어로 붙이지 말고, summary에서 문서 근거와 판단 한계를 자연스럽게 설명한다.
+4. 모든 문자열 필드는 비워두지 않는다.
+5. summary는 너무 짧게 쓰지 말고, 화면 설명 문단으로 바로 사용할 수 있게 350~650자 분량으로 작성한다.
+6. 한국어로 답변한다."""
 
 
 def _build_context(retrieved_docs: list[dict], comm_info: dict) -> str:
@@ -159,10 +151,26 @@ def _build_context(retrieved_docs: list[dict], comm_info: dict) -> str:
 
 
 def _parse_commercialization_status(answer: str) -> str:
+    parsed = _parse_answer_json(answer)
+    if parsed.get("commercialization_status"):
+        return str(parsed["commercialization_status"]).strip()
     match = re.search(r"\|\s*사업화 여부\s*\|\s*(.+?)\s*\|", answer)
     if match:
         return match.group(1).strip()
     return "판단 불가"
+
+
+def _parse_answer_json(answer: str) -> dict:
+    text = answer.strip()
+    if "```json" in text:
+        text = text.split("```json", 1)[1].split("```", 1)[0].strip()
+    elif "```" in text:
+        text = text.split("```", 1)[1].split("```", 1)[0].strip()
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
 
 
 # ── 메인 API ──────────────────────────────────────────────────────────────────
@@ -207,8 +215,10 @@ def ask(query: str, top_k: int = TOP_K) -> dict:
         messages=messages,
         temperature=0.3,
         max_tokens=1024,
+        response_format={"type": "json_object"},
     )
     answer = resp.choices[0].message.content.strip()
+    structured = _parse_answer_json(answer)
 
     sources = [
         {
@@ -226,8 +236,13 @@ def ask(query: str, top_k: int = TOP_K) -> dict:
         "query": query,
         "answer": answer,
         "sources": sources,
-        "commercialization_status": _parse_commercialization_status(answer),
-        "commercialization_signals": comm_info["detected"],
+        "commercialization_status": structured.get("commercialization_status") or _parse_commercialization_status(answer),
+        "applied_business_service": structured.get("applied_business_service") or "",
+        "business_application_history": structured.get("business_application_history") or "",
+        "customers_partners": structured.get("customers_partners") or "",
+        "market_outlook": structured.get("market_outlook") or "",
+        "summary": structured.get("summary") or "",
+        "commercialization_signals": structured.get("commercialization_signals") or comm_info["detected"],
     }
 
 

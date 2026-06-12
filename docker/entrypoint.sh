@@ -34,6 +34,10 @@ case "$service" in
     cd /app/eval_logic
     exec python /app/eval_logic/src/workers/run_worker.py --worker patent-extract "$@"
     ;;
+  pre-evaluation-worker|pre_evaluation_worker|preval-worker|preval_worker)
+    cd /app/eval_logic
+    exec python /app/eval_logic/src/workers/run_worker.py --worker pre-evaluation "$@"
+    ;;
   nightly-reindex|reindex-once)
     exec python /app/chatbot/scripts/preprocess_chatbot_data.py --mode nightly-reindex "$@"
     ;;
@@ -42,7 +46,7 @@ case "$service" in
     ;;
   *)
     echo "Unknown APP_SERVICE or command: $service" >&2
-    echo "Use one of: chatbot, eval-logic, worker, report-worker, patent-extract-worker, nightly-reindex, bash, sh, python, uvicorn" >&2
+    echo "Use one of: chatbot, eval-logic, worker, report-worker, patent-extract-worker, pre-evaluation-worker, nightly-reindex, bash, sh, python, uvicorn" >&2
     exit 64
     ;;
 esac

@@ -8,10 +8,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from agent.patent_valuation_graph import PatentValuationWorkflow, PatentValuationWorkflowOptions
+from agent.patent_valuation_graph import PatentValuationWorkflow, PatentValuationWorkflowOptions, default_similar_date_from
 from apps.api.storage import object_storage
-from core.paths import RUNTIME_REPORT_DIR, SAMPLE_INPUT_DIR
-from core.report_naming import safe_report_filename_from_result
+from core.paths import INPUT_SAMPLE_FILE, RESULTS_DIR, SAMPLE_INPUT_DIR
+from core.report_payload import frontend_report_payload
+from core.report_naming import safe_registration_number_from_result
 
 
 SERVER_DATA_DIR = Path(__file__).resolve().parents[3] / "data"
@@ -107,6 +108,9 @@ def resolve_input_files(input_path: str | None = None) -> list[Path]:
             return files
         raise ValueError(f"지원하지 않는 입력 경로입니다: {input_path}")
 
+    if INPUT_SAMPLE_FILE.exists():
+        return [INPUT_SAMPLE_FILE]
+
     files = parsed_files_in_data_root(SERVER_DATA_DIR)
     if not files:
         files = sorted(SAMPLE_INPUT_DIR.glob("*.json"))
@@ -162,6 +166,9 @@ def resolve_input_sources(
             return [InputSource("minio", input_path, object_key=input_path.strip("/"))]
         raise FileNotFoundError(f"입력 경로를 찾을 수 없습니다: {input_path}")
 
+    if INPUT_SAMPLE_FILE.exists():
+        return input_sources_from_paths(str(INPUT_SAMPLE_FILE))
+
     minio_sources = input_sources_from_minio(input_prefix)
     if minio_sources:
         return minio_sources
@@ -178,11 +185,7 @@ def output_path_for_result(
     result: dict[str, Any],
     report_id: int | str | None = None,
 ) -> Path:
-    if source_path.name == "parsed.json":
-        if report_id:
-            return source_path.parent / "reports" / str(report_id) / "report.json"
-        return source_path.parent / "report.json"
-    return RUNTIME_REPORT_DIR / safe_report_filename_from_result(result)
+    return RESULTS_DIR / safe_registration_number_from_result(result) / "report.json"
 
 
 def registration_number_from_result(result: dict[str, Any]) -> str:
@@ -195,7 +198,7 @@ def registration_number_from_result(result: dict[str, Any]) -> str:
     )
     if value:
         return str(value)
-    return Path(safe_report_filename_from_result(result)).stem or "patent"
+    return safe_registration_number_from_result(result)
 
 
 def output_key_for_result(
@@ -238,7 +241,7 @@ def build_workflow_options(options: ReportGenerationOptions | None = None) -> Pa
         similar_force_refresh=True,
         similar_max_pages=5,
         similar_max_results=10,
-        similar_date_from="2015-01-01",
+        similar_date_from=default_similar_date_from(),
         similar_date_to="",
         similar_use_llm=choose(options.similar_use_llm, is_full),
         enable_pdf_metadata_extraction=False,
@@ -307,7 +310,7 @@ class ReportGenerationService:
                 report_id=report_id,
                 patent_id=patent_id,
             )
-            stored = object_storage.put_json(object_key, result)
+            stored = object_storage.put_json(object_key, frontend_report_payload(result))
             if not stored:
                 raise RuntimeError("MinIO 결과 저장에 실패했습니다.")
             return stored
@@ -315,8 +318,8 @@ class ReportGenerationService:
         if source.path:
             out_path = output_path_for_result(source.path, result, report_id=report_id)
         else:
-            out_path = RUNTIME_REPORT_DIR / safe_report_filename_from_result(result)
+            out_path = RESULTS_DIR / safe_registration_number_from_result(result) / "report.json"
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as file:
-            json.dump(result, file, ensure_ascii=False, indent=2)
+            json.dump(frontend_report_payload(result), file, ensure_ascii=False, indent=2)
         return {"backend": "local", "path": str(out_path)}

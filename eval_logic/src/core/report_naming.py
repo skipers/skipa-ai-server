@@ -8,9 +8,14 @@ from typing import Any
 
 def safe_report_filename_from_result(result: dict[str, Any]) -> str:
     """workflow 결과에서 등록번호를 찾아 ``{등록번호}.json`` 파일명을 반환합니다."""
+    return f"{safe_registration_number_from_result(result)}.json"
+
+
+def safe_registration_number_from_result(result: dict[str, Any]) -> str:
+    """workflow 결과에서 파일/디렉터리명으로 안전한 등록번호를 반환합니다."""
     registration_number = _registration_number_from_result(result)
     cleaned = re.sub(r"[^0-9A-Za-z가-힣_.-]+", "_", registration_number).strip("._")
-    return f"{cleaned or 'patent'}.json"
+    return cleaned or "patent"
 
 
 def _registration_number_from_result(result: dict[str, Any]) -> str:

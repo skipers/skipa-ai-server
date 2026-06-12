@@ -45,6 +45,7 @@ class WorkerConfig:
 
     report_queue: str = os.getenv("REPORT_GENERATE_QUEUE", "skipa.report.generate")
     patent_extract_queue: str = os.getenv("PATENT_EXTRACT_QUEUE", "skipa.patent-extract")
+    pre_evaluation_queue: str = os.getenv("PRE_EVALUATION_GENERATE_QUEUE", "skipa.pre-evaluation.generate")
 
     backend_base_url: str = os.getenv("BACKEND_INTERNAL_BASE_URL", "").rstrip("/")
     internal_api_key: str = os.getenv("INTERNAL_API_KEY", "")
@@ -52,8 +53,16 @@ class WorkerConfig:
 
     report_profile: str = os.getenv("EVAL_LOGIC_WORKER_PROFILE", "full")
     local_output: bool = _bool_env("EVAL_LOGIC_WORKER_LOCAL_OUTPUT", False)
+    pre_evaluation_local_output: bool = _bool_env("PRE_EVALUATION_WORKER_LOCAL_OUTPUT", False)
+    pre_evaluation_output_key_template: str = os.getenv(
+        "PRE_EVALUATION_REPORT_OBJECT_KEY_TEMPLATE",
+        "pre-evaluations/{pre_evaluation_id}/report.json",
+    )
+    enable_report_vectorstore_index: bool = _bool_env("ENABLE_REPORT_VECTORSTORE_INDEX", True)
+    report_vectorstore_strict: bool = _bool_env("REPORT_VECTORSTORE_STRICT", False)
+    enable_pre_evaluation_vectorstore_index: bool = _bool_env("ENABLE_PRE_EVALUATION_VECTORSTORE_INDEX", True)
+    pre_evaluation_vectorstore_strict: bool = _bool_env("PRE_EVALUATION_VECTORSTORE_STRICT", False)
 
 
 def load_worker_config() -> WorkerConfig:
     return WorkerConfig()
-

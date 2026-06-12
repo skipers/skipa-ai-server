@@ -319,7 +319,7 @@ class ScoreItem:
     reason: str = ""
     summary: str = ""
     confidence: str = ""
-    kipris_evidence: str = ""
+    kipris_evidence: Any = ""
     sources: list[dict[str, Any]] = field(default_factory=list)
     strategy: str | None = None
 
@@ -339,7 +339,7 @@ class ScoreItem:
             reason=str(data.get("reason") or ""),
             summary=str(data.get("summary") or ""),
             confidence=str(data.get("confidence") or ""),
-            kipris_evidence=str(data.get("kipris_evidence") or ""),
+            kipris_evidence=data.get("kipris_evidence") or "",
             sources=[s for s in _as_list(data.get("sources")) if isinstance(s, dict)],
             strategy=str(data.get("strategy")) if data.get("strategy") else None,
         )

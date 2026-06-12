@@ -19,6 +19,8 @@ SAMPLES_DIR = DATA_DIR / "samples"
 SAMPLE_INPUT_DIR = SAMPLES_DIR / "input"
 SAMPLE_DATA_DIR = SAMPLES_DIR / "data"
 SAMPLE_PATENT_DOCUMENT_DIR = SAMPLES_DIR / "patent_documents"
+INPUT_SAMPLE_DIR = ROOT_DIR / "input_sample"
+INPUT_SAMPLE_FILE = INPUT_SAMPLE_DIR / "parsed.json"
 
 # KIPRIS 유사도 검색/상세 크롤링 산출물과 캐시입니다.
 KIPRIS_ARTIFACTS_DIR = DATA_DIR / "kipris_artifacts"
@@ -41,6 +43,9 @@ RUNTIME_ANALYSIS_DIR = RUNTIME_ARTIFACTS_DIR / "analysis"
 RUNTIME_REPORT_DIR = RUNTIME_ARTIFACTS_DIR / "reports"
 RUNTIME_GRAPH_DIR = RUNTIME_ARTIFACTS_DIR / "graphs"
 RUNTIME_UPLOAD_DIR = RUNTIME_ARTIFACTS_DIR / "uploads"
+
+# CLI/service local report outputs requested for manual report generation.
+RESULTS_DIR = ROOT_DIR / "results"
 
 API_TEST_DIR = DATA_DIR / "api_test"
 API_TEST_INPUT_DIR = API_TEST_DIR / "input"

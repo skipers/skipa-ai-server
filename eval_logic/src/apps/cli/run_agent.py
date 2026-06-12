@@ -24,12 +24,13 @@ from typing import Any
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from agent.patent_valuation_graph import PatentValuationWorkflow, PatentValuationWorkflowOptions
+from agent.patent_valuation_graph import PatentValuationWorkflow, PatentValuationWorkflowOptions, default_similar_date_from
 from apps.api.storage import object_storage
-from core.paths import RUNTIME_REPORT_DIR, SAMPLE_INPUT_DIR
-from core.report_naming import safe_report_filename_from_result
+from core.paths import INPUT_SAMPLE_FILE, RESULTS_DIR, SAMPLE_INPUT_DIR
+from core.report_payload import frontend_report_payload
+from core.report_naming import safe_registration_number_from_result
 
-OUTPUT_DIR = RUNTIME_REPORT_DIR
+OUTPUT_DIR = RESULTS_DIR
 SERVER_DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 
 
@@ -59,7 +60,7 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
         help=(
             "입력 JSON 파일, data/<등록번호> 디렉터리, data 루트, 또는 MinIO object key. "
-            "생략하면 MinIO 사용 시 prefix 아래 parsed.json, 아니면 skipa-ai-server/data/*/parsed.json 전체를 실행합니다."
+            "생략하면 input_sample/parsed.json 테스트 데이터를 우선 실행합니다."
         ),
     )
     parser.add_argument(
@@ -114,7 +115,7 @@ def build_workflow_options(args: argparse.Namespace) -> PatentValuationWorkflowO
         similar_force_refresh=True,
         similar_max_pages=5,
         similar_max_results=10,
-        similar_date_from="2015-01-01",
+        similar_date_from=default_similar_date_from(),
         similar_date_to="",
         similar_use_llm=choose(args.similar_use_llm, is_full),
         enable_pdf_metadata_extraction=False,
@@ -190,6 +191,9 @@ def resolve_input_sources(input_path: str | None = None, input_prefix: str = DEF
             return [InputSource("minio", input_path, object_key=input_path.strip("/"))]
         raise FileNotFoundError(f"입력 경로를 찾을 수 없습니다: {input_path}")
 
+    if INPUT_SAMPLE_FILE.exists():
+        return _input_sources_from_paths(str(INPUT_SAMPLE_FILE))
+
     minio_sources = _input_sources_from_minio(input_prefix)
     if minio_sources:
         return minio_sources
@@ -221,6 +225,9 @@ def resolve_input_files(input_path: str | None = None) -> list[Path]:
             return files
         raise ValueError(f"지원하지 않는 입력 경로입니다: {input_path}")
 
+    if INPUT_SAMPLE_FILE.exists():
+        return [INPUT_SAMPLE_FILE]
+
     files = parsed_files_in_data_root(SERVER_DATA_DIR)
     if not files:
         files = sorted(SAMPLE_INPUT_DIR.glob("*.json"))
@@ -234,16 +241,11 @@ def output_path_for_result(
     result: dict[str, Any],
     report_id: str | None = None,
 ) -> Path:
-    if source_path.name == "parsed.json" and source_path.parent.name.startswith("10-"):
-        return source_path.parent / "report.json"
-    if source_path.name == "parsed.json":
-        return source_path.parent / "reports" / (report_id or "manual") / "report.json"
-    return OUTPUT_DIR / safe_report_filename_from_result(result)
+    return OUTPUT_DIR / safe_registration_number_from_result(result) / "report.json"
 
 
 def _registration_number_from_result(result: dict[str, Any]) -> str:
-    filename = safe_report_filename_from_result(result)
-    return Path(filename).stem or "patent"
+    return safe_registration_number_from_result(result)
 
 
 def output_key_for_result(source: InputSource, result: dict[str, Any], args: argparse.Namespace) -> str:
@@ -266,7 +268,7 @@ def output_key_for_result(source: InputSource, result: dict[str, Any], args: arg
 def save_result(source: InputSource, result: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     if object_storage.enabled() and not args.local_output:
         object_key = output_key_for_result(source, result, args)
-        stored = object_storage.put_json(object_key, result)
+        stored = object_storage.put_json(object_key, frontend_report_payload(result))
         if stored:
             print(f"\n결과 저장: MinIO {stored.get('bucket')}/{stored.get('object_key')}")
             return stored
@@ -275,10 +277,10 @@ def save_result(source: InputSource, result: dict[str, Any], args: argparse.Name
     if source.path:
         out_path = output_path_for_result(source.path, result, report_id=args.report_id)
     else:
-        out_path = OUTPUT_DIR / safe_report_filename_from_result(result)
+        out_path = OUTPUT_DIR / safe_registration_number_from_result(result) / "report.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as file:
-        json.dump(result, file, ensure_ascii=False, indent=2)
+        json.dump(frontend_report_payload(result), file, ensure_ascii=False, indent=2)
     print(f"\n결과 저장: {out_path}")
     return {"backend": "local", "path": str(out_path)}
 

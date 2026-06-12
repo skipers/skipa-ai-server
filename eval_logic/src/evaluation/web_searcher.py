@@ -85,6 +85,7 @@ SEARCH_STRATEGY: dict[str, str] = {
     "차별성 및 파급성":        "hybrid",
     "혁신성 및 개척성":        "hybrid",
     "대체기술 및 경쟁성":      "web_search",
+    "기술 모방 및 회피설계 난이도": "claims_only",
     "전망성":                  "web_search",
     "모방 및 회피설계 난이도": "claims_only",
 

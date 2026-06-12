@@ -185,13 +185,81 @@ AUTO_ITEMS: set[str] = {
     "매출 성장성",
 }
 
+REPORT_LLM_ITEMS: dict[str, list[dict]] = {
+    "기술성": [
+        {
+            "item": "차별성 및 파급성",
+            "desc": "청구항의 핵심 기술 구성이 기존 기술과 어떻게 구별되는지, 그리고 타 공정·제품·시장으로 확장될 가능성이 있는지 종합 평가함.",
+            "criteria": [
+                {"level": "5점", "text": "핵심 기술 구성이 명확히 차별화되고 복수 시장·제품으로 파급 가능성이 큼"},
+                {"level": "4점", "text": "차별성과 활용 확장성이 비교적 뚜렷함"},
+                {"level": "3점", "text": "일부 차별성은 있으나 파급 범위는 제한적임"},
+                {"level": "2점", "text": "차별성이 약하거나 적용 범위가 좁음"},
+                {"level": "1점", "text": "기존 기술과 구별되는 차별성과 파급 가능성이 거의 확인되지 않음"},
+            ],
+        },
+        {
+            "item": "혁신성 및 개척성",
+            "desc": "기술이 단순 개량을 넘어 새로운 문제 해결 방식이나 개척적 접근을 제시하는지 평가함.",
+            "criteria": [
+                {"level": "5점", "text": "새로운 문제 해결 방식을 명확히 제시하는 혁신·개척 기술임"},
+                {"level": "4점", "text": "주요 구성에서 혁신성과 개척성이 상당 부분 확인됨"},
+                {"level": "3점", "text": "보통 수준의 개량 또는 부분적 개선으로 평가됨"},
+                {"level": "2점", "text": "기존 기술에 부가적 개선을 더한 수준임"},
+                {"level": "1점", "text": "혁신성 또는 개척성이 거의 확인되지 않음"},
+            ],
+        },
+        {
+            "item": "대체기술 및 경쟁성",
+            "desc": "동일 문제를 해결하는 대체기술·경쟁기술의 존재와 그 속에서 기술 우위를 유지할 가능성을 평가함.",
+            "criteria": [
+                {"level": "5점", "text": "대체기술이 제한적이고 경쟁 우위 유지 가능성이 매우 큼"},
+                {"level": "4점", "text": "경쟁기술은 있으나 대상 기술의 우위가 비교적 뚜렷함"},
+                {"level": "3점", "text": "대체기술과 경쟁 수준이 일반적임"},
+                {"level": "2점", "text": "대체기술이 다수 존재해 경쟁 부담이 큼"},
+                {"level": "1점", "text": "대체기술이 많고 기술 우위 유지가 매우 어려움"},
+            ],
+        },
+        {
+            "item": "기술 모방 및 회피설계 난이도",
+            "desc": "공개자료 기반 모방, 리버스엔지니어링, 구성 변경을 통한 회피설계가 얼마나 어려운지 평가함.",
+            "criteria": [
+                {"level": "5점", "text": "핵심 구현과 권리 구성이 복잡해 모방·회피설계가 매우 어려움"},
+                {"level": "4점", "text": "모방 또는 회피설계가 비교적 어려움"},
+                {"level": "3점", "text": "모방·회피설계 난이도가 보통 수준임"},
+                {"level": "2점", "text": "일부 구성 변경으로 모방·회피가 가능함"},
+                {"level": "1점", "text": "모방과 회피설계가 매우 용이함"},
+            ],
+        },
+    ],
+    "권리성": [
+        item
+        for item in LLM_ITEMS.get("권리성", [])
+        if item["item"] in {
+            "무효 가능성",
+            "회피설계 용이성",
+            "권리범위 적절성",
+            "권리의 구성요소",
+            "권리의 추상성",
+            "IP 포트폴리오 구축 적절성",
+            "침해 발견 및 입증 용이성",
+        }
+    ],
+    "시장성": [
+        item
+        for item in LLM_ITEMS.get("시장성", [])
+        if item["item"] in {"고객에 미치는 영향"}
+    ],
+    "사업성": [],
+}
+
 
 # ──────────────────────────────────────────
 # 프롬프트 생성
 # ──────────────────────────────────────────
 def _format_web_sources(sources: list[dict]) -> str:
     if not sources:
-        return "검색된 참고 자료 없음"
+        return "검색된 출처 없음"
     lines = []
     for i, s in enumerate(sources, 1):
         date_str = f" ({s['published_date']})" if s.get("published_date") else ""
@@ -257,9 +325,9 @@ _EVAL_PRINCIPLES = """[평가 원칙 - 반드시 준수]
 4. **점수 분포의 변별력 유지**: 모든 항목을 4점으로 매기지 말고 1~5점 전 구간을 활용.
 5. **경쟁 관련 항목 (기술 경쟁성·시장 경쟁성·경쟁자의 영향·경쟁적 반응) 주의사항**:
    - 구체적인 경쟁사명·경쟁기술명·시장점유율 수치가 없으면 3점 이하로 평가.
-   - "경쟁이 있을 것이다" 같은 추측으로 점수를 높이지 말 것. 참고 자료에서 실제 경쟁 현황이 확인된 경우에만 4점 이상 부여.
+   - "경쟁이 있을 것이다" 같은 추측으로 점수를 높이지 말 것. 출처에서 실제 경쟁 현황이 확인된 경우에만 4점 이상 부여.
 6. **영업 이익성 주의사항**:
-   - 업종 평균 영업이익률 수치(DART·KOSIS 등 재무DB 기반)가 참고 자료에 없으면 반드시 3점으로 평가.
+   - 업종 평균 영업이익률 수치(DART·KOSIS 등 재무DB 기반)가 출처에 없으면 반드시 3점으로 평가.
    - 수치 없이 "높을 것으로 예상된다" 같은 추측으로 점수를 높이지 말 것."""
 
 
@@ -282,8 +350,9 @@ def build_prompt_with_search(
     )
 
     citation_instruction = (
-        f"위의 [참고 자료] 중 관련 있는 것을 cited_sources에 번호(1~{num_sources})로 기재하세요. "
-        "웹 검색 결과가 제공되었으므로 반드시 관련 출처를 인용하세요. 없으면 빈 배열로 두세요."
+        f"위의 [출처 목록] 중 관련 있는 것을 cited_sources에 번호(1~{num_sources})로 기재하세요. "
+        "reason 문장에서는 웹 검색 근거를 반드시 [출처1], [출처2] 형식으로만 표기하세요. "
+        "참고문헌 또는 참고 자료라는 표현은 쓰지 마세요."
         if num_sources > 0
         else "cited_sources는 빈 배열로 두세요."
     )
@@ -293,7 +362,7 @@ def build_prompt_with_search(
 
 {_EVAL_PRINCIPLES}
 
-5. **참고 자료 필수 인용**: [참고 자료]에서 관련 내용이 있으면 reason에 명시적으로 인용하고 cited_sources 번호로 표기하세요. 웹 검색 결과가 제공되었으므로 반드시 관련 내용을 인용해야 합니다. 참고 자료를 무시하고 일반론으로 답하지 마세요.
+5. **출처 필수 인용**: [출처 목록]에서 관련 내용이 있으면 reason에 명시적으로 인용하고 cited_sources 번호로 표기하세요. reason 안의 표기는 반드시 [출처1], [출처2] 형식으로 통일하세요. "참고 자료 1", "[참고 자료 1]", "[1]", "[참고문헌1]"처럼 쓰지 마세요.
 
 [특허 정보]
 - 발명 명칭: {title}
@@ -302,7 +371,7 @@ def build_prompt_with_search(
 [청구항]
 {claims_text}
 
-[참고 자료 - 웹 검색 결과]
+[출처 목록 - 웹 검색 결과]
 {sources_section}
 
 [평가 항목 - {dim} / {item_info['item']}]
@@ -316,7 +385,11 @@ def build_prompt_with_search(
 {{
     "item": "{item_info['item']}",
     "score": 점수(1~5 정수),
-    "reason": "점수를 부여한 구체적인 근거. 특허 데이터(meta, description_summary, claims_text 등)와 참고 자료를 인용하며 2~3문장으로 서술.",
+    "judgment_summary": "판단 요지 50자 이내. 문장으로 끝낼 것.",
+    "claim_basis": "특허 데이터(meta, description_summary, claims_text 등)에서 확인한 근거 1~2문장.",
+    "external_basis": "출처에서 확인한 기술·시장 근거 1~2문장.",
+    "risk_or_limitation": "근거 한계 또는 추가 확인 필요사항 1문장.",
+    "reason": "claim_basis, external_basis, risk_or_limitation을 종합한 최종 판단 근거 2~4문장. 웹 검색 근거는 [출처1] 형식으로만 표시.",
     "cited_sources": [인용한 출처 번호 목록, 예: [1, 3]]
 }}"""
 
@@ -365,7 +438,11 @@ def build_prompt_claims_only(
 {{
     "item": "{item_info['item']}",
     "score": 점수(1~5 정수),
-    "reason": "청구항·명세서에서 직접 확인한 내용을 인용하며 2~3문장으로 서술. 청구항에 없는 내용을 추측하지 말 것.",
+    "judgment_summary": "판단 요지 50자 이내. 문장으로 끝낼 것.",
+    "claim_basis": "청구항·명세서에서 직접 확인한 근거 1~2문장.",
+    "external_basis": "",
+    "risk_or_limitation": "근거 한계 또는 추가 확인 필요사항 1문장.",
+    "reason": "청구항·명세서에서 직접 확인한 내용을 인용하며 2~4문장으로 서술. 청구항에 없는 내용을 추측하지 말 것.",
     "cited_sources": []
 }}"""
 
@@ -394,8 +471,9 @@ def build_prompt_hybrid(
     )
 
     citation_instruction = (
-        f"위의 [참고 자료] 중 관련 있는 것을 cited_sources에 번호(1~{num_sources})로 기재하세요. "
-        "최소 1개 이상 인용하세요. 없으면 빈 배열로 두세요."
+        f"위의 [출처 목록] 중 관련 있는 것을 cited_sources에 번호(1~{num_sources})로 기재하세요. "
+        "reason 문장에서는 웹 검색 근거를 반드시 [출처1], [출처2] 형식으로만 표기하세요. "
+        "참고문헌 또는 참고 자료라는 표현은 쓰지 마세요."
         if num_sources > 0
         else "cited_sources는 빈 배열로 두세요."
     )
@@ -409,7 +487,7 @@ def build_prompt_hybrid(
    - 청구항에서: 기술의 구체적 구성요소·특징·차별점을 확인합니다.
    - 웹 자료에서: 해당 기술분야의 동향·경쟁구도·시장 반응을 확인합니다.
    - 둘 중 하나만 보고 판단하지 마세요. 청구항 근거 없이 웹 자료만으로 후하게 주거나, 웹 자료를 무시하고 청구항만으로 판단하지 마세요.
-6. **참고 자료 필수 인용**: 웹 자료에서 관련 내용이 있으면 reason에 명시적으로 인용하고 cited_sources 번호로 표기하세요. 웹 자료가 제공되었다면 반드시 reason에서 관련 내용을 인용하고 cited_sources에 번호를 기재하세요.
+6. **출처 필수 인용**: 웹 자료에서 관련 내용이 있으면 reason에 명시적으로 인용하고 cited_sources 번호로 표기하세요. reason 안의 표기는 반드시 [출처1], [출처2] 형식으로 통일하세요. "참고 자료 1", "[참고 자료 1]", "[1]", "[참고문헌1]"처럼 쓰지 마세요.
 7. **[특별한 인정] 항목 전용 지시**: 이 항목은 "이 기술을 도입한 출원인이 앞으로 산업 내 선도자로 인정받을 가능성"을 묻습니다.
    - 현재 수상·인증 이력이 아니라 미래 가능성을 판단하는 항목입니다.
    - 출원인의 업계 입지(웹 자료), 기술의 차별성(청구항), 해당 분야의 기술 선도 경쟁 구도를 종합하여 판단하세요.
@@ -422,7 +500,7 @@ def build_prompt_hybrid(
 [청구항]
 {claims_text}
 
-[참고 자료 - 웹 검색 결과]
+[출처 목록 - 웹 검색 결과]
 {sources_section}
 
 [평가 항목 - {dim} / {item_info['item']}]
@@ -436,7 +514,11 @@ def build_prompt_hybrid(
 {{
     "item": "{item_info['item']}",
     "score": 점수(1~5 정수),
-    "reason": "청구항에서 확인한 기술 특징과 웹 자료에서 확인한 시장·기술 동향을 모두 언급하며 2~3문장으로 서술. [참고 자료 X]의 내용을 인용하여 서술할 것.",
+    "judgment_summary": "판단 요지 50자 이내. 문장으로 끝낼 것.",
+    "claim_basis": "청구항·명세서에서 직접 확인한 근거 1~2문장.",
+    "external_basis": "웹 자료에서 확인한 시장·기술 근거 1~2문장.",
+    "risk_or_limitation": "근거 한계 또는 추가 확인 필요사항 1문장.",
+    "reason": "청구항에서 확인한 기술 특징과 웹 자료에서 확인한 시장·기술 동향을 모두 언급하며 2~4문장으로 서술. 웹 검색 근거는 [출처1] 형식으로만 표시.",
     "cited_sources": [인용한 출처 번호 목록, 예: [1, 3]]
 }}"""
 
@@ -543,6 +625,13 @@ def _evaluate_single_item(
         "LLM이 명시적 근거를 제공하지 않았습니다. "
         "입력 파일의 description_summary와 claims_text를 참조하여 판단했습니다."
     )
+    judgment_summary = str(result.get("judgment_summary") or "").strip()
+    basis_parts = [
+        str(result.get("claim_basis") or "").strip(),
+        str(result.get("external_basis") or "").strip(),
+        str(result.get("risk_or_limitation") or "").strip(),
+    ]
+    structured_basis = " ".join(part for part in basis_parts if part)
 
     score_val = result.get("score", 3)
     try:
@@ -589,6 +678,8 @@ def _evaluate_single_item(
         "dim":        dim,
         "score":      score_val,
         "reason":     reason,
+        "summary":    judgment_summary,
+        "basis":      structured_basis or reason,
         "sources":    cited,
         "method":     "llm",
         "strategy":   strategy,
@@ -613,11 +704,15 @@ def evaluate_dim(patent: dict, dim: str) -> list[dict]:
     동일 평가 항목이 auto와 llm에 중복으로 들어가지 않습니다.
     """
     all_items = LLM_ITEMS.get(dim, [])
-    items     = [it for it in all_items if it["item"] not in AUTO_ITEMS]
-    skipped   = [it["item"] for it in all_items if it["item"] in AUTO_ITEMS]
+    items = [item for item in REPORT_LLM_ITEMS.get(dim, all_items) if item["item"] not in AUTO_ITEMS]
+    report_item_names = {item["item"] for item in items} | AUTO_ITEMS
+    skipped = [item for item in AUTO_ITEMS if any(raw.get("item") == item for raw in all_items)]
+    excluded = [it["item"] for it in all_items if it["item"] not in report_item_names]
 
     if skipped:
         print(f"    auto 평가 항목 제외 ({len(skipped)}개): {', '.join(skipped)}")
+    if excluded:
+        print(f"    보고서 비노출 항목 제외 ({len(excluded)}개): {', '.join(excluded)}")
     if not items:
         print(f"    [{dim}] 평가할 LLM 항목 없음 (전부 auto 처리)")
         return []

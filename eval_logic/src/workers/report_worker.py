@@ -20,6 +20,7 @@ from apps.api.storage import object_storage
 from workers.backend_client import BackendCallbackClient
 from workers.config import WorkerConfig, load_worker_config
 from workers.rabbitmq import RabbitWorker
+from workers.vectorstore_hooks import index_patent_report_from_minio
 
 LOGGER = logging.getLogger(__name__)
 
@@ -163,6 +164,22 @@ class ReportGenerateHandler:
                 self.backend.fail_report(report_id, str(exc))
             except Exception:
                 LOGGER.exception("Report fail callback failed reportId=%s", report_id)
+                raise
+            return
+
+        try:
+            index_patent_report_from_minio(
+                str(report_key),
+                patent_id=patent_id,
+                enabled=self.config.enable_report_vectorstore_index,
+                strict=self.config.report_vectorstore_strict,
+            )
+        except Exception as exc:
+            LOGGER.exception("Report vectorstore indexing failed reportId=%s patentId=%s", report_id, patent_id)
+            try:
+                self.backend.fail_report(report_id, str(exc))
+            except Exception:
+                LOGGER.exception("Report fail callback failed after vectorstore error reportId=%s", report_id)
                 raise
             return
 

@@ -16,7 +16,8 @@ import json
 import re
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any, TypedDict
 
@@ -32,6 +33,13 @@ from core.schemas import PatentEvaluationInput, normalize_patent_input
 from services.evidence_collection_service import EvidenceCollectionOptions, EvidenceCollectionService
 from services.report_verification_service import ReportVerificationService
 from services.valuation_service import PatentValuationOptions, PatentValuationService
+
+KIPRIS_PLUS_URL = "https://plus.kipris.or.kr/portal/main.do"
+SIMILAR_PATENT_COLLECTION_LIMIT = 40
+
+
+def default_similar_date_from() -> str:
+    return f"{date.today().year - 19}-01-01"
 
 
 class PatentValuationState(TypedDict, total=False):
@@ -70,7 +78,7 @@ class PatentValuationWorkflowOptions:
     similar_force_refresh: bool = True
     similar_max_pages: int = 5
     similar_max_results: int = 10
-    similar_date_from: str = "2015-01-01"
+    similar_date_from: str = field(default_factory=default_similar_date_from)
     similar_date_to: str = ""
     similar_use_llm: bool = False
     rag_top_k: int | None = None
@@ -98,7 +106,7 @@ class PatentValuationWorkflowOptions:
             similar_force_refresh=True,
             similar_max_pages=int(raw.get("similar_max_pages", 5)),
             similar_max_results=int(raw.get("similar_max_results", 10)),
-            similar_date_from=str(raw.get("similar_date_from", "2015-01-01") or ""),
+            similar_date_from=str(raw.get("similar_date_from") or default_similar_date_from()),
             similar_date_to=str(raw.get("similar_date_to", "") or ""),
             similar_use_llm=bool(raw.get("similar_use_llm", False)),
             rag_top_k=raw.get("rag_top_k"),
@@ -185,6 +193,126 @@ def _strip_legacy_decision_fields(value: Any) -> Any:
     if isinstance(value, list):
         return [_strip_legacy_decision_fields(item) for item in value]
     return value
+
+
+def _similar_application_years(similar_analysis: dict[str, Any] | None) -> list[int]:
+    years: list[int] = []
+    if not similar_analysis:
+        return years
+    for patent in similar_analysis.get("similar_patents") or []:
+        if not isinstance(patent, dict):
+            continue
+        detail = patent.get("source_detail") if isinstance(patent.get("source_detail"), dict) else {}
+        raw = (
+            detail.get("application_date")
+            or patent.get("application_year")
+            or patent.get("application_date")
+            or ""
+        )
+        match = re.search(r"(19|20)\d{2}", str(raw))
+        if match:
+            years.append(int(match.group(0)))
+    return years
+
+
+def _growth_rate_from_counts(year_counts: dict[int, int]) -> float | None:
+    if len(year_counts) < 2:
+        return None
+    years = sorted(year_counts)
+    first_count = year_counts.get(years[0], 0)
+    last_count = year_counts.get(years[-1], 0)
+    if first_count <= 0:
+        nonzero = [(year, count) for year, count in sorted(year_counts.items()) if count > 0]
+        if len(nonzero) < 2:
+            return None
+        first_count = nonzero[0][1]
+        last_count = nonzero[-1][1]
+    return round(((last_count - first_count) / first_count) * 100, 2)
+
+
+def _score_from_growth_rate(rate: float | None) -> int:
+    if rate is None:
+        return 3
+    if rate >= 80:
+        return 5
+    if rate >= 20:
+        return 4
+    if rate >= 0:
+        return 3
+    if rate >= -20:
+        return 2
+    return 1
+
+
+def _enrich_filing_activity_from_similar(
+    valuation: dict[str, Any],
+    similar_analysis: dict[str, Any] | None,
+) -> dict[str, Any]:
+    existing = valuation.get("patent_filing_growth")
+    if not isinstance(existing, dict):
+        summary = valuation.get("summary") if isinstance(valuation.get("summary"), dict) else {}
+        existing = summary.get("patent_filing_growth") if isinstance(summary.get("patent_filing_growth"), dict) else None
+    if isinstance(existing, dict) and not existing.get("fallback"):
+        source = str(existing.get("source") or "")
+        if "IPC" in source or existing.get("ipc_codes"):
+            return valuation
+
+    for item in valuation.get("auto_scores") or []:
+        if not isinstance(item, dict) or item.get("item") != "특허출원 활성도":
+            continue
+        evidence = item.get("kipris_evidence")
+        if isinstance(evidence, dict) and not evidence.get("fallback"):
+            source = str(evidence.get("source") or "")
+            if "IPC" in source or evidence.get("ipc_codes"):
+                return valuation
+
+    years = _similar_application_years(similar_analysis)
+    if not years:
+        return valuation
+
+    current_year = max(years)
+    window_years = list(range(current_year - 4, current_year + 1))
+    counts = {year: years.count(year) for year in window_years}
+    growth_rate = _growth_rate_from_counts(counts)
+    score = _score_from_growth_rate(growth_rate)
+    evidence = {
+        "source": "KIPRIS 유사특허 후보 연도 분포",
+        "growth_rate": growth_rate,
+        "total_growth_rate": None,
+        "growth_ratio": None,
+        "years": window_years,
+        "yearly_counts": [{"year": year, "count": counts[year]} for year in window_years],
+        "sample_count": sum(counts.values()),
+        "fallback": False,
+        "note": "IPC 전체 출원 통계가 아닌 KIPRIS 유사특허 후보 기반 보강 지표입니다.",
+    }
+    basis = (
+        f"KIPRIS 유사특허 후보 최근 5년 출원 증가율 {growth_rate}%"
+        if growth_rate is not None
+        else "KIPRIS 유사특허 후보 최근 5년 연도 분포 기반 보강 지표"
+    )
+
+    updated = dict(valuation)
+    updated["patent_filing_growth"] = evidence
+    auto_scores = [dict(item) for item in updated.get("auto_scores") or []]
+    for item in auto_scores:
+        if item.get("item") == "특허출원 활성도":
+            item.update({
+                "score": score,
+                "basis": basis,
+                "kipris_evidence": evidence,
+                "confidence": "보통",
+                "sources": [
+                    {
+                        "source": "KIPRIS",
+                        "title": "KIPRIS 유사특허 후보 연도 분포",
+                        "url": KIPRIS_PLUS_URL,
+                    }
+                ],
+            })
+            break
+    updated["auto_scores"] = auto_scores
+    return updated
 
 
 def _title_for_kipris_search(patent_data: dict[str, Any]) -> str:
@@ -274,6 +402,7 @@ def _collect_kipris_similar_details(
     for directory in {KIPRIS_OUTPUT_DIR, KIPRIS_CRAWLING_DIR, cache_dir, RUNTIME_ANALYSIS_DIR}:
         directory.mkdir(parents=True, exist_ok=True)
 
+    collection_limit = max(max_results, SIMILAR_PATENT_COLLECTION_LIMIT)
     records = search_similar_patents(
         keyword=keyword,
         date_from=date_from,
@@ -282,7 +411,7 @@ def _collect_kipris_similar_details(
         headless=True,
         output_csv=str(csv_path),
         output_json=str(refs_path),
-        max_results=max_results,
+        max_results=collection_limit,
         target_json=str(target_path),
     )
     if not records or not refs_path.exists():
@@ -292,7 +421,7 @@ def _collect_kipris_similar_details(
         candidates_path=refs_path,
         output_path=details_path,
         cache_dir=cache_dir,
-        limit=max_results,
+        limit=collection_limit,
         use_cache=True,
     )
     if not details.get("patents"):
@@ -354,6 +483,7 @@ def _load_or_run_similar_analysis(
         "force_refresh": True,
         "max_pages": max_pages,
         "max_results": max_results,
+        "candidate_collection_limit": max(max_results, SIMILAR_PATENT_COLLECTION_LIMIT),
         "date_range": {"from": date_from, "to": date_to},
     }
     with out_path.open("w", encoding="utf-8") as file:
@@ -618,18 +748,16 @@ class PatentValuationWorkflow:
     def _build_report(self, state: PatentValuationState) -> PatentValuationState:
         start = time.time()
         try:
-            valuation = state.get("valuation") or {}
+            valuation = _enrich_filing_activity_from_similar(
+                state.get("valuation") or {},
+                state.get("similar_analysis"),
+            )
+            state["valuation"] = valuation
             report = build_structured_report(
                 valuation,
                 similar_analysis=state.get("similar_analysis"),
                 evaluation_analysis=_valuation_analysis_text(valuation),
             )
-            report["workflow"] = {
-                "type": "langgraph" if self._has_langgraph() else "sequential_fallback",
-                "node_trace": state.get("node_trace") or [],
-                "errors": state.get("errors") or [],
-                "human_reviews": state.get("human_reviews") or [],
-            }
             state["report"] = report
             _append_trace(state, "build_report", "success", start, "보고서 생성 완료")
         except Exception as exc:
@@ -657,16 +785,6 @@ class PatentValuationWorkflow:
                 similar_analysis=state.get("similar_analysis"),
             )
             state["report_verification"] = verification
-            if isinstance(state.get("report"), dict):
-                state["report"]["quality_assurance"] = verification
-                workflow = state["report"].setdefault("workflow", {})
-                if isinstance(workflow, dict):
-                    workflow["report_verification"] = {
-                        "overall_reliability_score": verification.get("overall_reliability_score"),
-                        "reliability_grade": verification.get("reliability_grade"),
-                        "risk_level": verification.get("risk_level"),
-                        "human_review_required": verification.get("human_review_required"),
-                    }
             status = "flagged" if verification.get("human_review_required") else "success"
             _append_trace(
                 state,

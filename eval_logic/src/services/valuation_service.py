@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from evaluation.auto_score import calc_auto_scores
+from evaluation.kipris_filing_growth import get_patent_filing_growth_score
 from evaluation.kosis_growth_fetcher import get_growth_score_from_json
 from core.schemas import (
     EvaluationStepResult,
@@ -223,6 +224,9 @@ class PatentValuationService:
     def _run_auto_stage(self, patent: dict[str, Any], output: PatentEvaluationOutput) -> None:
         """정형 특허 데이터 기반의 규칙 점수 계산기를 실행합니다."""
         start = time.time()
+        filing_growth = get_patent_filing_growth_score(patent)
+        patent["patent_filing_growth"] = filing_growth
+        output.summary["patent_filing_growth"] = filing_growth
         raw_scores = calc_auto_scores(patent)
         output.auto_scores = [ScoreItem.from_dict(score) for score in raw_scores]
         output.summary["auto"] = summarize_scores(output.auto_scores)

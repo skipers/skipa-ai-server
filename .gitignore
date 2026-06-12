@@ -107,3 +107,9 @@ pre_application_valuation/inputs/
 pre_application_valuation/evidence/
 pre_application_valuation/tmp/
 pre_application_valuation/*.local.json
+
+reports/
+parsing_data/
+seed-demo-data.sql
+reports_legacy/
+input_sample/

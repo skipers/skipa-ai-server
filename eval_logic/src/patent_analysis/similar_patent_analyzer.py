@@ -927,9 +927,18 @@ def analyze_similar_patents(
 
     ecosystem = build_ecosystem_summary(target, analyses)
     target_position = compare_target_position(target, ecosystem)
-    top_comparisons = select_top_comparisons(analyses, limit=3)
     if use_llm and os.environ.get("OPENAI_API_KEY"):
-        top_comparisons = [enhance_top_comparison_with_llm(target, item) for item in top_comparisons]
+        enhanced_by_number: dict[str, dict[str, Any]] = {}
+        for item in analyses[:10]:
+            enhanced = enhance_top_comparison_with_llm(target, item)
+            app_no = str(enhanced.get("application_number") or "")
+            if app_no:
+                enhanced_by_number[app_no] = enhanced
+        analyses = [
+            enhanced_by_number.get(str(item.get("application_number") or ""), item)
+            for item in analyses
+        ]
+    top_comparisons = select_top_comparisons(analyses, limit=3)
     interpretation = build_interpretation(ecosystem, target_position, top_comparisons)
     if use_llm and os.environ.get("OPENAI_API_KEY"):
         interpretation = enhance_interpretation_with_llm(target, ecosystem, interpretation, top_comparisons)

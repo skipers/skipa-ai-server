@@ -31,6 +31,9 @@
 # 유틸
 # ──────────────────────────────────────────
 
+KIPRIS_PLUS_URL = "https://plus.kipris.or.kr/portal/main.do"
+KOSIS_URL = "https://kosis.kr/index/index.do"
+
 def to_score(raw: float, thresholds: list) -> int:
     """
     raw 값을 thresholds 기준으로 1~5점 변환
@@ -228,8 +231,6 @@ def score_patent_activity(patent: dict) -> dict:
     데이터 소스: patent["patent_filing_growth"] (run_pipeline이 KIPRIS 데이터로 주입)
     해당 필드 없으면 기본값 3점.
     """
-    # 현재 프로토타입에서는 IPC별 출원 증가율 수집 단계가 완전히 통합되어
-    # 있지 않습니다. 데이터가 없으면 명시적으로 기본값 3점을 적용합니다.
     pg = patent.get("patent_filing_growth") or {}
     score        = pg.get("score")
     growth_rate  = pg.get("growth_rate")
@@ -240,16 +241,46 @@ def score_patent_activity(patent: dict) -> dict:
         score = int(score)
         rate_str  = f"{growth_rate:.1f}" if isinstance(growth_rate, float) else str(growth_rate)
         total_str = f"{total_rate:.1f}" if isinstance(total_rate, float) else str(total_rate)
-        basis = f"KIPRIS IPC 출원 증가율 {rate_str}% (전체 {total_str}%)"
+        ipc_codes = ", ".join(pg.get("ipc_codes") or [])
+        yearly_counts = pg.get("yearly_counts") or []
+        years = pg.get("years") or []
+        if yearly_counts and years:
+            count_text = ", ".join(
+                f"{row.get('year')}년 {row.get('count')}건"
+                for row in yearly_counts
+                if isinstance(row, dict)
+            )
+            basis = (
+                f"KIPRIS IPC({ipc_codes}) 기준 공개완료 최근 5개년({years[0]}~{years[-1]}) "
+                f"출원 증가율 {rate_str}% (전체 {total_str}%). 연도별 건수: {count_text}."
+            )
+        else:
+            basis = f"KIPRIS IPC 출원 증가율 {rate_str}% (전체 {total_str}%)"
+        summary = f"IPC 기준 최근 5개년 출원 증가율은 {rate_str}%임."
+        confidence = "보통"
+        sources = [
+            {
+                "source": "KIPRIS",
+                "title": "KIPRIS IPC별 최근 5개년 특허출원 증가율",
+                "url": KIPRIS_PLUS_URL,
+            }
+        ]
     else:
         score = 3
         basis = "KIPRIS 특허출원 증가율 데이터 없음 → 기본값"
+        summary = basis
+        confidence = "낮음"
+        sources = []
 
     return {
         "item":   "특허출원 활성도",
         "dim":    "시장성",
         "score":  score,
         "basis":  basis,
+        "summary": summary,
+        "kipris_evidence": pg,
+        "confidence": confidence,
+        "sources": sources,
         "method": "auto"
     }
 
@@ -286,6 +317,13 @@ def score_revenue_growth(patent: dict) -> dict:
         "dim":    "사업성",
         "score":  score,
         "basis":  basis,
+        "sources": [
+            {
+                "source": "KOSIS",
+                "title": "KOSIS 국가통계포털",
+                "url": KOSIS_URL,
+            }
+        ],
         "method": "auto_kosis"
     }
 

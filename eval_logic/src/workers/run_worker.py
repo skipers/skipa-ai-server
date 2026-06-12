@@ -8,9 +8,12 @@ import sys
 import threading
 from pathlib import Path
 
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+for path in (Path(__file__).resolve().parents[1], Path(__file__).resolve().parents[3]):
+    path_text = str(path)
+    if path_text not in sys.path:
+        sys.path.insert(0, path_text)
 
+from pre_application_valuation.worker import PreEvaluationGenerateHandler
 from workers.config import load_worker_config
 from workers.patent_extract_worker import PatentExtractHandler
 from workers.rabbitmq import RabbitWorker
@@ -21,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run eval_logic RabbitMQ workers.")
     parser.add_argument(
         "--worker",
-        choices=["report", "patent-extract", "all"],
+        choices=["report", "patent-extract", "pre-evaluation", "all"],
         default="all",
         help="Worker type to run.",
     )
@@ -39,6 +42,9 @@ def main() -> None:
     if args.worker == "patent-extract":
         RabbitWorker(config, config.patent_extract_queue, PatentExtractHandler(config)).run_forever()
         return
+    if args.worker == "pre-evaluation":
+        RabbitWorker(config, config.pre_evaluation_queue, PreEvaluationGenerateHandler(config)).run_forever()
+        return
 
     threads = [
         threading.Thread(
@@ -49,6 +55,11 @@ def main() -> None:
         threading.Thread(
             target=RabbitWorker(config, config.patent_extract_queue, PatentExtractHandler(config)).run_forever,
             name="patent-extract-worker",
+            daemon=False,
+        ),
+        threading.Thread(
+            target=RabbitWorker(config, config.pre_evaluation_queue, PreEvaluationGenerateHandler(config)).run_forever,
+            name="pre-evaluation-worker",
             daemon=False,
         ),
     ]

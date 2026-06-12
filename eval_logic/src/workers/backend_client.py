@@ -65,3 +65,15 @@ class BackendCallbackClient:
             f"/internal/patent-extract-jobs/{extract_job_id}/fail",
             {"errorMessage": error_message},
         )
+
+    def complete_pre_evaluation(self, pre_evaluation_id: int | str, report_key: str) -> dict[str, Any]:
+        return self._patch(
+            f"/internal/pre-evaluations/{pre_evaluation_id}/complete",
+            {"reportKey": report_key},
+        )
+
+    def fail_pre_evaluation(self, pre_evaluation_id: int | str, error_message: str) -> dict[str, Any]:
+        return self._patch(
+            f"/internal/pre-evaluations/{pre_evaluation_id}/fail",
+            {"errorMessage": error_message},
+        )
