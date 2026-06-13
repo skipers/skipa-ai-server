@@ -6,6 +6,12 @@ from datetime import datetime
 from typing import Any
 
 from .schemas import PreApplicationValuationRequest
+from .text_normalizer import (
+    normalize_grade,
+    normalize_report_prose,
+    normalize_report_sentence,
+    normalize_string_list,
+)
 
 
 REPORT_SCHEMA_VERSION = "pre-application-valuation-report/v3"
@@ -39,14 +45,18 @@ def build_report(
     keywords: list[str],
     evaluation: dict[str, Any],
 ) -> dict[str, Any]:
-    score_items = list(evaluation.get("score_items") or [])
+    score_items = [
+        normalize_score_item(item)
+        for item in (evaluation.get("score_items") or [])
+        if isinstance(item, dict)
+    ]
     dimensions = summarize_dimensions(score_items)
     overall_score = weighted_overall_score(dimensions)
     weakest = min(dimensions, key=lambda item: item["average_score"]) if dimensions else None
     strongest = max(dimensions, key=lambda item: item["average_score"]) if dimensions else None
     next_actions = merge_next_actions(evaluation, score_items, diagnostics)
     key_risks = merge_risks(evaluation, score_items, diagnostics)
-    overall_opinion = str(evaluation.get("overall_opinion") or "").strip() or default_overall_opinion(overall_score, weakest)
+    overall_opinion = normalize_report_prose(evaluation.get("overall_opinion")) or default_overall_opinion(overall_score, weakest)
 
     return {
         "schema_version": REPORT_SCHEMA_VERSION,
@@ -138,7 +148,7 @@ def build_report(
 def summarize_dimensions(score_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     grouped: dict[str, list[dict[str, Any]]] = {}
     for item in score_items:
-        grouped.setdefault(str(item.get("dimension") or "unknown"), []).append(item)
+        grouped.setdefault(str(item.get("dimension") or "unknown"), []).append(normalize_score_item(item))
     dimensions = []
     for key in DIMENSION_ORDER:
         items = grouped.get(key, [])
@@ -173,7 +183,8 @@ def merge_next_actions(
     seen: set[str] = set()
 
     def add(priority: str, action: str, reason: str = "") -> None:
-        action = action.strip()
+        action = normalize_report_sentence(action)
+        reason = normalize_report_sentence(reason)
         if not action or action in seen:
             return
         seen.add(action)
@@ -239,7 +250,7 @@ def merge_risks(
     seen: set[str] = set()
 
     def add(text: str) -> None:
-        text = text.strip()
+        text = normalize_report_sentence(text)
         if text and text not in seen:
             seen.add(text)
             risks.append(text)
@@ -259,8 +270,9 @@ def merge_risks(
 def build_claim_strategy(evaluation: dict[str, Any], diagnostics: dict[str, Any]) -> dict[str, Any]:
     strategy = evaluation.get("claim_strategy") if isinstance(evaluation.get("claim_strategy"), dict) else {}
     return {
-        "independent_claim_direction": strategy.get("independent_claim_direction") or "핵심 구성요소의 입력, 처리, 출력 관계를 독립항으로 구성하세요.",
-        "dependent_claim_ideas": list_value(strategy.get("dependent_claim_ideas")) or diagnostics["claims"]["categories"],
+        "independent_claim_direction": normalize_report_prose(strategy.get("independent_claim_direction"))
+        or "핵심 구성요소의 입력, 처리, 출력 관계를 독립항으로 구성하세요.",
+        "dependent_claim_ideas": list_value(strategy.get("dependent_claim_ideas")) or normalize_string_list(diagnostics["claims"]["categories"]),
         "avoidance_design_notes": list_value(strategy.get("avoidance_design_notes")) or ["기능적 효과만 청구하지 말고 구현 수단과 조건을 함께 한정하세요."],
         "diagnostics": diagnostics["claims"],
     }
@@ -281,7 +293,10 @@ def build_prior_art_search_plan(
         "status": "not_performed",
         "purpose": "신규성/진보성 확정이 아니라 출원 전 리스크를 줄이기 위한 조사 계획입니다.",
         "recommended_queries": [query.strip() for query in queries if query.strip()],
-        "focus_items": [{"item": item.get("item"), "score": item.get("score"), "reason": item.get("reason")} for item in risky_items],
+        "focus_items": [
+            {"item": item.get("item"), "score": item.get("score"), "reason": normalize_report_prose(item.get("reason"))}
+            for item in risky_items
+        ],
     }
 
 
@@ -296,7 +311,7 @@ def build_filing_strategy(
     if not route:
         route = "국내 우선출원 후 해외/PCT 전략 재검토" if countries else "목표 시장 확정 후 국내 우선출원 여부 검토"
     return {
-        "recommended_route": route,
+        "recommended_route": normalize_report_sentence(route),
         "country_notes": list_value(strategy.get("country_notes")) or countries,
         "target_country_count": diagnostics["strategy"]["target_country_count"],
         "has_overseas_target": diagnostics["strategy"]["has_overseas_target"],
@@ -311,7 +326,7 @@ def build_valuation_assessment(
 ) -> dict[str, Any]:
     assessment = evaluation.get("valuation_assessment") if isinstance(evaluation.get("valuation_assessment"), dict) else {}
     value_grade = str(assessment.get("value_grade") or value_grade_for_score(overall_score))
-    value_summary = str(assessment.get("value_summary") or "").strip()
+    value_summary = normalize_report_prose(assessment.get("value_summary"))
     if not value_summary:
         value_summary = (
             f"현재 입력 기준 예상 특허 가치는 '{value_grade}'입니다. "
@@ -321,16 +336,16 @@ def build_valuation_assessment(
     return {
         "value_grade": value_grade,
         "value_score": score_to_100(overall_score),
-        "value_summary": value_summary,
+        "value_summary": normalize_report_prose(value_summary),
         "positive_value_drivers": list_value(assessment.get("positive_value_drivers"))
         or default_positive_value_drivers(dimensions),
         "value_constraints": list_value(assessment.get("value_constraints"))
         or default_value_constraints(dimensions, diagnostics),
         "evidence_needed": list_value(assessment.get("evidence_needed"))
         or [
-            "기존 기술 대비 성능, 비용, 시간 개선 폭을 정량 지표로 제시",
-            "주요 적용 고객과 도입 시나리오를 2개 이상 구체화",
-            "핵심 구성요소별 선행기술 검색 결과와 차별 포인트 매핑",
+            "기존 기술 대비 성능, 비용, 시간 개선 폭을 정량 지표로 제시합니다.",
+            "주요 적용 고객과 도입 시나리오를 2개 이상 구체화합니다.",
+            "핵심 구성요소별 선행기술 검색 결과와 차별 포인트를 매핑합니다.",
         ],
     }
 
@@ -343,11 +358,11 @@ def build_commercialization_assessment(
     assessment = evaluation.get("commercialization_assessment") if isinstance(evaluation.get("commercialization_assessment"), dict) else {}
     business_text = request.related_business or "관련 사업 입력이 부족해 적용 시장을 넓게 추정했습니다."
     return {
-        "target_market": str(assessment.get("target_market") or business_text),
+        "target_market": normalize_report_sentence(assessment.get("target_market") or business_text),
         "expected_use_cases": list_value(assessment.get("expected_use_cases"))
         or [
-            "현재 기술 설명과 관련 사업을 연결한 대표 적용 시나리오 정의",
-            "초기 도입 고객군과 구매 의사결정자를 분리해 검증",
+            "현재 기술 설명과 관련 사업을 연결한 대표 적용 시나리오를 정의합니다.",
+            "초기 도입 고객군과 구매 의사결정자를 분리해 검증합니다.",
         ],
         "monetization_paths": list_value(assessment.get("monetization_paths"))
         or ["제품/서비스 차별화 근거", "라이선스 또는 공동사업 협상 자산", "정부과제/투자 검토용 기술 근거"],
@@ -370,7 +385,7 @@ def build_filing_investment_decision(
     label = str(decision.get("decision") or investment_decision_label(overall_score))
     return {
         "decision": label,
-        "rationale": str(decision.get("rationale") or investment_decision_rationale(overall_score)),
+        "rationale": normalize_report_prose(decision.get("rationale") or investment_decision_rationale(overall_score)),
         "go_conditions": list_value(decision.get("go_conditions"))
         or ["핵심 차별 포인트를 청구항 문장으로 고정", "선행기술 검색에서 직접 충돌 문헌 여부 확인"],
         "stop_or_hold_conditions": list_value(decision.get("stop_or_hold_conditions"))
@@ -387,9 +402,10 @@ def build_limitations(evaluation: dict[str, Any]) -> list[str]:
         "실제 선행기술 검색, 변리사 검토, 시장 데이터 검증 전까지 신규성/진보성 판단은 확정할 수 없습니다.",
     ]
     for item in defaults:
-        if item not in limitations:
-            limitations.append(item)
-    return limitations
+        normalized = normalize_report_sentence(item)
+        if normalized not in limitations:
+            limitations.append(normalized)
+    return normalize_string_list(limitations)
 
 
 def value_grade_for_score(score: float) -> str:
@@ -432,11 +448,11 @@ def value_driver_summary(dimensions: list[dict[str, Any]]) -> str:
 
 
 def default_positive_value_drivers(dimensions: list[dict[str, Any]]) -> list[str]:
-    return [
+    return normalize_string_list([
         f"{dimension['label']} 점수가 {dimension['score_out_of_100']}/100으로 상대적으로 높음"
         for dimension in dimensions
         if dimension.get("average_score", 0) >= 3.2
-    ][:3] or ["입력된 기술 설명을 기준으로 출원 전 검토 가능한 최소 정보가 존재합니다."]
+    ][:3] or ["입력된 기술 설명을 기준으로 출원 전 검토 가능한 최소 정보가 존재합니다."])
 
 
 def default_value_constraints(dimensions: list[dict[str, Any]], diagnostics: dict[str, Any]) -> list[str]:
@@ -452,7 +468,7 @@ def default_value_constraints(dimensions: list[dict[str, Any]], diagnostics: dic
         if item and item not in seen:
             seen.add(item)
             result.append(item)
-    return result[:5]
+    return normalize_string_list(result[:5])
 
 
 def score_for_dimension(dimensions: list[dict[str, Any]], key: str) -> int:
@@ -496,17 +512,26 @@ def score_to_100(score: float | int | None) -> int:
 
 def grade_for_score(score: float) -> str:
     if score >= 4.5:
-        return "S"
+        return normalize_grade("S", score)
     if score >= 4.0:
-        return "A"
+        return normalize_grade("A", score)
     if score >= 3.0:
-        return "B"
+        return normalize_grade("B", score)
     if score >= 2.0:
-        return "C"
-    return "D"
+        return normalize_grade("C", score)
+    return normalize_grade("D", score)
 
 
 def list_value(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item).strip() for item in value if str(item).strip()]
+    return normalize_string_list(value)
+
+
+def normalize_score_item(item: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(item)
+    score = normalized.get("score")
+    if "grade" in normalized:
+        normalized["grade"] = normalize_grade(normalized.get("grade"), score)
+    normalized["reason"] = normalize_report_prose(normalized.get("reason"))
+    normalized["risks"] = normalize_string_list(normalized.get("risks"))
+    normalized["next_actions"] = normalize_string_list(normalized.get("next_actions"))
+    return normalized

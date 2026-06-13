@@ -11,6 +11,7 @@ from typing import Any
 import requests
 
 from .schemas import PreApplicationValuationRequest
+from .text_normalizer import normalize_report_prose, normalize_report_sentence, normalize_string_list
 
 
 OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
@@ -223,6 +224,8 @@ def build_scoring_prompt(
 6. 점수의 목적은 탈락 판정이 아니라 보완 우선순위 설정입니다. 낮은 점수를 줄 때도 반드시 점수를 올릴 수 있는 구체 보완 액션을 함께 제시하세요.
 7. score_items는 반드시 체크리스트 1~12번을 모두 포함하세요. 누락, 병합, 이름 변경을 하지 마세요.
 8. "시장 조사 필요", "추가 자료 수집"처럼 일반론만 쓰지 말고, 무엇을 확인해야 하는지와 어떤 산출물이 나와야 하는지를 같이 쓰세요.
+9. 등급 문자를 직접 작성해야 하는 경우 S, A, B, C, D만 사용하고 A+, B+, C+ 같은 plus/minus 등급은 절대 쓰지 마세요.
+10. 모든 한국어 설명 문장은 보고서체로 작성하고, 문장 끝은 "~입니다.", "~합니다.", "~됩니다." 형태로 통일하세요.
 
 [점수 평가 품질 기준]
 - 각 score_items.reason은 최소 2문장으로 작성하고, 입력에서 확인된 근거와 부족한 근거를 모두 포함하세요.
@@ -293,6 +296,8 @@ def build_narrative_prompt(
 6. 보고서 문장은 실제 의사결정자가 읽는 문서처럼 작성하세요. 짧은 체크리스트 답변이 아니라 판단 근거, 조건, 리스크, 보완 작업의 산출물을 포함한 문단이어야 합니다.
 7. 보완 관련 내용의 품질이 가장 중요합니다. 각 보완 액션은 담당자가 바로 실행할 수 있도록 대상, 방법, 기대 산출물을 포함하세요.
 8. "시장 조사 필요", "추가 자료 수집", "고객 피드백 필요"처럼 일반론만 쓰지 말고, 무엇을 확인해야 하는지와 어떤 산출물이 나와야 하는지를 같이 쓰세요.
+9. 등급 문자를 직접 작성해야 하는 경우 S, A, B, C, D만 사용하고 A+, B+, C+ 같은 plus/minus 등급은 절대 쓰지 마세요.
+10. 모든 한국어 설명 문장은 보고서체로 작성하고, 문장 끝은 "~입니다.", "~합니다.", "~됩니다." 형태로 통일하세요.
 
 [보고서 품질 기준]
 - overall_opinion은 최소 4문장으로, 현재 잠재 가치, 권리화 가능성, 사업화 리스크, 우선 보완 방향을 모두 포함하세요.
@@ -411,7 +416,7 @@ def normalize_llm_result(parsed: dict[str, Any], checklist: list[dict[str, Any]]
             "dimension_label": dimension["label"],
             "score": score,
             "score_out_of_100": score * 20,
-            "reason": str(raw.get("reason") or "").strip() or "LLM이 항목별 근거를 충분히 제공하지 않았습니다.",
+            "reason": normalize_report_prose(raw.get("reason")) or "LLM이 항목별 근거를 충분히 제공하지 않았습니다.",
             "risks": string_list(raw.get("risks")),
             "next_actions": string_list(raw.get("next_actions")),
             "method": "llm_pre_application_checklist",
@@ -433,15 +438,15 @@ def normalize_llm_result(parsed: dict[str, Any], checklist: list[dict[str, Any]]
     return {
         "source": "llm",
         "model": model,
-        "overall_opinion": str(parsed.get("overall_opinion") or "").strip(),
+        "overall_opinion": normalize_report_prose(parsed.get("overall_opinion")),
         "score_items": normalized_items,
         "key_risks": string_list(parsed.get("key_risks")),
-        "valuation_assessment": dict_value(parsed.get("valuation_assessment")),
-        "commercialization_assessment": dict_value(parsed.get("commercialization_assessment")),
+        "valuation_assessment": normalize_valuation_assessment(parsed.get("valuation_assessment")),
+        "commercialization_assessment": normalize_commercialization_assessment(parsed.get("commercialization_assessment")),
         "next_actions": normalize_actions(parsed.get("next_actions")),
-        "claim_strategy": dict_value(parsed.get("claim_strategy")),
-        "filing_strategy": dict_value(parsed.get("filing_strategy")),
-        "filing_investment_decision": dict_value(parsed.get("filing_investment_decision")),
+        "claim_strategy": normalize_claim_strategy(parsed.get("claim_strategy")),
+        "filing_strategy": normalize_filing_strategy(parsed.get("filing_strategy")),
+        "filing_investment_decision": normalize_filing_investment_decision(parsed.get("filing_investment_decision")),
         "limitations": string_list(parsed.get("limitations")),
     }
 
@@ -533,14 +538,14 @@ def enrich_narrative_lists(
 
     score_items = scoring_result.get("score_items") if isinstance(scoring_result.get("score_items"), list) else []
     claim_actions = [
-        str(action).strip()
+        normalize_report_sentence(action)
         for item in score_items
         if str(item.get("dimension")) == "claimability"
         for action in item.get("next_actions", [])
         if str(action).strip()
     ]
     claim_risks = [
-        str(risk).strip()
+        normalize_report_sentence(risk)
         for item in score_items
         if str(item.get("dimension")) == "claimability"
         for risk in item.get("risks", [])
@@ -577,7 +582,7 @@ def enrich_narrative_lists(
 def ensure_min_list(container: dict[str, Any], key: str, minimum: int, candidates: list[str]) -> None:
     values = list(dict.fromkeys(string_list(container.get(key))))
     for candidate in candidates:
-        text = str(candidate or "").strip()
+        text = normalize_report_sentence(candidate)
         if text and text not in values:
             values.append(text)
         if len(values) >= minimum:
@@ -744,15 +749,15 @@ def normalize_actions(value: Any) -> list[dict[str, str]]:
     actions: list[dict[str, str]] = []
     for item in value:
         if isinstance(item, dict):
-            action = str(item.get("action") or "").strip()
+            action = normalize_report_sentence(item.get("action"))
             if action:
                 actions.append({
                     "priority": str(item.get("priority") or "medium").strip(),
                     "action": action,
-                    "reason": str(item.get("reason") or "").strip(),
+                    "reason": normalize_report_sentence(item.get("reason")),
                 })
         else:
-            text = str(item).strip()
+            text = normalize_report_sentence(item)
             if text:
                 actions.append({"priority": "medium", "action": text, "reason": ""})
     return actions
@@ -770,9 +775,69 @@ def int_value(value: Any) -> int | None:
 
 
 def string_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item).strip() for item in value if str(item).strip()]
+    return normalize_string_list(value)
+
+
+def normalize_valuation_assessment(value: Any) -> dict[str, Any]:
+    assessment = dict_value(value)
+    if not assessment:
+        return {}
+    return {
+        **assessment,
+        "value_summary": normalize_report_prose(assessment.get("value_summary")),
+        "positive_value_drivers": string_list(assessment.get("positive_value_drivers")),
+        "value_constraints": string_list(assessment.get("value_constraints")),
+        "evidence_needed": string_list(assessment.get("evidence_needed")),
+    }
+
+
+def normalize_commercialization_assessment(value: Any) -> dict[str, Any]:
+    assessment = dict_value(value)
+    if not assessment:
+        return {}
+    return {
+        **assessment,
+        "target_market": normalize_report_sentence(assessment.get("target_market")),
+        "expected_use_cases": string_list(assessment.get("expected_use_cases")),
+        "monetization_paths": string_list(assessment.get("monetization_paths")),
+        "market_validation_gaps": string_list(assessment.get("market_validation_gaps")),
+    }
+
+
+def normalize_claim_strategy(value: Any) -> dict[str, Any]:
+    strategy = dict_value(value)
+    if not strategy:
+        return {}
+    return {
+        **strategy,
+        "independent_claim_direction": normalize_report_prose(strategy.get("independent_claim_direction")),
+        "dependent_claim_ideas": string_list(strategy.get("dependent_claim_ideas")),
+        "avoidance_design_notes": string_list(strategy.get("avoidance_design_notes")),
+    }
+
+
+def normalize_filing_strategy(value: Any) -> dict[str, Any]:
+    strategy = dict_value(value)
+    if not strategy:
+        return {}
+    return {
+        **strategy,
+        "recommended_route": normalize_report_sentence(strategy.get("recommended_route")),
+        "country_notes": string_list(strategy.get("country_notes")),
+    }
+
+
+def normalize_filing_investment_decision(value: Any) -> dict[str, Any]:
+    decision = dict_value(value)
+    if not decision:
+        return {}
+    return {
+        **decision,
+        "rationale": normalize_report_prose(decision.get("rationale")),
+        "go_conditions": string_list(decision.get("go_conditions")),
+        "stop_or_hold_conditions": string_list(decision.get("stop_or_hold_conditions")),
+        "recommended_next_sprint": string_list(decision.get("recommended_next_sprint")),
+    }
 
 
 def parse_json_object(content: str) -> dict[str, Any]:

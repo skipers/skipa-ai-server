@@ -46,7 +46,7 @@
   "overall": {
     "score": 3.79,
     "score_out_of_100": 76,
-    "grade": "B+",
+    "grade": "B",
     "comment": "5G 네트워크 환경에서 실시간 데이터 압축을 통해 전송 지연을 감소시키고 처리 효율을 향상시키는 이 기술은 통신 인프라 및 클라우드 서비스 분야에서 높은 기술적 가치를 지니고 있습니다. 그러나, 권리성 측면에서는 유사한 기술이 존재할 가능성을 고려하여 철저한 선행기술 조사가 필요합니다. 사업성 측면에서는 대용량 데이터 전송 비용 절감과 서비스 품질 개선에 기여할 수 있는 잠재력이 있습니다.",
     "comment_source": "llm",
     "comment_model": "gpt-4o"
@@ -123,7 +123,7 @@
       "label": "권리성",
       "average_score": 3.67,
       "score_out_of_100": 73,
-      "grade": "B+",
+      "grade": "B",
       "weight": 0.34,
       "items": [
         {
@@ -157,7 +157,7 @@
       "label": "사업성",
       "average_score": 3.67,
       "score_out_of_100": 73,
-      "grade": "B+",
+      "grade": "B",
       "weight": 0.3,
       "items": [
         {
@@ -283,7 +283,7 @@
   "frontend_summary": {
     "title": "5G 기반 실시간 데이터 압축 알고리즘",
     "ipc": "H04L 29/08",
-    "overall_grade": "B+",
+    "overall_grade": "B",
     "technology_score": 80,
     "rights_score": 73,
     "business_score": 73,

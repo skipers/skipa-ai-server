@@ -10,6 +10,7 @@ from typing import Any
 import requests
 
 from .schemas import PreApplicationValuationRequest
+from .text_normalizer import normalize_grade, normalize_report_prose, normalize_report_sentence, normalize_string_list
 
 
 OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
@@ -57,7 +58,7 @@ def generate_llm_overall_comment(
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
         parsed = _parse_json_object(content)
-        comment = str(parsed.get("overall_comment") or "").strip()
+        comment = normalize_report_prose(parsed.get("overall_comment"))
         if not comment:
             return _fallback("LLM 응답에 overall_comment가 없어 규칙 기반 코멘트를 사용했습니다.", fallback_comment, model)
         return {
@@ -83,7 +84,7 @@ def _build_prompt(
         {
             "dimension": item.get("label"),
             "score": item.get("score_out_of_100"),
-            "grade": item.get("grade"),
+            "grade": normalize_grade(item.get("grade"), item.get("score_out_of_100")),
         }
         for item in dimensions
     ]
@@ -100,7 +101,7 @@ def _build_prompt(
 출원 예정 국가: {", ".join(request.target_countries) or "미입력"}
 
 [규칙 기반 사전 평가 요약]
-종합 등급: {scoring.get("overall_grade")}
+종합 등급: {normalize_grade(scoring.get("overall_grade"), scoring.get("overall_score_out_of_100"))}
 종합 점수: {scoring.get("overall_score_out_of_100")}/100
 차원별 점수: {json.dumps(compact_dimensions, ensure_ascii=False)}
 추정 IPC: {ipc.get("ipc")} ({ipc.get("description")})
@@ -110,6 +111,8 @@ def _build_prompt(
 - 단순히 점수를 반복하지 말고, 이 특허가 왜 출원 검토 가치가 있는지 또는 무엇이 약한지 평가자 관점으로 설명합니다.
 - 기술성, 권리성, 사업성을 모두 한 번씩 언급합니다.
 - 실제 선행기술 검색은 수행하지 않았으므로 "선행기술 조사 결과"처럼 확정적으로 말하지 않습니다.
+- 등급을 언급할 때는 S, A, B, C, D만 사용하고 A+, B+, C+ 같은 plus/minus 등급은 절대 쓰지 않습니다.
+- 모든 한국어 문장은 보고서체로 작성하고, 문장 끝은 "~입니다.", "~합니다.", "~됩니다." 형태로 통일합니다.
 - 전체 코멘트는 2~4문장, 프론트 카드에 바로 넣을 수 있게 자연스럽게 작성합니다.
 - JSON 형식만 반환합니다.
 
@@ -174,14 +177,12 @@ def _fallback(reason: str, comment: str, model: str) -> dict[str, Any]:
     return {
         "source": "fallback",
         "model": model,
-        "overall_comment": comment,
+        "overall_comment": normalize_report_prose(comment),
         "strengths": [],
-        "risks": [reason],
+        "risks": [normalize_report_sentence(reason)],
         "next_actions": [],
     }
 
 
 def _string_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item).strip() for item in value if str(item).strip()]
+    return normalize_string_list(value)
