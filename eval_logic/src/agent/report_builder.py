@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import json
 import re
 from typing import Any
 
@@ -891,7 +892,7 @@ def _build_project_association(evaluation_result: dict[str, Any]) -> dict[str, A
     )
     market_outlook = _remove_estimation_marker(project.get("market_outlook") or parsed.get("market_outlook") or "")
     raw_summary = _remove_estimation_marker(
-        project.get("project_summary") or parsed.get("summary") or _strip_markdown(project.get("answer") or "")
+        parsed.get("summary") or project.get("project_summary") or _strip_markdown(project.get("answer") or "")
     )
     return {
         "available": available,
@@ -909,7 +910,7 @@ def _build_project_association(evaluation_result: dict[str, Any]) -> dict[str, A
             market_outlook,
             sources,
         ),
-        "signals": project.get("commercialization_signals") or [],
+        "signals": project.get("commercialization_signals") or parsed.get("commercialization_signals") or [],
         "review_note": "사내 프로젝트 RAG 근거가 확인되어 연관 정보로 표시합니다.",
         "sources": sources,
     }
@@ -936,12 +937,20 @@ def _compose_project_summary(
         if isinstance(src, dict) and _clean_text(src.get("title"))
     ]
 
+    def topic_particle(text: str) -> str:
+        if not text:
+            return "와"
+        code = ord(text[-1])
+        if 0xAC00 <= code <= 0xD7A3:
+            return "과" if (code - 0xAC00) % 28 else "와"
+        return "와"
+
     if service:
-        sentences.append(f"사내 적용 관점에서는 {service}와의 연계 가능성이 우선 검토 대상입니다.")
+        sentences.append(f"사내 적용 관점에서는 {service}{topic_particle(service)}의 연계 가능성이 우선 검토 대상입니다.")
     if history:
         sentences.append(f"적용 이력 측면에서는 {history}")
     if customers:
-        sentences.append(f"고객·파트너 관점에서는 {customers} 영역과의 관련성이 확인되거나 추정됩니다.")
+        sentences.append(f"고객·파트너 관점에서는 {customers} 영역과의 관련성이 확인됩니다.")
     if outlook:
         sentences.append(outlook)
     if source_titles:
@@ -973,7 +982,35 @@ def _strip_markdown(text: Any) -> str:
 
 def _parse_project_answer(answer: Any) -> dict[str, str]:
     text = str(answer or "")
-    parsed: dict[str, str] = {}
+    parsed: dict[str, Any] = {}
+
+    def from_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "applied_services": payload.get("applied_services") or payload.get("applied_business_service") or "",
+            "application_history": payload.get("application_history") or payload.get("business_application_history") or "",
+            "customers_partners": payload.get("customers_partners") or "",
+            "market_outlook": payload.get("market_outlook") or "",
+            "summary": payload.get("summary") or "",
+            "commercialization_signals": payload.get("commercialization_signals") or payload.get("signals") or [],
+        }
+
+    stripped = text.strip()
+    json_candidates = [stripped]
+    match = re.search(r"\{.*\}", stripped, re.DOTALL)
+    if match:
+        json_candidates.append(match.group(0))
+    for candidate in json_candidates:
+        if not candidate.startswith("{"):
+            continue
+        try:
+            loaded = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(loaded, dict):
+            parsed.update({key: value for key, value in from_json_payload(loaded).items() if value not in ("", [], None)})
+            if parsed.get("summary"):
+                return parsed
+
     field_map = {
         "적용 사업·서비스": "applied_services",
         "적용 사업/서비스": "applied_services",
@@ -1277,18 +1314,23 @@ def _build_section2_detailed_scores(
 def _build_section3_project(evaluation_result: dict[str, Any]) -> dict[str, Any]:
     """3. 사내 프로젝트 활용 현황"""
     biz = (evaluation_result.get("evidence") or {}).get("business_use") or {}
+    raw = biz.get("raw") if isinstance(biz.get("raw"), dict) else {}
     return {
         "title": "사내 프로젝트 활용 현황",
         "available": bool(biz),
         "data_source": "사내 프로젝트 문서 RAG 검색 결과",
         "query": biz.get("query") or "",
         "answer": biz.get("answer") or "",
-        "applied_business_service": biz.get("applied_business_service") or "",
-        "business_application_history": biz.get("business_application_history") or "",
-        "customers_partners": biz.get("customers_partners") or "",
-        "market_outlook": biz.get("market_outlook") or "",
-        "commercialization_signals": biz.get("commercialization_signals") or [],
-        "project_summary": biz.get("summary") or "",
+        "applied_business_service": biz.get("applied_business_service") or raw.get("applied_business_service") or "",
+        "business_application_history": biz.get("business_application_history")
+        or raw.get("business_application_history")
+        or "",
+        "customers_partners": biz.get("customers_partners") or raw.get("customers_partners") or "",
+        "market_outlook": biz.get("market_outlook") or raw.get("market_outlook") or "",
+        "commercialization_signals": biz.get("commercialization_signals")
+        or raw.get("commercialization_signals")
+        or [],
+        "project_summary": biz.get("summary") or raw.get("summary") or "",
         "sources": biz.get("sources") or [],
     }
 
