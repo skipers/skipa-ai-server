@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import FastAPI, Query
 
+from .generation_service import PreApplicationGenerationOptions, PreApplicationGenerationService
 from .schemas import PreApplicationValuationRequest, SavedValuationResponse
 from .service import evaluate_pre_application
 from .storage import DEFAULT_OUTPUT_DIR, save_result
@@ -41,6 +42,24 @@ def evaluate(
         result["artifacts"]["output_path"] = str(path)
         output_path = str(path)
     return {"status": "success", "output_path": output_path, "result": result}
+
+
+@app.post(
+    "/api/v1/pre-application-valuations/generate",
+    tags=["pre-application-valuation"],
+)
+def generate(
+    request: PreApplicationValuationRequest,
+    pre_evaluation_id: int | None = Query(
+        default=None,
+        alias="preEvaluationId",
+        description="백엔드에서 이미 생성한 사전평가 id. 없으면 MinIO의 pre-evaluations 숫자 폴더 기준으로 다음 id를 자동 할당합니다.",
+    ),
+    user_id: int | None = Query(default=None, alias="userId"),
+    local_only: bool = Query(default=False, alias="localOnly", description="true이면 MinIO 없이 로컬 outputs에만 저장합니다."),
+) -> dict[str, Any]:
+    service = PreApplicationGenerationService(PreApplicationGenerationOptions(local_output=local_only))
+    return service.generate(request, pre_evaluation_id=pre_evaluation_id, user_id=user_id)
 
 
 @app.get("/api/v1/pre-application-valuations/latest", tags=["pre-application-valuation"])

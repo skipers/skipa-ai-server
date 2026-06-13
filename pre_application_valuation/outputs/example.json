@@ -1,0 +1,874 @@
+{
+  "schema_version": "pre-application-valuation-report/v3",
+  "evaluation_id": "preval-30b3618ce520",
+  "evaluated_at": "2026-06-13T13:39:47",
+  "patent_title": "AI 기반 반도체 제조 공정 불량 예측 시스템",
+  "metadata": {
+    "report_type": "pre_application_valuation",
+    "title": "사전가치평가 보고서",
+    "schema_version": "pre-application-valuation-report/v3",
+    "generated_at": "2026-06-13T13:39:47",
+    "score_display_scale": "0~100",
+    "item_score_scale": "1~5",
+    "storage_policy": "minio_object_key",
+    "evaluation_source": "llm",
+    "model": "gpt-4o-mini",
+    "service_sections": [
+      {
+        "key": "input_summary",
+        "title": "입력 요약"
+      },
+      {
+        "key": "executive_summary",
+        "title": "평가 요약"
+      },
+      {
+        "key": "valuation_assessment",
+        "title": "사전 가치평가"
+      },
+      {
+        "key": "commercialization_assessment",
+        "title": "사업화 가치"
+      },
+      {
+        "key": "readiness",
+        "title": "출원 준비도"
+      },
+      {
+        "key": "evaluation",
+        "title": "평가 기준별 상세 점수"
+      },
+      {
+        "key": "claim_strategy",
+        "title": "권리화 전략"
+      },
+      {
+        "key": "filing_strategy",
+        "title": "출원 전략"
+      },
+      {
+        "key": "filing_investment_decision",
+        "title": "출원 투자 판단"
+      },
+      {
+        "key": "next_actions",
+        "title": "보완 액션"
+      },
+      {
+        "key": "limitations",
+        "title": "평가 한계"
+      }
+    ],
+    "pre_evaluation_id": 3
+  },
+  "input": {
+    "patent_name": "AI 기반 반도체 제조 공정 불량 예측 시스템",
+    "technology_description": "본 기술은 반도체 제조 공정에서 발생하는 센서 데이터, 장비 로그, 검사 이미지를 통합 분석하여 웨이퍼 불량 발생 가능성을 사전에 예측하는 AI 기반 품질관리 시스템이다.\n\n기존 공정에서는 불량이 발생한 후 검사 단계에서 원인을 추적하는 방식이 많아 생산 손실과 재작업 비용이 크다. 본 기술은 식각, 증착, 세정 등 주요 공정 장비에서 수집되는 온도, 압력, 가스 유량, 플라즈마 세기, 장비 진동값을 실시간으로 수집하고, 과거 불량 이력과 정상 공정 패턴을 함께 학습한다.\n\n시스템은 입력 데이터를 전처리한 뒤 이상 패턴을 탐지하고, 특정 공정 조건 조합이 불량으로 이어질 확률을 산출한다. 예측 결과는 공정 엔지니어에게 위험 점수와 주요 원인 변수를 함께 제공하며, 기준치를 초과하는 경우 장비 조건 조정 또는 추가 검사를 자동 추천한다.\n\n본 기술의 차별점은 단순 이상 탐지가 아니라 공정 단계별 원인 변수를 함께 추출하여 불량 발생 전에 조치할 수 있도록 하는 점이다. 이를 통해 불량률 감소, 검사 비용 절감, 생산 수율 향상 효과를 기대할 수 있다.",
+    "claims": [
+      "반도체 제조 공정 장비로부터 센서 데이터 및 장비 로그를 수집하는 데이터 수집부와, 상기 센서 데이터 및 장비 로그를 전처리하는 전처리부와, 전처리된 데이터를 기초로 불량 발생 확률을 산출하는 AI 예측 모델부와, 상기 불량 발생 확률 및 원인 변수를 출력하는 분석 결과 제공부를 포함하는 반도체 제조 공정 불량 예측 시스템.",
+      "제1항에 있어서, 상기 AI 예측 모델부는 정상 공정 패턴과 과거 불량 이력을 함께 학습하여 공정 조건 조합별 불량 위험 점수를 산출하는 것을 특징으로 하는 반도체 제조 공정 불량 예측 시스템.",
+      "제1항에 있어서, 상기 분석 결과 제공부는 불량 위험 점수가 기준치를 초과하는 경우 장비 조건 조정 또는 추가 검사 수행을 추천하는 것을 특징으로 하는 반도체 제조 공정 불량 예측 시스템."
+    ],
+    "related_business": "반도체 제조 공정 품질관리",
+    "target_countries": [
+      "한국",
+      "미국",
+      "유럽"
+    ]
+  },
+  "input_summary": {
+    "title": "AI 기반 반도체 제조 공정 불량 예측 시스템",
+    "target_countries": [
+      "한국",
+      "미국",
+      "유럽"
+    ],
+    "claim_count": 3,
+    "independent_like_claims": 1,
+    "related_business": "반도체 제조 공정 품질관리",
+    "keywords": [
+      "공정",
+      "불량",
+      "반도체",
+      "제조",
+      "예측",
+      "장비",
+      "ai",
+      "데이터"
+    ],
+    "estimated_ipc": {
+      "ipc": "G06F 16/00",
+      "description": "정보 검색/데이터 처리",
+      "confidence": "high",
+      "matched_keywords": [
+        "데이터",
+        "분석",
+        "처리",
+        "추천"
+      ]
+    }
+  },
+  "executive_summary": {
+    "overall_score": 3.36,
+    "score_out_of_100": 67,
+    "grade": "B",
+    "opinion": "본 기술은 반도체 제조 공정에서 불량 예측을 위한 AI 기반 시스템으로, 기존 방식의 한계를 극복할 수 있는 가능성이 있지만, 적용 고객 및 수익 모델에 대한 구체적인 설명이 부족하여 사업화 가능성에 리스크가 존재합니다.",
+    "strongest_dimension": "기술 구체성",
+    "weakest_dimension": "시장/사업 가설",
+    "key_risks": [
+      "적용 고객 및 수익 모델에 대한 불확실성",
+      "경쟁 기술과의 차별성이 불명확함",
+      "시장 수용 가능성에 대한 불확실성"
+    ]
+  },
+  "valuation_assessment": {
+    "value_grade": "conditional_value",
+    "value_score": 67,
+    "value_summary": "출원 전 예상 가치는 기술의 차별성과 시장의 필요성에 기반하나, 고객 및 수익 모델에 대한 구체적인 정보가 부족하여 조건부 가치로 평가됨.",
+    "positive_value_drivers": [
+      "AI 기반의 혁신적인 접근 방식",
+      "반도체 제조 공정의 효율성 향상"
+    ],
+    "value_constraints": [
+      "적용 고객 및 수익 모델에 대한 불확실성",
+      "경쟁 기술과의 차별성이 불명확함"
+    ],
+    "evidence_needed": [
+      "시장 조사 결과",
+      "고객 피드백 및 수익 모델 검증"
+    ]
+  },
+  "commercialization_assessment": {
+    "target_market": "반도체 제조업체",
+    "expected_use_cases": [
+      "반도체 제조 공정에서의 불량 예측 및 품질 관리"
+    ],
+    "monetization_paths": [
+      "제품 차별화",
+      "라이선스",
+      "비용 절감"
+    ],
+    "market_validation_gaps": [
+      "적용 고객 및 수익 모델에 대한 구체적인 검증 필요"
+    ]
+  },
+  "readiness": {
+    "level": "promising_with_targeted_revisions",
+    "decision": "출원 가능성은 있으나 약한 차원을 먼저 보완한 뒤 초안화하는 것이 좋습니다.",
+    "weakest_dimension": {
+      "key": "business_hypothesis",
+      "label": "시장/사업 가설",
+      "average_score": 2.67,
+      "score_out_of_100": 53,
+      "grade": "C+",
+      "weight": 0.2,
+      "item_count": 3,
+      "items": [
+        {
+          "item_number": 7,
+          "item": "적용 고객/사용처 명확성",
+          "dimension": "business_hypothesis",
+          "dimension_label": "시장/사업 가설",
+          "score": 2,
+          "score_out_of_100": 40,
+          "reason": "적용 고객과 사용처에 대한 구체적인 설명이 부족하여 사업 적용처를 확인하기 어려움.",
+          "risks": [
+            "시장 수용 가능성에 대한 불확실성"
+          ],
+          "next_actions": [
+            "적용 고객 및 사용처에 대한 시장 조사 실시"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        },
+        {
+          "item_number": 8,
+          "item": "경제적 효과 설명력",
+          "dimension": "business_hypothesis",
+          "dimension_label": "시장/사업 가설",
+          "score": 3,
+          "score_out_of_100": 60,
+          "reason": "경제적 효과는 있으나 구체적인 수치나 검증 방법이 부족하여 일반적인 표현에 그침.",
+          "risks": [
+            "경제적 효과에 대한 신뢰성 부족으로 인한 투자 유치 어려움"
+          ],
+          "next_actions": [
+            "경제적 효과를 정량화하기 위한 추가 데이터 수집"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        },
+        {
+          "item_number": 9,
+          "item": "도입 장벽과 실행 가능성",
+          "dimension": "business_hypothesis",
+          "dimension_label": "시장/사업 가설",
+          "score": 3,
+          "score_out_of_100": 60,
+          "reason": "실행 가능성은 있으나 도입 장벽 분석이 부족하여 구체적인 실행 계획이 필요함.",
+          "risks": [
+            "실제 적용 경로가 불명확하여 사업화 리스크 증가"
+          ],
+          "next_actions": [
+            "도입 장벽 분석을 위한 추가 자료 수집"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        }
+      ]
+    },
+    "required_before_filing": [
+      {
+        "priority": "high",
+        "action": "적용 고객 및 사용처에 대한 시장 조사 실시",
+        "reason": "사업화 가능성을 높이기 위해 구체적인 고객군과 사용처를 파악해야 함."
+      }
+    ],
+    "diagnostic_gaps": [
+      {
+        "type": "business",
+        "severity": "medium",
+        "message": "적용 고객, 수익 모델, 도입 환경 설명이 부족합니다."
+      }
+    ]
+  },
+  "dimensions": [
+    {
+      "key": "technology_readiness",
+      "label": "기술 구체성",
+      "average_score": 3.67,
+      "score_out_of_100": 73,
+      "grade": "B+",
+      "weight": 0.28,
+      "item_count": 3,
+      "items": [
+        {
+          "item_number": 1,
+          "item": "문제 정의 명확성",
+          "dimension": "technology_readiness",
+          "dimension_label": "기술 구체성",
+          "score": 3,
+          "score_out_of_100": 60,
+          "reason": "기술적 문제와 기존 방식의 한계는 언급되었으나, 구체적인 수치나 적용 상황이 부족하여 일반적인 문제 정의로 보임.",
+          "risks": [
+            "기술적 문제의 불명확성으로 인한 시장 수용 리스크"
+          ],
+          "next_actions": [
+            "기술적 문제와 기존 방식의 한계를 구체적인 사례와 수치로 보완"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        },
+        {
+          "item_number": 2,
+          "item": "해결 수단의 구체성",
+          "dimension": "technology_readiness",
+          "dimension_label": "기술 구체성",
+          "score": 4,
+          "score_out_of_100": 80,
+          "reason": "핵심 구성요소와 데이터 흐름이 명확하나 일부 세부 구현이 부족하여 보강이 필요함.",
+          "risks": [
+            "구체적인 구현 방안 부족으로 인한 특허 청구항의 약화"
+          ],
+          "next_actions": [
+            "구성요소 간의 연결 및 데이터 흐름을 명확히 하기 위한 추가 자료 수집"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        },
+        {
+          "item_number": 3,
+          "item": "차별 포인트 설득력",
+          "dimension": "technology_readiness",
+          "dimension_label": "기술 구체성",
+          "score": 4,
+          "score_out_of_100": 80,
+          "reason": "차별 요소는 명확하나 기존 기술과의 비교 근거가 부족하여 설득력이 다소 약함.",
+          "risks": [
+            "경쟁 기술과의 차별성이 불명확하여 시장에서의 경쟁력 저하"
+          ],
+          "next_actions": [
+            "경쟁 기술 분석 및 차별 포인트에 대한 구체적인 사례 수집"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        }
+      ]
+    },
+    {
+      "key": "claimability",
+      "label": "권리화 가능성",
+      "average_score": 3.33,
+      "score_out_of_100": 67,
+      "grade": "B",
+      "weight": 0.32,
+      "item_count": 3,
+      "items": [
+        {
+          "item_number": 4,
+          "item": "독립항 구성 가능성",
+          "dimension": "claimability",
+          "dimension_label": "권리화 가능성",
+          "score": 4,
+          "score_out_of_100": 80,
+          "reason": "독립항의 골격은 가능하나 일부 구성요소 보강이 필요하여 명확한 청구항 구성이 요구됨.",
+          "risks": [
+            "청구항의 범위가 불명확하여 권리화 리스크 증가"
+          ],
+          "next_actions": [
+            "독립항의 구성 요소를 보강하기 위한 추가 자료 수집"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        },
+        {
+          "item_number": 5,
+          "item": "회피설계 리스크",
+          "dimension": "claimability",
+          "dimension_label": "권리화 가능성",
+          "score": 3,
+          "score_out_of_100": 60,
+          "reason": "핵심 구성 요소가 있으나 일부 우회 가능성이 있어 보호력이 불확실함.",
+          "risks": [
+            "경쟁자가 쉽게 회피할 수 있는 구조로 인한 권리화 리스크"
+          ],
+          "next_actions": [
+            "회피설계 리스크를 줄이기 위한 추가적인 기술적 차별화 방안 모색"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        },
+        {
+          "item_number": 6,
+          "item": "선행기술 조사 필요도",
+          "dimension": "claimability",
+          "dimension_label": "권리화 가능성",
+          "score": 3,
+          "score_out_of_100": 60,
+          "reason": "일반적인 선행기술 조사가 필요하나, 차별 지점이 정리되어 있어 검색 범위는 좁을 것으로 예상됨.",
+          "risks": [
+            "선행기술 조사 결과에 따라 신규성/진보성 리스크가 증가할 수 있음"
+          ],
+          "next_actions": [
+            "선행기술 조사를 위한 구체적인 검색 전략 수립"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        }
+      ]
+    },
+    {
+      "key": "business_hypothesis",
+      "label": "시장/사업 가설",
+      "average_score": 2.67,
+      "score_out_of_100": 53,
+      "grade": "C+",
+      "weight": 0.2,
+      "item_count": 3,
+      "items": [
+        {
+          "item_number": 7,
+          "item": "적용 고객/사용처 명확성",
+          "dimension": "business_hypothesis",
+          "dimension_label": "시장/사업 가설",
+          "score": 2,
+          "score_out_of_100": 40,
+          "reason": "적용 고객과 사용처에 대한 구체적인 설명이 부족하여 사업 적용처를 확인하기 어려움.",
+          "risks": [
+            "시장 수용 가능성에 대한 불확실성"
+          ],
+          "next_actions": [
+            "적용 고객 및 사용처에 대한 시장 조사 실시"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        },
+        {
+          "item_number": 8,
+          "item": "경제적 효과 설명력",
+          "dimension": "business_hypothesis",
+          "dimension_label": "시장/사업 가설",
+          "score": 3,
+          "score_out_of_100": 60,
+          "reason": "경제적 효과는 있으나 구체적인 수치나 검증 방법이 부족하여 일반적인 표현에 그침.",
+          "risks": [
+            "경제적 효과에 대한 신뢰성 부족으로 인한 투자 유치 어려움"
+          ],
+          "next_actions": [
+            "경제적 효과를 정량화하기 위한 추가 데이터 수집"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        },
+        {
+          "item_number": 9,
+          "item": "도입 장벽과 실행 가능성",
+          "dimension": "business_hypothesis",
+          "dimension_label": "시장/사업 가설",
+          "score": 3,
+          "score_out_of_100": 60,
+          "reason": "실행 가능성은 있으나 도입 장벽 분석이 부족하여 구체적인 실행 계획이 필요함.",
+          "risks": [
+            "실제 적용 경로가 불명확하여 사업화 리스크 증가"
+          ],
+          "next_actions": [
+            "도입 장벽 분석을 위한 추가 자료 수집"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        }
+      ]
+    },
+    {
+      "key": "filing_readiness",
+      "label": "출원 준비도",
+      "average_score": 3.67,
+      "score_out_of_100": 73,
+      "grade": "B+",
+      "weight": 0.2,
+      "item_count": 3,
+      "items": [
+        {
+          "item_number": 10,
+          "item": "명세서 보강 필요도",
+          "dimension": "filing_readiness",
+          "dimension_label": "출원 준비도",
+          "score": 3,
+          "score_out_of_100": 60,
+          "reason": "초안 작성은 가능하나 보강 항목이 여럿 있어 추가 작업이 필요함.",
+          "risks": [
+            "명세서 작성 시 필요한 정보 부족으로 인한 출원 지연"
+          ],
+          "next_actions": [
+            "명세서 보강을 위한 추가 인터뷰 및 자료 수집"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        },
+        {
+          "item_number": 11,
+          "item": "해외/우선권 전략 적합성",
+          "dimension": "filing_readiness",
+          "dimension_label": "출원 준비도",
+          "score": 4,
+          "score_out_of_100": 80,
+          "reason": "목표 국가와 사업 목표가 잘 연결되어 있으나 우선순위 근거가 일부 부족함.",
+          "risks": [
+            "국가별 출원 전략의 불명확성으로 인한 권리화 리스크"
+          ],
+          "next_actions": [
+            "우선권 전략을 구체화하기 위한 추가 분석"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        },
+        {
+          "item_number": 12,
+          "item": "다음 액션 명확성",
+          "dimension": "filing_readiness",
+          "dimension_label": "출원 준비도",
+          "score": 4,
+          "score_out_of_100": 80,
+          "reason": "주요 액션은 명확하나 순서 또는 담당 근거가 일부 부족하여 우선순위 정리가 필요함.",
+          "risks": [
+            "다음 작업의 우선순위가 불명확하여 출원 지연"
+          ],
+          "next_actions": [
+            "다음 작업의 우선순위를 정리하기 위한 회의 개최"
+          ],
+          "method": "llm_pre_application_checklist",
+          "confidence": "보통"
+        }
+      ]
+    }
+  ],
+  "score_items": [
+    {
+      "item_number": 1,
+      "item": "문제 정의 명확성",
+      "dimension": "technology_readiness",
+      "dimension_label": "기술 구체성",
+      "score": 3,
+      "score_out_of_100": 60,
+      "reason": "기술적 문제와 기존 방식의 한계는 언급되었으나, 구체적인 수치나 적용 상황이 부족하여 일반적인 문제 정의로 보임.",
+      "risks": [
+        "기술적 문제의 불명확성으로 인한 시장 수용 리스크"
+      ],
+      "next_actions": [
+        "기술적 문제와 기존 방식의 한계를 구체적인 사례와 수치로 보완"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 2,
+      "item": "해결 수단의 구체성",
+      "dimension": "technology_readiness",
+      "dimension_label": "기술 구체성",
+      "score": 4,
+      "score_out_of_100": 80,
+      "reason": "핵심 구성요소와 데이터 흐름이 명확하나 일부 세부 구현이 부족하여 보강이 필요함.",
+      "risks": [
+        "구체적인 구현 방안 부족으로 인한 특허 청구항의 약화"
+      ],
+      "next_actions": [
+        "구성요소 간의 연결 및 데이터 흐름을 명확히 하기 위한 추가 자료 수집"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 3,
+      "item": "차별 포인트 설득력",
+      "dimension": "technology_readiness",
+      "dimension_label": "기술 구체성",
+      "score": 4,
+      "score_out_of_100": 80,
+      "reason": "차별 요소는 명확하나 기존 기술과의 비교 근거가 부족하여 설득력이 다소 약함.",
+      "risks": [
+        "경쟁 기술과의 차별성이 불명확하여 시장에서의 경쟁력 저하"
+      ],
+      "next_actions": [
+        "경쟁 기술 분석 및 차별 포인트에 대한 구체적인 사례 수집"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 4,
+      "item": "독립항 구성 가능성",
+      "dimension": "claimability",
+      "dimension_label": "권리화 가능성",
+      "score": 4,
+      "score_out_of_100": 80,
+      "reason": "독립항의 골격은 가능하나 일부 구성요소 보강이 필요하여 명확한 청구항 구성이 요구됨.",
+      "risks": [
+        "청구항의 범위가 불명확하여 권리화 리스크 증가"
+      ],
+      "next_actions": [
+        "독립항의 구성 요소를 보강하기 위한 추가 자료 수집"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 5,
+      "item": "회피설계 리스크",
+      "dimension": "claimability",
+      "dimension_label": "권리화 가능성",
+      "score": 3,
+      "score_out_of_100": 60,
+      "reason": "핵심 구성 요소가 있으나 일부 우회 가능성이 있어 보호력이 불확실함.",
+      "risks": [
+        "경쟁자가 쉽게 회피할 수 있는 구조로 인한 권리화 리스크"
+      ],
+      "next_actions": [
+        "회피설계 리스크를 줄이기 위한 추가적인 기술적 차별화 방안 모색"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 6,
+      "item": "선행기술 조사 필요도",
+      "dimension": "claimability",
+      "dimension_label": "권리화 가능성",
+      "score": 3,
+      "score_out_of_100": 60,
+      "reason": "일반적인 선행기술 조사가 필요하나, 차별 지점이 정리되어 있어 검색 범위는 좁을 것으로 예상됨.",
+      "risks": [
+        "선행기술 조사 결과에 따라 신규성/진보성 리스크가 증가할 수 있음"
+      ],
+      "next_actions": [
+        "선행기술 조사를 위한 구체적인 검색 전략 수립"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 7,
+      "item": "적용 고객/사용처 명확성",
+      "dimension": "business_hypothesis",
+      "dimension_label": "시장/사업 가설",
+      "score": 2,
+      "score_out_of_100": 40,
+      "reason": "적용 고객과 사용처에 대한 구체적인 설명이 부족하여 사업 적용처를 확인하기 어려움.",
+      "risks": [
+        "시장 수용 가능성에 대한 불확실성"
+      ],
+      "next_actions": [
+        "적용 고객 및 사용처에 대한 시장 조사 실시"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 8,
+      "item": "경제적 효과 설명력",
+      "dimension": "business_hypothesis",
+      "dimension_label": "시장/사업 가설",
+      "score": 3,
+      "score_out_of_100": 60,
+      "reason": "경제적 효과는 있으나 구체적인 수치나 검증 방법이 부족하여 일반적인 표현에 그침.",
+      "risks": [
+        "경제적 효과에 대한 신뢰성 부족으로 인한 투자 유치 어려움"
+      ],
+      "next_actions": [
+        "경제적 효과를 정량화하기 위한 추가 데이터 수집"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 9,
+      "item": "도입 장벽과 실행 가능성",
+      "dimension": "business_hypothesis",
+      "dimension_label": "시장/사업 가설",
+      "score": 3,
+      "score_out_of_100": 60,
+      "reason": "실행 가능성은 있으나 도입 장벽 분석이 부족하여 구체적인 실행 계획이 필요함.",
+      "risks": [
+        "실제 적용 경로가 불명확하여 사업화 리스크 증가"
+      ],
+      "next_actions": [
+        "도입 장벽 분석을 위한 추가 자료 수집"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 10,
+      "item": "명세서 보강 필요도",
+      "dimension": "filing_readiness",
+      "dimension_label": "출원 준비도",
+      "score": 3,
+      "score_out_of_100": 60,
+      "reason": "초안 작성은 가능하나 보강 항목이 여럿 있어 추가 작업이 필요함.",
+      "risks": [
+        "명세서 작성 시 필요한 정보 부족으로 인한 출원 지연"
+      ],
+      "next_actions": [
+        "명세서 보강을 위한 추가 인터뷰 및 자료 수집"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 11,
+      "item": "해외/우선권 전략 적합성",
+      "dimension": "filing_readiness",
+      "dimension_label": "출원 준비도",
+      "score": 4,
+      "score_out_of_100": 80,
+      "reason": "목표 국가와 사업 목표가 잘 연결되어 있으나 우선순위 근거가 일부 부족함.",
+      "risks": [
+        "국가별 출원 전략의 불명확성으로 인한 권리화 리스크"
+      ],
+      "next_actions": [
+        "우선권 전략을 구체화하기 위한 추가 분석"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    },
+    {
+      "item_number": 12,
+      "item": "다음 액션 명확성",
+      "dimension": "filing_readiness",
+      "dimension_label": "출원 준비도",
+      "score": 4,
+      "score_out_of_100": 80,
+      "reason": "주요 액션은 명확하나 순서 또는 담당 근거가 일부 부족하여 우선순위 정리가 필요함.",
+      "risks": [
+        "다음 작업의 우선순위가 불명확하여 출원 지연"
+      ],
+      "next_actions": [
+        "다음 작업의 우선순위를 정리하기 위한 회의 개최"
+      ],
+      "method": "llm_pre_application_checklist",
+      "confidence": "보통"
+    }
+  ],
+  "claim_strategy": {
+    "independent_claim_direction": "AI 기반 불량 예측 시스템의 핵심 구성 요소 및 데이터 흐름을 중심으로 구성",
+    "dependent_claim_ideas": [
+      "불량 예측 정확도를 높이기 위한 추가적인 데이터 처리 방법",
+      "다양한 공정 조건에 대한 적응형 학습 방법"
+    ],
+    "avoidance_design_notes": [
+      "경쟁자가 쉽게 회피할 수 있는 요소를 최소화하기 위한 기술적 차별화 방안 모색"
+    ],
+    "diagnostics": {
+      "count": 3,
+      "independent_like_count": 1,
+      "dependent_like_count": 2,
+      "average_chars": 132,
+      "categories": [
+        "방법",
+        "장치"
+      ],
+      "has_method_claim": true,
+      "has_device_claim": true,
+      "has_media_claim": false
+    }
+  },
+  "prior_art_search_plan": {
+    "status": "not_performed",
+    "purpose": "신규성/진보성 확정이 아니라 출원 전 리스크를 줄이기 위한 조사 계획입니다.",
+    "recommended_queries": [
+      "AI 기반 반도체 제조 공정 불량 예측 시스템 정보 검색/데이터 처리",
+      "AI 기반 반도체 제조 공정 불량 예측 시스템 기존 기술 문제점",
+      "G06F 16/00 AI 기반 반도체 제조 공정 불량 예측 시스템"
+    ],
+    "focus_items": [
+      {
+        "item": "차별 포인트 설득력",
+        "score": 4,
+        "reason": "차별 요소는 명확하나 기존 기술과의 비교 근거가 부족하여 설득력이 다소 약함."
+      },
+      {
+        "item": "선행기술 조사 필요도",
+        "score": 3,
+        "reason": "일반적인 선행기술 조사가 필요하나, 차별 지점이 정리되어 있어 검색 범위는 좁을 것으로 예상됨."
+      }
+    ]
+  },
+  "filing_strategy": {
+    "recommended_route": "국내 우선출원 후 PCT 출원",
+    "country_notes": [
+      "한국, 미국, 유럽 시장을 타겟으로 하여 전략적으로 출원"
+    ],
+    "target_country_count": 3,
+    "has_overseas_target": true
+  },
+  "filing_investment_decision": {
+    "decision": "go_to_prior_art_search_and_drafting",
+    "rationale": "기술의 차별성과 시장의 필요성을 고려할 때 출원 비용 투입이 필요함.",
+    "go_conditions": [
+      "선행기술 조사 결과가 긍정적일 경우",
+      "고객 피드백이 긍정적일 경우"
+    ],
+    "stop_or_hold_conditions": [
+      "시장 조사 결과가 부정적일 경우",
+      "기술적 차별성이 불명확할 경우"
+    ],
+    "recommended_next_sprint": [
+      "1~2주 안에 선행기술 조사 및 고객 피드백 수집"
+    ]
+  },
+  "next_actions": [
+    {
+      "priority": "high",
+      "action": "적용 고객 및 사용처에 대한 시장 조사 실시",
+      "reason": "사업화 가능성을 높이기 위해 구체적인 고객군과 사용처를 파악해야 함."
+    },
+    {
+      "priority": "medium",
+      "action": "적용 고객, 수익 모델, 도입 환경 설명이 부족합니다.",
+      "reason": "로컬 진단에서 확인된 보완 항목입니다."
+    },
+    {
+      "priority": "medium",
+      "action": "기술적 문제와 기존 방식의 한계를 구체적인 사례와 수치로 보완",
+      "reason": "기술 구체성 / 문제 정의 명확성 보완"
+    },
+    {
+      "priority": "medium",
+      "action": "회피설계 리스크를 줄이기 위한 추가적인 기술적 차별화 방안 모색",
+      "reason": "권리화 가능성 / 회피설계 리스크 보완"
+    },
+    {
+      "priority": "medium",
+      "action": "선행기술 조사를 위한 구체적인 검색 전략 수립",
+      "reason": "권리화 가능성 / 선행기술 조사 필요도 보완"
+    }
+  ],
+  "limitations": [
+    "선행기술 검색을 통한 신규성/진보성 확인이 필요함",
+    "시장 검증이 부족하여 사업화 가능성에 대한 불확실성 존재",
+    "본 보고서는 출원 전 입력 텍스트 기반 사전평가이며, 법적 효력 있는 특허성 의견서가 아닙니다.",
+    "실제 선행기술 검색, 변리사 검토, 시장 데이터 검증 전까지 신규성/진보성 판단은 확정할 수 없습니다."
+  ],
+  "diagnostics": {
+    "text": {
+      "technology_description_chars": 538,
+      "related_business_chars": 14,
+      "total_input_chars": 988
+    },
+    "claims": {
+      "count": 3,
+      "independent_like_count": 1,
+      "dependent_like_count": 2,
+      "average_chars": 132,
+      "categories": [
+        "방법",
+        "장치"
+      ],
+      "has_method_claim": true,
+      "has_device_claim": true,
+      "has_media_claim": false
+    },
+    "strategy": {
+      "target_country_count": 3,
+      "target_countries": [
+        "한국",
+        "미국",
+        "유럽"
+      ],
+      "has_overseas_target": true
+    },
+    "signals": {
+      "problem_terms": 3,
+      "mechanism_terms": 16,
+      "differentiation_terms": 2,
+      "effect_terms": 5,
+      "quantitative_terms": 14,
+      "business_terms": 19,
+      "adoption_terms": 1
+    },
+    "gaps": [
+      {
+        "type": "business",
+        "severity": "medium",
+        "message": "적용 고객, 수익 모델, 도입 환경 설명이 부족합니다."
+      }
+    ]
+  },
+  "ai_classification": {
+    "ipc": "G06F 16/00",
+    "description": "정보 검색/데이터 처리",
+    "confidence": "high",
+    "matched_keywords": [
+      "데이터",
+      "분석",
+      "처리",
+      "추천"
+    ]
+  },
+  "keywords": [
+    "공정",
+    "불량",
+    "반도체",
+    "제조",
+    "예측",
+    "장비",
+    "ai",
+    "데이터"
+  ],
+  "frontend_summary": {
+    "title": "AI 기반 반도체 제조 공정 불량 예측 시스템",
+    "ipc": "G06F 16/00",
+    "overall_grade": "B",
+    "overall_score": 67,
+    "technology_score": 73,
+    "rights_score": 67,
+    "business_score": 53,
+    "filing_readiness_score": 73,
+    "strongest_dimension": "기술 구체성",
+    "weakest_dimension": "시장/사업 가설",
+    "value_grade": "conditional_value",
+    "investment_decision": "revise_then_file"
+  },
+  "artifacts": {
+    "output_path": "/Users/knh/workspace/skipa/skipa-ai-server/pre_application_valuation/outputs/20260613_134026_AI_기반_반도체_제조_공정_불량_예측_시스템_preval-30b3618ce520.json"
+  }
+}

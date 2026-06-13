@@ -1,0 +1,302 @@
+{
+  "schema_version": "pre-application-valuation-report/v3",
+  "evaluation_id": "",
+  "evaluated_at": "",
+  "patent_title": "",
+  "metadata": {
+    "report_type": "pre_application_valuation",
+    "title": "사전가치평가 보고서",
+    "schema_version": "pre-application-valuation-report/v3",
+    "generated_at": "",
+    "score_display_scale": "0~100",
+    "item_score_scale": "1~5",
+    "storage_policy": "",
+    "evaluation_source": "llm",
+    "model": "",
+    "pre_evaluation_id": "",
+    "user_id": "",
+    "service_sections": [
+      {
+        "key": "input_summary",
+        "title": "입력 요약"
+      },
+      {
+        "key": "executive_summary",
+        "title": "평가 요약"
+      },
+      {
+        "key": "valuation_assessment",
+        "title": "사전 가치평가"
+      },
+      {
+        "key": "commercialization_assessment",
+        "title": "사업화 가치"
+      },
+      {
+        "key": "readiness",
+        "title": "출원 준비도"
+      },
+      {
+        "key": "evaluation",
+        "title": "평가 기준별 상세 점수"
+      },
+      {
+        "key": "claim_strategy",
+        "title": "권리화 전략"
+      },
+      {
+        "key": "filing_strategy",
+        "title": "출원 전략"
+      },
+      {
+        "key": "filing_investment_decision",
+        "title": "출원 투자 판단"
+      },
+      {
+        "key": "next_actions",
+        "title": "보완 액션"
+      },
+      {
+        "key": "limitations",
+        "title": "평가 한계"
+      }
+    ]
+  },
+  "input": {
+    "patent_name": "",
+    "technology_description": "",
+    "claims": [],
+    "related_business": "",
+    "target_countries": []
+  },
+  "input_summary": {
+    "title": "",
+    "target_countries": [],
+    "claim_count": 0,
+    "independent_like_claims": 0,
+    "related_business": "",
+    "keywords": [],
+    "estimated_ipc": {
+      "ipc": "",
+      "description": "",
+      "confidence": "",
+      "matched_keywords": []
+    }
+  },
+  "executive_summary": {
+    "overall_score": 0,
+    "score_out_of_100": 0,
+    "grade": "",
+    "opinion": "",
+    "strongest_dimension": "",
+    "weakest_dimension": "",
+    "key_risks": []
+  },
+  "valuation_assessment": {
+    "value_grade": "",
+    "value_score": 0,
+    "value_summary": "",
+    "positive_value_drivers": [],
+    "value_constraints": [],
+    "evidence_needed": []
+  },
+  "commercialization_assessment": {
+    "target_market": "",
+    "expected_use_cases": [],
+    "monetization_paths": [],
+    "market_validation_gaps": []
+  },
+  "readiness": {
+    "level": "",
+    "decision": "",
+    "weakest_dimension": {
+      "key": "",
+      "label": "",
+      "average_score": 0,
+      "score_out_of_100": 0,
+      "grade": "",
+      "weight": 0,
+      "item_count": 0,
+      "items": []
+    },
+    "required_before_filing": [],
+    "diagnostic_gaps": []
+  },
+  "dimensions": [
+    {
+      "key": "technology_readiness",
+      "label": "기술 구체성",
+      "average_score": 0,
+      "score_out_of_100": 0,
+      "grade": "",
+      "weight": 0.28,
+      "item_count": 0,
+      "items": []
+    },
+    {
+      "key": "claimability",
+      "label": "권리화 가능성",
+      "average_score": 0,
+      "score_out_of_100": 0,
+      "grade": "",
+      "weight": 0.32,
+      "item_count": 0,
+      "items": []
+    },
+    {
+      "key": "business_hypothesis",
+      "label": "시장/사업 가설",
+      "average_score": 0,
+      "score_out_of_100": 0,
+      "grade": "",
+      "weight": 0.2,
+      "item_count": 0,
+      "items": []
+    },
+    {
+      "key": "filing_readiness",
+      "label": "출원 준비도",
+      "average_score": 0,
+      "score_out_of_100": 0,
+      "grade": "",
+      "weight": 0.2,
+      "item_count": 0,
+      "items": []
+    }
+  ],
+  "score_items": [
+    {
+      "item_number": 0,
+      "item": "",
+      "dimension": "",
+      "dimension_label": "",
+      "score": 0,
+      "score_out_of_100": 0,
+      "reason": "",
+      "risks": [],
+      "next_actions": [],
+      "method": "llm_pre_application_checklist",
+      "confidence": ""
+    }
+  ],
+  "claim_strategy": {
+    "independent_claim_direction": "",
+    "dependent_claim_ideas": [],
+    "avoidance_design_notes": [],
+    "diagnostics": {
+      "count": 0,
+      "independent_like_count": 0,
+      "dependent_like_count": 0,
+      "average_chars": 0,
+      "categories": [],
+      "has_method_claim": false,
+      "has_device_claim": false,
+      "has_media_claim": false
+    }
+  },
+  "prior_art_search_plan": {
+    "status": "",
+    "purpose": "",
+    "recommended_queries": [],
+    "focus_items": [
+      {
+        "item": "",
+        "score": 0,
+        "reason": ""
+      }
+    ]
+  },
+  "filing_strategy": {
+    "recommended_route": "",
+    "country_notes": [],
+    "target_country_count": 0,
+    "has_overseas_target": false
+  },
+  "filing_investment_decision": {
+    "decision": "",
+    "rationale": "",
+    "go_conditions": [],
+    "stop_or_hold_conditions": [],
+    "recommended_next_sprint": []
+  },
+  "next_actions": [
+    {
+      "priority": "",
+      "action": "",
+      "reason": ""
+    }
+  ],
+  "limitations": [],
+  "diagnostics": {
+    "text": {
+      "technology_description_chars": 0,
+      "related_business_chars": 0,
+      "total_input_chars": 0
+    },
+    "claims": {
+      "count": 0,
+      "independent_like_count": 0,
+      "dependent_like_count": 0,
+      "average_chars": 0,
+      "categories": [],
+      "has_method_claim": false,
+      "has_device_claim": false,
+      "has_media_claim": false
+    },
+    "strategy": {
+      "target_country_count": 0,
+      "target_countries": [],
+      "has_overseas_target": false
+    },
+    "signals": {
+      "problem_terms": 0,
+      "mechanism_terms": 0,
+      "differentiation_terms": 0,
+      "effect_terms": 0,
+      "quantitative_terms": 0,
+      "business_terms": 0,
+      "adoption_terms": 0
+    },
+    "gaps": [
+      {
+        "type": "",
+        "severity": "",
+        "message": ""
+      }
+    ]
+  },
+  "ai_classification": {
+    "ipc": "",
+    "description": "",
+    "confidence": "",
+    "matched_keywords": []
+  },
+  "keywords": [],
+  "frontend_summary": {
+    "title": "",
+    "ipc": "",
+    "overall_grade": "",
+    "overall_score": 0,
+    "technology_score": 0,
+    "rights_score": 0,
+    "business_score": 0,
+    "filing_readiness_score": 0,
+    "strongest_dimension": "",
+    "weakest_dimension": "",
+    "value_grade": "",
+    "investment_decision": ""
+  },
+  "artifacts": {
+    "output_path": "",
+    "backend": "",
+    "bucket": "",
+    "object_key": "",
+    "content_type": "",
+    "etag": "",
+    "backends": [],
+    "local": {
+      "backend": "",
+      "path": ""
+    }
+  }
+}

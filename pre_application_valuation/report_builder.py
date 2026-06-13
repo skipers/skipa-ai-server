@@ -8,7 +8,7 @@ from typing import Any
 from .schemas import PreApplicationValuationRequest
 
 
-REPORT_SCHEMA_VERSION = "pre-application-valuation-report/v2"
+REPORT_SCHEMA_VERSION = "pre-application-valuation-report/v3"
 DIMENSION_ORDER = [
     "technology_readiness",
     "claimability",
@@ -66,10 +66,13 @@ def build_report(
             "service_sections": [
                 {"key": "input_summary", "title": "입력 요약"},
                 {"key": "executive_summary", "title": "평가 요약"},
+                {"key": "valuation_assessment", "title": "사전 가치평가"},
+                {"key": "commercialization_assessment", "title": "사업화 가치"},
                 {"key": "readiness", "title": "출원 준비도"},
                 {"key": "evaluation", "title": "평가 기준별 상세 점수"},
                 {"key": "claim_strategy", "title": "권리화 전략"},
                 {"key": "filing_strategy", "title": "출원 전략"},
+                {"key": "filing_investment_decision", "title": "출원 투자 판단"},
                 {"key": "next_actions", "title": "보완 액션"},
                 {"key": "limitations", "title": "평가 한계"},
             ],
@@ -93,6 +96,8 @@ def build_report(
             "weakest_dimension": weakest["label"] if weakest else None,
             "key_risks": key_risks[:5],
         },
+        "valuation_assessment": build_valuation_assessment(evaluation, overall_score, dimensions, diagnostics),
+        "commercialization_assessment": build_commercialization_assessment(evaluation, request, diagnostics),
         "readiness": {
             "level": readiness_level(overall_score),
             "decision": readiness_decision(overall_score),
@@ -105,6 +110,7 @@ def build_report(
         "claim_strategy": build_claim_strategy(evaluation, diagnostics),
         "prior_art_search_plan": build_prior_art_search_plan(request, ipc, score_items),
         "filing_strategy": build_filing_strategy(evaluation, request, diagnostics),
+        "filing_investment_decision": build_filing_investment_decision(evaluation, overall_score, key_risks, next_actions),
         "next_actions": next_actions,
         "limitations": build_limitations(evaluation),
         "diagnostics": diagnostics,
@@ -121,6 +127,8 @@ def build_report(
             "filing_readiness_score": score_for_dimension(dimensions, "filing_readiness"),
             "strongest_dimension": strongest["label"] if strongest else None,
             "weakest_dimension": weakest["label"] if weakest else None,
+            "value_grade": value_grade_for_score(overall_score),
+            "investment_decision": investment_decision_label(overall_score),
         },
         "artifacts": {},
     }
@@ -257,6 +265,83 @@ def build_filing_strategy(
     }
 
 
+def build_valuation_assessment(
+    evaluation: dict[str, Any],
+    overall_score: float,
+    dimensions: list[dict[str, Any]],
+    diagnostics: dict[str, Any],
+) -> dict[str, Any]:
+    assessment = evaluation.get("valuation_assessment") if isinstance(evaluation.get("valuation_assessment"), dict) else {}
+    value_grade = str(assessment.get("value_grade") or value_grade_for_score(overall_score))
+    value_summary = str(assessment.get("value_summary") or "").strip()
+    if not value_summary:
+        value_summary = (
+            f"현재 입력 기준 예상 특허 가치는 '{value_grade}'입니다. "
+            f"종합 점수는 {score_to_100(overall_score)}/100이며, 출원 전 가치 판단의 핵심 변수는 "
+            f"{value_driver_summary(dimensions)}입니다."
+        )
+    return {
+        "value_grade": value_grade,
+        "value_score": score_to_100(overall_score),
+        "value_summary": value_summary,
+        "positive_value_drivers": list_value(assessment.get("positive_value_drivers"))
+        or default_positive_value_drivers(dimensions),
+        "value_constraints": list_value(assessment.get("value_constraints"))
+        or default_value_constraints(dimensions, diagnostics),
+        "evidence_needed": list_value(assessment.get("evidence_needed"))
+        or [
+            "기존 기술 대비 성능, 비용, 시간 개선 폭을 정량 지표로 제시",
+            "주요 적용 고객과 도입 시나리오를 2개 이상 구체화",
+            "핵심 구성요소별 선행기술 검색 결과와 차별 포인트 매핑",
+        ],
+    }
+
+
+def build_commercialization_assessment(
+    evaluation: dict[str, Any],
+    request: PreApplicationValuationRequest,
+    diagnostics: dict[str, Any],
+) -> dict[str, Any]:
+    assessment = evaluation.get("commercialization_assessment") if isinstance(evaluation.get("commercialization_assessment"), dict) else {}
+    business_text = request.related_business or "관련 사업 입력이 부족해 적용 시장을 넓게 추정했습니다."
+    return {
+        "target_market": str(assessment.get("target_market") or business_text),
+        "expected_use_cases": list_value(assessment.get("expected_use_cases"))
+        or [
+            "현재 기술 설명과 관련 사업을 연결한 대표 적용 시나리오 정의",
+            "초기 도입 고객군과 구매 의사결정자를 분리해 검증",
+        ],
+        "monetization_paths": list_value(assessment.get("monetization_paths"))
+        or ["제품/서비스 차별화 근거", "라이선스 또는 공동사업 협상 자산", "정부과제/투자 검토용 기술 근거"],
+        "market_validation_gaps": list_value(assessment.get("market_validation_gaps"))
+        or [
+            gap["message"]
+            for gap in diagnostics.get("gaps", [])
+            if gap.get("type") in {"business", "evidence"}
+        ],
+    }
+
+
+def build_filing_investment_decision(
+    evaluation: dict[str, Any],
+    overall_score: float,
+    key_risks: list[str],
+    next_actions: list[dict[str, str]],
+) -> dict[str, Any]:
+    decision = evaluation.get("filing_investment_decision") if isinstance(evaluation.get("filing_investment_decision"), dict) else {}
+    label = str(decision.get("decision") or investment_decision_label(overall_score))
+    return {
+        "decision": label,
+        "rationale": str(decision.get("rationale") or investment_decision_rationale(overall_score)),
+        "go_conditions": list_value(decision.get("go_conditions"))
+        or ["핵심 차별 포인트를 청구항 문장으로 고정", "선행기술 검색에서 직접 충돌 문헌 여부 확인"],
+        "stop_or_hold_conditions": list_value(decision.get("stop_or_hold_conditions"))
+        or key_risks[:3],
+        "recommended_next_sprint": list_value(decision.get("recommended_next_sprint"))
+        or [action["action"] for action in next_actions[:3] if action.get("action")],
+    }
+
+
 def build_limitations(evaluation: dict[str, Any]) -> list[str]:
     limitations = list_value(evaluation.get("limitations"))
     defaults = [
@@ -267,6 +352,69 @@ def build_limitations(evaluation: dict[str, Any]) -> list[str]:
         if item not in limitations:
             limitations.append(item)
     return limitations
+
+
+def value_grade_for_score(score: float) -> str:
+    if score >= 4.2:
+        return "high_pre_filing_value"
+    if score >= 3.4:
+        return "promising_value_with_validation"
+    if score >= 2.6:
+        return "conditional_value"
+    return "low_value_until_refined"
+
+
+def investment_decision_label(score: float) -> str:
+    if score >= 4.0:
+        return "go_to_prior_art_search_and_drafting"
+    if score >= 3.2:
+        return "revise_then_file"
+    if score >= 2.4:
+        return "hold_for_value_validation"
+    return "do_not_file_yet"
+
+
+def investment_decision_rationale(score: float) -> str:
+    if score >= 4.0:
+        return "기술 구성과 권리화 가능성이 비교적 구체적이므로 선행기술 검색과 명세서 초안 단계로 진행할 수 있습니다."
+    if score >= 3.2:
+        return "출원 후보로 볼 수 있으나 약한 항목을 보완한 뒤 출원 비용을 투입하는 편이 안전합니다."
+    if score >= 2.4:
+        return "아이디어 가치는 일부 보이나 시장 근거, 차별 포인트, 청구항 구체성이 부족해 보완 검증이 먼저입니다."
+    return "현재 입력만으로는 출원 비용 투입 근거가 약하므로 아이디어와 사업 가설을 먼저 재정의해야 합니다."
+
+
+def value_driver_summary(dimensions: list[dict[str, Any]]) -> str:
+    if not dimensions:
+        return "입력 구체성"
+    ordered = sorted(dimensions, key=lambda item: item.get("average_score", 0), reverse=True)
+    top = ordered[0]["label"]
+    bottom = ordered[-1]["label"]
+    return f"강점인 {top}과 보완이 필요한 {bottom}"
+
+
+def default_positive_value_drivers(dimensions: list[dict[str, Any]]) -> list[str]:
+    return [
+        f"{dimension['label']} 점수가 {dimension['score_out_of_100']}/100으로 상대적으로 높음"
+        for dimension in dimensions
+        if dimension.get("average_score", 0) >= 3.2
+    ][:3] or ["입력된 기술 설명을 기준으로 출원 전 검토 가능한 최소 정보가 존재합니다."]
+
+
+def default_value_constraints(dimensions: list[dict[str, Any]], diagnostics: dict[str, Any]) -> list[str]:
+    constraints = [
+        f"{dimension['label']} 점수가 {dimension['score_out_of_100']}/100으로 낮아 가치 판단 신뢰도를 제한함"
+        for dimension in dimensions
+        if dimension.get("average_score", 5) < 3.2
+    ]
+    constraints.extend(str(gap.get("message")) for gap in diagnostics.get("gaps", [])[:3])
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in constraints:
+        if item and item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result[:5]
 
 
 def score_for_dimension(dimensions: list[dict[str, Any]], key: str) -> int:

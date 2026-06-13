@@ -26,42 +26,55 @@ def evaluate_checklist(
     checklist = parse_checklist_markdown(CHECKLIST_PATH)
     model = load_env_value("OPENAI_PRE_APPLICATION_MODEL") or load_env_value("OPENAI_REPORT_MODEL") or load_env_value("OPENAI_MODEL") or DEFAULT_MODEL
     if load_env_value("PRE_APPLICATION_USE_LLM").lower() in {"0", "false", "no", "off"}:
-        return fallback_evaluation(checklist, diagnostics, "PRE_APPLICATION_USE_LLM 설정으로 LLM 평가를 비활성화했습니다.", model)
+        raise RuntimeError("사전가치평가 보고서는 LLM 평가가 필수입니다. PRE_APPLICATION_USE_LLM 값을 제거하거나 true로 설정하세요.")
     api_key = load_env_value("OPENAI_API_KEY")
     if not api_key:
-        return fallback_evaluation(checklist, diagnostics, "OPENAI_API_KEY가 없어 로컬 진단 기반 점수를 사용했습니다.", model)
+        raise RuntimeError("사전가치평가 보고서는 LLM 평가가 필수입니다. OPENAI_API_KEY가 필요합니다.")
 
     prompt = build_prompt(request, diagnostics, ipc, checklist)
+    last_error: Exception | None = None
     try:
-        response = requests.post(
-            OPENAI_CHAT_COMPLETIONS_URL,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
-            },
-            json={
-                "model": model,
-                "temperature": 0.15,
-                "max_tokens": 3500,
-                "response_format": {"type": "json_object"},
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a Korean patent attorney and early-stage IP strategy analyst. "
-                            "Return only one valid JSON object."
-                        ),
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-            },
-            timeout=60,
-        )
-        response.raise_for_status()
-        parsed = parse_json_object(response.json()["choices"][0]["message"]["content"])
-        return normalize_llm_result(parsed, checklist, model)
+        for attempt in range(2):
+            request_prompt = prompt
+            if attempt and last_error is not None:
+                request_prompt = (
+                    f"{prompt}\n\n[이전 응답 오류]\n{last_error}\n"
+                    "score_items는 반드시 체크리스트 1~12번을 모두 포함하고, 각 항목의 item_number를 정확히 입력하세요."
+                )
+            response = requests.post(
+                OPENAI_CHAT_COMPLETIONS_URL,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                },
+                json={
+                    "model": model,
+                    "temperature": 0.1,
+                    "max_tokens": 5000,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a Korean patent attorney and early-stage IP strategy analyst. "
+                                "Return only one valid JSON object that exactly follows the requested schema."
+                            ),
+                        },
+                        {"role": "user", "content": request_prompt},
+                    ],
+                },
+                timeout=60,
+            )
+            response.raise_for_status()
+            parsed = parse_json_object(response.json()["choices"][0]["message"]["content"])
+            try:
+                return normalize_llm_result(parsed, checklist, model)
+            except ValueError as exc:
+                last_error = exc
+                continue
     except Exception as exc:
-        return fallback_evaluation(checklist, diagnostics, f"LLM 평가 실패: {exc}", model)
+        raise RuntimeError(f"사전가치평가 LLM 평가에 실패했습니다: {exc}") from exc
+    raise RuntimeError(f"사전가치평가 LLM 평가에 실패했습니다: {last_error}")
 
 
 def parse_checklist_markdown(path: Path = CHECKLIST_PATH) -> list[dict[str, Any]]:
@@ -127,8 +140,10 @@ def build_prompt(
 2. 실제 선행기술 검색을 수행하지 않았으므로 신규성/진보성을 확정하지 말고, 리스크 가설과 조사 필요도로 표현하세요.
 3. 입력에 없는 실험 결과, 시장 수치, 고객사를 만들어내지 마세요.
 4. 5점은 예외적으로만 부여하고, 근거가 부족하면 3점 이하로 보수 평가하세요.
-5. 각 항목 reason에는 입력에서 확인한 근거와 부족한 근거를 함께 쓰세요.
-6. 각 항목 next_actions는 출원 전 바로 수행할 수 있는 작업으로 작성하세요.
+5. '사전 가치평가'의 중심은 출원 전 비용을 투입할 만한 특허 후보인지, 어떤 조건에서 가치가 생기는지, 어떤 근거가 부족한지입니다.
+6. 각 항목 reason에는 입력에서 확인한 근거와 부족한 근거를 함께 쓰세요.
+7. 각 항목 next_actions는 출원 전 바로 수행할 수 있는 작업으로 작성하세요.
+8. score_items는 반드시 체크리스트 1~12번을 모두 포함하세요. 누락, 병합, 이름 변경을 하지 마세요.
 
 [입력]
 특허명: {request.patent_name}
@@ -156,6 +171,7 @@ def build_prompt(
   "overall_opinion": "2~4문장 종합 의견",
   "score_items": [
     {{
+      "item_number": 1,
       "dimension": "technology_readiness",
       "dimension_label": "기술 구체성",
       "item": "문제 정의 명확성",
@@ -166,6 +182,19 @@ def build_prompt(
     }}
   ],
   "key_risks": ["핵심 리스크"],
+  "valuation_assessment": {{
+    "value_grade": "high_pre_filing_value | promising_value_with_validation | conditional_value | low_value_until_refined",
+    "value_summary": "출원 전 예상 가치와 그 이유를 3~5문장으로 구체 작성",
+    "positive_value_drivers": ["가치를 높이는 입력 근거"],
+    "value_constraints": ["가치를 제한하는 불확실성"],
+    "evidence_needed": ["출원/투자 판단 전 추가 확보할 근거"]
+  }},
+  "commercialization_assessment": {{
+    "target_market": "주요 적용 시장 또는 고객군",
+    "expected_use_cases": ["구체 적용 시나리오"],
+    "monetization_paths": ["제품 차별화/라이선스/비용절감 등 가치 실현 경로"],
+    "market_validation_gaps": ["시장 검증 공백"]
+  }},
   "next_actions": [
     {{"priority": "high", "action": "가장 먼저 할 일", "reason": "이유"}}
   ],
@@ -177,6 +206,13 @@ def build_prompt(
   "filing_strategy": {{
     "recommended_route": "국내 우선출원/PCT/개별국 등 예비 제안",
     "country_notes": ["국가 전략 메모"]
+  }},
+  "filing_investment_decision": {{
+    "decision": "go_to_prior_art_search_and_drafting | revise_then_file | hold_for_value_validation | do_not_file_yet",
+    "rationale": "출원 비용 투입 여부 판단 이유",
+    "go_conditions": ["출원 진행 조건"],
+    "stop_or_hold_conditions": ["보류 조건"],
+    "recommended_next_sprint": ["1~2주 안에 수행할 보완 작업"]
   }},
   "limitations": ["평가 한계"]
 }}
@@ -194,45 +230,71 @@ def format_checklist(checklist: list[dict[str, Any]]) -> str:
 
 
 def normalize_llm_result(parsed: dict[str, Any], checklist: list[dict[str, Any]], model: str) -> dict[str, Any]:
-    expected = {(item["item"], dimension["key"]): dimension for dimension in checklist for item in dimension["items"]}
+    expected_by_number: dict[int, tuple[dict[str, Any], dict[str, Any]]] = {}
+    expected_by_key: dict[tuple[str, str], tuple[dict[str, Any], dict[str, Any]]] = {}
+    for dimension in checklist:
+        for item in dimension["items"]:
+            expected_by_number[int(item["number"])] = (dimension, item)
+            expected_by_key[(item["item"], dimension["key"])] = (dimension, item)
     raw_items = parsed.get("score_items") if isinstance(parsed.get("score_items"), list) else []
     normalized_items: list[dict[str, Any]] = []
-    used: set[tuple[str, str]] = set()
+    used_numbers: set[int] = set()
+    unmatched: list[str] = []
     for raw in raw_items:
         if not isinstance(raw, dict):
             continue
         item_name = str(raw.get("item") or "").strip()
         dimension_key = str(raw.get("dimension") or "").strip()
-        dimension = expected.get((item_name, dimension_key))
-        if not dimension:
+        match = expected_by_number.get(int_value(raw.get("item_number") or raw.get("number") or raw.get("checklist_number")))
+        if not match:
+            match = expected_by_key.get((item_name, dimension_key))
+        if not match:
+            unmatched.append(f"{dimension_key}/{item_name}".strip("/"))
             continue
-        used.add((item_name, dimension_key))
+        dimension, checklist_item = match
+        item_number = int(checklist_item["number"])
+        if item_number in used_numbers:
+            continue
+        used_numbers.add(item_number)
+        score = clamp_score(raw.get("score"))
         normalized_items.append({
-            "item": item_name,
-            "dimension": dimension_key,
+            "item_number": item_number,
+            "item": checklist_item["item"],
+            "dimension": dimension["key"],
             "dimension_label": dimension["label"],
-            "score": clamp_score(raw.get("score")),
-            "score_out_of_100": clamp_score(raw.get("score")) * 20,
+            "score": score,
+            "score_out_of_100": score * 20,
             "reason": str(raw.get("reason") or "").strip() or "LLM이 항목별 근거를 충분히 제공하지 않았습니다.",
             "risks": string_list(raw.get("risks")),
             "next_actions": string_list(raw.get("next_actions")),
             "method": "llm_pre_application_checklist",
             "confidence": "보통",
         })
-    for dimension in checklist:
-        for item in dimension["items"]:
-            key = (item["item"], dimension["key"])
-            if key not in used:
-                normalized_items.append(missing_item(item, dimension, "LLM 응답 누락으로 보수 점수를 적용했습니다."))
+    missing = [
+        f"{number}. {item['item']}"
+        for number, (_dimension, item) in sorted(expected_by_number.items())
+        if number not in used_numbers
+    ]
+    if missing or unmatched:
+        details = []
+        if missing:
+            details.append(f"missing={missing}")
+        if unmatched:
+            details.append(f"unmatched={unmatched}")
+        raise ValueError("LLM score_items did not match the required 12 checklist items: " + "; ".join(details))
+    normalized_items.sort(key=lambda item: int(item["item_number"]))
     return {
         "source": "llm",
         "model": model,
         "overall_opinion": str(parsed.get("overall_opinion") or "").strip(),
         "score_items": normalized_items,
         "key_risks": string_list(parsed.get("key_risks")),
+        "valuation_assessment": dict_value(parsed.get("valuation_assessment")),
+        "commercialization_assessment": dict_value(parsed.get("commercialization_assessment")),
         "next_actions": normalize_actions(parsed.get("next_actions")),
         "claim_strategy": dict_value(parsed.get("claim_strategy")),
         "filing_strategy": dict_value(parsed.get("filing_strategy")),
+        "filing_investment_decision": dict_value(parsed.get("filing_investment_decision")),
         "limitations": string_list(parsed.get("limitations")),
     }
 
@@ -259,6 +321,23 @@ def fallback_evaluation(
         "overall_opinion": "LLM 평가를 사용할 수 없어 로컬 진단값으로 사전 출원 준비도를 보수적으로 평가했습니다.",
         "score_items": items,
         "key_risks": high_gaps or ["LLM 평가와 선행기술 검색이 수행되지 않아 정밀 리스크 판단은 제한됩니다."],
+        "valuation_assessment": {
+            "value_grade": "conditional_value",
+            "value_summary": (
+                "현재 입력만으로는 출원 전 특허 가치를 조건부 수준으로 판단합니다. "
+                "기술 구성과 청구항 초안은 일부 확인되지만, 선행기술 대비 차별성 및 사업적 가치 근거가 충분히 검증되지 않았습니다. "
+                "정량 효과와 적용 고객 근거를 보강하면 출원 비용 투입 여부를 더 명확히 판단할 수 있습니다."
+            ),
+            "positive_value_drivers": ["기술 설명과 청구항 초안이 입력되어 기본 권리화 검토가 가능합니다."],
+            "value_constraints": high_gaps or ["LLM 평가와 선행기술 검색이 수행되지 않아 가치 판단 신뢰도가 제한됩니다."],
+            "evidence_needed": ["차별 포인트별 선행기술 검색 결과", "성능/비용 개선 정량 지표", "대표 고객군과 적용 시나리오"],
+        },
+        "commercialization_assessment": {
+            "target_market": "입력된 관련 사업을 기준으로 한 초기 적용 시장",
+            "expected_use_cases": ["관련 사업 내 파일럿 적용", "기존 제품/서비스의 기술 차별화 근거로 활용"],
+            "monetization_paths": ["출원 포트폴리오 확보 후 제품 차별화", "공동사업 또는 라이선스 협상 자산화"],
+            "market_validation_gaps": ["고객군, 구매 요인, 비용 절감 폭을 추가 검증해야 합니다."],
+        },
         "next_actions": next_actions,
         "claim_strategy": {
             "independent_claim_direction": "핵심 입력, 처리, 출력 흐름을 하나의 독립항으로 정리하세요.",
@@ -268,6 +347,13 @@ def fallback_evaluation(
         "filing_strategy": {
             "recommended_route": "국내 우선출원 후 사업 국가가 확정되면 해외/PCT 전략을 재검토",
             "country_notes": ["현재 목표 국가 입력과 사업 적용처를 연결해 우선순위를 정해야 합니다."],
+        },
+        "filing_investment_decision": {
+            "decision": "hold_for_value_validation",
+            "rationale": "로컬 진단만으로는 출원 비용 투입 결정을 확정하기 어렵기 때문에 가치 근거 보강 후 재검토가 필요합니다.",
+            "go_conditions": ["핵심 차별점이 선행기술과 구분됨", "정량 효과와 적용 고객 근거가 확보됨"],
+            "stop_or_hold_conditions": high_gaps or ["가치 판단을 뒷받침할 외부 검증 근거가 부족합니다."],
+            "recommended_next_sprint": ["청구항 보강", "간이 선행기술 검색", "사업 적용 시나리오와 정량 효과 정리"],
         },
         "limitations": [reason, "실제 선행기술 검색, 변리사 검토, 시장 데이터 검증은 수행되지 않았습니다."],
     }
@@ -351,21 +437,6 @@ def fallback_actions(item_name: str, diagnostics: dict[str, Any]) -> list[str]:
     return [f"{item_name}을 뒷받침할 구체 근거를 명세서 초안에 추가하세요."]
 
 
-def missing_item(item: dict[str, Any], dimension: dict[str, Any], reason: str) -> dict[str, Any]:
-    return {
-        "item": item["item"],
-        "dimension": dimension["key"],
-        "dimension_label": dimension["label"],
-        "score": 3,
-        "score_out_of_100": 60,
-        "reason": reason,
-        "risks": ["항목별 LLM 응답이 누락되어 정밀도가 낮습니다."],
-        "next_actions": ["해당 항목을 다시 평가하거나 입력 근거를 보강하세요."],
-        "method": "llm_missing_item_fallback",
-        "confidence": "낮음",
-    }
-
-
 def score_threshold(raw: int, thresholds: list[int]) -> int:
     for index, threshold in enumerate(thresholds):
         if raw >= threshold:
@@ -403,6 +474,13 @@ def normalize_actions(value: Any) -> list[dict[str, str]]:
 
 def dict_value(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def int_value(value: Any) -> int | None:
+    try:
+        return int(value)
+    except Exception:
+        return None
 
 
 def string_list(value: Any) -> list[str]:
