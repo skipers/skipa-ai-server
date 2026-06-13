@@ -112,7 +112,7 @@
   "executive_summary": {
     "overall_score": 3.6,
     "score_out_of_100": 72,
-    "grade": "B+",
+    "grade": "B",
     "opinion": "본 기술은 반도체 제조 공정에서의 불량 예측을 통해 생산 효율성을 높일 수 있는 잠재력을 지니고 있습니다. 그러나 기술의 권리화 가능성과 시장 진입을 위한 명확한 고객 정의가 부족하여 사업화 리스크가 존재합니다. 특히, 경쟁 기술과의 비교 분석이 미비하여 차별성이 불명확하게 인식될 위험이 있습니다. 따라서, 기술의 구체성과 시장 적합성을 높이기 위한 보완 작업이 필요합니다.",
     "strongest_dimension": "기술 구체성",
     "weakest_dimension": "권리화 가능성",
@@ -461,7 +461,7 @@
       "label": "출원 준비도",
       "average_score": 3.67,
       "score_out_of_100": 73,
-      "grade": "B+",
+      "grade": "B",
       "weight": 0.2,
       "item_count": 3,
       "items": [
@@ -948,7 +948,7 @@
   "frontend_summary": {
     "title": "AI 기반 반도체 제조 공정 불량 예측 시스템",
     "ipc": "G06F 16/00",
-    "overall_grade": "B+",
+    "overall_grade": "B",
     "overall_score": 72,
     "technology_score": 80,
     "rights_score": 67,

@@ -76,7 +76,7 @@ MinIO에는 `skipa/pre-evaluations/{preEvaluationId}/report.json`으로 아래 �
   "executive_summary": {
     "overall_score": 3.5,
     "score_out_of_100": 70,
-    "grade": "B+",
+    "grade": "B",
     "opinion": "종합 의견",
     "key_risks": []
   },
@@ -111,7 +111,7 @@ MinIO에는 `skipa/pre-evaluations/{preEvaluationId}/report.json`으로 아래 �
   "limitations": [],
   "frontend_summary": {
     "title": "5G 기반 실시간 데이터 압축 알고리즘",
-    "overall_grade": "B+",
+    "overall_grade": "B",
     "overall_score": 70,
     "value_grade": "conditional_value",
     "investment_decision": "hold_for_value_validation"
