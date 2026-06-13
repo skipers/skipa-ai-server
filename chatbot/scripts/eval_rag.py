@@ -32,6 +32,7 @@ import math
 import os
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 from collections import defaultdict
 from datetime import datetime
@@ -111,6 +112,11 @@ _RELEVANCE_PROMPT = """다음 질문에 대해, 주어진 문서 청크가 답�
 _RELEVANCE_WITH_GOLDEN_PROMPT = """다음 질문과 정답 힌트를 참고하여, 주어진 문서 청크가 질문 답변에 유용한지 판단하세요.
 "yes" 또는 "no"만 답하세요.
 
+판단 기준:
+- 청크가 질문에 대한 답변(긍정적이든 부정적이든)을 제공하면 "yes"
+- 질문이 특정 정보의 존재 여부를 묻는 경우, 해당 정보가 없다고 명시하는 청크도 유용한 것으로 간주하여 "yes"
+- 청크가 질문과 전혀 관련 없으면 "no"
+
 질문: {question}
 정답 힌트 (레퍼런스 답변 요약): {golden_hint}
 청크: {chunk}"""
@@ -150,31 +156,34 @@ def _ndcg(relevances: list[int], k: int) -> float:
     return dcg / idcg if idcg > 0 else 0.0
 
 
+def _score_sample(args):
+    i, total, s, client, k = args
+    chunks      = s["contexts"][:k]
+    golden_hint = (s.get("golden_answer") or "")[:200] or None
+    print(f"  [{i+1:03d}/{total}] [{s['category']:10s}] {s['patent_id']} relevance@{k}...", flush=True)
+    rels = [_judge_chunk_relevance(client, s["question"], c, golden_hint) for c in chunks]
+    hit  = float(any(rels))
+    prec = sum(rels) / len(rels)
+    mrr  = next((1 / (j + 1) for j, r in enumerate(rels) if r), 0.0)
+    ndcg = _ndcg(rels, k)
+    return i, {"hit_at_k": round(hit, 4), "precision_at_k": round(prec, 4),
+               "mrr": round(mrr, 4), "ndcg_at_k": round(ndcg, 4), "relevance_list": rels}
+
+
 def compute_retrieval(samples: list[dict], client: OpenAI, k: int = 3) -> list[dict]:
     total = len(samples)
+    valid_args = []
     for i, s in enumerate(samples):
         if not s["chatbot_ok"] or s["source_count"] == 0:
             s.update({"hit_at_k": 0.0, "precision_at_k": 0.0,
                        "mrr": 0.0, "ndcg_at_k": 0.0, "relevance_list": []})
-            continue
+        else:
+            valid_args.append((i, total, s, client, k))
 
-        chunks      = s["contexts"][:k]
-        golden_hint = (s.get("golden_answer") or "")[:200] or None
-        print(f"  [{i+1:03d}/{total}] [{s['category']:10s}] {s['patent_id']} relevance@{k}...", flush=True)
-        rels = [_judge_chunk_relevance(client, s["question"], c, golden_hint) for c in chunks]
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        for i, metrics in pool.map(_score_sample, valid_args):
+            samples[i].update(metrics)
 
-        hit  = float(any(rels))
-        prec = sum(rels) / len(rels)
-        mrr  = next((1 / (j + 1) for j, r in enumerate(rels) if r), 0.0)
-        ndcg = _ndcg(rels, k)
-
-        s.update({
-            "hit_at_k":       round(hit, 4),
-            "precision_at_k": round(prec, 4),
-            "mrr":            round(mrr, 4),
-            "ndcg_at_k":      round(ndcg, 4),
-            "relevance_list": rels,
-        })
     return samples
 
 

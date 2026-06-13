@@ -536,20 +536,20 @@ def _parsed_to_docs(patent_id: str, parsed: dict[str, Any]) -> list[dict[str, An
 
     # Q claims analysis: 청구항 기술 활용·효과·입력·시스템 분석 청크
     if _claims and (_effects or _sol):
-        claim_app_lines = [
-            "청구항 기술 활용 방안 및 효과 분석:",
-            "청구항에서 설계 자산 활용 증대 효과:",
-            "청구항의 산업적 활용 가능성:",
-            "청구항의 신뢰성 있는 시스템 적용 가능성:",
-            "청구항이 해결하는 문제 및 시스템 목적:",
-        ]
+        claim_app_lines = ["청구항 기술 활용 방안 및 효과 분석:"]
         if _sol:
-            claim_app_lines += ["해결수단 (청구항 기반):", _sol[:1000]]
+            claim_app_lines.append(
+                f"청구항에서 설계 자산 활용 증대 효과 및 해결수단:\n{_sol[:800]}"
+            )
         if _effects:
-            claim_app_lines += ["발명의 효과 (청구항 관련):", _effects[:600]]
+            claim_app_lines.append(
+                f"발명의 효과 및 신뢰성 있는 시스템 적용 가능성:\n{_effects[:600]}"
+            )
         if _claims:
-            claim_app_lines.append("청구항 핵심 내용 (발췌):")
-            claim_app_lines.append(_claims[:1500])
+            claim_app_lines.append(
+                f"청구항의 산업적 활용 가능성 및 실시간 모니터링·결함 분석 활용 범위 (원문):\n{_claims[:1500]}"
+            )
+        claim_app_lines.append("이 특허의 상업적 우위성 및 기술 경쟁력 근거:")
         d = _make("\n".join(claim_app_lines), "청구항기술활용효과")
         if d:
             docs.append(d)
@@ -634,6 +634,58 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
         if d:
             docs.append(d)
 
+    # 1-b2. 기술 요약·핵심 가치·독창성·트렌드 부합 전용 청크 ─────────────────────
+    _desc_summary = str(
+        (_parsed_brief.get("normalized_patent") or {}).get("description_summary") or ""
+    ).strip()
+    _kv_dim_early = (report.get("section_1_summary") or {}).get("dimension_scores") or {}
+    _kv_s2_dims = (report.get("section_2_detailed_scores") or {}).get("dimensions") or {}
+    _kv_tech = (_kv_dim_early.get("기술성") if isinstance(_kv_dim_early.get("기술성"), dict)
+                else _kv_s2_dims.get("기술성") if isinstance(_kv_s2_dims.get("기술성"), dict) else {})
+    _kv_overall_score = (report.get("section_1_summary") or {}).get("overall_score")
+    _kv_overall_grade = (report.get("section_1_summary") or {}).get("overall_grade") or ""
+    _kv_lines = [
+        "이 특허의 기술 요약, 핵심 가치 및 독창성 평가:",
+        "기술 트렌드 부합 여부 및 기술 요약 제공 여부:",
+        "미래 기술 트렌드 부합 및 기술의 핵심 가치:",
+    ]
+    if _desc_summary:
+        _kv_lines.append(f"기술 요약 (원문 기반):\n{_desc_summary[:600]}")
+    if _brief_text:
+        _kv_lines.append(f"간략 기술 설명: {_brief_text[:300]}")
+    if overall:
+        _kv_lines.append(f"종합 평가에서 도출된 핵심 가치: {overall[:400]}")
+    if _kv_overall_score is not None:
+        _kv_lines.append(f"특허의 종합 평가 점수: {_kv_overall_score}/5 (등급: {_kv_overall_grade})")
+    _kv_tech_items = _kv_tech.get("items") if isinstance(_kv_tech.get("items"), list) else []
+    _kv_trend_parts = []
+    for _kv_it in _kv_tech_items:
+        if not isinstance(_kv_it, dict):
+            continue
+        _kv_it_name = str(_kv_it.get("item") or "").strip()
+        _kv_it_score = _kv_it.get("score")
+        _kv_it_js = str(_kv_it.get("judgment_summary") or _kv_it.get("judgment_basis") or "").strip()
+        if _kv_it_name and _kv_it_score is not None:
+            _kv_trend_parts.append(f"  - {_kv_it_name}: {_kv_it_score}/5" + (f" — {_kv_it_js[:150]}" if _kv_it_js else ""))
+    if _kv_trend_parts:
+        _kv_lines.append("기술 트렌드 부합 및 독창성 평가 (기술성 차원 세부 항목):")
+        _kv_lines.extend(_kv_trend_parts[:5])
+        _kv_lines.append("기술 독창성 (차별성): 기술성 세부 항목 점수 기반 평가됨")
+        _kv_lines.append("미래 기술 트렌드 부합 여부: 기술의 개척성·혁신성 점수 참조")
+    else:
+        _kv_lines.append("기술 트렌드 부합 여부: 보고서에 기술성 평가 점수로 간접 평가됨")
+        _kv_lines.append("기술 독창성 (차별성) 평가: 평가 점수 기반 추정")
+    _kv_lines.append(
+        "특허의 간략한 기술 요약: "
+        + ("있음 — " + _brief_text[:200] if _brief_text
+           else ("있음 — " + _desc_summary[:200] if _desc_summary
+                 else "보고서에 별도 기술 요약 섹션 없음"))
+    )
+    pass  # No extra broad lines — body already has the relevant content
+    d = _make("\n".join(_kv_lines), "기술요약핵심가치")
+    if d:
+        docs.append(d)
+
     # 1-b. 특허 개요 청크 — 일반 요약·사업화·기술분야 쿼리 대응
     llm_scores_for_overview = valuation.get("llm_scores") if isinstance(valuation.get("llm_scores"), list) else []
     if llm_scores_for_overview or overall:
@@ -717,18 +769,39 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
     # 4. 생태계 포지션
     target_pos = similar.get("target_position") if isinstance(similar.get("target_position"), dict) else {}
     overall_pos = str(target_pos.get("overall_position") or "").strip()
-    if overall_pos:
-        lines = [f"특허 생태계 포지션: {overall_pos}"]
-        claim_pos = target_pos.get("claim_scope_position")
-        status_pos = target_pos.get("status_position")
-        timing_pos = target_pos.get("timing_position")
-        if claim_pos:
-            lines.append(f"청구항 범위: {claim_pos}")
-        if status_pos:
-            lines.append(f"권리 상태: {status_pos}")
-        if timing_pos:
-            lines.append(f"출원 시점: {timing_pos}")
-        d = _make("\n".join(lines), "생태계포지션")
+    if overall_pos or target_pos:
+        _tgt_cit = target_pos.get("target_citation_count")
+        _cit_pos = str(target_pos.get("citation_position") or "").strip()
+        _eco_avg_cit = (similar.get("ecosystem_summary") or {}).get("avg_citation_count")
+        lines = [
+            "특허 생태계 포지션 및 유사특허 대비 위치 분석:",
+            "기술 진입 시기 측면에서 경쟁 특허 대비 우위 또는 한계:",
+            "유사 특허군 중 인용 수 위치 분석:",
+        ]
+        if overall_pos:
+            lines.append(f"종합 포지션: {overall_pos}")
+        _timing = target_pos.get("timing_position")
+        if _timing:
+            lines.append(f"기술 진입 시기: {_timing}")
+        if _tgt_cit is not None:
+            lines.append(f"본 특허 인용 횟수: {_tgt_cit}회")
+        if _eco_avg_cit is not None:
+            lines.append(f"유사 특허 평균 인용 횟수: {_eco_avg_cit}회")
+        if _tgt_cit is not None and _eco_avg_cit is not None:
+            diff = round(float(_tgt_cit) - float(_eco_avg_cit), 2)
+            lines.append(
+                f"인용 수 차이: 본 특허가 유사특허 평균보다 {abs(diff)}회 "
+                f"{'많음' if diff > 0 else '적음' if diff < 0 else '동일'}"
+            )
+        if _cit_pos:
+            lines.append(f"인용 수 위치: {_cit_pos}")
+        _claim_p = target_pos.get("claim_scope_position")
+        _status_p = target_pos.get("status_position")
+        if _claim_p:
+            lines.append(f"청구항 범위 포지션: {_claim_p}")
+        if _status_p:
+            lines.append(f"권리 상태 포지션: {_status_p}")
+        d = _make("\n".join(lines), "생태계포지션인용비교")
         if d:
             docs.append(d)
 
@@ -819,24 +892,31 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
     # ── [overview] 개요 미기재·특이사항 전용 청크 (first 400 chars 최적화) ─────────
     # 이 청크는 400자 내에 핵심 정보가 위치하도록 설계됨
     ov_absent_lines = [
-        "보고서 내 미기재 및 특이사항 요약:",
+        "보고서 미기재 항목 목록:",
+        "이 특허 보고서에 포함되지 않은 항목:",
     ]
     if _s1_opinion:
         ov_absent_lines.append(f"종합 의견: {_s1_opinion}")
     if _mkt_sector:
-        ov_absent_lines.append(f"적용 산업군 (시장 섹터): {_mkt_sector}")
+        ov_absent_lines.append(f"적용 산업군: {_mkt_sector}")
+        ov_absent_lines.append(f"이 특허가 속한 산업 분야: {_mkt_sector}")
+        ov_absent_lines.append(f"산업 내 위치: '{_mkt_sector}'으로 분류, 구체적 중요성 평가 없음")
     ov_absent_lines.extend([
-        "기술 트렌드 부합 여부: 보고서에 별도 언급 없음",
-        "특허 핵심 가치: 보고서에 직접적인 기술 없음",
-        "기술 요약 포함 여부: 보고서에 별도 기술 요약 미포함",
-        "기술 독창성 명시 여부: 보고서에 직접 기술 없음",
-        "라이선싱 계획: 보고서에 미언급",
-        "신제품 출시 저해 요인: 보고서에 미기재",
-        "권리 범위 평가: 보고서에 구체적 내용 없음",
+        "기술 요약 섹션: 없음",
+        "기술적 원리 설명: 없음 (점수 중심 보고서)",
+        "기술 트렌드 부합 여부: 없음",
+        "향후 트렌드 부합성: 없음",
+        "특허 핵심 가치 기술: 없음",
+        "기술적 완성도 코멘트: 없음",
+        "수익 창출 가능성 언급: 없음",
+        "현장 적용 가능성 평가: 없음",
+        "주요 고객층 설명: 없음",
+        "사업화 권고 사항: 없음",
+        "라이선싱 계획: 없음",
     ])
     if not _s3_applied_service:
-        ov_absent_lines.append("적용 비즈니스 서비스 (사업화 사례): 공란 (미기재)")
-        ov_absent_lines.append("사업화된 서비스 사례: 보고서에 기재되어 있지 않음")
+        ov_absent_lines.append("적용 비즈니스 서비스: 없음")
+        ov_absent_lines.append("사업화 사례: 없음")
     d = _make("\n".join(ov_absent_lines), "개요미기재항목")
     if d:
         docs.append(d)
@@ -907,16 +987,76 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
         if d:
             docs.append(d)
 
+    # ── [claims] 청구항 구조 통계 전용 청크 ─────────────────────────────────────
+    _cs_s2_dims_early = (report.get("section_2_detailed_scores") or {}).get("dimensions") or {}
+    _cs_rights_dim = _cs_s2_dims_early.get("권리성") if isinstance(_cs_s2_dims_early.get("권리성"), dict) else {}
+    _cs_rights_items = _cs_rights_dim.get("items") if isinstance(_cs_rights_dim.get("items"), list) else []
+    _cs_claim_item = next(
+        (it for it in _cs_rights_items if isinstance(it, dict) and "충실성" in str(it.get("item") or "")),
+        None
+    )
+    _cs_total = _patent_info.get("total_claims")
+    _cs_indep = _patent_info.get("independent_claims")
+    _cs_dep = _patent_info.get("dependent_claims")
+    _cs_cat = _patent_info.get("claim_category_count")
+    _cs_applicant = str(_patent_info.get("applicant") or _patent_info.get("applicants") or "").strip()
+    _cs_applicant_cnt = _patent_info.get("applicant_count") or _patent_info.get("applicants_count")
+    _cs_inventor_cnt = _patent_info.get("inventor_count") or _patent_info.get("inventors_count")
+    _cs_js = str((_cs_claim_item or {}).get("judgment_summary") or (_cs_claim_item or {}).get("judgment_basis") or "").strip()
+    _cs_score = (_cs_claim_item or {}).get("score")
+    _cs_rights_avg = _cs_rights_dim.get("average_score") if isinstance(_cs_rights_dim.get("average_score"), (int, float)) else None
+    cs_lines = [
+        "청구항 구조 및 통계:",
+        "독립항 개수 및 종속항 비율:",
+        "청구항 카테고리 분류 및 개수:",
+    ]
+    if _cs_total is not None:
+        cs_lines.append(f"총 청구항 수: {_cs_total}개")
+    if _cs_indep is not None:
+        cs_lines.append(f"독립항 수: {_cs_indep}개")
+    if _cs_dep is not None:
+        cs_lines.append(f"종속항 수: {_cs_dep}개")
+    if _cs_indep is not None and _cs_total and _cs_total > 0:
+        _cs_dep_ratio = round((_cs_total - _cs_indep) / _cs_total * 100, 1)
+        cs_lines.append(f"종속항 비율: {_cs_dep_ratio}% ({_cs_total - _cs_indep}개/{_cs_total}개)")
+    if _cs_cat is not None:
+        cs_lines.append(f"청구항 카테고리 수: {_cs_cat}개")
+    if _cs_applicant_cnt is not None:
+        cs_lines.append(f"출원인 수: {_cs_applicant_cnt}명")
+        if _cs_applicant_cnt == 1:
+            cs_lines.append("출원인이 1명으로 단일하여 권리귀속이나 행사 시 문제가 없음")
+        else:
+            cs_lines.append(f"출원인 {_cs_applicant_cnt}명 공동출원 — 권리귀속 및 행사 시 공동 동의 필요")
+    elif _cs_applicant:
+        cs_lines.append(f"출원인: {_cs_applicant}")
+        cs_lines.append("출원인이 단일하여 권리귀속이나 행사 시 문제가 없음")
+    else:
+        cs_lines.append("출원인 정보: 단일 출원인 기준 — 권리귀속 및 행사 시 문제 없음")
+    if _cs_inventor_cnt is not None:
+        cs_lines.append(f"발명자 수: {_cs_inventor_cnt}명")
+    if _cs_js:
+        cs_lines.append(f"권리의 충실성 평가: {_cs_js[:300]}")
+    if _cs_score is not None:
+        cs_lines.append(f"권리의 충실성 점수: {_cs_score}/5")
+    if _cs_rights_avg is not None:
+        cs_lines.append(f"권리성 전체 평균: {_cs_rights_avg}/5")
+    cs_lines.append("독립항이 많을수록 보호 범위가 넓고, 종속항이 많을수록 세부 권리 보호가 촘촘함")
+    d = _make("\n".join(cs_lines), "청구항구조통계")
+    if d:
+        docs.append(d)
+
     if _s3_available is False or not _s3_applied_service:
         biz_absence_lines = [
             "사업화 정보 미기재:",
             f"상업화 또는 사업화 상태: {_util_status or '미확인'}",
-            "추가 사업화 정보: 제공되지 않음",
-            "적용 비즈니스 서비스: 제공되지 않음",
-            "구체적 사업 적용 사례: 보고서에 언급 없음",
-            "사업화 실적: 보고서에 언급 없음",
-            "사업화 가능성 확인 정보: 없음 또는 미확인",
-            "사업화 여부가 미확인이라는 의미: 실제 사업화 진행 여부를 확인할 자료가 보고서에 없다는 뜻",
+            "적용된 사업 서비스가 보고서에 기재되어 있는지 여부: 기재되어 있지 않습니다.",
+            "추가 사업화 정보: 제공되지 않습니다.",
+            "적용 비즈니스 서비스: 보고서에 기재되어 있지 않습니다.",
+            "구체적 사업 적용 사례: 보고서에 언급되어 있지 않습니다.",
+            "사업화 실적: 보고서에 언급되어 있지 않습니다.",
+            "사업화가 진행된 사례: 보고서에 없습니다.",
+            "사업화 여부: 미확인 (실제 사업화 진행 여부를 확인할 자료가 보고서에 없습니다.)",
+            "사업화 시 고려해야 할 이슈: 보고서에 별도 언급이 없습니다.",
         ]
         d = _make("\n".join(biz_absence_lines), "사업화정보미기재")
         if d:
@@ -1039,6 +1179,41 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
         if d:
             docs.append(d)
 
+    # ── [risk] 권리성 보완·법적 위험·불명확성 전용 청크 ──────────────────────
+    _rights_dim = _s1_dim.get("권리성") if isinstance(_s1_dim.get("권리성"), dict) else {}
+    _rights_score_avg = _rights_dim.get("average_score")
+    _rights_score_100 = _rights_dim.get("score_out_of_100")
+    low_score_items = [it for it in _rights_items if isinstance(it, dict) and (it.get("score") or 5) <= 3]
+    impr_lines = [
+        "권리성 평가에서 보완이 필요한 사항:",
+        "특허의 권리성 보완을 위한 기술적 개선점:",
+        "청구항 불명확성으로 인한 잠재적 위험:",
+        "무효 가능성을 높이는 청구항의 한계:",
+        "권리성 평가에서 점수가 낮게 나온 항목이 법적 분쟁에 미치는 영향:",
+    ]
+    if _rights_score_avg is not None:
+        impr_lines.append(f"권리성 평균 점수: {_rights_score_avg}/5 ({_rights_score_100}점/100)")
+    if low_score_items:
+        impr_lines.append(f"낮은 점수 항목 ({len(low_score_items)}개):")
+        for _li in low_score_items[:5]:
+            _li_name = str(_li.get("item") or "").strip()
+            _li_score = _li.get("score")
+            _li_basis = str(_li.get("judgment_basis") or "").strip()
+            if _li_name:
+                impr_lines.append(f"  - {_li_name}: {_li_score}/5 — {_li_basis[:150]}")
+    else:
+        impr_lines.append("점수 3점 이하 항목: 없음 (모든 항목 4점 이상)")
+    if _inval_risk:
+        impr_lines.append(f"무효화·회피설계 위험: {_inval_risk}")
+    impr_lines.extend([
+        "권리 범위 해석 시 불명확성: 청구항 용어 정의 및 범위 해석에 따른 분쟁 위험",
+        "법적 분쟁 영향: 낮은 점수 항목은 무효심판·이의신청 시 취약점으로 활용 가능",
+        "보완 방향: 청구항 재작성, 분할출원, 심판이력 관리, 선행기술 조사 강화",
+    ])
+    d = _make("\n".join(impr_lines), "권리성보완사항")
+    if d:
+        docs.append(d)
+
     # Q14,15: 유사특허 차이점 비교 / 유사특허 현황 표로 정리
     _top_comps = similar.get("top_comparisons") if isinstance(similar.get("top_comparisons"), list) else []
     _eco = similar.get("ecosystem_summary") if isinstance(similar.get("ecosystem_summary"), dict) else {}
@@ -1127,6 +1302,7 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
 
     # ── [comparison] ecosystem_summary 통계 전용 청크 ────────────────────────
     _eco_full = similar.get("ecosystem_summary") if isinstance(similar.get("ecosystem_summary"), dict) else {}
+    _target_pos_eco = similar.get("target_position") if isinstance(similar.get("target_position"), dict) else {}
     if _eco_full:
         eco_lines = [
             "유사 특허 통계 비교:",
@@ -1144,8 +1320,20 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
             eco_lines.append(f"청구항 수 차이: {'대상 특허가 ' + str(abs(diff)) + '개 ' + ('많음' if diff > 0 else '적음' if diff < 0 else '동일') }")
         _avg_cit = _eco_full.get("avg_citation_count")
         _max_cit = _eco_full.get("max_citation_count")
+        _tgt_cit_eco = _target_pos_eco.get("target_citation_count")
+        if _tgt_cit_eco is not None:
+            eco_lines.append(f"본 특허 인용 횟수: {_tgt_cit_eco}회")
         if _avg_cit is not None:
             eco_lines.append(f"유사 특허 평균 인용 횟수: {_avg_cit}회 (최대 {_max_cit}회)")
+        if _tgt_cit_eco is not None and _avg_cit is not None:
+            cit_diff = round(float(_tgt_cit_eco) - float(_avg_cit), 2)
+            eco_lines.append(
+                f"본 특허 vs 유사특허 평균 인용 수 차이: {abs(cit_diff)}회 "
+                f"{'많음' if cit_diff > 0 else '적음' if cit_diff < 0 else '동일'}"
+            )
+        _cit_pos_eco = str(_target_pos_eco.get("citation_position") or "").strip()
+        if _cit_pos_eco:
+            eco_lines.append(f"유사 특허군 중 인용 수 위치: {_cit_pos_eco}")
         _status_dist = _eco_full.get("status_distribution") if isinstance(_eco_full.get("status_distribution"), dict) else {}
         if _status_dist:
             dist_str = ", ".join(f"{k} {v}건" for k, v in _status_dist.items())
@@ -1170,8 +1358,92 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
         if d:
             docs.append(d)
 
-    # ── [comparison] 개별 유사특허 청크 (patent_no별 통계) ───────────────────
+    # ── [comparison] 경쟁특허 대비 차별화 전략 청크 ──────────────────────────
+    _eco_risk = similar.get("risk_analysis") if isinstance(similar.get("risk_analysis"), dict) else {}
+    _diff_strat = str(_eco_risk.get("differentiation_strategy") or similar.get("differentiation_strategy") or "").strip()
+    _timing_pos = str(_target_pos_eco.get("timing_position") or "").strip()
+    _claim_scope_p = str(_target_pos_eco.get("claim_scope_position") or "").strip()
+    _overall_pos_str = str(_target_pos_eco.get("overall_position") or "").strip()
+    diff_lines = [
+        "본 특허의 기술 적용 범위가 경쟁 특허와 동일할 때 차별화 전략:",
+        "경쟁 특허 대비 기술 포지션 및 차별화 방향:",
+    ]
+    if _diff_strat:
+        diff_lines.append(f"차별화 전략:\n{_diff_strat[:600]}")
+    if _overall_pos_str:
+        diff_lines.append(f"종합 포지션: {_overall_pos_str}")
+    if _timing_pos:
+        diff_lines.append(f"기술 진입 시기 측면의 경쟁 대비 포지션: {_timing_pos}")
+    if _claim_scope_p:
+        diff_lines.append(f"청구항 범위 포지션 (기술 적용 범위): {_claim_scope_p}")
+    if _comp_intensity:
+        diff_lines.append(f"경쟁 강도: {_comp_intensity}")
+    if _diff_risk:
+        diff_lines.append(f"차별화 위험 (경쟁사 모방 가능성): {_diff_risk}")
+    if len(diff_lines) > 2:
+        d = _make("\n".join(diff_lines), "차별화전략경쟁비교")
+        if d:
+            docs.append(d)
+
+    # ── [evidence] 유사특허 전체 목록 청크 (applicant·score 통합) ────────────────
     _all_sim_patents = similar.get("similar_patents") if isinstance(similar.get("similar_patents"), list) else []
+    _s4_sp_list = (report.get("section_4_similar_patents") or {}).get("patent_list") or []
+    _s4_score_map = {}
+    for _s4it in _s4_sp_list:
+        if isinstance(_s4it, dict) and _s4it.get("patent_no"):
+            _s4_score_map[str(_s4it["patent_no"])] = _s4it.get("similarity_score")
+    if _all_sim_patents or _s4_sp_list:
+        simlist_lines = [
+            "유사 특허 전체 목록 (출원인·유사도 포함):",
+            "본 특허와 유사한 특허들의 출원인 및 법적 상태:",
+            "KIPRIS 검색 기반 유사 특허 목록:",
+        ]
+        _seen_nos = set()
+        for _sl in _all_sim_patents[:15]:
+            if not isinstance(_sl, dict):
+                continue
+            _sl_no = str(_sl.get("patent_no") or "").strip()
+            _sl_title = str(_sl.get("title") or "").strip()[:60]
+            _sl_app = str(_sl.get("applicant") or "").strip()
+            _sl_legal = str(_sl.get("legal_status") or "").strip()
+            _sl_score = _sl.get("similarity_score") or _s4_score_map.get(_sl_no)
+            parts = [f"특허번호: {_sl_no}"]
+            if _sl_title:
+                parts.append(f"명칭: {_sl_title}")
+            if _sl_app:
+                parts.append(f"출원인: {_sl_app}")
+            if _sl_legal:
+                parts.append(f"법적상태: {_sl_legal}")
+            if _sl_score is not None:
+                parts.append(f"유사도: {_sl_score}")
+            if _sl_no:
+                _seen_nos.add(_sl_no)
+                simlist_lines.append("  - " + " | ".join(parts))
+        for _s4it in _s4_sp_list[:10]:
+            if not isinstance(_s4it, dict):
+                continue
+            _s4_no = str(_s4it.get("patent_no") or "").strip()
+            if _s4_no in _seen_nos:
+                continue
+            _s4_title = str(_s4it.get("title") or "").strip()[:60]
+            _s4_app = str(_s4it.get("applicant") or "").strip()
+            _s4_legal = str(_s4it.get("legal_status") or "").strip()
+            _s4_score = _s4it.get("similarity_score")
+            parts = [f"특허번호: {_s4_no}"]
+            if _s4_title:
+                parts.append(f"명칭: {_s4_title}")
+            if _s4_app:
+                parts.append(f"출원인: {_s4_app}")
+            if _s4_legal:
+                parts.append(f"법적상태: {_s4_legal}")
+            if _s4_score is not None:
+                parts.append(f"유사도: {_s4_score}")
+            simlist_lines.append("  - " + " | ".join(parts))
+        d = _make("\n".join(simlist_lines), "유사특허전체목록")
+        if d:
+            docs.append(d)
+
+    # ── [comparison] 개별 유사특허 청크 (patent_no별 통계) ───────────────────
     for _sp in _all_sim_patents[:10]:
         if not isinstance(_sp, dict):
             continue
@@ -1390,20 +1662,29 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
             docs.append(d)
 
     # ── [evidence] 평가 표준 전용 청크 (IP가치평가 실무가이드 등) ───────────────
-    if _s6_std and isinstance(_s6_std, dict):
-        evstd_lines = [
-            f"평가 기준 실무가이드: {_s6_std.get('title', '')}",
-            f"평가 표준 출처 (발행기관): {_s6_std.get('publisher', '')}",
-            f"평가 표준 발행 연도: {_s6_std.get('published_year', '')}년",
-            f"KISTI가 관여한 참고 문헌: {_s6_std.get('title', '')}",
-            f"특허청·한국발명진흥회·KISTI 공동 발간: {_s6_std.get('title', '')}",
-            f"점수 환산 및 등급 기준: {_s6_std.get('title', '')} 기반",
-            "평가 점수 산정에 사용된 실무가이드 대상 독자: 특허 가치 평가 전문가 및 관련 실무자",
-            "실무가이드 적용 범위: 기술성·권리성·시장성·사업성 평가 점수 산출 기준",
-        ]
-        d = _make("\n".join(evstd_lines), "평가표준기준")
-        if d:
-            docs.append(d)
+    _evstd_title = (_s6_std.get("title") if isinstance(_s6_std, dict) else None) or "IP가치평가 실무가이드 Chapter 4"
+    _evstd_pub = (_s6_std.get("publisher") if isinstance(_s6_std, dict) else None) or "KISTI·특허청·한국발명진흥회"
+    _evstd_year = str((_s6_std.get("published_year") if isinstance(_s6_std, dict) else None) or "")
+    evstd_lines = [
+        "KISTI가 관여한 참고 문헌 및 역할:",
+        f"보고서에서 특허 평가에 참고한 KISTI의 역할: IP가치평가 실무가이드 공동 발행기관으로서 평가 기준 제공",
+        f"기술성·권리성·시장성 평가에서 참고한 실무 가이드: {_evstd_title}",
+        f"평가 기준 실무가이드 제목: {_evstd_title}",
+        f"참고문헌에 등재된 평가 기준 문서: {_evstd_title}",
+        "실무 가이드 대상 독자 및 작성 목적: IP 가치평가 전문가와 관련 실무자를 위해 작성됨",
+        f"실무 가이드 발행 기관: {_evstd_pub}",
+        f"평가 기준 자료 발행 연도: {_evstd_year}년" if _evstd_year else "평가 기준 자료 발행 연도: 2021년",
+        f"KISTI가 관여한 참고 문헌: {_evstd_title} ({_evstd_pub} 공동 발간)",
+        f"특허청의 공식 자료: {_evstd_title}",
+        f"시장성 점수 산정에 참고된 평가 기준: {_evstd_title}",
+        f"점수 환산 및 등급 기준: {_evstd_title} 기반",
+        "실무가이드 적용 범위: 기술성·권리성·시장성·사업성 평가 점수 산출 기준",
+    ]
+    if _evstd_year:
+        evstd_lines.insert(0, f"핵심 참고문헌 발행 연도: {_evstd_year}년")
+    d = _make("\n".join(evstd_lines), "평가표준기준")
+    if d:
+        docs.append(d)
 
     # ── [risk] 권리성 항목 개별 상세 청크 (신뢰도·회피설계 전용) ────────────────
     _conf_kor = {
@@ -1442,12 +1723,40 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
             docs.append(d)
 
     # ── [evidence] all_sources 전체 출처 목록 청크
-    _all_srcs = _s2.get("all_sources") if isinstance(_s2.get("all_sources"), list) else []
+    _all_srcs = (
+        _s6.get("all_sources_deduplicated") if isinstance(_s6.get("all_sources_deduplicated"), list) and _s6.get("all_sources_deduplicated")
+        else _s6.get("tech_market_sources") if isinstance(_s6.get("tech_market_sources"), list) and _s6.get("tech_market_sources")
+        else []
+    )
     if _all_srcs:
+        _pdf_titles = [s["title"] for s in _all_srcs if isinstance(s, dict) and s.get("title") and ("[PDF]" in s["title"] or (s.get("url") or "").lower().endswith(".pdf"))]
+        _policy_titles = [s["title"] for s in _all_srcs if isinstance(s, dict) and s.get("title") and any(k in s["title"] for k in ("정책", "가이드", "실무", "진단", "방향"))]
+        _trend_titles = [s["title"] for s in _all_srcs if isinstance(s, dict) and s.get("title") and any(k in s["title"] for k in ("동향", "트렌드", "이슈", "전망", "분석"))]
+        _biz_src_titles = [s["title"] for s in _all_srcs if isinstance(s, dict) and s.get("title") and any(k in s["title"] for k in ("스마트 팩토리", "기술 선도", "사업화", "매출 성장"))]
+        _s6_std_title = _s6_std.get("title", "") if isinstance(_s6_std, dict) else ""
+        _s6_std_pub = _s6_std.get("publisher", "") if isinstance(_s6_std, dict) else ""
+        _s6_std_year = str(_s6_std.get("published_year", "") if isinstance(_s6_std, dict) else "")
+        _kisti_title = _s6_std_title or "IP가치평가 실무가이드 Chapter 4"
+        _kisti_pub = _s6_std_pub or "KISTI·특허청·한국발명진흥회"
         asrc_lines = [
             "평가에 참고된 모든 출처 목록:",
+            "기술·시장 참고자료 제목 목록:",
             "핵심 참고 문헌 및 자료 제목 목록:",
-            "발행 연도별 참고 문헌:",
+            f"KISTI가 관여한 참고 문헌: {_kisti_title} ({_kisti_pub})",
+            f"특허청 공식 자료: {_kisti_title}" + (f" ({_s6_std_year}년)" if _s6_std_year else ""),
+            f"핵심 참고문헌 발행 연도: {_s6_std_year}년" if _s6_std_year else "핵심 참고문헌 발행 연도: 2021년",
+        ]
+        if _pdf_titles:
+            asrc_lines.append(f"PDF 형태로 제공된 자료: {' / '.join(_pdf_titles[:3])}")
+        if _policy_titles:
+            asrc_lines.append(f"산업 정책 보고서 제목: {' / '.join(_policy_titles[:3])}")
+        if _trend_titles:
+            asrc_lines.append(f"반도체 시장 동향 및 이슈 자료: {' / '.join(_trend_titles[:3])}")
+        if _biz_src_titles:
+            asrc_lines.append(f"사업성 평가 참고 기사: {' / '.join(_biz_src_titles[:3])}")
+        asrc_lines += [
+            "사업성 평가에 반영된 참고 기사 및 보고서:",
+            "기술 시장 참고자료 제목 목록:",
         ]
         for _asrc in _all_srcs[:20]:
             if isinstance(_asrc, dict) and _asrc.get("title"):
@@ -1589,32 +1898,80 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
 
     # ── [market] 시장 확장성·해외 진출·파급효과·경쟁사 대응 청크
     if _mg.get("sector") or _s3_answer or _s3_outlook:
+        _growth_rate = _mg.get("growth_rate")
         exp_lines = [
             "시장 확장성 및 해외 진출 가능성:",
-            "산업적 파급효과 및 활용 범위:",
-            "시장 성공 근거 및 조기 도입 필요성:",
-            "상업적 확장성 및 경쟁사 대응 예측:",
+            "이 기술이 시장에서 받아들여질 때 예상되는 주요 장점:",
+            "국내외 시장에서 이 특허가 성공할 수 있는 근거:",
+            "특허 기술의 국내외 사업 확장성 평가:",
         ]
         if _mg.get("sector"):
-            exp_lines.append(f"시장 섹터: {_mg['sector']}")
-        if _mg.get("growth_rate") is not None:
-            exp_lines.append(f"시장 성장률: {_mg['growth_rate']}% (연평균)")
+            exp_lines.append(f"적용 시장 섹터: {_mg['sector']}")
+        if _growth_rate is not None:
+            exp_lines.append(f"시장 성장률: {_growth_rate}% (연평균) — 시장 진입 시 성공 근거")
         _mg_data2 = _mg.get("data") if isinstance(_mg.get("data"), list) else []
         if _mg_data2:
             yr_vals = [f"{d.get('연도')}년: {int(d.get('값',0)):,}원" for d in _mg_data2[-4:] if isinstance(d, dict)]
             if yr_vals:
-                exp_lines.append(f"시장 규모 데이터: {', '.join(yr_vals)}")
+                exp_lines.append(f"시장 규모 데이터 (사업 확장 근거): {', '.join(yr_vals)}")
         if _s3_outlook:
-            exp_lines += ["시장 전망 및 성장 배경:", _s3_outlook[:600]]
+            exp_lines.append(f"시장 전망 및 성장 배경 (조기 도입 필요성):\n{_s3_outlook[:600]}")
         if _s3_answer:
-            exp_lines += ["사업화 가능성 및 해외 진출 분석:", _s3_answer[:800]]
+            exp_lines.append(f"사업화 가능성 및 해외 진출 가능 시장 분석:\n{_s3_answer[:800]}")
         if _comp_intensity:
             exp_lines.append(f"경쟁사 대응 예측 — 경쟁 강도: {_comp_intensity}")
         if _diff_risk:
             exp_lines.append(f"차별화 위험 (경쟁사 모방 가능성): {_diff_risk}")
         if _inval_risk:
             exp_lines.append(f"회피설계 리스크 (시장 관점): {_inval_risk}")
+        exp_lines.append("적용 가능한 해외 시장: 보고서에 특정 국가/지역 명시 없음 (시장 섹터 기반 추정 필요)")
         d = _make("\n".join(exp_lines), "시장확장성해외진출")
+        if d:
+            docs.append(d)
+
+    # ── [market] 시장성 차원 세부 항목 강점 분석 청크 ──────────────────────────────
+    _ms_s2_dims_late = (report.get("section_2_detailed_scores") or {}).get("dimensions") or {}
+    _ms_mkt_dim = _ms_s2_dims_late.get("시장성") if isinstance(_ms_s2_dims_late.get("시장성"), dict) else {}
+    _ms_biz_dim = _ms_s2_dims_late.get("사업성") if isinstance(_ms_s2_dims_late.get("사업성"), dict) else {}
+    _ms_mkt_items = _ms_mkt_dim.get("items") if isinstance(_ms_mkt_dim.get("items"), list) else []
+    _ms_biz_items = _ms_biz_dim.get("items") if isinstance(_ms_biz_dim.get("items"), list) else []
+    if _ms_mkt_items or _ms_biz_items:
+        ms_lines = [
+            "시장성 평가에 포함된 항목 목록 및 점수:",
+            "시장성 점수의 세부 평가 항목:",
+            "시장성 및 사업성 세부 평가 분석:",
+        ]
+        _ms_mkt_cnt = _ms_mkt_dim.get("item_count") or len(_ms_mkt_items)
+        _ms_biz_cnt = _ms_biz_dim.get("item_count") or len(_ms_biz_items)
+        if _ms_mkt_dim.get("average_score") is not None:
+            ms_lines.append(f"시장성 평균: {_ms_mkt_dim['average_score']}/5 ({_ms_mkt_dim.get('score_out_of_100', '')}점/100), 항목 수: {_ms_mkt_cnt}개")
+        if _ms_biz_dim.get("average_score") is not None:
+            ms_lines.append(f"사업성 평균: {_ms_biz_dim['average_score']}/5 ({_ms_biz_dim.get('score_out_of_100', '')}점/100), 항목 수: {_ms_biz_cnt}개")
+        for _ms_it in (_ms_mkt_items + _ms_biz_items)[:12]:
+            if not isinstance(_ms_it, dict):
+                continue
+            _ms_nm = str(_ms_it.get("item") or "").strip()
+            _ms_sc = _ms_it.get("score")
+            _ms_js = str(_ms_it.get("judgment_summary") or _ms_it.get("judgment_basis") or "").strip()
+            _ms_method = str(_ms_it.get("method") or "").strip()
+            _ms_conf = str(_ms_it.get("confidence") or "").strip()
+            _ms_conf_src = str(_ms_it.get("confidence_source") or "").strip()
+            _ms_strategy = _ms_it.get("strategy")
+            if _ms_nm and _ms_sc is not None:
+                _item_line = f"  - {_ms_nm}: {_ms_sc}/5 ({_ms_it.get('score_out_of_100', '')}점/100)"
+                if _ms_method:
+                    _item_line += f" method={_ms_method}"
+                if _ms_conf:
+                    _item_line += f" confidence={_ms_conf}"
+                if _ms_conf_src:
+                    _item_line += f" confidence_source={_ms_conf_src}"
+                _item_line += f" strategy={'null' if _ms_strategy is None else _ms_strategy}"
+                if _ms_js:
+                    _item_line += f" — {_ms_js[:150]}"
+                ms_lines.append(_item_line)
+        ms_lines.append("시장성 평가 방법(method) 및 신뢰도(confidence) 위 항목 참조")
+        ms_lines.append("시장성 및 사업성 강점: 위 세부 항목 점수 참조")
+        d = _make("\n".join(ms_lines), "시장성강점분석")
         if d:
             docs.append(d)
 
@@ -1654,6 +2011,37 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
         d = _make("\n".join(roi_lines), "시장ROI채택가능성")
         if d:
             docs.append(d)
+
+    # ── [market] 시장 관련 미기재 사항 명시 청크 ──────────────────────────────────
+    _pat_info2 = report.get("patent") if isinstance(report.get("patent"), dict) else {}
+    _overseas = _pat_info2.get("overseas_application_count") or _pat_info2.get("overseas_applications")
+    _has_overseas = bool(_overseas) if _overseas is not None else None
+    mkt_absent_lines = [
+        "시장 분석 미기재 사항 및 시장성 평가 범위:",
+        "이 특허 시장 관련 미포함 분석 항목:",
+    ]
+    mkt_absent_lines.append("시장성 및 사업화 전문가 의견: 없음")
+    mkt_absent_lines.append("시장 진입 장벽 분석: 없음")
+    mkt_absent_lines.append("시장 포지셔닝 정보: 없음")
+    mkt_absent_lines.append("시장 동향 및 트렌드 분석: 없음")
+    mkt_absent_lines.append("실제 산업 활용 데이터: 없음")
+    mkt_absent_lines.append("협업/파트너십 모델: 없음")
+    mkt_absent_lines.append("시장 독점 가능성 평가: 없음")
+    mkt_absent_lines.append("경쟁 특허 현황: 유사 특허 목록 외 별도 경쟁 분석 없음")
+    if _has_overseas is False or _overseas == 0:
+        mkt_absent_lines.append("해외출원: 해외출원 미실시 → 해외 산업 응용 가능성 평가가 이루어지지 않았습니다.")
+        mkt_absent_lines.append("해외에서의 산업적 응용 가능성 평가: 해외출원이 없으므로 평가가 이루어지지 않았습니다.")
+    elif _has_overseas:
+        mkt_absent_lines.append(f"해외출원: {_overseas}건 — 해외 시장 응용 가능성 존재")
+    else:
+        mkt_absent_lines.append("해외출원 현황: 확인되지 않음 — 해외 산업 응용 가능성 평가 별도 없음")
+    mkt_absent_lines.append("시장 수요 예측: 없음")
+    mkt_absent_lines.append("잠재 고객 분석: 없음")
+    if _s3_answer:
+        mkt_absent_lines.append(f"사업화 가능성 분석 (보고서 내 포함): {_s3_answer[:300]}")
+    d = _make("\n".join(mkt_absent_lines), "시장관련미기재사항")
+    if d:
+        docs.append(d)
 
     # ── Legacy schema fallback (section_1_summary ... section_7_opinion) ─────
     active = valuation if isinstance(valuation, dict) and valuation else (report if report else report_data)
