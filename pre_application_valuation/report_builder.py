@@ -183,13 +183,50 @@ def merge_next_actions(
             add(str(item.get("priority") or "medium"), str(item.get("action") or ""), str(item.get("reason") or ""))
     for gap in diagnostics.get("gaps") or []:
         priority = "high" if gap.get("severity") == "high" else "medium"
-        add(priority, str(gap.get("message") or ""), "로컬 진단에서 확인된 보완 항목입니다.")
+        action, reason = action_for_diagnostic_gap(gap)
+        add(priority, action, reason)
     low_items = sorted(score_items, key=lambda item: item.get("score", 5))[:4]
     for item in low_items:
         priority = "high" if int(item.get("score") or 3) <= 2 else "medium"
         for action in item.get("next_actions") or []:
             add(priority, str(action), f"{item.get('dimension_label')} / {item.get('item')} 보완")
     return actions[:8]
+
+
+def action_for_diagnostic_gap(gap: dict[str, Any]) -> tuple[str, str]:
+    gap_type = str(gap.get("type") or "")
+    if gap_type == "business":
+        return (
+            "주요 고객군, 구매 의사결정자, 도입 환경, 예상 과금 방식을 한 장짜리 사업 가설 표로 정리하세요.",
+            "사업 적용처가 구체화되어야 출원 비용 투입 가치와 시장 방어 필요성을 함께 판단할 수 있습니다.",
+        )
+    if gap_type == "evidence":
+        return (
+            "성능 개선, 비용 절감, 불량률 감소처럼 가치 판단에 직접 연결되는 정량 지표와 검증 방법을 정의하세요.",
+            "정량 근거가 있어야 기술 효과가 주장 수준에 머무르지 않고 명세서와 사업 검증 자료로 연결됩니다.",
+        )
+    if gap_type == "description":
+        return (
+            "기존 방식의 한계, 핵심 구성요소, 처리 흐름, 기대 효과를 각각 별도 문단으로 보강하세요.",
+            "기술 설명이 구체적일수록 독립항 구성과 실시예 작성의 불확실성이 줄어듭니다.",
+        )
+    if gap_type == "claims":
+        return (
+            "독립항 1개와 종속항 3개 이상으로 청구항 초안을 재구성하고 각 항의 보호 목적을 표시하세요.",
+            "청구항 구조가 잡혀야 권리범위, 회피설계 리스크, 명세서 보강 범위를 판단할 수 있습니다.",
+        )
+    if gap_type == "differentiation":
+        return (
+            "기존 기술 대비 다른 입력 데이터, 처리 방식, 출력 결과, 운영 효과를 비교표로 정리하세요.",
+            "차별 포인트가 청구항 핵심 특징으로 전환되어야 선행기술 조사와 출원 전략이 선명해집니다.",
+        )
+    if gap_type == "filing_strategy":
+        return (
+            "국내 우선출원, PCT, 개별국 출원 중 어떤 경로가 사업 일정과 맞는지 국가별 우선순위를 정하세요.",
+            "목표 국가와 사업 계획이 연결되어야 출원 비용 투입 순서를 합리적으로 결정할 수 있습니다.",
+        )
+    message = str(gap.get("message") or "입력에서 부족한 근거를 보강하세요.")
+    return (message, "입력 진단에서 확인된 보완 항목입니다.")
 
 
 def merge_risks(
