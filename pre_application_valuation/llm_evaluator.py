@@ -53,7 +53,7 @@ def evaluate_checklist(
                 temperature=0.05,
             )
             scoring_parsed = parsed
-            normalize_llm_result(
+            normalized_scoring = normalize_llm_result(
                 {
                     "overall_opinion": "점수 평가 단계",
                     "score_items": parsed.get("score_items"),
@@ -62,6 +62,7 @@ def evaluate_checklist(
                 checklist,
                 model,
             )
+            validate_score_items_depth(normalized_scoring["score_items"])
             break
         except Exception as exc:
             scoring_error = exc
@@ -109,6 +110,7 @@ def evaluate_checklist(
                 "filing_investment_decision": dict_value(narrative.get("filing_investment_decision")),
                 "limitations": string_list(narrative.get("limitations")),
             }
+            enrich_narrative_lists(combined, diagnostics, scoring_result)
             validate_content_depth(combined)
             return normalize_llm_result(combined, checklist, model)
         except Exception as exc:
@@ -210,15 +212,17 @@ def build_scoring_prompt(
     checklist_text = format_checklist(checklist)
     claims_text = "\n".join(f"{index + 1}. {claim}" for index, claim in enumerate(request.claims)) or "청구항 미입력"
     return f"""
-아래 출원 전 아이디어/특허 초안을 체크리스트 기준으로 점수 평가하세요. 이 단계에서는 보고서 문단을 쓰지 말고, 12개 세부 평가항목의 점수와 근거만 정확히 작성합니다.
+아래 아이디어/특허 초안을 초기 사전 가치평가 관점에서 점수 평가하세요. 이 서비스는 출원 직전 최종 심사가 아니라, 가볍게 현재 가능성과 보완 우선순위를 확인하는 용도입니다. 이 단계에서는 보고서 문단을 쓰지 말고, 12개 세부 평가항목의 점수와 근거만 정확히 작성합니다.
 
 [중요 원칙]
 1. 피인용, 심판이력, 등록 후 존속기간처럼 출원 전 입력에서 확인할 수 없는 지표를 평가 근거로 사용하지 마세요.
 2. 실제 선행기술 검색을 수행하지 않았으므로 신규성/진보성을 확정하지 말고, 리스크 가설과 조사 필요도로 표현하세요.
 3. 입력에 없는 실험 결과, 시장 수치, 고객사를 만들어내지 마세요.
-4. 5점은 예외적으로만 부여하고, 근거가 부족하면 3점 이하로 보수 평가하세요.
-5. score_items는 반드시 체크리스트 1~12번을 모두 포함하세요. 누락, 병합, 이름 변경을 하지 마세요.
-6. "시장 조사 필요", "추가 자료 수집"처럼 일반론만 쓰지 말고, 무엇을 확인해야 하는지와 어떤 산출물이 나와야 하는지를 같이 쓰세요.
+4. 출원 직전 명세서 수준을 요구하지 마세요. 핵심 방향, 차별 가설, 보완 가능성이 보이면 3~4점을 줄 수 있습니다.
+5. 1~2점은 핵심 정보가 거의 없거나 방향이 불명확해서 다음 보완 작업을 정하기 어려운 경우에 사용하세요.
+6. 점수의 목적은 탈락 판정이 아니라 보완 우선순위 설정입니다. 낮은 점수를 줄 때도 반드시 점수를 올릴 수 있는 구체 보완 액션을 함께 제시하세요.
+7. score_items는 반드시 체크리스트 1~12번을 모두 포함하세요. 누락, 병합, 이름 변경을 하지 마세요.
+8. "시장 조사 필요", "추가 자료 수집"처럼 일반론만 쓰지 말고, 무엇을 확인해야 하는지와 어떤 산출물이 나와야 하는지를 같이 쓰세요.
 
 [점수 평가 품질 기준]
 - 각 score_items.reason은 최소 2문장으로 작성하고, 입력에서 확인된 근거와 부족한 근거를 모두 포함하세요.
@@ -277,7 +281,7 @@ def build_narrative_prompt(
         "key_risks": scoring_result.get("key_risks"),
     }
     return f"""
-아래 출원 전 아이디어/특허 초안과 이미 확정된 점수 평가 결과를 바탕으로, 최종 사전 가치평가 보고서 문단을 작성하세요.
+아래 아이디어/특허 초안과 이미 확정된 점수 평가 결과를 바탕으로, 초기 사전 가치평가 보고서 문단을 작성하세요.
 이 단계에서는 score_items의 점수나 항목을 바꾸지 않습니다. 점수표를 해석해서 의사결정자가 읽을 수 있는 풍성한 보고서 문단만 작성합니다.
 
 [중요 원칙]
@@ -285,18 +289,19 @@ def build_narrative_prompt(
 2. 피인용, 심판이력, 등록 후 존속기간처럼 출원 전 입력에서 확인할 수 없는 지표를 평가 근거로 사용하지 마세요.
 3. 실제 선행기술 검색을 수행하지 않았으므로 신규성/진보성을 확정하지 말고, 리스크 가설과 조사 필요도로 표현하세요.
 4. 입력에 없는 실험 결과, 시장 수치, 고객사를 만들어내지 마세요.
-5. '사전 가치평가'의 중심은 출원 전 비용을 투입할 만한 특허 후보인지, 어떤 조건에서 가치가 생기는지, 어떤 근거가 부족한지입니다.
-6. 보고서 문장은 실제 의사결정자가 읽는 최종 문서처럼 작성하세요. 짧은 체크리스트 답변이 아니라 판단 근거, 조건, 리스크, 다음 산출물을 포함한 문단이어야 합니다.
-7. "시장 조사 필요", "추가 자료 수집", "고객 피드백 필요"처럼 일반론만 쓰지 말고, 무엇을 확인해야 하는지와 어떤 산출물이 나와야 하는지를 같이 쓰세요.
+5. '사전 가치평가'의 중심은 지금 단계의 잠재 가치, 보완하면 가치가 올라가는 지점, 다음 검증 산출물입니다. 출원 직전 통과/탈락처럼 단정하지 마세요.
+6. 보고서 문장은 실제 의사결정자가 읽는 문서처럼 작성하세요. 짧은 체크리스트 답변이 아니라 판단 근거, 조건, 리스크, 보완 작업의 산출물을 포함한 문단이어야 합니다.
+7. 보완 관련 내용의 품질이 가장 중요합니다. 각 보완 액션은 담당자가 바로 실행할 수 있도록 대상, 방법, 기대 산출물을 포함하세요.
+8. "시장 조사 필요", "추가 자료 수집", "고객 피드백 필요"처럼 일반론만 쓰지 말고, 무엇을 확인해야 하는지와 어떤 산출물이 나와야 하는지를 같이 쓰세요.
 
 [보고서 품질 기준]
-- overall_opinion은 최소 4문장으로, 기술 가치, 권리화 가치, 사업화 리스크, 출원 진행 판단을 모두 포함하세요.
-- valuation_assessment.value_summary는 최소 5문장으로 작성하세요. 이 특허가 가치가 생기는 조건, 현재 가치 제한 요인, 출원 비용 투입 판단을 포함해야 합니다.
+- overall_opinion은 최소 4문장으로, 현재 잠재 가치, 권리화 가능성, 사업화 리스크, 우선 보완 방향을 모두 포함하세요.
+- valuation_assessment.value_summary는 최소 5문장으로 작성하세요. 현재 가치가 생기는 조건, 보완 후 가치 상승 가능성, 현재 가치 제한 요인, 다음 검증 산출물을 포함해야 합니다.
 - valuation_assessment의 positive_value_drivers, value_constraints, evidence_needed는 각각 최소 3개를 작성하고, 각 항목은 한 문장 이상으로 구체 작성하세요.
 - commercialization_assessment는 target_market을 구체 고객군/사용 환경 중심으로 쓰고, expected_use_cases는 최소 3개, monetization_paths는 최소 3개, market_validation_gaps는 최소 3개 작성하세요.
 - claim_strategy.independent_claim_direction은 최소 4문장으로 작성하세요. 독립항 필수 구성, 넓게 잡을 표현, 좁혀야 할 구성, 거절/회피 리스크를 포함하세요.
 - claim_strategy.dependent_claim_ideas와 avoidance_design_notes는 각각 최소 4개 작성하세요.
-- filing_investment_decision.rationale은 최소 4문장으로 작성하세요. 1문장은 종합 점수와 가장 약한 차원, 1문장은 권리화 관점, 1문장은 사업화/시장 검증 관점, 1문장은 출원 비용 투입 여부 결론을 설명하세요.
+- filing_investment_decision.rationale은 최소 4문장으로 작성하세요. 이 필드는 최종 출원 판정이 아니라 다음 단계 추천입니다. 1문장은 종합 점수와 가장 약한 차원, 1문장은 권리화 관점, 1문장은 사업화/시장 검증 관점, 1문장은 다음 보완 스프린트 방향을 설명하세요.
 - next_actions는 최소 6개 작성하고, 각 action은 "무엇을 한다"뿐 아니라 기대 산출물을 포함하세요.
 
 [입력]
@@ -326,7 +331,7 @@ def build_narrative_prompt(
   "key_risks": ["핵심 리스크"],
   "valuation_assessment": {{
     "value_grade": "high_pre_filing_value | promising_value_with_validation | conditional_value | low_value_until_refined",
-    "value_summary": "출원 전 예상 가치와 그 이유를 3~5문장으로 구체 작성",
+    "value_summary": "현재 잠재 가치, 보완 후 상승 가능성, 다음 검증 포인트를 5문장 이상으로 구체 작성",
     "positive_value_drivers": ["가치를 높이는 입력 근거"],
     "value_constraints": ["가치를 제한하는 불확실성"],
     "evidence_needed": ["출원/투자 판단 전 추가 확보할 근거"]
@@ -351,7 +356,7 @@ def build_narrative_prompt(
   }},
   "filing_investment_decision": {{
     "decision": "go_to_prior_art_search_and_drafting | revise_then_file | hold_for_value_validation | do_not_file_yet",
-    "rationale": "최소 4문장 출원 비용 투입 여부 판단 이유",
+    "rationale": "최소 4문장 다음 단계 추천 이유",
     "go_conditions": ["출원 진행 조건"],
     "stop_or_hold_conditions": ["보류 조건"],
     "recommended_next_sprint": ["1~2주 안에 수행할 보완 작업"]
@@ -455,18 +460,6 @@ def validate_content_depth(parsed: dict[str, Any]) -> None:
     text_len("overall_opinion", parsed.get("overall_opinion"), 160)
     list_len("key_risks", parsed.get("key_risks"), 3)
 
-    raw_items = parsed.get("score_items") if isinstance(parsed.get("score_items"), list) else []
-    if len(raw_items) < 12:
-        errors.append("score_items needs all 12 checklist items")
-    for raw in raw_items:
-        if not isinstance(raw, dict):
-            errors.append("score_items contains a non-object item")
-            continue
-        item_label = raw.get("item_number") or raw.get("item") or "unknown"
-        text_len(f"score_items[{item_label}].reason", raw.get("reason"), 45)
-        list_len(f"score_items[{item_label}].risks", raw.get("risks"), 2)
-        list_len(f"score_items[{item_label}].next_actions", raw.get("next_actions"), 2)
-
     valuation = parsed.get("valuation_assessment") if isinstance(parsed.get("valuation_assessment"), dict) else {}
     text_len("valuation_assessment.value_summary", valuation.get("value_summary"), 150)
     list_len("valuation_assessment.positive_value_drivers", valuation.get("positive_value_drivers"), 3)
@@ -510,6 +503,86 @@ def validate_content_depth(parsed: dict[str, Any]) -> None:
 
     if errors:
         raise ValueError("LLM report content is too shallow: " + "; ".join(errors[:12]))
+
+
+def validate_score_items_depth(score_items: list[dict[str, Any]]) -> None:
+    errors: list[str] = []
+    if len(score_items) < 12:
+        errors.append("score_items needs all 12 checklist items")
+    for item in score_items:
+        item_label = item.get("item_number") or item.get("item") or "unknown"
+        if len(str(item.get("reason") or "").strip()) < 35:
+            errors.append(f"score_items[{item_label}].reason is too short")
+        if len([risk for risk in item.get("risks", []) if str(risk).strip()]) < 2:
+            errors.append(f"score_items[{item_label}].risks needs at least 2 items")
+        if len([action for action in item.get("next_actions", []) if str(action).strip()]) < 2:
+            errors.append(f"score_items[{item_label}].next_actions needs at least 2 items")
+    if errors:
+        raise ValueError("LLM score content is too shallow: " + "; ".join(errors[:12]))
+
+
+def enrich_narrative_lists(
+    parsed: dict[str, Any],
+    diagnostics: dict[str, Any],
+    scoring_result: dict[str, Any],
+) -> None:
+    claim_strategy = parsed.setdefault("claim_strategy", {})
+    if not isinstance(claim_strategy, dict):
+        claim_strategy = {}
+        parsed["claim_strategy"] = claim_strategy
+
+    score_items = scoring_result.get("score_items") if isinstance(scoring_result.get("score_items"), list) else []
+    claim_actions = [
+        str(action).strip()
+        for item in score_items
+        if str(item.get("dimension")) == "claimability"
+        for action in item.get("next_actions", [])
+        if str(action).strip()
+    ]
+    claim_risks = [
+        str(risk).strip()
+        for item in score_items
+        if str(item.get("dimension")) == "claimability"
+        for risk in item.get("risks", [])
+        if str(risk).strip()
+    ]
+    categories = [str(category).strip() for category in diagnostics.get("claims", {}).get("categories", []) if str(category).strip()]
+
+    ensure_min_list(
+        claim_strategy,
+        "dependent_claim_ideas",
+        4,
+        claim_actions
+        + [f"{category} 구성을 종속항으로 분리해 보호 범위를 단계화하세요." for category in categories]
+        + [
+            "데이터 입력 조건과 전처리 기준을 종속항으로 분리하세요.",
+            "모델 학습 또는 판단 임계값 조정 방식을 종속항으로 구체화하세요.",
+            "결과 알림, 대시보드 표시, 설비 제어 연동 방식을 종속항 후보로 정리하세요.",
+        ],
+    )
+    ensure_min_list(
+        claim_strategy,
+        "avoidance_design_notes",
+        4,
+        claim_risks
+        + [
+            "기능적 효과만 넓게 쓰지 말고 입력, 처리, 출력의 필수 연결 관계를 함께 한정하세요.",
+            "특정 알고리즘 이름에만 갇히지 않도록 대체 가능한 판단 모델 표현을 병행하세요.",
+            "회피 설계를 줄이기 위해 적용 장치, 데이터 종류, 판단 결과 활용 방식을 복수 실시예로 남기세요.",
+            "선행기술과 겹칠 수 있는 일반 예측 기능은 기술적 차별 조건과 결합해 청구하세요.",
+        ],
+    )
+
+
+def ensure_min_list(container: dict[str, Any], key: str, minimum: int, candidates: list[str]) -> None:
+    values = list(dict.fromkeys(string_list(container.get(key))))
+    for candidate in candidates:
+        text = str(candidate or "").strip()
+        if text and text not in values:
+            values.append(text)
+        if len(values) >= minimum:
+            break
+    container[key] = values
 
 
 def fallback_evaluation(

@@ -22,9 +22,9 @@ DIMENSION_LABELS = {
     "filing_readiness": "출원 준비도",
 }
 DIMENSION_WEIGHTS = {
-    "technology_readiness": 0.28,
-    "claimability": 0.32,
-    "business_hypothesis": 0.20,
+    "technology_readiness": 0.30,
+    "claimability": 0.25,
+    "business_hypothesis": 0.25,
     "filing_readiness": 0.20,
 }
 
@@ -56,6 +56,7 @@ def build_report(
         "metadata": {
             "report_type": "pre_application_valuation",
             "title": "사전가치평가 보고서",
+            "assessment_mode": "early_stage_lightweight_check",
             "schema_version": REPORT_SCHEMA_VERSION,
             "generated_at": evaluated_at.isoformat(timespec="seconds"),
             "score_display_scale": "0~100",
@@ -198,7 +199,7 @@ def action_for_diagnostic_gap(gap: dict[str, Any]) -> tuple[str, str]:
     if gap_type == "business":
         return (
             "주요 고객군, 구매 의사결정자, 도입 환경, 예상 과금 방식을 한 장짜리 사업 가설 표로 정리하세요.",
-            "사업 적용처가 구체화되어야 출원 비용 투입 가치와 시장 방어 필요성을 함께 판단할 수 있습니다.",
+            "사업 적용처가 구체화되어야 현재 아이디어의 잠재 가치와 우선 보완 방향을 함께 판단할 수 있습니다.",
         )
     if gap_type == "evidence":
         return (
@@ -223,7 +224,7 @@ def action_for_diagnostic_gap(gap: dict[str, Any]) -> tuple[str, str]:
     if gap_type == "filing_strategy":
         return (
             "국내 우선출원, PCT, 개별국 출원 중 어떤 경로가 사업 일정과 맞는지 국가별 우선순위를 정하세요.",
-            "목표 국가와 사업 계획이 연결되어야 출원 비용 투입 순서를 합리적으로 결정할 수 있습니다.",
+            "목표 국가와 사업 계획이 연결되어야 다음 검토 단계에서 출원 경로와 비용 우선순위를 합리적으로 정할 수 있습니다.",
         )
     message = str(gap.get("message") or "입력에서 부족한 근거를 보강하세요.")
     return (message, "입력 진단에서 확인된 보완 항목입니다.")
@@ -314,8 +315,8 @@ def build_valuation_assessment(
     if not value_summary:
         value_summary = (
             f"현재 입력 기준 예상 특허 가치는 '{value_grade}'입니다. "
-            f"종합 점수는 {score_to_100(overall_score)}/100이며, 출원 전 가치 판단의 핵심 변수는 "
-            f"{value_driver_summary(dimensions)}입니다."
+            f"종합 점수는 {score_to_100(overall_score)}/100이며, 초기 사전 점검에서 가치 판단의 핵심 변수는 "
+            f"{value_driver_summary(dimensions)}입니다. 이 평가는 최종 출원 판정이 아니라 보완 우선순위를 정하기 위한 기준입니다."
         )
     return {
         "value_grade": value_grade,
@@ -402,23 +403,23 @@ def value_grade_for_score(score: float) -> str:
 
 
 def investment_decision_label(score: float) -> str:
-    if score >= 4.0:
+    if score >= 3.8:
         return "go_to_prior_art_search_and_drafting"
-    if score >= 3.2:
+    if score >= 3.0:
         return "revise_then_file"
-    if score >= 2.4:
+    if score >= 2.2:
         return "hold_for_value_validation"
     return "do_not_file_yet"
 
 
 def investment_decision_rationale(score: float) -> str:
-    if score >= 4.0:
-        return "기술 구성과 권리화 가능성이 비교적 구체적이므로 선행기술 검색과 명세서 초안 단계로 진행할 수 있습니다."
-    if score >= 3.2:
-        return "출원 후보로 볼 수 있으나 약한 항목을 보완한 뒤 출원 비용을 투입하는 편이 안전합니다."
-    if score >= 2.4:
-        return "아이디어 가치는 일부 보이나 시장 근거, 차별 포인트, 청구항 구체성이 부족해 보완 검증이 먼저입니다."
-    return "현재 입력만으로는 출원 비용 투입 근거가 약하므로 아이디어와 사업 가설을 먼저 재정의해야 합니다."
+    if score >= 3.8:
+        return "초기 점검 기준으로 기술 구성과 권리화 방향이 비교적 선명하므로, 간이 선행기술 검색과 청구항 초안 검토로 다음 단계를 진행할 수 있습니다."
+    if score >= 3.0:
+        return "아이디어의 방향성은 긍정적이지만 약한 항목을 먼저 보완하면 다음 검토의 신뢰도가 크게 올라갑니다."
+    if score >= 2.2:
+        return "잠재 가치는 일부 보이나 시장 근거, 차별 포인트, 청구항 구체성이 부족하므로 보완 스프린트 후 다시 평가하는 편이 좋습니다."
+    return "현재 입력만으로는 다음 검토 단계로 넘기기 어렵기 때문에 문제 정의, 고객 가설, 핵심 구현 방식을 먼저 재정의해야 합니다."
 
 
 def value_driver_summary(dimensions: list[dict[str, Any]]) -> str:
@@ -463,28 +464,28 @@ def score_for_dimension(dimensions: list[dict[str, Any]], key: str) -> int:
 
 def default_overall_opinion(score: float, weakest: dict[str, Any] | None) -> str:
     if weakest:
-        return f"종합 준비도는 {score}/5 수준이며, {weakest['label']} 보완이 우선입니다."
+        return f"초기 사전 점검 점수는 {score}/5 수준이며, {weakest['label']} 보완이 우선입니다."
     return "평가 항목이 충분하지 않아 종합 의견을 산출하지 못했습니다."
 
 
 def readiness_level(score: float) -> str:
-    if score >= 4.0:
+    if score >= 3.8:
         return "ready_for_filing_review"
-    if score >= 3.2:
+    if score >= 3.0:
         return "promising_with_targeted_revisions"
-    if score >= 2.4:
+    if score >= 2.2:
         return "needs_substantial_preparation"
     return "not_ready"
 
 
 def readiness_decision(score: float) -> str:
-    if score >= 4.0:
-        return "출원 검토 단계로 넘길 수 있으나 선행기술 검색과 청구항 정교화가 필요합니다."
-    if score >= 3.2:
-        return "출원 가능성은 있으나 약한 차원을 먼저 보완한 뒤 초안화하는 것이 좋습니다."
-    if score >= 2.4:
-        return "아이디어 방향은 있으나 명세서/청구항/사업 근거 보강 후 재평가가 필요합니다."
-    return "현 입력만으로는 출원 검토보다 아이디어 구체화가 먼저입니다."
+    if score >= 3.8:
+        return "초기 점검 기준으로 다음 단계인 간이 선행기술 조사와 청구항 초안 검토로 넘겨볼 수 있습니다."
+    if score >= 3.0:
+        return "아이디어 방향은 긍정적이며, 약한 차원을 보완하면 다음 검토 단계로 진행하기 좋습니다."
+    if score >= 2.2:
+        return "아이디어 방향은 있으나 명세서/청구항/사업 근거를 보강한 뒤 다시 평가하는 것이 좋습니다."
+    return "현 입력만으로는 출원 검토보다 문제 정의와 기술 구성 구체화가 먼저입니다."
 
 
 def score_to_100(score: float | int | None) -> int:

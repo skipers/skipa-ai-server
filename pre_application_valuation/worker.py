@@ -18,6 +18,7 @@ from pre_application_valuation.generation_service import (
     PreApplicationGenerationOptions,
     PreApplicationGenerationService,
 )
+from chatbot.app.backend_callbacks import mark_pre_evaluation_report_complete
 from workers.backend_client import BackendCallbackClient
 from workers.config import WorkerConfig, load_worker_config
 from workers.rabbitmq import RabbitWorker
@@ -62,6 +63,20 @@ class PreEvaluationGenerateHandler:
                 self.backend.fail_pre_evaluation(pre_evaluation_id, str(exc))
             except Exception:
                 LOGGER.exception("Pre-evaluation fail callback failed preEvaluationId=%s", pre_evaluation_id)
+                raise
+            return
+
+        try:
+            mark_pre_evaluation_report_complete(pre_evaluation_id, report_key=str(report_key))
+        except Exception as exc:
+            LOGGER.exception("Pre-evaluation report-complete callback failed preEvaluationId=%s", pre_evaluation_id)
+            try:
+                self.backend.fail_pre_evaluation(pre_evaluation_id, str(exc))
+            except Exception:
+                LOGGER.exception(
+                    "Pre-evaluation fail callback failed after report-complete error preEvaluationId=%s",
+                    pre_evaluation_id,
+                )
                 raise
             return
 
