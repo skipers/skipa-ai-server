@@ -71,8 +71,8 @@ DIMENSION_KEYS = (
     "average_score",
     "grade",
     "item_count",
-    "summary",
     "items",
+    "summary",
 )
 
 ITEM_KEYS = (
@@ -121,7 +121,7 @@ SIMILAR_SUMMARY_KEYS = (
     "status_distribution",
 )
 
-STATUS_KEYS = ("등록", "공개", "심사중", "거절", "소멸", "취하")
+STATUS_KEYS = ("소멸", "취하", "거절", "공개", "등록")
 
 SIMILAR_PATENT_KEYS = (
     "title",
@@ -269,10 +269,15 @@ def _canonical_similar(report: dict[str, Any]) -> dict[str, Any]:
         "available": similar.get("available", False),
         "data_source": similar.get("data_source"),
         "collection_policy": {
+            "source": _as_dict(similar.get("collection_policy")).get("source")
+            or similar.get("data_source")
+            or "KIPRIS",
             "max_age_years": _as_dict(similar.get("collection_policy")).get("max_age_years", 20),
             "excluded_over_20_years_count": _as_dict(similar.get("collection_policy")).get(
                 "excluded_over_20_years_count", 0
             ),
+            "candidate_pool_count": _as_dict(similar.get("collection_policy")).get("candidate_pool_count"),
+            "display_limit": _as_dict(similar.get("collection_policy")).get("display_limit", 10),
             "sorted_by": _as_dict(similar.get("collection_policy")).get("sorted_by"),
         },
         "summary": {

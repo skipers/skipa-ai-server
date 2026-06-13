@@ -797,12 +797,12 @@ def _build_evaluation(auto_scores: list[dict[str, Any]], llm_scores: list[dict[s
         dimensions.append({
             "key": dim,
             "label": dim,
-            "average_score": data.get("average_score"),
             "score_out_of_100": data.get("score_out_of_100"),
+            "average_score": data.get("average_score"),
             "grade": _to_grade(float(data.get("average_score") or 0)),
             "item_count": data.get("item_count", 0),
-            "summary": _dimension_summary(dim, items),
             "items": items,
+            "summary": _dimension_summary(dim, items),
         })
 
     return {
@@ -1018,6 +1018,8 @@ def _build_similar_patents(similar_analysis: dict[str, Any] | None) -> dict[str,
             "source": similar.get("data_source") or "KIPRIS",
             "max_age_years": SIMILAR_PATENT_MAX_AGE_YEARS,
             "excluded_over_20_years_count": excluded_count,
+            "candidate_pool_count": len(patent_list),
+            "display_limit": 10,
             "sorted_by": "kipris_similarity_score_desc",
         },
         "summary": summary,
