@@ -18,8 +18,7 @@ from pre_application_valuation.generation_service import (
     PreApplicationGenerationOptions,
     PreApplicationGenerationService,
 )
-from chatbot.app.backend_callbacks import mark_pre_evaluation_report_complete
-from workers.backend_client import BackendCallbackClient
+from workers.backend_client import BackendCallbackClient, is_backend_conflict
 from workers.config import WorkerConfig, load_worker_config
 from workers.rabbitmq import RabbitWorker
 from workers.vectorstore_hooks import index_pre_evaluation_report_from_minio
@@ -61,24 +60,22 @@ class PreEvaluationGenerateHandler:
             LOGGER.exception("Pre-evaluation generation failed preEvaluationId=%s", pre_evaluation_id)
             try:
                 self.backend.fail_pre_evaluation(pre_evaluation_id, str(exc))
-            except Exception:
+            except Exception as callback_exc:
+                if is_backend_conflict(callback_exc):
+                    LOGGER.warning("Pre-evaluation fail callback conflicted preEvaluationId=%s", pre_evaluation_id)
+                    return
                 LOGGER.exception("Pre-evaluation fail callback failed preEvaluationId=%s", pre_evaluation_id)
                 raise
             return
 
         try:
-            mark_pre_evaluation_report_complete(pre_evaluation_id, report_key=str(report_key))
+            self.backend.complete_pre_evaluation_report(pre_evaluation_id, str(report_key))
         except Exception as exc:
-            LOGGER.exception("Pre-evaluation report-complete callback failed preEvaluationId=%s", pre_evaluation_id)
-            try:
-                self.backend.fail_pre_evaluation(pre_evaluation_id, str(exc))
-            except Exception:
-                LOGGER.exception(
-                    "Pre-evaluation fail callback failed after report-complete error preEvaluationId=%s",
-                    pre_evaluation_id,
-                )
+            if is_backend_conflict(exc):
+                LOGGER.warning("Pre-evaluation report-complete callback conflicted preEvaluationId=%s", pre_evaluation_id)
+            else:
+                LOGGER.exception("Pre-evaluation report-complete callback failed preEvaluationId=%s", pre_evaluation_id)
                 raise
-            return
 
         try:
             index_pre_evaluation_report_from_minio(
@@ -89,19 +86,21 @@ class PreEvaluationGenerateHandler:
             )
         except Exception as exc:
             LOGGER.exception("Pre-evaluation vectorstore indexing failed preEvaluationId=%s", pre_evaluation_id)
-            try:
-                self.backend.fail_pre_evaluation(pre_evaluation_id, str(exc))
-            except Exception:
-                LOGGER.exception(
-                    "Pre-evaluation fail callback failed after vectorstore error preEvaluationId=%s",
+            raise
+
+        try:
+            self.backend.mark_pre_evaluation_embedding_complete(pre_evaluation_id)
+        except Exception as exc:
+            if is_backend_conflict(exc):
+                LOGGER.warning(
+                    "Pre-evaluation embedding-complete callback conflicted preEvaluationId=%s",
                     pre_evaluation_id,
                 )
+            else:
+                LOGGER.exception("Pre-evaluation embedding-complete callback failed preEvaluationId=%s", pre_evaluation_id)
                 raise
-            return
-
-        self.backend.complete_pre_evaluation(pre_evaluation_id, str(report_key))
         LOGGER.info(
-            "Completed pre-evaluation generation preEvaluationId=%s key=%s",
+            "Completed pre-evaluation generation and embedding preEvaluationId=%s key=%s",
             pre_evaluation_id,
             report_key,
         )

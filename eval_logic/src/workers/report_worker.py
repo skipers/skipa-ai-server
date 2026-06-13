@@ -17,7 +17,7 @@ from services.report_generation_service import (
     source_from_patent_id,
 )
 from apps.api.storage import object_storage
-from workers.backend_client import BackendCallbackClient
+from workers.backend_client import BackendCallbackClient, is_backend_conflict
 from workers.config import WorkerConfig, load_worker_config
 from workers.rabbitmq import RabbitWorker
 from workers.vectorstore_hooks import index_patent_report_from_minio
@@ -162,10 +162,22 @@ class ReportGenerateHandler:
             LOGGER.exception("Report generation failed reportId=%s patentId=%s", report_id, patent_id)
             try:
                 self.backend.fail_report(report_id, str(exc))
-            except Exception:
+            except Exception as callback_exc:
+                if is_backend_conflict(callback_exc):
+                    LOGGER.warning("Report fail callback conflicted reportId=%s", report_id)
+                    return
                 LOGGER.exception("Report fail callback failed reportId=%s", report_id)
                 raise
             return
+
+        try:
+            self.backend.complete_report(report_id, str(report_key), total_score, value_grade)
+        except Exception as exc:
+            if is_backend_conflict(exc):
+                LOGGER.warning("Report report-complete callback conflicted reportId=%s", report_id)
+            else:
+                LOGGER.exception("Report report-complete callback failed reportId=%s", report_id)
+                raise
 
         try:
             index_patent_report_from_minio(
@@ -176,16 +188,18 @@ class ReportGenerateHandler:
             )
         except Exception as exc:
             LOGGER.exception("Report vectorstore indexing failed reportId=%s patentId=%s", report_id, patent_id)
-            try:
-                self.backend.fail_report(report_id, str(exc))
-            except Exception:
-                LOGGER.exception("Report fail callback failed after vectorstore error reportId=%s", report_id)
-                raise
-            return
+            raise
 
-        self.backend.complete_report(report_id, str(report_key), total_score, value_grade)
+        try:
+            self.backend.mark_report_embedding_complete(report_id)
+        except Exception as exc:
+            if is_backend_conflict(exc):
+                LOGGER.warning("Report embedding-complete callback conflicted reportId=%s", report_id)
+            else:
+                LOGGER.exception("Report embedding-complete callback failed reportId=%s", report_id)
+                raise
         LOGGER.info(
-            "Completed report generation reportId=%s patentId=%s key=%s totalScore=%s valueGrade=%s",
+            "Completed report generation and embedding reportId=%s patentId=%s key=%s totalScore=%s valueGrade=%s",
             report_id,
             patent_id,
             report_key,
