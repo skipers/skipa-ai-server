@@ -2,15 +2,18 @@ import os
 import re
 import sys
 import json
+import hashlib
+import importlib.util
 import textwrap
 import warnings
 from pathlib import Path
 from collections import defaultdict
+from typing import Any
 import pdfplumber
 import pypdf
 from wcwidth import wcswidth
 from core.env import load_runtime_env
-from core.paths import SAMPLE_PATENT_DOCUMENT_DIR
+from core.paths import RUNTIME_ARTIFACTS_DIR, SAMPLE_PATENT_DOCUMENT_DIR
 
 load_runtime_env()
 
@@ -37,6 +40,12 @@ JUNK_LINE = re.compile(
     r"|^-\s*도\d"
     r"|^\(뒷면에"
     r"|^\(\d{2,3}\)\s*$"
+)
+
+FOREIGN_PATENT_RE = re.compile(
+    r"\b(?:United States Patent|European Patent|Patent Application Publication|"
+    r"Publication of application|权利要求书|明細書|特許請求の範囲|发明名称|発明の名称)\b",
+    re.IGNORECASE,
 )
 
 
@@ -316,6 +325,36 @@ def parse_title_abstract(full_text: str) -> dict:
     return {"발명의_명칭": title, "요약": abstract}
 
 
+def parse_title_abstract_flexible(full_text: str, fallback_title: str = "-") -> dict:
+    title = "-"
+    title_patterns = [
+        r"\(54\)\s*(?:발명의\s*명칭|명칭)?\s*(.+?)(?=\n\s*\(57\)|\n\s*요\s*약|\n\s*대\s*표\s*도|\Z)",
+        r"^\s*발명의\s*명칭\s*[:：]?\s*(.+)$",
+        r"^\s*명칭\s*[:：]?\s*(.+)$",
+    ]
+    for pattern in title_patterns:
+        match = re.search(pattern, full_text, re.DOTALL | re.MULTILINE)
+        if match:
+            title = _clean_section_text(match.group(1), limit=500)
+            if "\n" in title:
+                title = title.split("\n", 1)[0].strip()
+            break
+    if not title or title == "-":
+        title = fallback_title
+
+    abstract = "-"
+    abstract_patterns = [
+        r"\(57\)\s*요\s*약\s*(.+?)(?=\n\s*대\s*표\s*도|\n\s*대표도|\n\s*청\s*구\s*범\s*위|\n\s*특허청구|\n\s*명\s*세\s*서|\Z)",
+        r"^\s*요\s*약\s*[:：]?\s*(.+?)(?=\n\s*청\s*구\s*범\s*위|\n\s*대표도|\Z)",
+    ]
+    for pattern in abstract_patterns:
+        match = re.search(pattern, full_text, re.DOTALL | re.MULTILINE)
+        if match:
+            abstract = _clean_section_text(match.group(1), limit=4000)
+            break
+    return {"발명의_명칭": title or "-", "요약": abstract or "-"}
+
+
 def _clean_section_text(text: str, limit: int | None = None) -> str:
     """PDF 행 기반 추출 텍스트에서 평가에 방해되는 머리말/쪽번호 잡음을 줄입니다."""
     lines = []
@@ -382,10 +421,19 @@ def parse_claims(full_text: str) -> dict:
     """청구범위 섹션에서 청구항별 텍스트, 독립/종속, 삭제항을 추출합니다."""
     bounds = _find_section_bounds(
         full_text,
-        [r"^\s*청\s*구\s*범\s*위\s*$", r"청\s*구\s*범\s*위"],
+        [
+            r"^\s*청\s*구\s*범\s*위\s*$",
+            r"청\s*구\s*범\s*위",
+            r"^\s*특허청구의\s*범위\s*$",
+            r"^\s*특허청구범위\s*$",
+            r"^\s*청구의\s*범위\s*$",
+        ],
         [
             r"^\s*발\s*명\s*의\s*설\s*명\s*$",
             r"^\s*발명의\s*설명\s*$",
+            r"^\s*발명의\s*상세한\s*설명\s*$",
+            r"^\s*상세한\s*설명\s*$",
+            r"^\s*명\s*세\s*서\s*$",
             r"^\s*기\s*술\s*분\s*야\s*$",
             r"^\s*도\s*면\s*$",
             r"^\s*요\s*약\s*서\s*$",
@@ -396,13 +444,18 @@ def parse_claims(full_text: str) -> dict:
 
     section = full_text[bounds[0]:bounds[1]]
     matches = list(
-        re.finditer(r"^\s*청구항\s*(\d+)(?!\s*에\s*있어서)(?:\s*$|\s+)", section, re.MULTILINE)
+        re.finditer(
+            r"^\s*(?:\[?\s*청구항\s*(\d+)\s*\]?|【\s*청구항\s*(\d+)\s*】|제\s*(\d+)\s*항\s*[.)])"
+            r"(?!\s*에\s*있어서)(?:\s*$|\s+)",
+            section,
+            re.MULTILINE,
+        )
     )
     claims: dict[str, dict] = {}
     deleted_claims: list[int] = []
 
     for idx, match in enumerate(matches):
-        claim_no = int(match.group(1))
+        claim_no = int(next(group for group in match.groups() if group))
         start = match.end()
         end = matches[idx + 1].start() if idx + 1 < len(matches) else len(section)
         claim_text = _clean_section_text(section[start:end])
@@ -441,7 +494,13 @@ def parse_description_sections(full_text: str) -> dict:
     """명세서 본문에서 LLM 평가에 유용한 발명의 설명 섹션들을 추출합니다."""
     description_bounds = _find_section_bounds(
         full_text,
-        [r"^\s*발\s*명\s*의\s*설\s*명\s*$", r"^\s*발명의\s*설명\s*$"],
+        [
+            r"^\s*발\s*명\s*의\s*설\s*명\s*$",
+            r"^\s*발명의\s*설명\s*$",
+            r"^\s*발명의\s*상세한\s*설명\s*$",
+            r"^\s*상세한\s*설명\s*$",
+            r"^\s*명\s*세\s*서\s*$",
+        ],
         [r"^\s*부\s*호\s*의\s*설\s*명\s*$", r"^\s*도\s*면\s*$", r"^\s*도면의\s*간단한\s*설명\s*$"],
     )
     description_text = full_text[description_bounds[0]:description_bounds[1]] if description_bounds else full_text
@@ -496,6 +555,122 @@ def parse_description_sections(full_text: str) -> dict:
     }
 
 
+def _script_module(name: str, filename: str):
+    server_root = Path(__file__).resolve().parents[3]
+    path = server_root / "scripts" / filename
+    if not path.exists():
+        raise FileNotFoundError(f"parser script not found: {path}")
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load parser script: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _pdf_cache_dir(pdf_path: Path) -> Path:
+    digest = hashlib.sha256(pdf_path.read_bytes()).hexdigest()[:16]
+    cache_dir = RUNTIME_ARTIFACTS_DIR / "pdf_parse_cache" / digest
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+def _looks_foreign_or_scanned(pdf_path: Path, full_text: str, pages_words: list[list[dict]]) -> bool:
+    filename = pdf_path.name
+    upper_name = filename.upper()
+    if upper_name.startswith(("US", "EP", "CN", "JP", "TW", "WO")):
+        return True
+    if FOREIGN_PATENT_RE.search(f"{filename}\n{full_text[:6000]}"):
+        return True
+    word_count = sum(len(page) for page in pages_words)
+    return word_count < 40 or len(full_text.strip()) < 500
+
+
+def _global_output_to_raw_result(output: dict[str, Any], pdf_path: Path) -> dict[str, Any]:
+    raw = output.get("raw") if isinstance(output.get("raw"), dict) else {}
+    raw_result = {
+        "filename": raw.get("filename") or pdf_path.name,
+        "sys_meta": raw.get("sys_meta") or {},
+        "meta": raw.get("meta") or {},
+        "claims": raw.get("claims") or {"claims_text": {}, "deleted_claims": [], "claims_raw_text": ""},
+        "description": raw.get("description") or {},
+        "keywords": output.get("keywords") or [],
+        "brief_summary": output.get("brief_summary") or {},
+        "normalized_patent": output.get("normalized_patent") or {},
+    }
+    meta = raw_result["meta"]
+    if isinstance(meta, dict) and not meta.get("출원인") and meta.get("특허권자"):
+        meta["출원인"] = meta.get("특허권자")
+    raw_result["_parser"] = "global_fallback"
+    return raw_result
+
+
+def parse_global_or_scanned_patent(pdf_path: Path) -> dict:
+    module = _script_module("runtime_parse_global_patents", "parse_global_patents.py")
+    cache_dir = _pdf_cache_dir(pdf_path)
+    text, extraction_info = module.get_extracted_text(pdf_path, cache_dir)
+    fallback = module.regex_fallback(text, pdf_path.name, extraction_info.get("pdf_metadata") or {})
+    language = module.detect_language(text, pdf_path.name, fallback.get("identifier", ""))
+
+    no_llm = not os.getenv("OPENAI_API_KEY") or os.getenv("DISABLE_GLOBAL_PATENT_PARSE_LLM", "").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    model = os.getenv("OPENAI_GLOBAL_PARSE_MODEL") or os.getenv("OPENAI_INTENT_MODEL") or "gpt-4.1-mini"
+    llm_cache = cache_dir / "structured.json"
+    if llm_cache.exists():
+        structured = module.read_json(llm_cache)
+        translation_status = structured.get("_translation_status", "translated")
+    elif no_llm:
+        structured = {
+            "identifier": fallback.get("identifier"),
+            "title_ko": fallback.get("title_original"),
+            "abstract_ko": fallback.get("abstract_original"),
+            "claims": [],
+            "description": {"description_text": fallback.get("abstract_original", "")},
+            "keywords": [],
+            "brief_summary": {
+                "개요": fallback.get("title_original", ""),
+                "핵심_내용": fallback.get("abstract_original", ""),
+            },
+            "_translation_status": "not_requested",
+        }
+        module.write_json(llm_cache, structured)
+        translation_status = "not_requested"
+    else:
+        prompt_text = module.select_prompt_text(text, int(os.getenv("GLOBAL_PATENT_PARSE_MAX_TEXT_CHARS", "55000")))
+        try:
+            structured = module.call_openai_structurer(prompt_text, fallback, language, model)
+            structured["_translation_status"] = "translated"
+        except Exception as exc:
+            warnings.warn(f"{pdf_path.name}: 외국 특허 LLM 구조화 실패, 규칙 기반 결과를 사용합니다: {exc}")
+            structured = {
+                "identifier": fallback.get("identifier"),
+                "title_ko": fallback.get("title_original"),
+                "abstract_ko": fallback.get("abstract_original"),
+                "claims": [],
+                "description": {"description_text": fallback.get("abstract_original", "")},
+                "keywords": [],
+                "brief_summary": {
+                    "개요": fallback.get("title_original", ""),
+                    "핵심_내용": fallback.get("abstract_original", ""),
+                },
+                "_translation_status": "llm_failed",
+            }
+        module.write_json(llm_cache, structured)
+        translation_status = structured.get("_translation_status", "translated")
+
+    _identifier, output = module.build_output(pdf_path, text, extraction_info, fallback, structured, language, translation_status)
+    return _global_output_to_raw_result(output, pdf_path)
+
+
+def _claim_count(claims: dict[str, Any]) -> int:
+    claims_text = claims.get("claims_text") if isinstance(claims, dict) else {}
+    return len(claims_text) if isinstance(claims_text, dict) else 0
+
+
 def parse_patent(pdf_path: Path) -> dict:
     sys_meta    = extract_pdf_sys_meta(pdf_path)
     pages_words = extract_page_words(pdf_path)
@@ -503,15 +678,25 @@ def parse_patent(pdf_path: Path) -> dict:
     # 빈 PDF / 텍스트 레이어 없는 PDF 방어
     non_empty = [p for p in pages_words if p]
     if not non_empty:
-        warnings.warn(f"{pdf_path.name}: 텍스트를 추출할 수 없습니다 (스캔 PDF 등).")
-        return {
-            "filename": pdf_path.name,
-            "sys_meta": sys_meta,
-            "meta": {"발명의_명칭": "-", "요약": "-"},
-            "error": "텍스트 추출 불가",
-        }
+        warnings.warn(f"{pdf_path.name}: 텍스트 레이어가 없어 OCR/외국 특허 fallback을 사용합니다.")
+        try:
+            return parse_global_or_scanned_patent(pdf_path)
+        except Exception as exc:
+            warnings.warn(f"{pdf_path.name}: OCR/외국 특허 fallback 실패: {exc}")
+            return {
+                "filename": pdf_path.name,
+                "sys_meta": sys_meta,
+                "meta": {"발명의_명칭": "-", "요약": "-"},
+                "error": "텍스트 추출 불가",
+            }
 
     full_text        = extract_full_text(pages_words)
+    if _looks_foreign_or_scanned(pdf_path, full_text, pages_words):
+        try:
+            return parse_global_or_scanned_patent(pdf_path)
+        except Exception as exc:
+            warnings.warn(f"{pdf_path.name}: OCR/외국 특허 fallback 실패, 기본 파서를 계속 사용합니다: {exc}")
+
     col_x, detected  = detect_column_split(pages_words[0])
     if not detected:
         warnings.warn(
@@ -520,9 +705,21 @@ def parse_patent(pdf_path: Path) -> dict:
 
     meta = parse_fields(pages_words, col_x)
     meta.update(parse_title_abstract(full_text))
+    flexible_title_abstract = parse_title_abstract_flexible(full_text, pdf_path.stem)
+    if meta.get("발명의_명칭") in (None, "", "-"):
+        meta["발명의_명칭"] = flexible_title_abstract.get("발명의_명칭") or pdf_path.stem
+    if meta.get("요약") in (None, "", "-"):
+        meta["요약"] = flexible_title_abstract.get("요약") or "-"
     meta["_col_x_detected"] = detected  # 감지 성공 여부를 메타에 기록
     claims = parse_claims(full_text)
     description = parse_description_sections(full_text)
+    if _claim_count(claims) == 0 and not detected:
+        try:
+            fallback = parse_global_or_scanned_patent(pdf_path)
+            if _claim_count(fallback.get("claims") or {}) > 0:
+                return fallback
+        except Exception as exc:
+            warnings.warn(f"{pdf_path.name}: 보강 fallback 실패, 기본 파서 결과를 사용합니다: {exc}")
 
     return {
         "filename": pdf_path.name,

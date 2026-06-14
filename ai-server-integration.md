@@ -316,7 +316,6 @@ app:
 {
   "type": "PATENT_EXTRACT",
   "extractJobId": 7,
-  "patentId": 1,
   "objectKey": "tmp/patent-extract-jobs/7/original.pdf"
 }
 ```
@@ -327,17 +326,16 @@ app:
 | --- | --- |
 | `type` | 메시지 타입. 항상 `PATENT_EXTRACT` |
 | `extractJobId` | 특허 추출 작업 ID |
-| `patentId` | 파싱 결과 `parsed.json`을 저장할 백엔드 특허 ID |
 | `objectKey` | AI 서버가 읽어야 하는 원문 PDF MinIO object key |
 
 ### 3-5. 특허 추출 worker 구현 기준
 
 특허 추출 worker는 `PATENT_EXTRACT` 메시지를 받으면 아래 작업을 수행해야 합니다.
 
-1. 메시지에서 `extractJobId`, `patentId`, `objectKey`를 읽습니다.
+1. 메시지에서 `extractJobId`, `objectKey`를 읽습니다.
 2. MinIO에서 `objectKey`의 PDF를 다운로드합니다.
 3. PDF에서 특허 메타데이터와 초안 정보를 추출합니다.
-4. 파싱 원본 결과를 MinIO의 `patents/{patentId}/parsed.json`에 저장합니다.
+4. 파싱 원본 결과를 MinIO의 `tmp/patent-extract-jobs/{extractJobId}/parsed.json`에 저장합니다.
 5. 추출 결과를 백엔드 반영용 JSON으로 구성합니다.
 6. 백엔드 internal 완료 API를 호출합니다.
 
@@ -356,13 +354,13 @@ tmp/patent-extract-jobs/7/original.pdf
 파싱 결과 저장 key:
 
 ```text
-patents/{patentId}/parsed.json
+tmp/patent-extract-jobs/{extractJobId}/parsed.json
 ```
 
 예시:
 
 ```text
-patents/1/parsed.json
+tmp/patent-extract-jobs/7/parsed.json
 ```
 
 ### 3-6. 특허 추출 완료 콜백
@@ -406,7 +404,7 @@ Content-Type: application/json
     "initialDepartment": "반도체",
     "keywords": ["패키지", "반도체"],
     "summary": "특허 요약",
-    "parsedObjectKey": "patents/1/parsed.json"
+    "parsedObjectKey": "tmp/patent-extract-jobs/7/parsed.json"
   }
 }
 ```
@@ -589,10 +587,10 @@ patents/1/original.pdf
 
 최종 PDF key는 특허의 `originalPdfKey`에 저장됩니다.
 
-AI 서버 특허 추출 worker는 RabbitMQ 메시지의 `patentId`를 기준으로 파싱 원본 결과 JSON을 아래 최종 key에 저장합니다. 백엔드는 완료 콜백의 `result.parsedObjectKey`를 특허의 `parsedJsonKey`로 저장할 수 있습니다.
+AI 서버 특허 추출 worker는 업로드된 원문 PDF와 같은 임시 디렉토리에 파싱 원본 결과 JSON을 저장합니다. 백엔드는 완료 콜백의 `result.parsedObjectKey`를 참고해 최종 특허 생성 시 필요한 위치로 복사하거나 `parsedJsonKey`로 저장할 수 있습니다.
 
 ```text
-patents/{patentId}/parsed.json
+tmp/patent-extract-jobs/{extractJobId}/parsed.json
 ```
 
 보고서 JSON의 최종 key:
