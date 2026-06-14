@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import sys
 import tempfile
@@ -49,11 +50,41 @@ PATENT_EXTRACT_RESULT_FIELDS = (
 )
 
 
+def _default_patent_prefix() -> str:
+    return os.getenv("MINIO_PATENT_PREFIX", "patents").strip("/") or "patents"
+
+
+def _parsed_object_key_template() -> str:
+    return os.getenv(
+        "EVAL_LOGIC_PARSED_OBJECT_KEY_TEMPLATE",
+        f"{_default_patent_prefix()}/{{patent_id}}/parsed.json",
+    )
+
+
 def _require(payload: dict[str, Any], field: str) -> Any:
     value = payload.get(field)
     if value is None or value == "":
         raise ValueError(f"PATENT_EXTRACT payload missing required field: {field}")
     return value
+
+
+def _payload_value(payload: dict[str, Any], *fields: str) -> Any:
+    for field in fields:
+        value = payload.get(field)
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def _require_any(payload: dict[str, Any], canonical_field: str, *fields: str) -> Any:
+    value = _payload_value(payload, canonical_field, *fields)
+    if value is None or value == "":
+        raise ValueError(f"PATENT_EXTRACT payload missing required field: {canonical_field}")
+    return value
+
+
+def parsed_object_key_for_patent(patent_id: int | str) -> str:
+    return _parsed_object_key_template().format(patent_id=patent_id).strip("/")
 
 
 def _clean_text(value: Any) -> str | None:
@@ -179,6 +210,7 @@ class PatentExtractHandler:
 
         extract_job_id = _require(payload, "extractJobId")
         object_key = _require(payload, "objectKey")
+        patent_id = _require_any(payload, "patentId", "patentID", "patent_id")
 
         try:
             with tempfile.TemporaryDirectory(prefix=f"patent-extract-{extract_job_id}-") as tmp_dir:
@@ -191,11 +223,27 @@ class PatentExtractHandler:
                 parsed = parse_patent(pdf_path)
                 if parsed.get("error"):
                     raise RuntimeError(str(parsed["error"]))
+                parsed_object_key = parsed_object_key_for_patent(patent_id)
+                stored = object_storage.put_json(parsed_object_key, parsed)
+                if not stored:
+                    raise RuntimeError(f"MinIO parsed.json 저장에 실패했습니다: {parsed_object_key}")
                 result = map_patent_extract_result(parsed)
+                result["parsedObjectKey"] = stored.get("object_key") or parsed_object_key
             self.backend.complete_patent_extract(extract_job_id, result)
-            LOGGER.info("Completed patent extraction extractJobId=%s objectKey=%s", extract_job_id, object_key)
+            LOGGER.info(
+                "Completed patent extraction extractJobId=%s patentId=%s objectKey=%s parsedObjectKey=%s",
+                extract_job_id,
+                patent_id,
+                object_key,
+                parsed_object_key,
+            )
         except Exception as exc:
-            LOGGER.exception("Patent extraction failed extractJobId=%s objectKey=%s", extract_job_id, object_key)
+            LOGGER.exception(
+                "Patent extraction failed extractJobId=%s patentId=%s objectKey=%s",
+                extract_job_id,
+                patent_id,
+                object_key,
+            )
             try:
                 self.backend.fail_patent_extract(extract_job_id, str(exc))
             except Exception:
