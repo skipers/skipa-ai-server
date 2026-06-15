@@ -107,9 +107,26 @@ pre_application_valuation/inputs/
 pre_application_valuation/evidence/
 pre_application_valuation/tmp/
 pre_application_valuation/*.local.json
+pre_application_valuation/outputs/*.json
+!pre_application_valuation/outputs/answer.json
+!pre_application_valuation/outputs/example.json
 
 reports/
 parsing_data/
 seed-demo-data.sql
 reports_legacy/
 input_sample/
+
+# Re-evaluation report generation artifacts
+eval_logic/results/
+eval_logic/data/kipris_artifacts/cache/
+eval_logic/data/kipris_artifacts/crawling/ipc_yearly_growth_*.json
+eval_logic/data/kipris_artifacts/crawling/kipris_results_*.csv
+eval_logic/data/kipris_artifacts/output/similar_details_*.json
+eval_logic/data/kipris_artifacts/output/similar_refs_*.json
+patent_citation_collection/cache/
+
+# Local scratch files created while comparing report payloads
+sample_report.json
+report copy.json
+특허리스트_등록_20260423기준*.xlsx

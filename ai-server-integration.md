@@ -335,8 +335,9 @@ app:
 1. 메시지에서 `extractJobId`, `objectKey`를 읽습니다.
 2. MinIO에서 `objectKey`의 PDF를 다운로드합니다.
 3. PDF에서 특허 메타데이터와 초안 정보를 추출합니다.
-4. 추출 결과를 JSON으로 구성합니다.
-5. 백엔드 internal 완료 API를 호출합니다.
+4. 파싱 원본 결과를 MinIO의 `tmp/patent-extract-jobs/{extractJobId}/parsed.json`에 저장합니다.
+5. 추출 결과를 백엔드 반영용 JSON으로 구성합니다.
+6. 백엔드 internal 완료 API를 호출합니다.
 
 PDF 다운로드 대상 key:
 
@@ -348,6 +349,18 @@ tmp/patent-extract-jobs/{extractJobId}/original.pdf
 
 ```text
 tmp/patent-extract-jobs/7/original.pdf
+```
+
+파싱 결과 저장 key:
+
+```text
+tmp/patent-extract-jobs/{extractJobId}/parsed.json
+```
+
+예시:
+
+```text
+tmp/patent-extract-jobs/7/parsed.json
 ```
 
 ### 3-6. 특허 추출 완료 콜백
@@ -390,7 +403,8 @@ Content-Type: application/json
     "jointApplicant": null,
     "initialDepartment": "반도체",
     "keywords": ["패키지", "반도체"],
-    "summary": "특허 요약"
+    "summary": "특허 요약",
+    "parsedObjectKey": "tmp/patent-extract-jobs/7/parsed.json"
   }
 }
 ```
@@ -573,10 +587,10 @@ patents/1/original.pdf
 
 최종 PDF key는 특허의 `originalPdfKey`에 저장됩니다.
 
-`extractJobId` 기반으로 특허를 생성하면 백엔드는 추출 결과 JSON을 아래 최종 key로 저장하고, 해당 key를 특허의 `parsedJsonKey`에 저장합니다.
+AI 서버 특허 추출 worker는 업로드된 원문 PDF와 같은 임시 디렉토리에 파싱 원본 결과 JSON을 저장합니다. 백엔드는 완료 콜백의 `result.parsedObjectKey`를 참고해 최종 특허 생성 시 필요한 위치로 복사하거나 `parsedJsonKey`로 저장할 수 있습니다.
 
 ```text
-patents/{patentId}/parsed.json
+tmp/patent-extract-jobs/{extractJobId}/parsed.json
 ```
 
 보고서 JSON의 최종 key:

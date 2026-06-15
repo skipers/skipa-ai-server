@@ -56,7 +56,18 @@ def _require(payload: dict[str, Any], field: str) -> Any:
     return value
 
 
+def parsed_object_key_for_pdf(object_key: str) -> str:
+    key = str(object_key or "").strip("/")
+    if not key:
+        raise ValueError("PATENT_EXTRACT payload missing required field: objectKey")
+    parent = key.rsplit("/", 1)[0] if "/" in key else ""
+    return f"{parent}/parsed.json" if parent else "parsed.json"
+
+
 def _clean_text(value: Any) -> str | None:
+    if isinstance(value, list):
+        text = ", ".join(str(item).strip() for item in value if str(item).strip())
+        return text or None
     text = str(value or "").strip()
     if not text or text == "-":
         return None
@@ -191,11 +202,25 @@ class PatentExtractHandler:
                 parsed = parse_patent(pdf_path)
                 if parsed.get("error"):
                     raise RuntimeError(str(parsed["error"]))
+                parsed_object_key = parsed_object_key_for_pdf(str(object_key))
+                stored = object_storage.put_json(parsed_object_key, parsed)
+                if not stored:
+                    raise RuntimeError(f"MinIO parsed.json 저장에 실패했습니다: {parsed_object_key}")
                 result = map_patent_extract_result(parsed)
+                result["parsedObjectKey"] = stored.get("object_key") or parsed_object_key
             self.backend.complete_patent_extract(extract_job_id, result)
-            LOGGER.info("Completed patent extraction extractJobId=%s objectKey=%s", extract_job_id, object_key)
+            LOGGER.info(
+                "Completed patent extraction extractJobId=%s objectKey=%s parsedObjectKey=%s",
+                extract_job_id,
+                object_key,
+                parsed_object_key,
+            )
         except Exception as exc:
-            LOGGER.exception("Patent extraction failed extractJobId=%s objectKey=%s", extract_job_id, object_key)
+            LOGGER.exception(
+                "Patent extraction failed extractJobId=%s objectKey=%s",
+                extract_job_id,
+                object_key,
+            )
             try:
                 self.backend.fail_patent_extract(extract_job_id, str(exc))
             except Exception:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.report_text import normalize_local_source_markers
+from core.report_text import normalize_local_source_markers, normalize_report_prose, normalize_report_sentence
 
 
 REPORT_CONTRACT_KEYS = (
@@ -185,8 +185,9 @@ def _canonical_evaluation_item(item: Any) -> dict[str, Any]:
     source = _as_dict(item)
     normalized = _pick(source, ITEM_KEYS, {"sources": []})
     normalized["sources"] = [_evaluation_source(src) for src in _as_list(source.get("sources"))]
+    normalized["judgment_summary"] = normalize_report_sentence(normalized.get("judgment_summary"))
     normalized["judgment_basis"] = normalize_local_source_markers(
-        normalized.get("judgment_basis"),
+        normalize_report_prose(normalized.get("judgment_basis")),
         len(normalized["sources"]),
     )
     return normalized

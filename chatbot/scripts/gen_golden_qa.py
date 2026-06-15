@@ -40,11 +40,18 @@ CATEGORY_DESCRIPTIONS = {
 REPORT_FIELDS: dict[str, list[str]] = {
     "overview":   ["section_1_summary.overall_opinion",
                    "section_1_summary.project_utilization_brief",
-                   "section_1_summary.title"],
+                   "section_1_summary.title",
+                   "section_1_summary.dimension_scores",
+                   "section_1_summary.overall_score_out_of_100",
+                   "section_1_summary.overall_grade",
+                   "section_2_detailed_scores.dimensions"],
     "claims":     ["section_2_detailed_scores.dimensions",
                    "section_1_summary.title"],
     "market":     ["section_2_detailed_scores.dimensions",
-                   "section_1_summary.project_utilization_brief"],
+                   "section_1_summary.project_utilization_brief",
+                   "section_1_summary.dimension_scores",
+                   "section_1_summary.overall_score_out_of_100",
+                   "section_1_summary.market_sector"],
     "risk":       ["section_2_detailed_scores.dimensions",
                    "section_5_review_items"],
     "comparison": ["section_4_similar_patents"],
@@ -79,7 +86,10 @@ _GENERATE_PROMPT = """당신은 특허 분석 전문가입니다.
 조건:
 - 질문은 특허 RAG 챗봇을 테스트하기 위한 것입니다
 - 질문은 구체적이고 보고서 내용에서 명확히 답할 수 있어야 합니다
-- 답변은 보고서 기반으로 2~5문장, 핵심만 담아야 합니다
+- 답변은 보고서 기반으로 3~6문장, 150~300자 분량으로 핵심 사실과 그 근거·수치를 함께 서술합니다
+- 첫 문장에서 질문에 직접 답하고, 이후 문장에서 근거·수치·맥락을 추가합니다
+- 중요: 보고서 내용에 실제 데이터가 있는 질문만 생성하세요. "없습니다", "언급이 없습니다", "명시되지 않았습니다" 형태로 답하는 질문은 생성하지 마세요
+- 점수·등급·항목명·판단 근거 등 구체적 수치나 사실이 있는 내용을 기반으로 질문을 만드세요
 - 서로 다른 측면을 다루는 다양한 질문을 생성하세요 (유사한 질문 반복 금지)
 - 질문과 답변은 한국어로 작성하세요
 

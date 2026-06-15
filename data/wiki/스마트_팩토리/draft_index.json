@@ -11,7 +11,18 @@
       "result_count": 4,
       "avg_relevance": 0.4583,
       "status": "pending"
+    },
+    {
+      "query_hash": "dc4cd80c2cd4",
+      "query": "스마트팩토리 관련 최신 기술 동향 참고자료의 URL을 알려주세요.",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-13T23:03:50",
+      "draft_file": "20260613_230350_498709.md",
+      "result_count": 4,
+      "avg_relevance": 0.2,
+      "status": "pending"
     }
   ],
-  "updated_at": "2026-06-07T15:53:26"
+  "updated_at": "2026-06-13T23:03:50"
 }
