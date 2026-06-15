@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from ..agents.graph import chat_graph_mermaid, run_chat_agent
 from ..agents.ingestion_graph import ingestion_graph_mermaid, run_ingestion_graph
@@ -648,11 +648,13 @@ def rag_patent_summary_cards() -> dict:
     summary="재평가 특허 챗봇 답변",
     description=(
         "재평가 특허(`patent_id`)를 기준으로 원문·보고서·wiki·웹 근거를 통합해 답변합니다.\n\n"
-        "- `patent_id` 없이 호출하면 전체 특허 DB에서 검색합니다.\n"
+        "- `patent_id`는 필수입니다. 전체 특허 대상 채팅은 사용하지 않습니다.\n"
         "- `chat_history`: 최근 대화 목록을 전달하면 후속 질문 컨텍스트를 유지합니다."
     ),
 )
 def rag_chat(request: ChatRequest) -> dict:
+    if not request.patent_id:
+        raise HTTPException(status_code=422, detail="patent_id is required for patent chat")
     return run_chat_agent(
         request.question,
         patent_id=request.patent_id,
@@ -665,18 +667,14 @@ def rag_chat(request: ChatRequest) -> dict:
     "/global/chat",
     response_model=AnswerResponse,
     summary="전체 특허 챗봇 답변 (재평가 특허 미선택)",
+    include_in_schema=False,
     description=(
-        "특정 특허를 선택하지 않고 전체 특허 DB(`skipa_patent_docs`)에서 관련 근거를 탐색해 답변합니다. "
-        "전체 탐색이므로 재평가 특허 채팅보다 응답 근거 범위가 넓습니다."
+        "전체 특허 대상 채팅은 비활성화되었습니다. 특허를 선택한 뒤 `/api/v1/patent-chat/chat` "
+        "또는 `/api/v1/patents/{patent_id}/chat`을 사용하세요."
     ),
 )
 def rag_global_chat(request: ChatRequest) -> dict:
-    return run_chat_agent(
-        request.question,
-        patent_id=None,
-        user_id=request.user_id,
-        chat_history=_chat_history_payload(request.chat_history),
-    )
+    raise HTTPException(status_code=410, detail="global patent chat is disabled; select a patent_id")
 
 
 @patent_chat_router.post(
@@ -701,19 +699,14 @@ def rag_reindex(request: ReindexRequest) -> dict:
 @patent_chat_router.post(
     "/global/reindex",
     include_in_schema=False,
-    summary="전체 특허 글로벌 인덱스 재생성",
+    summary="전체 특허 글로벌 인덱스 재생성 (비활성)",
     description=(
-        "전체 특허를 하나의 글로벌 Qdrant 컬렉션으로 재색인합니다. "
-        "특허가 대거 추가·삭제됐을 때 사용합니다. "
-        "일반적으로는 `/chatbot/vectorstore/full-rebuild` 또는 blue-green refresh를 사용하세요."
+        "전체 특허 글로벌 인덱스는 비활성화되었습니다. "
+        "MinIO `patents/{id}` 기준 per-patent 벡터스토어를 재생성하세요."
     ),
 )
 def rag_global_reindex(request: BusinessReindexRequest) -> dict:
-    return run_ingestion_graph(
-        scope="global",
-        force_rebuild=request.force_rebuild,
-        refresh_reviewed_vectorstore=request.refresh_reviewed_vectorstore,
-    )
+    raise HTTPException(status_code=410, detail="global patent reindex is disabled; rebuild per-patent vectorstores")
 
 
 @patent_chat_router.post(

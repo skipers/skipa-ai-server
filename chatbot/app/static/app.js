@@ -48,10 +48,10 @@ const workflowGraphInfo = {
   ingestion: {
     title: "전처리/RAG 재색인 워크플로우",
     endpoint: "/api/v1/patent-chat/ingestion/mermaid",
-    summary: "특허별/전체 인덱스를 재생성하고 승인 vectorstore 갱신 시 원문/보고서 core vectorstore와 분야별 wiki vectorstore를 각각 구성합니다.",
+    summary: "특허별 인덱스를 재생성하고 승인 vectorstore 갱신 시 원문/보고서 core vectorstore와 분야별 wiki vectorstore를 각각 구성합니다.",
     steps: [
       ["inspect_request", "요청 scope와 특허 ID, Hybrid Retrieval 엔진 상태 확인"],
-      ["run_reindex", "scope에 따라 특허별/global/business 인덱스 생성"],
+      ["run_reindex", "선택한 특허의 전용 인덱스 생성"],
       ["reviewed vectorstore refresh", "옵션이 켜지면 승인 데이터 기반 vectorstore 갱신"],
       ["finish_ingestion", "Swagger/UI에서 확인할 결과와 trace 반환"],
     ],
@@ -681,14 +681,14 @@ function sourceModalBody(source) {
 
 function renderPatentOptions() {
   const select = $("patentSelect");
-  select.innerHTML = `<option value="__all__">전체 특허</option>`;
+  select.innerHTML = `<option value="">특허 선택</option>`;
   state.patents.forEach((patent) => {
     const option = document.createElement("option");
     option.value = patent.patent_id;
     option.textContent = `${patent.patent_id} · ${patent.title || patent.patent_id}`;
     select.appendChild(option);
   });
-  select.value = "__all__";
+  select.value = state.patents[0]?.patent_id || "";
 }
 
 function showTab(tabId) {
@@ -1068,7 +1068,7 @@ async function loadWorkflowGraph(type) {
 
 async function reindexSelected() {
   const selected = $("patentSelect").value;
-  if (selected === "__all__") {
+  if (!selected) {
     setStatus("특허를 하나 선택해 주세요");
     return;
   }
@@ -1085,22 +1085,6 @@ async function reindexSelected() {
     setBusy(button, false);
   }
 }
-
-async function checkGlobalIndex() {
-  const button = $("globalReindexButton");
-  setBusy(button, true, "확인 중");
-  try {
-    const result = await api("/api/v1/patent-chat/global/reindex", {
-      method: "POST",
-      body: JSON.stringify({ force_rebuild: false, refresh_reviewed_vectorstore: false }),
-    });
-    setStatus(`전체 인덱스 확인 완료 · ${result.engine || "-"}`);
-    showModal("전체 인덱스 결과", jsonBlock(result));
-  } finally {
-    setBusy(button, false);
-  }
-}
-
 
 async function loadTopicWiki() {
   const button = $("loadTopicsButton");
@@ -1186,17 +1170,15 @@ async function ask() {
   const pending = appendMessage("검색 중입니다. 승인된 vectorstore에서 근거를 찾고 답변을 구성합니다.", "assistant");
   try {
     const selected = $("patentSelect").value;
-    const path = selected === "__all__"
-      ? "/api/v1/patent-chat/global/chat"
-      : `/api/v1/patents/${encodeURIComponent(selected)}/chat`;
+    if (!selected) {
+      throw new Error("특허를 하나 선택해 주세요");
+    }
+    const path = `/api/v1/patents/${encodeURIComponent(selected)}/chat`;
     const body = {
       question: text,
       user_id: "browser-ui",
       chat_history: state.chatHistory,
     };
-    if (selected === "__all__") {
-      body.patent_id = null;
-    }
     const data = await api(path, {
       method: "POST",
       body: JSON.stringify(body),
@@ -1379,7 +1361,6 @@ function bindEvents() {
   $("loadTopicsButton").addEventListener("click", () => loadTopicWiki().catch((error) => setStatus(error.message)));
   $("refreshTopicsButton").addEventListener("click", () => refreshTopicWiki().catch((error) => setStatus(error.message)));
   $("reindexButton").addEventListener("click", () => reindexSelected().catch((error) => setStatus(error.message)));
-  $("globalReindexButton").addEventListener("click", () => checkGlobalIndex().catch((error) => setStatus(error.message)));
   $("runAuditButton").addEventListener("click", () => runAudit().catch((error) => setStatus(error.message)));
   $("loadReviewButton").addEventListener("click", () => loadReview().catch((error) => setStatus(error.message)));
   $("applyAuditButton").addEventListener("click", () => applyAudit().catch((error) => setStatus(error.message)));

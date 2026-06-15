@@ -19,12 +19,21 @@ def retrieve_wiki_context(state: ChatAgentState) -> ChatAgentState:
     result: dict[str, Any] = {"enabled": should_search, "hit_count": 0, "hits": []}
     if should_search:
         patent_id = state.get("resolved_patent_id") or state.get("patent_id")
-        result = search_chunks(
-            state.get("query", ""),
-            patent_id=patent_id,
-            source_types={"WIKI"},
-            top_k=min(int(state.get("top_k") or 5), 5),
-        )
+        try:
+            result = search_chunks(
+                state.get("query", ""),
+                patent_id=patent_id,
+                source_types={"WIKI"},
+                top_k=min(int(state.get("top_k") or 5), 5),
+            )
+        except Exception as exc:
+            result = {
+                "enabled": should_search,
+                "hit_count": 0,
+                "hits": [],
+                "error": str(exc),
+                "fallback_reason": "wiki lookup failed; web search may run next",
+            }
         hits = [
             hit
             for hit in result.get("hits", [])
@@ -36,7 +45,10 @@ def retrieve_wiki_context(state: ChatAgentState) -> ChatAgentState:
         result["hit_count"] = len(hits)
         result["gate_passed"] = bool(hits)
         if not hits:
-            draft_stats = get_patent_draft_stats(patent_id) if patent_id else {}
+            try:
+                draft_stats = get_patent_draft_stats(patent_id) if patent_id else {}
+            except Exception as exc:
+                draft_stats = {"error": str(exc)}
             pending = draft_stats.get("pending_review", 0)
             auto_approved = draft_stats.get("auto_approved", 0)
             if auto_approved > 0:

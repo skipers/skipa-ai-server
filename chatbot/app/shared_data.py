@@ -1505,7 +1505,7 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
         if d:
             docs.append(d)
 
-    # ── [evidence] 차원별 세부 점수 + 항목 수 전용 청크 ─────────────────────
+    # ── [evidence] 차원별 세부 점수 + 항목 수 + 핵심 판단 근거 청크 ──────────
     _s2_dims = _s2.get("dimensions") if isinstance(_s2.get("dimensions"), dict) else {}
     if _s2_dims or _s1_dim:
         dim_src = _s2_dims if _s2_dims else _s1_dim
@@ -1526,6 +1526,19 @@ def _report_to_docs(patent_id: str, report_data: dict[str, Any]) -> list[dict[st
             if _grade:
                 _line += f" / 등급 {_grade}"
             dim_lines.append(_line)
+            # 각 차원의 상위 3개 항목 판단 요약 포함
+            _items = _dv.get("items") if isinstance(_dv.get("items"), list) else []
+            for _it in _items[:3]:
+                if not isinstance(_it, dict):
+                    continue
+                _it_name = str(_it.get("item") or "").strip()
+                _it_score = _it.get("score")
+                _it_summary = str(_it.get("judgment_summary") or "").strip()[:120]
+                if _it_name and _it_score is not None:
+                    _it_line = f"  · {_it_name}: {_it_score}점"
+                    if _it_summary:
+                        _it_line += f" — {_it_summary}"
+                    dim_lines.append(_it_line)
         d = _make("\n".join(dim_lines), "차원별점수근거")
         if d:
             docs.append(d)
@@ -2153,33 +2166,36 @@ def search_shared_vectorstore(
 ) -> dict[str, Any]:
     """Qdrant vector search with optional cross-encoder reranking.
 
-    Per-patent architecture: if patent_id is given and a dedicated collection exists,
-    search that collection directly (no patent_id filter needed).
-    Falls back to shared collection for global search or missing per-patent collections.
+    Per-patent architecture: if patent_id is given, search only that dedicated
+    collection. The shared collection is reserved for admin/debug global search
+    and is not used as a selected-patent fallback.
     """
     allowed_source_types = _normalize_shared_source_types(source_types)
     # Fetch wider candidate pool when reranking
     fetch_k = top_k * 3 if rerank else top_k
+    search_mode = "shared_qdrant_search"
 
     # Route to per-patent collection when available
     if patent_id:
         per_patent_coll = patent_collection(patent_id)
-        if collection_exists(per_patent_coll):
-            vector_result = search_documents(
-                per_patent_coll,
-                query,
-                top_k=fetch_k,
-                source_types=allowed_source_types,
-            )
-        else:
-            # Fallback: shared collection with patent_id filter (legacy)
-            vector_result = search_documents(
-                shared_patents_collection(),
-                query,
-                top_k=fetch_k,
-                patent_id=patent_id,
-                source_types=allowed_source_types,
-            )
+        if not collection_exists(per_patent_coll):
+            return {
+                "query": query,
+                "mode": "per_patent_collection_missing",
+                "collection": per_patent_coll,
+                "patent_id": patent_id,
+                "top_k": top_k,
+                "source_types": sorted(allowed_source_types),
+                "hit_count": 0,
+                "hits": [],
+            }
+        vector_result = search_documents(
+            per_patent_coll,
+            query,
+            top_k=fetch_k,
+            source_types=allowed_source_types,
+        )
+        search_mode = "per_patent_qdrant_search"
     else:
         vector_result = search_documents(
             shared_patents_collection(),
@@ -2199,13 +2215,13 @@ def search_shared_vectorstore(
         try:
             from .reranker import rerank_hits
             final_hits = rerank_hits(query, final_hits, top_k=top_k)
-            mode = "shared_qdrant_reranked"
+            mode = search_mode.replace("_search", "_reranked")
         except Exception:
             final_hits = final_hits[:top_k]
-            mode = "shared_qdrant_search"
+            mode = search_mode
     else:
         final_hits = final_hits[:top_k]
-        mode = "shared_qdrant_search" if not bm25_hits else "shared_qdrant_hybrid_search"
+        mode = search_mode if not bm25_hits else search_mode.replace("_search", "_hybrid_search")
 
     return {
         **vector_result,

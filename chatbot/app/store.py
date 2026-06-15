@@ -15,7 +15,7 @@ from .config import BUSINESS_ROOT, DATA_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_A
 from .qdrant_store import collection_info, patent_collection, qdrant_status
 from .rag.quality import is_usable_evidence
 from .rag.source_card_utils import enrich_source_card
-from .vectorstore import CORE_SEARCH_SOURCE_TYPES, search_vectorstore, vectorstore_status
+from .vectorstore import CORE_SEARCH_SOURCE_TYPES, WIKI_SEARCH_SOURCE_TYPES, search_vectorstore, vectorstore_status
 
 
 CHUNK_FILES = {
@@ -388,7 +388,7 @@ def _excerpt(text: str, query: str, size: int = 360) -> str:
 def search_chunks(query: str, *, patent_id: str | None, source_types: set[str] | None, top_k: int, rerank: bool = False) -> dict[str, Any]:
     effective_source_types = set(source_types) if source_types is not None else set(CORE_SEARCH_SOURCE_TYPES)
     vector_result = search_vectorstore(query, patent_id=patent_id, source_types=effective_source_types, top_k=top_k, rerank=rerank)
-    if vector_result["hit_count"] > 0:
+    if vector_result["hit_count"] > 0 or effective_source_types <= WIKI_SEARCH_SOURCE_TYPES:
         return vector_result
 
     scored: list[tuple[float, dict[str, Any]]] = []
