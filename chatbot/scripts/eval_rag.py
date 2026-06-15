@@ -61,6 +61,113 @@ def _avg(samples: list[dict], key: str) -> float:
     return round(sum(vals) / len(vals), 4) if vals else 0.0
 
 
+def _extract_candidate_sentences(answer: str, max_sents: int = 8) -> list[str]:
+    """답변에서 Semantic Sim 비교용 문장 후보 추출 (Max-Sentence Recall용).
+
+    골든 레퍼런스(짧은 1-2문장)와 가장 유사한 봇 문장을 찾기 위해
+    여러 후보를 추출한다.
+    """
+    clean = re.sub(r"\[\w+\]", "", answer).strip()
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    def _add(text: str) -> None:
+        text = text.strip()[:250]
+        if text and len(text) > 10 and text not in seen:
+            seen.add(text)
+            candidates.append(text)
+
+    # 1) 요약 섹션: 한 줄 요약 / 핵심 답변 / 결론 / 종합
+    for section in ("한 줄 요약", "핵심 답변", "요약", "결론", "종합", "직접 답변"):
+        m = re.search(
+            rf"##\s*{section}\s*\n+(.*?)(?:\n{{2,}}|##|\Z)",
+            clean, re.DOTALL,
+        )
+        if m:
+            for line in m.group(1).strip().split("\n"):
+                line = line.strip()
+                if line and not line.startswith("|") and not line.startswith("-") and len(line) > 10:
+                    _add(line)
+                    break
+
+    # 2) 첫 비헤딩·비테이블 줄 (전체 답변의 첫 실질 문장)
+    for line in clean.split("\n"):
+        line = line.strip()
+        if line and not line.startswith("#") and not line.startswith("|") and not line.startswith("-") and len(line) > 10:
+            _add(line)
+            break
+
+    # 3) 테이블 데이터 셀 병합 (첫 3행)
+    table_rows: list[str] = []
+    for line in clean.split("\n"):
+        line = line.strip()
+        if line.startswith("|") and "---" not in line:
+            cells = [c.strip() for c in line.split("|") if c.strip()]
+            if len(cells) >= 2:
+                row_text = " | ".join(cells)
+                if len(row_text) > 5:
+                    table_rows.append(row_text)
+        if len(table_rows) >= 3:
+            break
+    if table_rows:
+        _add(" / ".join(table_rows[:3]))
+
+    # 4) 나머지 본문 줄 (헤딩·테이블·불릿 제외)
+    for line in clean.split("\n"):
+        line = line.strip()
+        if (line and not line.startswith("#") and not line.startswith("|")
+                and not line.startswith("-") and not line.startswith("*")
+                and len(line) > 15):
+            _add(line)
+        if len(candidates) >= max_sents:
+            break
+
+    if not candidates:
+        candidates.append(clean[:200])
+
+    return candidates[:max_sents]
+
+
+_SEMANTIC_SIM_LLM_PROMPT = """당신은 답변 정보 포함도 평가 전문가입니다.
+챗봇 답변이 레퍼런스 답변의 핵심 정보를 얼마나 포함하는지 0~1 점수로 평가하세요.
+
+평가 기준:
+- 1.0: 레퍼런스의 핵심 사실·수치·결론을 모두 포함
+- 0.7~0.9: 핵심 정보 대부분 포함, 일부 세부 수치 누락
+- 0.4~0.6: 관련 주제이나 핵심 정보 상당 부분 누락
+- 0.1~0.3: 관련 주제이나 레퍼런스 정보 거의 포함 안 됨
+- 0.0: 레퍼런스와 무관하거나 정반대 정보
+
+질문: {question}
+레퍼런스: {reference}
+챗봇 답변 (앞부분): {answer}
+
+점수만 반환하세요 (예: 0.75)."""
+
+
+def _semantic_sim_llm(
+    client: OpenAI, question: str, answer: str, reference: str
+) -> float:
+    """LLM-based semantic recall: 챗봇 답변이 레퍼런스의 핵심 정보를 포함하는지 측정."""
+    if not answer.strip() or not reference.strip():
+        return 0.0
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4.1",
+            messages=[{"role": "user", "content": _SEMANTIC_SIM_LLM_PROMPT.format(
+                question=question[:300],
+                reference=reference[:500],
+                answer=answer[:1500],
+            )}],
+            temperature=0,
+            max_tokens=10,
+            timeout=20,
+        )
+        return _parse_float(resp.choices[0].message.content)
+    except Exception:
+        return 0.0
+
+
 def _parse_float(text: str, default: float = 0.0) -> float:
     """GPT 응답에서 0~1 float 파싱."""
     m = re.search(r"[01](?:\.\d+)?|\.\d+", text.strip())
@@ -92,7 +199,7 @@ def collect_responses(patent_ids: list[str], top_k: int,
         capture_output=False,
         stdout=subprocess.PIPE,
         text=True,
-        timeout=7200,   # golden Q&A 300개 기준 최대 2시간
+        timeout=18000,  # 600쿼리×13s≈8400s, 여유분 포함 5시간
     )
     if proc.returncode != 0:
         raise RuntimeError(f"collect subprocess 실패 (returncode={proc.returncode})")
@@ -254,19 +361,17 @@ def compute_answer_quality(
             client, s["question"], s["answer"], ref
         )
 
-    # 2) Semantic Similarity
-    print(f"\n  Semantic Similarity 계산 중 ({total}개)...")
+    # 2) Semantic Similarity — LLM-based Recall (정보 포함도)
+    #    GPT-4.1이 챗봇 답변이 레퍼런스 핵심 정보를 포함하는지 직접 판단.
+    #    코사인 유사도 대비 길이 불일치 문제 없고, 내용 기반 평가 가능.
+    print(f"\n  Semantic Similarity (LLM) 계산 중 ({total}개)...")
     refs_for_sim = [(s.get("golden_answer") or "") or (s.get("reference") or "") for s in ok]
-    valid_idx = [i for i, r in enumerate(refs_for_sim) if r.strip() and ok[i]["answer"].strip()]
-    if valid_idx:
-        texts = [ok[i]["answer"] for i in valid_idx] + [refs_for_sim[i] for i in valid_idx]
-        vecs  = emb_client.embed_documents(texts)
-        n = len(valid_idx)
-        for j, vi in enumerate(valid_idx):
-            a = np.array(vecs[j])
-            r = np.array(vecs[j + n])
-            cos = float(np.dot(a, r) / (np.linalg.norm(a) * np.linalg.norm(r) + 1e-9))
-            ok[vi]["semantic_sim"] = round(cos, 4)
+    for i, s in enumerate(ok):
+        ref = refs_for_sim[i]
+        print(f"  [{i+1:03d}/{total}] [{s['category']:10s}] {s['patent_id']} sem_sim...", flush=True)
+        s["semantic_sim"] = _semantic_sim_llm(
+            client, s["question"], s["answer"], ref
+        )
 
     for s in samples:
         s.setdefault("answer_quality_judge", 0.0)
