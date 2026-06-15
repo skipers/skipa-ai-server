@@ -42,6 +42,12 @@ JUNK_LINE = re.compile(
     r"|^\(\d{2,3}\)\s*$"
 )
 
+ABSTRACT_TRAILING_SECTION_RE = re.compile(
+    r"\s*(?:\(\s*56\s*\)\s*)?선\s*행\s*기\s*술\s*조\s*사\s*문\s*헌\b.*$",
+    re.DOTALL,
+)
+KOREAN_ENGLISH_GLOSS_RE = re.compile(r"(?<=[가-힣])\s*\(([A-Za-z][A-Za-z0-9\s/&.,+-]*)\)")
+
 FOREIGN_PATENT_RE = re.compile(
     r"\b(?:United States Patent|European Patent|Patent Application Publication|"
     r"Publication of application|权利要求书|明細書|特許請求の範囲|发明名称|発明の名称)\b",
@@ -322,7 +328,7 @@ def parse_title_abstract(full_text: str) -> dict:
         and not KOREAN_NAME.match(line.strip())
     ]
     abstract = re.sub(r"\s+", " ", " ".join(clean)).strip()
-    return {"발명의_명칭": title, "요약": abstract}
+    return {"발명의_명칭": title, "요약": _clean_abstract_text(abstract)}
 
 
 def parse_title_abstract_flexible(full_text: str, fallback_title: str = "-") -> dict:
@@ -350,9 +356,19 @@ def parse_title_abstract_flexible(full_text: str, fallback_title: str = "-") -> 
     for pattern in abstract_patterns:
         match = re.search(pattern, full_text, re.DOTALL | re.MULTILINE)
         if match:
-            abstract = _clean_section_text(match.group(1), limit=4000)
+            abstract = _clean_abstract_text(_clean_section_text(match.group(1), limit=4000))
             break
     return {"발명의_명칭": title or "-", "요약": abstract or "-"}
+
+
+def _clean_abstract_text(text: str) -> str:
+    """요약 본문에 섞인 영문 병기와 다음 섹션 헤더를 제거합니다."""
+    if not text or text == "-":
+        return text
+    cleaned = re.sub(r"\s+", " ", text).strip()
+    cleaned = ABSTRACT_TRAILING_SECTION_RE.sub("", cleaned).strip()
+    cleaned = KOREAN_ENGLISH_GLOSS_RE.sub("", cleaned)
+    return re.sub(r"\s+", " ", cleaned).strip() or "-"
 
 
 def _clean_section_text(text: str, limit: int | None = None) -> str:
