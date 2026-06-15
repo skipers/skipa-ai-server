@@ -93,6 +93,37 @@ def _join_names(values: Any) -> str | None:
     return _clean_text(values)
 
 
+def _first_text(*values: Any) -> str | None:
+    for value in values:
+        text = _clean_text(value)
+        if text:
+            return text
+    return None
+
+
+def _list_or_codes(*values: Any) -> list[str]:
+    for value in values:
+        codes = _code_list(value)
+        if codes:
+            return codes
+    return []
+
+
+def _country_from_identifier(identifier: str | None) -> str:
+    text = (identifier or "").strip().upper()
+    if text.startswith("US"):
+        return "US"
+    if text.startswith("EP"):
+        return "EP"
+    if text.startswith("CN"):
+        return "CN"
+    if text.startswith("JP"):
+        return "JP"
+    if text.startswith("TW"):
+        return "TW"
+    return "KR"
+
+
 def _int_or_none(value: Any) -> int | None:
     text = _clean_text(value)
     if not text:
@@ -128,47 +159,62 @@ def _expiry_date(application_date: str | None) -> str | None:
 
 
 def map_patent_extract_result(parsed: dict[str, Any]) -> dict[str, Any]:
-    meta = parsed.get("meta") if isinstance(parsed.get("meta"), dict) else {}
-    title = _clean_text(meta.get("발명의_명칭"))
-    abstract = _clean_text(meta.get("요약"))
-    keywords = parsed.get("keywords")
+    raw = parsed.get("raw") if isinstance(parsed.get("raw"), dict) else parsed
+    meta = raw.get("meta") if isinstance(raw.get("meta"), dict) else {}
+    normalized = parsed.get("normalized_patent") if isinstance(parsed.get("normalized_patent"), dict) else {}
+    normalized_meta = normalized.get("meta") if isinstance(normalized.get("meta"), dict) else {}
+
+    title = _first_text(meta.get("발명의_명칭"), normalized_meta.get("title"), parsed.get("title"))
+    abstract = _first_text(meta.get("요약"), normalized.get("description_summary"), parsed.get("summary"))
+    keywords = parsed.get("keywords") or normalized_meta.get("keywords") or raw.get("keywords")
     if not isinstance(keywords, list):
         from document_processing.patent_pdf_extractor import extract_keywords
 
         keywords = extract_keywords(title or "", abstract or "")
-    brief = parsed.get("brief_summary")
+    brief = parsed.get("brief_summary") or normalized.get("brief_summary") or raw.get("brief_summary")
     if not isinstance(brief, dict):
         from document_processing.patent_pdf_extractor import make_brief_summary
 
         brief = make_brief_summary(title or "", abstract or "")
 
-    application_date = _date(meta.get("출원일자"))
-    ipc_codes = _code_list(meta.get("국제특허분류(IPC)"))
-    cpc_codes = _code_list(meta.get("CPC특허분류"))
+    application_number = _first_text(meta.get("출원번호"), normalized_meta.get("application_number"))
+    registration_number = _first_text(
+        meta.get("등록번호"),
+        normalized_meta.get("registration_number"),
+        normalized.get("patent_id"),
+    )
+    application_date = _date(_first_text(meta.get("출원일자"), normalized_meta.get("application_date")))
+    ipc_codes = _list_or_codes(meta.get("국제특허분류(IPC)"), normalized_meta.get("ipc"))
+    cpc_codes = _list_or_codes(meta.get("CPC특허분류"), normalized_meta.get("cpc"))
     overview = _clean_text(brief.get("개요")) or abstract
     core_content = _clean_text(brief.get("핵심_내용")) or abstract
     result = {
         "title": title,
-        "applicationNumber": _clean_text(meta.get("출원번호")),
-        "registrationNumber": _clean_text(meta.get("등록번호")),
-        "publicationNumber": _clean_text(meta.get("공개번호")),
-        "announcementNumber": _clean_text(meta.get("공고번호")),
+        "applicationNumber": application_number,
+        "registrationNumber": registration_number,
+        "publicationNumber": _first_text(meta.get("공개번호"), normalized_meta.get("publication_number")),
+        "announcementNumber": _first_text(meta.get("공고번호"), normalized_meta.get("announcement_number")),
         "applicationDate": application_date,
-        "registrationDate": _date(meta.get("등록일자")),
-        "publicationDate": _date(meta.get("공개일자")),
-        "announcementDate": _date(meta.get("공고일자")),
+        "registrationDate": _date(_first_text(meta.get("등록일자"), normalized_meta.get("registration_date"))),
+        "publicationDate": _date(_first_text(meta.get("공개일자"), normalized_meta.get("publication_date"))),
+        "announcementDate": _date(
+            _first_text(
+                meta.get("공고일자"),
+                normalized.get("legal", {}).get("notice_date") if isinstance(normalized.get("legal"), dict) else None,
+            )
+        ),
         "ipcCodes": ipc_codes,
         "cpcCodes": cpc_codes,
-        "applicant": _clean_text(meta.get("특허권자")),
-        "inventor": _join_names(meta.get("발명자")),
+        "applicant": _first_text(meta.get("특허권자"), normalized_meta.get("assignee")),
+        "inventor": _join_names(meta.get("발명자") or normalized_meta.get("inventors")),
         "expiryDate": _expiry_date(application_date),
         "citationCount": None,
-        "examinationClaimCount": _int_or_none(meta.get("청구항_수")),
+        "examinationClaimCount": _int_or_none(meta.get("청구항_수") or normalized_meta.get("total_claims")),
         "managementNumber": None,
         "businessField": None,
         "techField": None,
         "relatedProducts": [],
-        "filingCountry": "KR",
+        "filingCountry": _country_from_identifier(registration_number or application_number),
         "isJointApplication": False,
         "jointApplicant": None,
         "initialDepartment": None,
@@ -197,11 +243,12 @@ class PatentExtractHandler:
                 downloaded = object_storage.download_file(str(object_key), pdf_path)
                 if not downloaded or not pdf_path.exists():
                     raise RuntimeError(f"MinIO PDF 다운로드에 실패했습니다: {object_key}")
-                from document_processing.patent_pdf_extractor import parse_patent
+                from services.evidence_collection_service import PatentMetadataExtractionService
 
-                parsed = parse_patent(pdf_path)
-                if parsed.get("error"):
-                    raise RuntimeError(str(parsed["error"]))
+                parsed = PatentMetadataExtractionService().extract_from_pdf(pdf_path)
+                raw = parsed.get("raw") if isinstance(parsed.get("raw"), dict) else {}
+                if raw.get("error"):
+                    raise RuntimeError(str(raw["error"]))
                 parsed_object_key = parsed_object_key_for_pdf(str(object_key))
                 stored = object_storage.put_json(parsed_object_key, parsed)
                 if not stored:
