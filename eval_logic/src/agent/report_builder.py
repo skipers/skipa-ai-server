@@ -7,7 +7,7 @@ import json
 import re
 from typing import Any
 
-from core.report_text import normalize_local_source_markers
+from core.report_text import normalize_local_source_markers, normalize_report_prose, normalize_report_sentence
 
 
 REPORT_SCHEMA_VERSION = "patent-valuation-report/v4-frontend-compatible"
@@ -130,14 +130,7 @@ def _short_text(value: Any, limit: int = 50) -> str:
 
 
 def _ensure_sentence(value: Any) -> str:
-    text = _clean_text(value).rstrip(" ,;")
-    if not text:
-        return ""
-    if text.endswith(("다.", "요.", "임.", "음.", ".", "!", "?")):
-        return text
-    if text.endswith(("다", "요", "임", "음")):
-        return f"{text}."
-    return f"{text}."
+    return normalize_report_sentence(value)
 
 
 def _dimension_summary(dim: str, items: list[dict[str, Any]]) -> str:
@@ -354,8 +347,8 @@ def _merge_confidence(items: list[dict[str, Any]]) -> str:
 def _merge_score_items(target: dict[str, Any], items: list[dict[str, Any]]) -> dict[str, Any]:
     values = [float(item["score"]) for item in items if isinstance(item.get("score"), (int, float))]
     score = round(sum(values) / len(values), 2) if values else None
-    summaries = [_clean_text(_score_summary(item)) for item in items if _clean_text(_score_summary(item))]
-    bases = list(dict.fromkeys(_clean_text(_score_basis(item)) for item in items if _clean_text(_score_basis(item))))
+    summaries = [normalize_report_sentence(_score_summary(item)) for item in items if _clean_text(_score_summary(item))]
+    bases = list(dict.fromkeys(normalize_report_prose(_score_basis(item)) for item in items if _clean_text(_score_basis(item))))
     merged_sources = _collect_all_sources(items)
     if target["item"] == "매출 성장성" and not merged_sources:
         merged_sources = [
@@ -369,9 +362,9 @@ def _merge_score_items(target: dict[str, Any], items: list[dict[str, Any]]) -> d
         "item": target["item"],
         "dim": target["dim"],
         "score": score,
-        "summary": _short_text(" / ".join(summaries), 90) if summaries else "",
-        "basis": " ".join(bases),
-        "reason": " ".join(bases),
+        "summary": normalize_report_sentence(_short_text(" / ".join(summaries), 90)) if summaries else "",
+        "basis": normalize_report_prose(" ".join(bases)),
+        "reason": normalize_report_prose(" ".join(bases)),
         "sources": merged_sources,
         "method": _merge_methods(items),
         "confidence": _merge_confidence(items),
@@ -785,9 +778,11 @@ def _build_evaluation(auto_scores: list[dict[str, Any]], llm_scores: list[dict[s
                 "method": item.get("method", ""),
                 "strategy": item.get("strategy"),
                 "confidence": item.get("confidence"),
-                "judgment_summary": _short_text(item.get("judgment_summary") or item.get("judgment_basis"), 50),
+                "judgment_summary": normalize_report_sentence(
+                    _short_text(item.get("judgment_summary") or item.get("judgment_basis"), 50)
+                ),
                 "judgment_basis": normalize_local_source_markers(
-                    item.get("judgment_basis") or item.get("judgment_summary"),
+                    normalize_report_prose(item.get("judgment_basis") or item.get("judgment_summary")),
                     len(item.get("sources") or []),
                 ),
                 "evidence": item.get("kipris_evidence") or item.get("evidence") or "",
@@ -945,21 +940,78 @@ def _compose_project_summary(
             return "과" if (code - 0xAC00) % 28 else "와"
         return "와"
 
+    def project_sentence(text: str) -> str:
+        cleaned = _clean_text(text).rstrip(" ,;")
+        if not cleaned:
+            return ""
+        cleaned = cleaned.replace("필요가 있다로 확인됩니다", "필요합니다.")
+        cleaned = cleaned.replace("습니다로 확인됩니다", "습니다.")
+        cleaned = cleaned.replace("있다로 확인됩니다", "있습니다.")
+        cleaned = re.sub(r"\.{2,}$", ".", cleaned)
+        cleaned = re.sub(r"필요하다\.$", "필요합니다.", cleaned)
+        cleaned = re.sub(r"요구된다\.$", "요구됩니다.", cleaned)
+        cleaned = re.sub(r"크다\.$", "큽니다.", cleaned)
+        if cleaned.endswith((
+            "입니다.",
+            "합니다.",
+            "됩니다.",
+            "확인됩니다.",
+            "필요합니다.",
+            "예상됩니다.",
+            "있습니다.",
+            "보입니다.",
+            "습니다.",
+        )):
+            return cleaned
+        if cleaned.endswith((
+            "입니다",
+            "합니다",
+            "됩니다",
+            "확인됩니다",
+            "필요합니다",
+            "예상됩니다",
+            "있습니다",
+            "보입니다",
+            "습니다",
+        )):
+            return f"{cleaned}."
+        prefix = ""
+        body = cleaned
+        if "측면에서는 " in cleaned:
+            prefix, body = cleaned.split("측면에서는 ", 1)
+            prefix = f"{prefix}측면에서는 "
+        body = body.rstrip(" .")
+        if body.endswith(("되고 있음", "하고 있음")):
+            return f"{prefix}{body[:-3].rstrip()} 있는 것으로 확인됩니다."
+        if body.endswith("중임"):
+            return f"{prefix}{body[:-2].rstrip()} 중인 것으로 확인됩니다."
+        if body.endswith("확인되지 않음"):
+            return f"{prefix}{body[:-7].rstrip()} 확인되지 않습니다."
+        if body.endswith("되지 않음"):
+            return f"{prefix}{body[:-5].rstrip()}되지 않는 것으로 확인됩니다."
+        if body.endswith("없음"):
+            return f"{prefix}{body[:-2].rstrip()} 없는 것으로 확인됩니다."
+        if body.endswith("적용 시작"):
+            return f"{prefix}{body[:-5].rstrip()} 적용이 시작된 것으로 확인됩니다."
+        if body.endswith(("시작", "도입", "적용", "진행", "확대", "검토", "탐색", "확인")):
+            return f"{prefix}{body}이 확인됩니다."
+        return f"{prefix}{body}로 확인됩니다."
+
     if service:
         sentences.append(f"사내 적용 관점에서는 {service}{topic_particle(service)}의 연계 가능성이 우선 검토 대상입니다.")
     if history:
-        sentences.append(f"적용 이력 측면에서는 {history}")
+        sentences.append(project_sentence(f"적용 이력 측면에서는 {history}"))
     if customers:
         sentences.append(f"고객·파트너 관점에서는 {customers} 영역과의 관련성이 확인됩니다.")
     if outlook:
-        sentences.append(outlook)
+        sentences.append(project_sentence(outlook))
     if source_titles:
         sentences.append(f"주요 근거 문서는 {'; '.join(source_titles)} 등이며, 실제 적용 여부는 담당 조직의 프로젝트 이력 확인이 필요합니다.")
 
     deduped: list[str] = []
     seen: set[str] = set()
     for sentence in sentences:
-        cleaned = _clean_text(sentence)
+        cleaned = project_sentence(sentence)
         if "사업화 여부" in cleaned or "사업화 상태" in cleaned:
             continue
         if not cleaned or cleaned in seen:
