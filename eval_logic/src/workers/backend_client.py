@@ -71,8 +71,19 @@ class BackendCallbackClient:
     def fail_report(self, report_id: int | str, error_message: str) -> dict[str, Any]:
         return self._patch(f"/internal/reports/{report_id}/fail", {"errorMessage": error_message})
 
-    def complete_patent_extract(self, extract_job_id: int | str, result: dict[str, Any]) -> dict[str, Any]:
-        return self._patch(f"/internal/patent-extract-jobs/{extract_job_id}/complete", {"result": result})
+    def complete_patent_extract(
+        self,
+        extract_job_id: int | str,
+        parsed_json_key: str,
+        result: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._patch(
+            f"/internal/patent-extract-jobs/{extract_job_id}/complete",
+            {
+                "parsedJsonKey": parsed_json_key,
+                "result": result,
+            },
+        )
 
     def fail_patent_extract(self, extract_job_id: int | str, error_message: str) -> dict[str, Any]:
         return self._patch(

@@ -254,8 +254,8 @@ class PatentExtractHandler:
                 if not stored:
                     raise RuntimeError(f"MinIO parsed.json 저장에 실패했습니다: {parsed_object_key}")
                 result = map_patent_extract_result(parsed)
-                result["parsedObjectKey"] = stored.get("object_key") or parsed_object_key
-            self.backend.complete_patent_extract(extract_job_id, result)
+                parsed_json_key = stored.get("object_key") or parsed_object_key
+            self.backend.complete_patent_extract(extract_job_id, parsed_json_key, result)
             LOGGER.info(
                 "Completed patent extraction extractJobId=%s objectKey=%s parsedObjectKey=%s",
                 extract_job_id,
