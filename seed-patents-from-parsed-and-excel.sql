@@ -1,8 +1,65 @@
 -- Seed patents from parsed JSON files plus the patent Excel list.
 -- Run from the skipa-ai-server directory:
---   psql "$DATABASE_URL" -f seed-patents-from-parsed-and-excel.sql
+--   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f seed-patents-from-parsed-and-excel.sql
 
 begin;
+
+do $$
+declare
+    missing_columns text[];
+begin
+    select array_agg(required.column_name order by required.column_name)
+    into missing_columns
+    from unnest(array[
+        'title',
+        'application_number',
+        'registration_number',
+        'publication_number',
+        'announcement_number',
+        'application_date',
+        'registration_date',
+        'publication_date',
+        'announcement_date',
+        'ipc_codes',
+        'cpc_codes',
+        'applicant',
+        'inventor',
+        'expiry_date',
+        'citation_count',
+        'examination_claim_count',
+        'original_pdf_key',
+        'parsed_json_key',
+        'approval_status',
+        'rejection_reason',
+        'management_number',
+        'business_field',
+        'tech_field',
+        'related_products',
+        'filing_country',
+        'is_joint_application',
+        'joint_applicant',
+        'initial_department',
+        'current_department_id',
+        'keywords',
+        'summary',
+        'created_at',
+        'updated_at'
+    ]) as required(column_name)
+    where not exists (
+        select 1
+        from information_schema.columns c
+        where table_schema = 'public'
+          and table_name = 'patents'
+          and c.column_name = required.column_name
+    );
+
+    if missing_columns is not null then
+        raise exception
+            'patents table is missing required columns: %. Run the latest skipa-backend Flyway migrations before seeding.',
+            array_to_string(missing_columns, ', ');
+    end if;
+end
+$$;
 
 create or replace function pg_temp.skipa_seed_parse_date(value text)
 returns date
@@ -43,8 +100,32 @@ truncate table skipa_seed_patent_excel_raw;
 truncate table skipa_seed_patent_citation_counts;
 
 \copy skipa_seed_patent_parsed_raw (payload) from program 'python3 scripts/patent_seed_sources_to_jsonl.py parsed parsing_data/parsed/old' with (format csv, delimiter E'\x02', quote E'\x01')
-\copy skipa_seed_patent_excel_raw (payload) from program 'python3 scripts/patent_seed_sources_to_jsonl.py excel "특허리스트_등록_20260423기준 (1).xlsx"' with (format csv, delimiter E'\x02', quote E'\x01')
+\copy skipa_seed_patent_parsed_raw (payload) from program 'python3 scripts/patent_seed_sources_to_jsonl.py parsed parsing_data/parsed/global' with (format csv, delimiter E'\x02', quote E'\x01')
+\copy skipa_seed_patent_parsed_raw (payload) from program 'python3 scripts/patent_seed_sources_to_jsonl.py parsed parsing_data/parsed/new' with (format csv, delimiter E'\x02', quote E'\x01')
+\copy skipa_seed_patent_excel_raw (payload) from program 'python3 scripts/patent_seed_sources_to_jsonl.py excel "특허리스트_등록_20260423기준 (1).xlsx"' with (format csv, delimiter E'\x02', quote E'\x01')
 \copy skipa_seed_patent_citation_counts from 'patent_citation_collection/output/patent_citation_counts.csv' with (format csv, header true)
+
+do $$
+declare
+    missing_departments text[];
+begin
+    select array_agg(required.name order by required.name)
+    into missing_departments
+    from (
+        select distinct nullif(btrim(payload ->> 'department_name'), '') as name
+        from skipa_seed_patent_excel_raw
+    ) required
+    left join departments on departments.name = required.name
+    where required.name is not null
+      and departments.id is null;
+
+    if missing_departments is not null then
+        raise exception
+            'departments table is missing names from Excel 사업부서 column: %',
+            array_to_string(missing_departments, ', ');
+    end if;
+end
+$$;
 
 with parsed_source as (
     select
@@ -124,6 +205,7 @@ excel_patents as (
         nullif(payload ->> 'management_number', '') as management_number,
         nullif(payload ->> 'final_title', '') as final_title,
         nullif(payload ->> 'business_field', '') as business_field,
+        nullif(payload ->> 'department_name', '') as department_name,
         nullif(payload ->> 'tech_field', '') as tech_field,
         nullif(payload ->> 'related_products', '') as related_products,
         nullif(payload ->> 'filing_country', '') as filing_country,
@@ -150,6 +232,7 @@ merged as (
         excel_patents.management_number,
         excel_patents.final_title,
         excel_patents.business_field,
+        excel_patents.department_name,
         excel_patents.tech_field,
         excel_patents.related_products,
         excel_patents.filing_country,
@@ -200,17 +283,17 @@ merged as (
         limit 1
     ) citation_counts on true
 ),
-prepared as (
+prepared_candidates as (
     select
-        coalesce(merged.title, merged.final_title, merged.patent_key) as title,
-        coalesce(
+        left(coalesce(merged.title, merged.final_title, merged.patent_key), 500) as title,
+        left(coalesce(
             merged.application_number_from_json,
             merged.excel_application_number,
-            'NO-APPLICATION-' || merged.patent_key
-        ) as application_number,
-        coalesce(merged.registration_number, merged.excel_registration_number) as registration_number,
-        merged.publication_number,
-        merged.announcement_number,
+            'NOAPP-' || left(md5(merged.patent_key), 14)
+        ), 20) as application_number,
+        left(coalesce(merged.registration_number, merged.excel_registration_number), 20) as registration_number,
+        left(merged.publication_number, 20) as publication_number,
+        left(merged.announcement_number, 20) as announcement_number,
         coalesce(
             pg_temp.skipa_seed_parse_date(merged.meta ->> 'application_date'),
             pg_temp.skipa_seed_parse_date(merged.raw_meta ->> '출원일자'),
@@ -228,34 +311,55 @@ prepared as (
         pg_temp.skipa_seed_parse_date(merged.raw_meta ->> '공고일자') as announcement_date,
         merged.ipc_codes,
         merged.cpc_codes,
-        merged.applicant,
-        merged.inventor,
+        left(merged.applicant, 200) as applicant,
+        left(merged.inventor, 500) as inventor,
         pg_temp.skipa_seed_parse_date(merged.excel_expiry_date) as expiry_date,
         coalesce(merged.collected_citation_count, merged.citation_count, 0) as citation_count,
         merged.examination_claim_count,
-        merged.original_pdf_key,
-        merged.parsed_json_key,
+        left(merged.original_pdf_key, 500) as original_pdf_key,
+        left(merged.parsed_json_key, 500) as parsed_json_key,
         'APPROVED' as approval_status,
-        merged.management_number,
-        merged.business_field,
-        merged.tech_field,
+        null::text as rejection_reason,
+        left(merged.management_number, 50) as management_number,
+        left(merged.business_field, 200) as business_field,
+        left(merged.tech_field, 200) as tech_field,
         case
             when merged.related_products is null then '[]'::jsonb
             else jsonb_build_array(merged.related_products)
         end as related_products,
-        merged.filing_country,
+        left(merged.filing_country, 100) as filing_country,
         case
             when upper(coalesce(merged.is_joint_application, '')) in ('Y', 'YES', 'TRUE', '1') then true
             when upper(coalesce(merged.is_joint_application, '')) in ('N', 'NO', 'FALSE', '0') then false
             else jsonb_array_length(coalesce(merged.meta -> 'assignee', '[]'::jsonb)) > 1
         end as is_joint_application,
-        merged.joint_applicant,
-        merged.business_field as initial_department,
+        left(merged.joint_applicant, 200) as joint_applicant,
+        left(merged.department_name, 200) as initial_department,
         departments.id as current_department_id,
         merged.keywords,
         merged.summary
     from merged
-    left join departments on departments.name = merged.business_field
+    left join departments on departments.name = merged.department_name
+),
+prepared as (
+    select *
+    from (
+        select
+            prepared_candidates.*,
+            row_number() over (
+                partition by application_number
+                order by
+                    case when registration_number is not null then 0 else 1 end,
+                    case when parsed_json_key like 'parsing_data/parsed/old/%' then 0
+                         when parsed_json_key like 'parsing_data/parsed/new/%' then 1
+                         when parsed_json_key like 'parsing_data/parsed/global/%' then 2
+                         else 3
+                    end,
+                    parsed_json_key
+            ) as seed_row_number
+        from prepared_candidates
+    ) ranked
+    where seed_row_number = 1
 )
 insert into patents (
     title,
@@ -277,6 +381,7 @@ insert into patents (
     original_pdf_key,
     parsed_json_key,
     approval_status,
+    rejection_reason,
     management_number,
     business_field,
     tech_field,
@@ -311,6 +416,7 @@ select
     original_pdf_key,
     parsed_json_key,
     approval_status,
+    rejection_reason,
     management_number,
     business_field,
     tech_field,
@@ -344,6 +450,7 @@ set title = excluded.title,
     original_pdf_key = excluded.original_pdf_key,
     parsed_json_key = excluded.parsed_json_key,
     approval_status = excluded.approval_status,
+    rejection_reason = excluded.rejection_reason,
     management_number = excluded.management_number,
     business_field = excluded.business_field,
     tech_field = excluded.tech_field,

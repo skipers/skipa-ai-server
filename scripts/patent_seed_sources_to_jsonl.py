@@ -13,6 +13,7 @@ EXCEL_COLUMN_MAP = {
     "draft_title": "발명의 명칭(가제)",
     "final_title": "발명의 명칭(최종)",
     "business_field": "관련사업 분야",
+    "department_name": "사업부서",
     "tech_field": "관련기술 분야",
     "related_products": "관련제품",
     "filing_country": "출원국",
