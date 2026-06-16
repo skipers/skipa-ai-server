@@ -325,7 +325,7 @@ def _hybrid_result_allowed(
     return True, None
 
 
-def answer_question(
+def prepare_answer_generation(
     query: str,
     *,
     retrieval_query: str | None = None,
@@ -362,6 +362,10 @@ def answer_question(
                 "search_pass": False,
                 "fallback_required": False,
             },
+        }
+        return {
+            "mode": "direct_answer",
+            "result": result,
         }
     internal_only = intent.get("search_scope") == "internal" or (
         not intent.get("needs_web") and "web" not in set(intent.get("source_plan") or [])
@@ -409,17 +413,34 @@ def answer_question(
         web_context=_format_web_for_prompt(web_results),
     )
 
-    if ANSWER_PROVIDER == "openai":
-        llm_result = call_openai_prompt(
-            prompt,
-            model=ANSWER_MODEL,
-            timeout=ANSWER_LLM_TIMEOUT,
-            temperature=0.2,
-        )
-    else:
-        # Ollama generate API requires a concrete num_predict. Keep it high for detailed answers.
-        max_tokens = max(ANSWER_NUM_PREDICT, 4096 if answer_depth in {"deep", "detailed"} else 2000)
-        llm_result = call_ollama(prompt, model=ANSWER_MODEL, num_predict=max_tokens, timeout=ANSWER_LLM_TIMEOUT)
+    return {
+        "mode": "llm",
+        "query": query,
+        "retrieval_query": search_query,
+        "patent_id": patent_id,
+        "prompt": prompt,
+        "intent": intent,
+        "local_result": local_result,
+        "local_hits": local_hits,
+        "web_result": web_result,
+        "web_results": web_results,
+        "answer_depth": answer_depth,
+        "effective_top_k": effective_top_k,
+        "hybrid_retrieval_error": hybrid_retrieval_error,
+        "hybrid_retrieval_rejected": hybrid_retrieval_rejected,
+    }
+
+
+def finalize_prepared_answer(prepared: dict[str, Any], llm_result: dict[str, Any]) -> dict[str, Any]:
+    query = str(prepared.get("query") or "")
+    patent_id = prepared.get("patent_id")
+    intent = dict(prepared.get("intent") or {})
+    local_hits = list(prepared.get("local_hits") or [])
+    web_results = list(prepared.get("web_results") or [])
+    local_result = dict(prepared.get("local_result") or {})
+    web_result = dict(prepared.get("web_result") or {})
+    answer_depth = str(prepared.get("answer_depth") or "standard")
+
     answer = (
         llm_result["text"]
         if llm_result.get("ok")
@@ -435,11 +456,11 @@ def answer_question(
     metrics["engine"] = "langgraph_lightweight_fallback"
     metrics["answer_provider"] = ANSWER_PROVIDER
     metrics["answer_depth"] = answer_depth
-    metrics["effective_top_k"] = effective_top_k
-    if hybrid_retrieval_error:
-        metrics["hybrid_retrieval_error"] = hybrid_retrieval_error
-    if hybrid_retrieval_rejected:
-        metrics["hybrid_retrieval_rejected_reason"] = hybrid_retrieval_rejected
+    metrics["effective_top_k"] = prepared.get("effective_top_k")
+    if prepared.get("hybrid_retrieval_error"):
+        metrics["hybrid_retrieval_error"] = prepared.get("hybrid_retrieval_error")
+    if prepared.get("hybrid_retrieval_rejected"):
+        metrics["hybrid_retrieval_rejected_reason"] = prepared.get("hybrid_retrieval_rejected")
 
     return {
         "query": query,
@@ -448,3 +469,40 @@ def answer_question(
         "source_cards": source_cards,
         "metrics": metrics,
     }
+
+
+def answer_question(
+    query: str,
+    *,
+    retrieval_query: str | None = None,
+    patent_id: str | None = None,
+    source_types: set[str] | None = None,
+    top_k: int = 5,
+    allow_web: bool = True,
+    intent_override: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    prepared = prepare_answer_generation(
+        query,
+        retrieval_query=retrieval_query,
+        patent_id=patent_id,
+        source_types=source_types,
+        top_k=top_k,
+        allow_web=allow_web,
+        intent_override=intent_override,
+    )
+    if prepared.get("mode") == "direct_answer":
+        return dict(prepared.get("result") or {})
+
+    if ANSWER_PROVIDER == "openai":
+        llm_result = call_openai_prompt(
+            str(prepared.get("prompt") or ""),
+            model=ANSWER_MODEL,
+            timeout=ANSWER_LLM_TIMEOUT,
+            temperature=0.2,
+        )
+    else:
+        # Ollama generate API requires a concrete num_predict. Keep it high for detailed answers.
+        answer_depth = str(prepared.get("answer_depth") or "standard")
+        max_tokens = max(ANSWER_NUM_PREDICT, 4096 if answer_depth in {"deep", "detailed"} else 2000)
+        llm_result = call_ollama(str(prepared.get("prompt") or ""), model=ANSWER_MODEL, num_predict=max_tokens, timeout=ANSWER_LLM_TIMEOUT)
+    return finalize_prepared_answer(prepared, llm_result)

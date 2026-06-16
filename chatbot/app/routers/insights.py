@@ -47,11 +47,11 @@ router = APIRouter(tags=["insights"])
 
 
 @router.post(
-    "/portfolio/insights",
+    "/api/v1/portfolio/insights",
     response_model=PortfolioInsightsResponse,
     summary="포트폴리오 AI 인사이트 생성",
     description=(
-        "`ai-insights` 앱의 기존 API를 챗봇 FastAPI 앱에서도 제공합니다. "
+        "`ai-insights` 앱의 포트폴리오 인사이트 API를 챗봇 FastAPI 앱에서도 제공합니다. "
         "같은 포트의 Swagger(`/docs`)에서 재평가/사전평가 챗봇 API와 함께 확인할 수 있습니다."
     ),
 )

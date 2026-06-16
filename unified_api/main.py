@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import importlib
-import importlib.util
 import sys
 from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
@@ -31,36 +30,14 @@ def _import_app(module_name: str) -> FastAPI:
     return app
 
 
-def _import_package_app(package_dir: Path, package_name: str, module_name: str) -> FastAPI:
-    """Import an app from a directory whose parent name is not import-safe."""
-    init_path = package_dir / "__init__.py"
-    spec = importlib.util.spec_from_file_location(
-        package_name,
-        init_path,
-        submodule_search_locations=[str(package_dir)],
-    )
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Cannot import package from {package_dir}")
-    package = importlib.util.module_from_spec(spec)
-    sys.modules[package_name] = package
-    spec.loader.exec_module(package)
-    module = importlib.import_module(f"{package_name}.{module_name}")
-    app = getattr(module, "app", None)
-    if not isinstance(app, FastAPI):
-        raise RuntimeError(f"{package_name}.{module_name}.app is not a FastAPI app")
-    return app
-
-
 chatbot_app = _import_app("chatbot.app.main")
 eval_logic_app = _import_app("apps.api.main")
 pre_application_app = _import_app("pre_application_valuation.api")
-ai_insights_app = _import_package_app(PROJECT_ROOT / "ai-insights" / "app", "skipa_ai_insights_app", "main")
 
 SUB_APPS: list[tuple[str, str, FastAPI]] = [
-    ("/chatbot", "chatbot", chatbot_app),
     ("/eval-logic", "eval_logic", eval_logic_app),
     ("/pre-application", "pre_application", pre_application_app),
-    ("/ai-insights", "ai_insights", ai_insights_app),
+    ("", "chatbot", chatbot_app),
 ]
 
 
@@ -92,10 +69,10 @@ def root() -> dict[str, Any]:
         "docs": "/docs",
         "openapi": "/openapi.json",
         "apps": {
-            "chatbot": "/chatbot",
+            "chatbot": "/api/v1",
             "eval_logic": "/eval-logic",
             "pre_application": "/pre-application",
-            "ai_insights": "/ai-insights",
+            "ai_insights": "/api/v1/portfolio/insights",
         },
     }
 
@@ -109,10 +86,12 @@ def health() -> dict[str, Any]:
 
 
 for prefix, name, sub_app in SUB_APPS:
-    app.mount(prefix, sub_app, name=name)
+    app.mount(prefix or "/", sub_app, name=name)
 
 
 def _prefixed_path(prefix: str, path: str) -> str:
+    if not prefix:
+        return path
     if path == "/":
         return prefix
     return f"{prefix}{path}"

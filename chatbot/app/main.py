@@ -25,6 +25,7 @@ from .routers.chatbot import (
     router as chatbot_router,
     wiki_router,
 )
+from .streaming.router import router as streaming_router
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,7 @@ app = FastAPI(
         "| **pre-eval** | `POST /api/v1/pre-eval/webhook/report-complete` | 보고서 완료 알림 → 인덱싱 |\n"
         "| **pre-eval** | `POST /api/v1/pre-eval/cases/{case_id}/chat` | 사전평가 챗봇 |\n"
         "| **pre-eval** | `GET /api/v1/pre-eval/vectorstore/status` | 사전 출원 벡터스토어 현황 |\n"
-        "| **insights** | `POST /portfolio/insights` | 포트폴리오 AI 인사이트 생성 |\n"
+        "| **insights** | `POST /api/v1/portfolio/insights` | 포트폴리오 AI 인사이트 생성 |\n"
         "---\n\n"
         "### 🔧 내부 운영 API — 백오피스·배포 파이프라인 전용\n\n"
         "| 태그 | 설명 |\n"
@@ -131,7 +132,7 @@ app = FastAPI(
         "#### 벡터스토어 전략\n"
         "| 컬렉션 | 교체 방식 | 주기 |\n"
         "|--------|----------|------|\n"
-        "| 특허 원본 PDF·보고서 (`global_patent`) | Blue-Green | API 호출 시 (`POST /chatbot/bluegreen/refresh`) |\n"
+        "| 특허 원본 PDF·보고서 (`global_patent`) | Blue-Green | API 호출 시 (`POST /api/v1/chatbot/bluegreen/refresh`) |\n"
         "| Wiki (`global_wiki`) | Blue-Green | 1시간 자동 스케줄 |\n"
         "| 사전평가 케이스 (`pre-{case_id}`) | 단순 upsert 누적 | 웹훅 수신 시 즉시 인덱싱 |\n"
     ),
@@ -179,7 +180,7 @@ app = FastAPI(
                 "`ai-insights` 앱의 포트폴리오 인사이트 생성 API를 같은 FastAPI 앱/포트에서 제공합니다.\n\n"
                 "| 엔드포인트 | 설명 |\n"
                 "|------------|------|\n"
-                "| `POST /portfolio/insights` | 포트폴리오 추이·분포·유지/포기 데이터를 3개 한국어 인사이트로 생성 |"
+                "| `POST /api/v1/portfolio/insights` | 포트폴리오 추이·분포·유지/포기 데이터를 3개 한국어 인사이트로 생성 |"
             ),
         },
         # ── 🔧 내부 운영 API ──────────────────────────────────────────────────
@@ -238,6 +239,7 @@ app.include_router(re_eval_router)
 app.include_router(patent_chat_router)
 app.include_router(wiki_router)
 app.include_router(pre_eval_router)
+app.include_router(streaming_router)
 app.include_router(insights_router)
 app.include_router(admin_router)
 

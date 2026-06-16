@@ -20,8 +20,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/portfolio/insights", response_model=PortfolioInsightsResponse, tags=["portfolio"])
+@app.post("/api/v1/portfolio/insights", response_model=PortfolioInsightsResponse, tags=["portfolio"])
 def create_portfolio_insights(request: PortfolioInsightsRequest) -> dict[str, list[str]]:
     insights = generate_portfolio_insights(request)
     return {"insights": insights}
-
