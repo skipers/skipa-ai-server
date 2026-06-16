@@ -287,12 +287,12 @@ def build_prior_art_search_plan(
     queries = [
         f"{request.patent_name} {ipc.get('description', '')}",
         f"{request.patent_name} 기존 기술 문제점",
-        f"{ipc.get('ipc', '')} {request.patent_name}",
+        f"{request.patent_name} 유사 기술 특허",
     ]
     return {
         "status": "not_performed",
         "purpose": "신규성/진보성 확정이 아니라 출원 전 리스크를 줄이기 위한 조사 계획입니다.",
-        "recommended_queries": [query.strip() for query in queries if query.strip()],
+        "recommended_queries": list(dict.fromkeys(query.strip() for query in queries if query.strip())),
         "focus_items": [
             {"item": item.get("item"), "score": item.get("score"), "reason": normalize_report_prose(item.get("reason"))}
             for item in risky_items
