@@ -30,7 +30,7 @@ class BackendCallbackClient:
         if not self.config.internal_api_key:
             raise RuntimeError("INTERNAL_API_KEY is required for backend callbacks.")
 
-        url = f"{self.config.backend_base_url}{path}"
+        url = _join_url(self.config.backend_base_url, path)
         request_kwargs: dict[str, Any] = {
             "headers": self._headers(),
             "timeout": self.config.callback_timeout,
@@ -111,3 +111,7 @@ class BackendCallbackClient:
             f"/internal/pre-evaluations/{pre_evaluation_id}/fail",
             {"errorMessage": error_message},
         )
+
+
+def _join_url(base_url: str, path: str) -> str:
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"

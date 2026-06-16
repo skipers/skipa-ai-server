@@ -29,7 +29,7 @@ def _internal_request(method: str, path: str, payload: dict[str, Any] | None = N
     if not INTERNAL_API_KEY:
         raise BackendCallbackError("INTERNAL_API_KEY is not configured")
 
-    url = f"{BACKEND_INTERNAL_BASE_URL}{path}"
+    url = _join_url(BACKEND_INTERNAL_BASE_URL, path)
     data = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
     headers = {"X-Internal-Api-Key": INTERNAL_API_KEY}
     if payload is not None:
@@ -106,3 +106,7 @@ def mark_pre_evaluation_failed(pre_evaluation_id: int | str, error_message: str)
         f"/internal/pre-evaluations/{pre_evaluation_id}/fail",
         {"errorMessage": error_message},
     )
+
+
+def _join_url(base_url: str, path: str) -> str:
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"

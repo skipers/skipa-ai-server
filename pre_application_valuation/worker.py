@@ -26,13 +26,6 @@ from workers.vectorstore_hooks import index_pre_evaluation_report_from_minio
 LOGGER = logging.getLogger(__name__)
 
 
-def _require(payload: dict[str, Any], field: str) -> Any:
-    value = payload.get(field)
-    if value is None or value == "":
-        raise ValueError(f"PRE_EVALUATION_GENERATE payload missing required field: {field}")
-    return value
-
-
 class PreEvaluationGenerateHandler:
     def __init__(self, config: WorkerConfig | None = None) -> None:
         self.config = config or load_worker_config()
@@ -49,7 +42,9 @@ class PreEvaluationGenerateHandler:
         if message_type != "PRE_EVALUATION_GENERATE":
             raise ValueError(f"Unsupported pre-evaluation message type: {message_type}")
 
-        pre_evaluation_id = _require(payload, "preEvaluationId")
+        pre_evaluation_id = payload.get("preEvaluationId") or payload.get("pre_evaluation_id") or payload.get("id")
+        if pre_evaluation_id is None or pre_evaluation_id == "":
+            raise ValueError("PRE_EVALUATION_GENERATE payload missing required field: preEvaluationId")
 
         try:
             result = self.service.generate_from_payload(payload)
