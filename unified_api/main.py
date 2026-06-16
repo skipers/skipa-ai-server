@@ -34,17 +34,28 @@ chatbot_app = _import_app("chatbot.app.main")
 eval_logic_app = _import_app("apps.api.main")
 pre_application_app = _import_app("pre_application_valuation.api")
 
-SUB_APPS: list[tuple[str, str, FastAPI]] = [
-    ("/eval-logic", "eval_logic", eval_logic_app),
-    ("/pre-application", "pre_application", pre_application_app),
+DIRECT_API_APPS: list[tuple[str, FastAPI]] = [
+    ("eval_logic", eval_logic_app),
+    ("pre_application", pre_application_app),
+]
+
+OPENAPI_APPS: list[tuple[str, str, FastAPI]] = [
+    ("", "eval_logic", eval_logic_app),
+    ("", "pre_application", pre_application_app),
     ("", "chatbot", chatbot_app),
+]
+
+LIFESPAN_APPS: list[tuple[str, FastAPI]] = [
+    ("eval_logic", eval_logic_app),
+    ("pre_application", pre_application_app),
+    ("chatbot", chatbot_app),
 ]
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     async with AsyncExitStack() as stack:
-        for _, _, sub_app in SUB_APPS:
+        for _, sub_app in LIFESPAN_APPS:
             lifespan_context = getattr(sub_app.router, "lifespan_context", None)
             if lifespan_context is not None:
                 await stack.enter_async_context(lifespan_context(sub_app))
@@ -70,8 +81,8 @@ def root() -> dict[str, Any]:
         "openapi": "/openapi.json",
         "apps": {
             "chatbot": "/api/v1",
-            "eval_logic": "/eval-logic",
-            "pre_application": "/pre-application",
+            "eval_logic": "/api/v1",
+            "pre_application": "/api/v1",
             "ai_insights": "/api/v1/portfolio/insights",
         },
     }
@@ -81,12 +92,14 @@ def root() -> dict[str, Any]:
 def health() -> dict[str, Any]:
     return {
         "status": "ok",
-        "apps": [name for _, name, _ in SUB_APPS],
+        "apps": [name for name, _ in LIFESPAN_APPS],
     }
 
 
-for prefix, name, sub_app in SUB_APPS:
-    app.mount(prefix or "/", sub_app, name=name)
+for _, sub_app in DIRECT_API_APPS:
+    app.include_router(sub_app.router, include_in_schema=False)
+
+app.mount("/", chatbot_app, name="chatbot")
 
 
 def _prefixed_path(prefix: str, path: str) -> str:
@@ -151,10 +164,13 @@ def _merged_openapi() -> dict[str, Any]:
     schema.setdefault("paths", {})
     schema.setdefault("components", {})
 
-    for prefix, namespace, sub_app in SUB_APPS:
+    hidden_paths = {"/", "/health"}
+    for prefix, namespace, sub_app in OPENAPI_APPS:
         sub_schema = copy.deepcopy(sub_app.openapi())
         schema, ref_map = _merge_components(schema, sub_schema, namespace=namespace)
         for path, methods in sub_schema.get("paths", {}).items():
+            if path in hidden_paths:
+                continue
             prefixed = _prefixed_path(prefix, path)
             rendered_methods = _replace_refs(methods, ref_map)
             if isinstance(rendered_methods, dict):
