@@ -227,6 +227,7 @@ def build_scoring_prompt(
 9. 등급 문자를 직접 작성해야 하는 경우 S, A, B, C, D만 사용하고 A+, B+, C+ 같은 plus/minus 등급은 절대 쓰지 마세요.
 10. 모든 한국어 설명 문장은 자연스러운 보고서체로 작성하세요. 단순 명사구 뒤에 "입니다"를 붙이지 말고, 의미에 맞게 "~합니다.", "~됩니다.", "~있습니다.", "~검토합니다."처럼 완성된 문장으로 작성하세요.
 11. 조건/작업 리스트는 특히 자연스럽게 작성하세요. 예: "선행기술 조사 결과가 긍정적일 경우입니다."가 아니라 "선행기술 조사 결과가 긍정적일 경우 출원 진행을 검토합니다."라고 작성하세요.
+12. evidence_needed, expected_use_cases, monetization_paths, market_validation_gaps, dependent_claim_ideas, recommended_route는 명사구로 끝내지 마세요. 예: "유사 기술에 대한 선행기술 조사 결과.입니다."가 아니라 "유사 기술에 대한 선행기술 조사 결과를 확보해야 합니다."라고 작성하세요.
 
 [점수 평가 품질 기준]
 - 각 score_items.reason은 최소 2문장으로 작성하고, 입력에서 확인된 근거와 부족한 근거를 모두 포함하세요.
@@ -343,24 +344,24 @@ def build_narrative_prompt(
     "value_summary": "현재 잠재 가치, 보완 후 상승 가능성, 다음 검증 포인트를 5문장 이상으로 구체 작성",
     "positive_value_drivers": ["가치를 높이는 입력 근거"],
     "value_constraints": ["가치를 제한하는 불확실성"],
-    "evidence_needed": ["출원/투자 판단 전 추가 확보할 근거"]
+    "evidence_needed": ["유사 기술에 대한 선행기술 조사 결과를 확보해야 합니다."]
   }},
   "commercialization_assessment": {{
-    "target_market": "주요 적용 시장 또는 고객군",
-    "expected_use_cases": ["구체 적용 시나리오"],
-    "monetization_paths": ["제품 차별화/라이선스/비용절감 등 가치 실현 경로"],
-    "market_validation_gaps": ["시장 검증 공백"]
+    "target_market": "건설 현장 및 제조업체 등 산업 안전 관리가 필요한 고객군을 주요 시장으로 봅니다.",
+    "expected_use_cases": ["건설 현장에서 작업자의 보호구 착용 여부를 실시간으로 모니터링합니다."],
+    "monetization_paths": ["제품 판매를 통한 직접 수익을 창출합니다."],
+    "market_validation_gaps": ["고객군에 대한 구체적인 요구사항 분석이 부족합니다."]
   }},
   "next_actions": [
     {{"priority": "high", "action": "가장 먼저 할 일", "reason": "이유"}}
   ],
   "claim_strategy": {{
     "independent_claim_direction": "독립항 구성 방향",
-    "dependent_claim_ideas": ["종속항 아이디어"],
+    "dependent_claim_ideas": ["위험 행동 판단을 위한 추가 데이터 분석 방법을 종속항으로 구체화합니다."],
     "avoidance_design_notes": ["회피설계 방지 메모"]
   }},
   "filing_strategy": {{
-    "recommended_route": "국내 우선출원/PCT/개별국 등 예비 제안",
+    "recommended_route": "PCT 출원 후 주요 국가에 개별 출원하는 경로를 권장합니다.",
     "country_notes": ["국가 전략 메모"]
   }},
   "filing_investment_decision": {{

@@ -8,11 +8,17 @@ from typing import Any
 from .schemas import PreApplicationValuationRequest
 from .text_normalizer import (
     normalize_grade,
+    normalize_claim_idea_list,
     normalize_condition_list,
+    normalize_evidence_needed_list,
+    normalize_filing_route,
+    normalize_monetization_list,
     normalize_report_prose,
     normalize_report_sentence,
     normalize_string_list,
+    normalize_target_market,
     normalize_task_list,
+    normalize_use_case_list,
 )
 
 
@@ -274,7 +280,8 @@ def build_claim_strategy(evaluation: dict[str, Any], diagnostics: dict[str, Any]
     return {
         "independent_claim_direction": normalize_report_prose(strategy.get("independent_claim_direction"))
         or "핵심 구성요소의 입력, 처리, 출력 관계를 독립항으로 구성하세요.",
-        "dependent_claim_ideas": list_value(strategy.get("dependent_claim_ideas")) or normalize_string_list(diagnostics["claims"]["categories"]),
+        "dependent_claim_ideas": normalize_claim_idea_list(strategy.get("dependent_claim_ideas"))
+        or normalize_claim_idea_list(diagnostics["claims"]["categories"]),
         "avoidance_design_notes": list_value(strategy.get("avoidance_design_notes")) or ["기능적 효과만 청구하지 말고 구현 수단과 조건을 함께 한정하세요."],
         "diagnostics": diagnostics["claims"],
     }
@@ -313,7 +320,7 @@ def build_filing_strategy(
     if not route:
         route = "국내 우선출원 후 해외/PCT 전략 재검토" if countries else "목표 시장 확정 후 국내 우선출원 여부 검토"
     return {
-        "recommended_route": normalize_report_sentence(route),
+        "recommended_route": normalize_filing_route(route),
         "country_notes": list_value(strategy.get("country_notes")) or countries,
         "target_country_count": diagnostics["strategy"]["target_country_count"],
         "has_overseas_target": diagnostics["strategy"]["has_overseas_target"],
@@ -343,12 +350,12 @@ def build_valuation_assessment(
         or default_positive_value_drivers(dimensions),
         "value_constraints": list_value(assessment.get("value_constraints"))
         or default_value_constraints(dimensions, diagnostics),
-        "evidence_needed": list_value(assessment.get("evidence_needed"))
-        or [
+        "evidence_needed": normalize_evidence_needed_list(assessment.get("evidence_needed"))
+        or normalize_evidence_needed_list([
             "기존 기술 대비 성능, 비용, 시간 개선 폭을 정량 지표로 제시합니다.",
             "주요 적용 고객과 도입 시나리오를 2개 이상 구체화합니다.",
             "핵심 구성요소별 선행기술 검색 결과와 차별 포인트를 매핑합니다.",
-        ],
+        ]),
     }
 
 
@@ -360,14 +367,14 @@ def build_commercialization_assessment(
     assessment = evaluation.get("commercialization_assessment") if isinstance(evaluation.get("commercialization_assessment"), dict) else {}
     business_text = request.related_business or "관련 사업 입력이 부족해 적용 시장을 넓게 추정했습니다."
     return {
-        "target_market": normalize_report_sentence(assessment.get("target_market") or business_text),
-        "expected_use_cases": list_value(assessment.get("expected_use_cases"))
-        or [
+        "target_market": normalize_target_market(assessment.get("target_market") or business_text),
+        "expected_use_cases": normalize_use_case_list(assessment.get("expected_use_cases"))
+        or normalize_use_case_list([
             "현재 기술 설명과 관련 사업을 연결한 대표 적용 시나리오를 정의합니다.",
             "초기 도입 고객군과 구매 의사결정자를 분리해 검증합니다.",
-        ],
-        "monetization_paths": list_value(assessment.get("monetization_paths"))
-        or ["제품/서비스 차별화 근거", "라이선스 또는 공동사업 협상 자산", "정부과제/투자 검토용 기술 근거"],
+        ]),
+        "monetization_paths": normalize_monetization_list(assessment.get("monetization_paths"))
+        or normalize_monetization_list(["제품/서비스 차별화 근거", "라이선스 또는 공동사업 협상 자산", "정부과제/투자 검토용 기술 근거"]),
         "market_validation_gaps": list_value(assessment.get("market_validation_gaps"))
         or [
             gap["message"]
