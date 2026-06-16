@@ -75,8 +75,8 @@ async def _bluegreen_wiki_loop() -> None:
         await asyncio.sleep(_REINDEX_INTERVAL)
 
 
-@asynccontextmanager
-async def lifespan(application: FastAPI):
+async def _startup_minio_sync_loop() -> None:
+    """Run MinIO syncs after the app starts so health probes are not blocked."""
     if MINIO_SYNC_ON_STARTUP:
         try:
             from .minio_data import sync_patent_data_from_minio
@@ -108,6 +108,11 @@ async def lifespan(application: FastAPI):
         except Exception as exc:
             logger.error("MinIO wiki sync failed: %s", exc)
 
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    startup_minio_task = asyncio.create_task(_startup_minio_sync_loop())
+
     # BM25 인덱스 pre-warm — 첫 요청 latency 제거
     async def _prewarm_bm25() -> None:
         try:
@@ -128,6 +133,11 @@ async def lifespan(application: FastAPI):
     task.cancel()
     try:
         await task
+    except asyncio.CancelledError:
+        pass
+    startup_minio_task.cancel()
+    try:
+        await startup_minio_task
     except asyncio.CancelledError:
         pass
 
