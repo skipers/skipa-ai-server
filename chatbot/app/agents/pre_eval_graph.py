@@ -28,6 +28,7 @@ from .wiki_context_agent import retrieve_wiki_context
 
 class PreEvalAgentState(ChatAgentState, total=False):
     pre_eval_hits: list[dict[str, Any]]
+    pre_eval_search: dict[str, Any]
 
 
 # ---------------------------------------------------------------------------
@@ -35,8 +36,8 @@ class PreEvalAgentState(ChatAgentState, total=False):
 # ---------------------------------------------------------------------------
 
 def retrieve_pre_eval_context(state: ChatAgentState) -> ChatAgentState:
-    """Search the pre-eval case vectorstore and inject into state as core hits."""
-    from ..pre_eval_data import search_pre_eval_vectorstore
+    """Search the backend case-id vectorstore and fall back to legacy cases."""
+    from ..pre_eval_data import search_pre_application_vectorstore, search_pre_eval_vectorstore
 
     case_id = str(state.get("patent_id") or "")
     if not case_id:
@@ -44,7 +45,13 @@ def retrieve_pre_eval_context(state: ChatAgentState) -> ChatAgentState:
 
     top_k = int(state.get("top_k") or 8)
     query = state.get("retrieval_query") or state.get("query") or ""
-    result = search_pre_eval_vectorstore(case_id, query, top_k=top_k)
+    result = search_pre_application_vectorstore(case_id, query, top_k=top_k)
+    fallback_used = False
+    if int(result.get("hit_count") or 0) == 0:
+        legacy_result = search_pre_eval_vectorstore(case_id, query, top_k=top_k)
+        if int(legacy_result.get("hit_count") or 0) > 0:
+            result = legacy_result
+            fallback_used = True
 
     trace = list(state.get("trace") or [])
     trace.append({
@@ -53,8 +60,11 @@ def retrieve_pre_eval_context(state: ChatAgentState) -> ChatAgentState:
         "at": datetime.now().isoformat(timespec="seconds"),
         "case_id": case_id,
         "hit_count": result.get("hit_count", 0),
+        "collection": result.get("collection"),
+        "mode": result.get("mode"),
+        "fallback_used": fallback_used,
     })
-    return {**state, "pre_eval_hits": result.get("hits", []), "trace": trace}
+    return {**state, "pre_eval_hits": result.get("hits", []), "pre_eval_search": result, "trace": trace}
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +137,8 @@ def answer_pre_eval_question(state: ChatAgentState) -> ChatAgentState:
 
     metrics = {
         "pre_eval_hit_count": len(pre_eval_hits),
+        "pre_eval_collection": (state.get("pre_eval_search") or {}).get("collection"),
+        "pre_eval_search_mode": (state.get("pre_eval_search") or {}).get("mode"),
         "wiki_hit_count": len(wiki_hits),
         "web_result_count": len(web_results),
         "intent_agent": intent,

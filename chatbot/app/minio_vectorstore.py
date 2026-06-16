@@ -268,32 +268,122 @@ def _minio_report_to_docs(patent_id: str, report_inner: dict[str, Any], *, sourc
     return docs
 
 
-def _pre_eval_report_to_docs(eval_id: str, report: dict[str, Any]) -> list[dict[str, Any]]:
+def _pre_eval_report_to_docs(
+    case_id: str,
+    report: dict[str, Any],
+    *,
+    source_key: str | None = None,
+    source_path: str | None = None,
+) -> list[dict[str, Any]]:
     """Convert pre-evaluation MinIO report → indexable chunks.
 
     input.json은 포함하지 않습니다 (사용자 요청).
     """
     docs: list[dict[str, Any]] = []
-    title = report.get("patent_title") or eval_id
+    metadata = report.get("metadata") if isinstance(report.get("metadata"), dict) else {}
+    input_summary = report.get("input_summary") if isinstance(report.get("input_summary"), dict) else {}
+    evaluation_id = str(report.get("evaluation_id") or "")
+    pre_evaluation_id = str(metadata.get("pre_evaluation_id") or case_id)
+    title = report.get("patent_title") or input_summary.get("title") or case_id
     base_meta = {
-        "case_id": eval_id,
+        "case_id": case_id,
+        "pre_evaluation_id": pre_evaluation_id,
+        "evaluation_id": evaluation_id,
         "source_type": "PRE_EVAL_REPORT",
         "patent_title": title,
         "schema_version": report.get("schema_version") or "",
         "file_name": "report.json",
     }
-    header = f"[사전평가 ID: {eval_id}] [{title}]\n"
+    if source_key:
+        base_meta["source_path"] = f"s3://{_bucket()}/{source_key}"
+        base_meta["relative_source_path"] = f"minio/{source_key}"
+    elif source_path:
+        base_meta["source_path"] = source_path
+    header_bits = [f"사전평가 Case ID: {case_id}"]
+    if evaluation_id:
+        header_bits.append(f"평가 ID: {evaluation_id}")
+    header_bits.append(str(title))
+    header = "[" + "] [".join(header_bits) + "]\n"
+
+    def _render(value: Any, *, indent: int = 0, max_items: int = 40) -> str:
+        pad = "  " * indent
+        if value is None:
+            return ""
+        if isinstance(value, (str, int, float, bool)):
+            return str(value).strip()
+        if isinstance(value, dict):
+            lines: list[str] = []
+            for key, child in value.items():
+                rendered = _render(child, indent=indent + 1, max_items=max_items)
+                if not rendered:
+                    continue
+                if isinstance(child, (dict, list)):
+                    lines.append(f"{pad}- {key}:")
+                    lines.append(rendered)
+                else:
+                    lines.append(f"{pad}- {key}: {rendered}")
+            return "\n".join(lines)
+        if isinstance(value, list):
+            lines = []
+            for item in value[:max_items]:
+                rendered = _render(item, indent=indent + 1, max_items=max_items)
+                if not rendered:
+                    continue
+                if isinstance(item, dict):
+                    lines.append(f"{pad}-")
+                    lines.append(rendered)
+                else:
+                    lines.append(f"{pad}- {rendered}")
+            return "\n".join(lines)
+        return str(value).strip()
 
     def _doc(text: str, section: str) -> dict[str, Any] | None:
         t = str(text or "").strip()
         if len(t) < 20:
             return None
-        h = hashlib.sha1(t.encode()).hexdigest()[:12]
+        h = hashlib.sha1(f"{case_id}:{section}:{t}".encode()).hexdigest()[:12]
         return {
-            "doc_id": f"{eval_id}_{h}",
+            "doc_id": f"{case_id}_{h}",
             "page_content": t[:20000],
             "metadata": {**base_meta, "section_title": section},
         }
+
+    def _add_section(key: str, label: str, section: str | None = None, *, limit: int = 6000) -> None:
+        value = report.get(key)
+        rendered = _render(value)
+        if not rendered:
+            return
+        d = _doc(f"{header}{label}\n{rendered[:limit]}", section or label)
+        if d:
+            docs.append(d)
+
+    # 새 v3 보고서 구조의 주요 섹션을 먼저 청크화합니다.
+    for key, label in [
+        ("input_summary", "입력 요약"),
+        ("executive_summary", "평가 요약"),
+        ("valuation_assessment", "사전 가치평가"),
+        ("commercialization_assessment", "사업화 가치"),
+        ("readiness", "출원 준비도"),
+        ("claim_strategy", "권리화 전략"),
+        ("prior_art_search_plan", "선행기술 조사 계획"),
+        ("filing_strategy", "출원 전략"),
+        ("filing_investment_decision", "출원 투자 판단"),
+        ("next_actions", "보완 액션"),
+        ("limitations", "평가 한계"),
+    ]:
+        _add_section(key, label)
+
+    diagnostics_parts = {
+        "diagnostics": report.get("diagnostics"),
+        "ai_classification": report.get("ai_classification"),
+        "keywords": report.get("keywords"),
+        "frontend_summary": report.get("frontend_summary"),
+    }
+    rendered_diagnostics = _render(diagnostics_parts)
+    if rendered_diagnostics:
+        d = _doc(f"{header}진단 및 분류\n{rendered_diagnostics[:6000]}", "진단 및 분류")
+        if d:
+            docs.append(d)
 
     # 종합 평가
     overall = report.get("overall") if isinstance(report.get("overall"), dict) else {}
@@ -371,35 +461,11 @@ def _pre_eval_report_to_docs(eval_id: str, report: dict[str, Any]) -> list[dict[
             if d:
                 docs.append(d)
 
-    # prior_art_search_plan / filing_strategy / claim_strategy
-    for key, label in [
-        ("prior_art_search_plan", "선행기술 조사 계획"),
-        ("filing_strategy", "출원 전략"),
-        ("claim_strategy", "청구항 전략"),
-        ("next_actions", "다음 조치 사항"),
-    ]:
-        val = report.get(key)
-        if not val:
-            continue
-        if isinstance(val, dict):
-            text = f"{header}{label}\n" + json.dumps(val, ensure_ascii=False)[:2000]
-        elif isinstance(val, list):
-            text = f"{header}{label}\n" + "\n".join(f"- {v}" for v in val if v)
-        elif isinstance(val, str):
-            text = f"{header}{label}\n{val}"
-        else:
-            continue
-        d = _doc(text, label)
+    if not docs:
+        fallback = json.dumps(report, ensure_ascii=False)
+        d = _doc(f"{header}전체 보고서\n{fallback[:12000]}", "전체 보고서")
         if d:
             docs.append(d)
-
-    # keywords (as a short context chunk)
-    keywords = report.get("keywords")
-    if isinstance(keywords, list) and keywords:
-        d = _doc(f"{header}키워드\n{', '.join(str(k) for k in keywords)}", "키워드")
-        if d:
-            docs.append(d)
-
     return docs
 
 
@@ -573,7 +639,7 @@ def build_pre_eval_vectorstore_from_minio(minio_path: str) -> dict[str, Any]:
     처리 순서:
       1. report.json 다운로드 (input.json은 인덱싱하지 않음)
       2. report 청크 생성
-      3. pre-{eval_id} 컬렉션에 upsert (recreate=True → 기존 삭제)
+      3. pre-{case_id} 컬렉션에 upsert (recreate=True → 기존 삭제)
 
     Args:
         minio_path: 'pre-evaluations/1', '1', 'pre-evaluations/1/' 등을 모두 수용
@@ -587,24 +653,26 @@ def build_pre_eval_vectorstore_from_minio(minio_path: str) -> dict[str, Any]:
     if not report:
         raise FileNotFoundError(f"MinIO에서 report.json을 찾을 수 없습니다: {report_key}")
 
-    eval_id = report.get("evaluation_id") or base_prefix.rstrip("/").split("/")[-1]
-    docs = _pre_eval_report_to_docs(eval_id, report)
+    case_id = base_prefix.rstrip("/").split("/")[-1]
+    docs = _pre_eval_report_to_docs(case_id, report, source_key=report_key)
     if not docs:
-        raise RuntimeError(f"청크가 하나도 생성되지 않았습니다: {eval_id}")
+        raise RuntimeError(f"청크가 하나도 생성되지 않았습니다: {case_id}")
 
     from .qdrant_store import pre_application_collection, upsert_documents
-    coll = pre_application_collection(eval_id)
+    coll = pre_application_collection(case_id)
     result = upsert_documents(
         coll,
         docs,
-        collection_scope=f"pre_application:{eval_id}",
+        collection_scope=f"pre_application:{case_id}",
         recreate=True,
-        extra_payload={"case_id": eval_id, "source": "minio"},
+        extra_payload={"case_id": case_id, "pre_evaluation_id": case_id, "source": "minio"},
     )
 
     return {
         "status": "built",
-        "eval_id": eval_id,
+        "case_id": case_id,
+        "eval_id": case_id,
+        "evaluation_id": report.get("evaluation_id"),
         "patent_title": report.get("patent_title"),
         "collection": coll,
         "minio_path": base_prefix,

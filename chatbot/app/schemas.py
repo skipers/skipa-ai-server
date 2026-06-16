@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ChatHistoryItem(BaseModel):
@@ -74,14 +74,26 @@ class ChatRequest(BaseModel):
 
 class PreEvalReportCompleteRequest(BaseModel):
     model_config = ConfigDict(
-        json_schema_extra={"examples": [{"patent_id": "10-2142205"}]}
+        json_schema_extra={"examples": [{"case_id": "12"}, {"patent_id": "12"}]}
     )
 
-    patent_id: str = Field(..., min_length=1, description="사전 출원 보고서가 생성된 특허 ID")
+    case_id: str | None = Field(None, min_length=1, description="백엔드가 부여한 사전평가 케이스 ID")
+    patent_id: str | None = Field(None, min_length=1, description="레거시 필드. 들어오면 case_id처럼 처리")
+
+    @model_validator(mode="after")
+    def require_case_identifier(self) -> "PreEvalReportCompleteRequest":
+        if not (self.case_id or self.patent_id):
+            raise ValueError("case_id 또는 patent_id 중 하나는 필요합니다.")
+        return self
+
+    @property
+    def resolved_case_id(self) -> str:
+        return str(self.case_id or self.patent_id or "").strip()
 
 
 class PreEvalReportCompleteResponse(BaseModel):
     status: Literal["indexed"]
+    case_id: str | None = None
     patent_id: str
     collection: str
     document_count: int

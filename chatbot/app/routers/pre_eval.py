@@ -43,14 +43,15 @@ def _chat_history_payload(items: list[ChatHistoryItem]) -> list[dict]:
     summary="[외부] 사전 출원 보고서 생성 완료 알림",
     description=(
         "외부 시스템(사전 출원 평가 서비스)이 보고서 생성 완료를 알릴 때 호출합니다.\n\n"
-        "- `patent_id`: 보고서가 생성된 특허 ID (예: `10-2142205`)\n\n"
-        "MinIO에서 `report.json`을 탐색하여 `pre-{patent_id}` 컬렉션에 임베딩·저장합니다.\n"
-        "저장 후 `/cases/{patent_id}/chat` 으로 바로 챗봇 사용이 가능합니다.\n\n"
-        "벡터스토어는 blue-green 없이 단순 upsert 방식으로 누적 생성됩니다."
+        "- `case_id`: 백엔드가 부여한 사전평가 케이스 ID\n"
+        "- `patent_id`: 레거시 필드. 들어오면 `case_id`처럼 처리합니다.\n\n"
+        "MinIO에서 `pre-evaluations/{case_id}/report.json`을 찾아 `pre-{case_id}` 컬렉션에 임베딩·저장합니다.\n"
+        "저장 후 `/cases/{case_id}/chat` 으로 바로 챗봇 사용이 가능합니다.\n\n"
+        "동일 case_id 컬렉션은 재생성하여 오래된 청크가 남지 않도록 합니다."
     ),
 )
 def post_report_complete_webhook(body: PreEvalReportCompleteRequest) -> dict:
-    return handle_report_complete_webhook(body.patent_id.strip())
+    return handle_report_complete_webhook(body.resolved_case_id)
 
 
 @router.post(

@@ -168,13 +168,13 @@ def pre_eval_collection(case_id: str) -> str:
     return collection_name("preeval_case", case_id)
 
 
-def pre_application_collection(patent_id: str) -> str:
-    """사전 출원 특허 보고서 전용 벡터스토어 — 컬렉션 이름은 'pre-{patent_id}'.
+def pre_application_collection(case_id: str) -> str:
+    """사전 출원 평가 보고서 전용 벡터스토어 — 컬렉션 이름은 'pre-{case_id}'.
 
-    MinIO 보고서 완료 웹훅으로 트리거되며, blue-green 없이 단순 upsert 방식으로
-    하나씩 누적 생성됩니다.
+    백엔드가 부여한 preEvaluationId/case_id 기준으로 MinIO 보고서와 채팅 조회를
+    매핑합니다.
     """
-    safe = re.sub(r"[^0-9A-Za-z가-힣]", "_", str(patent_id or "")).strip("_")
+    safe = re.sub(r"[^0-9A-Za-z가-힣]", "_", str(case_id or "")).strip("_")
     safe = safe[:80] or "unknown"
     return f"pre-{safe}"
 

@@ -268,23 +268,25 @@ def fetch_pre_application_report_from_minio(patent_id: str) -> dict[str, Any]:
     """MinIO에서 사전 출원 특허 보고서(report.json)를 가져옵니다.
 
     탐색 경로 우선순위:
-    1. {MINIO_PATENT_PREFIX}/{patent_id}/report.json
-    2. {MINIO_PATENT_PREFIX}/{patent_id}/reports/{patent_id}/report.json
-    3. pre_application/{patent_id}/report.json
-    4. {patent_id}/report.json
+    1. pre-evaluations/{case_id}/report.json
+    2. {MINIO_PATENT_PREFIX}/{case_id}/report.json
+    3. {MINIO_PATENT_PREFIX}/{case_id}/reports/{case_id}/report.json
+    4. pre_application/{case_id}/report.json
+    5. {case_id}/report.json
 
-    반환: { "found": bool, "patent_id": str, "report": dict | None,
+    반환: { "found": bool, "patent_id": str, "case_id": str, "report": dict | None,
              "source_key": str | None, "error": str | None }
     """
     if not _configured():
-        return {"found": False, "patent_id": patent_id, "report": None, "error": "MinIO not configured"}
+        return {"found": False, "patent_id": patent_id, "case_id": patent_id, "report": None, "error": "MinIO not configured"}
 
     client = _boto3_client()
     if client is None:
-        return {"found": False, "patent_id": patent_id, "report": None, "error": "boto3 not installed"}
+        return {"found": False, "patent_id": patent_id, "case_id": patent_id, "report": None, "error": "boto3 not installed"}
 
     prefix = _prefix().strip("/")
     candidates = [
+        f"pre-evaluations/{patent_id}/report.json",
         f"{prefix}/{patent_id}/report.json" if prefix else f"{patent_id}/report.json",
         f"{prefix}/{patent_id}/reports/{patent_id}/report.json" if prefix else f"{patent_id}/reports/{patent_id}/report.json",
         f"pre_application/{patent_id}/report.json",
@@ -300,16 +302,24 @@ def fetch_pre_application_report_from_minio(patent_id: str) -> dict[str, Any]:
             obj = client.get_object(Bucket=MINIO_BUCKET, Key=key)
             body = obj["Body"].read()
             report = _json.loads(body.decode("utf-8"))
-            return {"found": True, "patent_id": patent_id, "report": report, "source_key": key, "error": None}
+            return {
+                "found": True,
+                "patent_id": patent_id,
+                "case_id": patent_id,
+                "report": report,
+                "source_key": key,
+                "error": None,
+            }
         except Exception:
             continue
 
     return {
         "found": False,
         "patent_id": patent_id,
+        "case_id": patent_id,
         "report": None,
         "source_key": None,
-        "error": f"report.json not found in MinIO for patent_id={patent_id} (tried: {candidates})",
+        "error": f"report.json not found in MinIO for case_id={patent_id} (tried: {candidates})",
     }
 
 

@@ -211,6 +211,8 @@ def _prepare_pre_eval_prompt(state: dict[str, Any]) -> tuple[str, list[dict[str,
         source_cards += cards_from_web(web_results[:2], start_index=len(source_cards) + 1, query=query)
     metrics = {
         "pre_eval_hit_count": len(pre_eval_hits),
+        "pre_eval_collection": (state.get("pre_eval_search") or {}).get("collection"),
+        "pre_eval_search_mode": (state.get("pre_eval_search") or {}).get("mode"),
         "wiki_hit_count": len(wiki_hits),
         "web_result_count": len(web_results),
         "intent_agent": intent,
@@ -283,4 +285,3 @@ def stream_pre_eval_chat_events(
                 "partial_answer": answer,
             },
         )
-
