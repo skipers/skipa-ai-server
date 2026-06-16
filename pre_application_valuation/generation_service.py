@@ -50,7 +50,7 @@ class PreApplicationGenerationService:
         self.options = options or PreApplicationGenerationOptions()
 
     def generate_from_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
-        pre_evaluation_id = payload.get("preEvaluationId") or payload.get("pre_evaluation_id") or payload.get("id")
+        pre_evaluation_id = payload.get("preEvaluationId") or payload.get("pre_evaluation_id")
         request = request_from_payload(payload)
         return self.generate(request, pre_evaluation_id=pre_evaluation_id, user_id=payload.get("userId"))
 
@@ -140,6 +140,13 @@ def numeric_pre_evaluation_ids(keys: list[str]) -> list[int]:
         if match:
             ids.append(int(match.group(1)))
     return ids
+
+
+def _require(payload: dict[str, Any], field: str) -> Any:
+    value = payload.get(field)
+    if value is None or value == "":
+        raise ValueError(f"PRE_EVALUATION_GENERATE payload missing required field: {field}")
+    return value
 
 
 def _object_storage() -> Any:
