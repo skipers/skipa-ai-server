@@ -8,9 +8,17 @@ from typing import Any
 from .schemas import PreApplicationValuationRequest
 from .text_normalizer import (
     normalize_grade,
+    normalize_claim_idea_list,
+    normalize_condition_list,
+    normalize_evidence_needed_list,
+    normalize_filing_route,
+    normalize_monetization_list,
     normalize_report_prose,
     normalize_report_sentence,
     normalize_string_list,
+    normalize_target_market,
+    normalize_task_list,
+    normalize_use_case_list,
 )
 
 
@@ -272,7 +280,8 @@ def build_claim_strategy(evaluation: dict[str, Any], diagnostics: dict[str, Any]
     return {
         "independent_claim_direction": normalize_report_prose(strategy.get("independent_claim_direction"))
         or "핵심 구성요소의 입력, 처리, 출력 관계를 독립항으로 구성하세요.",
-        "dependent_claim_ideas": list_value(strategy.get("dependent_claim_ideas")) or normalize_string_list(diagnostics["claims"]["categories"]),
+        "dependent_claim_ideas": normalize_claim_idea_list(strategy.get("dependent_claim_ideas"))
+        or normalize_claim_idea_list(diagnostics["claims"]["categories"]),
         "avoidance_design_notes": list_value(strategy.get("avoidance_design_notes")) or ["기능적 효과만 청구하지 말고 구현 수단과 조건을 함께 한정하세요."],
         "diagnostics": diagnostics["claims"],
     }
@@ -287,12 +296,12 @@ def build_prior_art_search_plan(
     queries = [
         f"{request.patent_name} {ipc.get('description', '')}",
         f"{request.patent_name} 기존 기술 문제점",
-        f"{ipc.get('ipc', '')} {request.patent_name}",
+        f"{request.patent_name} 유사 기술 특허",
     ]
     return {
         "status": "not_performed",
         "purpose": "신규성/진보성 확정이 아니라 출원 전 리스크를 줄이기 위한 조사 계획입니다.",
-        "recommended_queries": [query.strip() for query in queries if query.strip()],
+        "recommended_queries": list(dict.fromkeys(query.strip() for query in queries if query.strip())),
         "focus_items": [
             {"item": item.get("item"), "score": item.get("score"), "reason": normalize_report_prose(item.get("reason"))}
             for item in risky_items
@@ -311,7 +320,7 @@ def build_filing_strategy(
     if not route:
         route = "국내 우선출원 후 해외/PCT 전략 재검토" if countries else "목표 시장 확정 후 국내 우선출원 여부 검토"
     return {
-        "recommended_route": normalize_report_sentence(route),
+        "recommended_route": normalize_filing_route(route),
         "country_notes": list_value(strategy.get("country_notes")) or countries,
         "target_country_count": diagnostics["strategy"]["target_country_count"],
         "has_overseas_target": diagnostics["strategy"]["has_overseas_target"],
@@ -341,12 +350,12 @@ def build_valuation_assessment(
         or default_positive_value_drivers(dimensions),
         "value_constraints": list_value(assessment.get("value_constraints"))
         or default_value_constraints(dimensions, diagnostics),
-        "evidence_needed": list_value(assessment.get("evidence_needed"))
-        or [
+        "evidence_needed": normalize_evidence_needed_list(assessment.get("evidence_needed"))
+        or normalize_evidence_needed_list([
             "기존 기술 대비 성능, 비용, 시간 개선 폭을 정량 지표로 제시합니다.",
             "주요 적용 고객과 도입 시나리오를 2개 이상 구체화합니다.",
             "핵심 구성요소별 선행기술 검색 결과와 차별 포인트를 매핑합니다.",
-        ],
+        ]),
     }
 
 
@@ -358,14 +367,14 @@ def build_commercialization_assessment(
     assessment = evaluation.get("commercialization_assessment") if isinstance(evaluation.get("commercialization_assessment"), dict) else {}
     business_text = request.related_business or "관련 사업 입력이 부족해 적용 시장을 넓게 추정했습니다."
     return {
-        "target_market": normalize_report_sentence(assessment.get("target_market") or business_text),
-        "expected_use_cases": list_value(assessment.get("expected_use_cases"))
-        or [
+        "target_market": normalize_target_market(assessment.get("target_market") or business_text),
+        "expected_use_cases": normalize_use_case_list(assessment.get("expected_use_cases"))
+        or normalize_use_case_list([
             "현재 기술 설명과 관련 사업을 연결한 대표 적용 시나리오를 정의합니다.",
             "초기 도입 고객군과 구매 의사결정자를 분리해 검증합니다.",
-        ],
-        "monetization_paths": list_value(assessment.get("monetization_paths"))
-        or ["제품/서비스 차별화 근거", "라이선스 또는 공동사업 협상 자산", "정부과제/투자 검토용 기술 근거"],
+        ]),
+        "monetization_paths": normalize_monetization_list(assessment.get("monetization_paths"))
+        or normalize_monetization_list(["제품/서비스 차별화 근거", "라이선스 또는 공동사업 협상 자산", "정부과제/투자 검토용 기술 근거"]),
         "market_validation_gaps": list_value(assessment.get("market_validation_gaps"))
         or [
             gap["message"]
@@ -386,12 +395,21 @@ def build_filing_investment_decision(
     return {
         "decision": label,
         "rationale": normalize_report_prose(decision.get("rationale") or investment_decision_rationale(overall_score)),
-        "go_conditions": list_value(decision.get("go_conditions"))
-        or ["핵심 차별 포인트를 청구항 문장으로 고정", "선행기술 검색에서 직접 충돌 문헌 여부 확인"],
-        "stop_or_hold_conditions": list_value(decision.get("stop_or_hold_conditions"))
-        or key_risks[:3],
-        "recommended_next_sprint": list_value(decision.get("recommended_next_sprint"))
-        or [action["action"] for action in next_actions[:3] if action.get("action")],
+        "go_conditions": normalize_condition_list(
+            decision.get("go_conditions"),
+            outcome="출원 진행을 검토합니다.",
+        )
+        or normalize_condition_list(
+            ["핵심 차별 포인트를 청구항 문장으로 고정", "선행기술 검색에서 직접 충돌 문헌 여부 확인"],
+            outcome="출원 진행을 검토합니다.",
+        ),
+        "stop_or_hold_conditions": normalize_condition_list(
+            decision.get("stop_or_hold_conditions"),
+            outcome="보류 또는 중단을 검토합니다.",
+        )
+        or normalize_condition_list(key_risks[:3], outcome="보류 또는 중단을 검토합니다."),
+        "recommended_next_sprint": normalize_task_list(decision.get("recommended_next_sprint"))
+        or normalize_task_list([action["action"] for action in next_actions[:3] if action.get("action")]),
     }
 
 

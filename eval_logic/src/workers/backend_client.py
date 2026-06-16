@@ -30,7 +30,7 @@ class BackendCallbackClient:
         if not self.config.internal_api_key:
             raise RuntimeError("INTERNAL_API_KEY is required for backend callbacks.")
 
-        url = f"{self.config.backend_base_url}{path}"
+        url = _join_url(self.config.backend_base_url, path)
         request_kwargs: dict[str, Any] = {
             "headers": self._headers(),
             "timeout": self.config.callback_timeout,
@@ -71,8 +71,19 @@ class BackendCallbackClient:
     def fail_report(self, report_id: int | str, error_message: str) -> dict[str, Any]:
         return self._patch(f"/internal/reports/{report_id}/fail", {"errorMessage": error_message})
 
-    def complete_patent_extract(self, extract_job_id: int | str, result: dict[str, Any]) -> dict[str, Any]:
-        return self._patch(f"/internal/patent-extract-jobs/{extract_job_id}/complete", {"result": result})
+    def complete_patent_extract(
+        self,
+        extract_job_id: int | str,
+        parsed_json_key: str,
+        result: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._patch(
+            f"/internal/patent-extract-jobs/{extract_job_id}/complete",
+            {
+                "parsedJsonKey": parsed_json_key,
+                "result": result,
+            },
+        )
 
     def fail_patent_extract(self, extract_job_id: int | str, error_message: str) -> dict[str, Any]:
         return self._patch(
@@ -100,3 +111,7 @@ class BackendCallbackClient:
             f"/internal/pre-evaluations/{pre_evaluation_id}/fail",
             {"errorMessage": error_message},
         )
+
+
+def _join_url(base_url: str, path: str) -> str:
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"

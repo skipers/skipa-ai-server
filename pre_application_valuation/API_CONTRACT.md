@@ -13,11 +13,12 @@
     "종속항 후보 문장"
   ],
   "relatedBusiness": "적용 사업, 고객군, 수익화 가능성, 도입 환경",
-  "targetCountries": ["한국", "미국", "유럽"]
+  "targetCountries": "한국, 미국, 유럽"
 }
 ```
 
 필수값은 `patentName`, `technologyDescription`입니다. `claims`, `relatedBusiness`, `targetCountries`는 비어 있어도 처리하지만 보고서의 가치 판단 신뢰도는 낮아집니다.
+백엔드 RabbitMQ 메시지에서는 `patentName` 대신 `title`, `technologyDescription` 대신 `technicalDescription`이 오며, AI 서버는 두 이름을 모두 수용합니다.
 
 ## 2. 저장형 API 응답
 
@@ -28,7 +29,7 @@ POST /pre-application/api/v1/pre-application-valuations/generate?preEvaluationId
 Content-Type: application/json
 ```
 
-`preEvaluationId`를 주면 해당 번호로 저장하고, 생략하면 MinIO의 `pre-evaluations/{숫자}/report.json` 목록을 기준으로 다음 번호를 자동 할당합니다. 응답은 다음 형태입니다.
+`preEvaluationId`를 주면 해당 번호로 저장하고, 생략하면 MinIO의 `pre-evaluations/{숫자}/report.json` 목록을 기준으로 다음 번호를 자동 할당합니다. 백엔드가 발행하는 배포 메시지에는 항상 `preEvaluationId`가 포함됩니다. 응답은 다음 형태입니다.
 
 ```json
 {
@@ -130,8 +131,10 @@ MinIO에는 `skipa/pre-evaluations/{preEvaluationId}/report.json`으로 아래 �
 1. 프론트가 백엔드에 사전평가 생성 요청
 2. 백엔드가 `preEvaluationId`를 생성하고 RabbitMQ `skipa.pre-evaluation.generate`에 메시지 발행
 3. AI worker가 보고서를 생성하고 로컬 outputs 및 MinIO `skipa/pre-evaluations/{preEvaluationId}/report.json`에 저장
-4. AI worker가 `PATCH /internal/pre-evaluations/{preEvaluationId}/complete`로 `reportKey` 전달
-5. 프론트는 백엔드 조회 API를 통해 저장된 보고서 JSON을 받아 렌더링
+4. AI worker가 `PATCH /internal/pre-evaluations/{preEvaluationId}/report-complete`로 `reportKey` 전달
+5. AI worker가 MinIO 보고서를 벡터스토어에 인덱싱
+6. AI worker가 `PATCH /internal/pre-evaluations/{preEvaluationId}/embedding-complete` 호출
+7. 프론트는 백엔드 조회 API를 통해 저장된 보고서 JSON을 받아 렌더링
 
 RabbitMQ 메시지 예시는 다음과 같습니다.
 
@@ -140,10 +143,10 @@ RabbitMQ 메시지 예시는 다음과 같습니다.
   "type": "PRE_EVALUATION_GENERATE",
   "preEvaluationId": 12,
   "userId": 7,
-  "patentName": "5G 기반 실시간 데이터 압축 알고리즘",
-  "technologyDescription": "기술 설명",
+  "title": "5G 기반 실시간 데이터 압축 알고리즘",
+  "technicalDescription": "기술 설명",
   "claims": ["청구항"],
   "relatedBusiness": "관련 사업",
-  "targetCountries": ["한국"]
+  "targetCountries": "한국"
 }
 ```

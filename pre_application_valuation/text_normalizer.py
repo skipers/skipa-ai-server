@@ -49,6 +49,14 @@ def normalize_report_sentence(value: Any) -> str:
     text = text.replace(".입니다.", ".")
     text = text.replace(".입니다", ".")
     text = re.sub(r"\.{2,}$", ".", text)
+    if text.endswith("."):
+        return text
+    text = re.sub(r"(리스크)\.?입니다\.?$", r"\1가 있습니다.", text)
+    text = re.sub(r"(위험)\.?입니다\.?$", r"\1이 있습니다.", text)
+    text = re.sub(r"(가능성|필요성|불확실성)\.?입니다\.?$", r"\1이 있습니다.", text)
+    if text.endswith("부족"):
+        stem = text.removesuffix("부족").strip()
+        return f"{stem}{_subject_particle(stem)} 부족합니다."
 
     replacements = {
         "포함하고 있다": "포함하고 있습니다",
@@ -89,6 +97,11 @@ def normalize_report_sentence(value: Any) -> str:
         "어렵다": "어렵습니다",
         "높다": "높습니다",
         "낮다": "낮습니다",
+        "줄인다": "줄입니다",
+        "낮춘다": "낮춥니다",
+        "높인다": "높입니다",
+        "강화한다": "강화합니다",
+        "명확히 한다": "명확히 합니다",
         "크다": "큽니다",
         "같다": "같습니다",
         "상태다": "상태입니다",
@@ -144,9 +157,35 @@ def normalize_report_sentence(value: Any) -> str:
         return f"{text[:-1]}입니다."
     if text.endswith((")", "%", "건")):
         return f"{text}입니다."
-    if text.endswith(("니다.", "습니다.", "됩니다.", "합니다.", "입니다.", "보입니다.", "필요합니다.", "예상됩니다.")):
+    if text.endswith(
+        (
+            "니다.",
+            "습니다.",
+            "됩니다.",
+            "합니다.",
+            "입니다.",
+            "보입니다.",
+            "필요합니다.",
+            "예상됩니다.",
+            "세요.",
+            "십시오.",
+        )
+    ):
         return text
-    if text.endswith(("니다", "습니다", "됩니다", "합니다", "입니다", "보입니다", "필요합니다", "예상됩니다")):
+    if text.endswith(
+        (
+            "니다",
+            "습니다",
+            "됩니다",
+            "합니다",
+            "입니다",
+            "보입니다",
+            "필요합니다",
+            "예상됩니다",
+            "세요",
+            "십시오",
+        )
+    ):
         return f"{text}."
     return f"{text}입니다."
 
@@ -165,3 +204,236 @@ def normalize_string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [normalize_report_sentence(item) for item in value if str(item or "").strip()]
+
+
+def normalize_condition_list(value: Any, *, outcome: str) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [
+        normalize_condition_sentence(item, outcome=outcome)
+        for item in value
+        if str(item or "").strip()
+    ]
+
+
+def normalize_condition_sentence(value: Any, *, outcome: str) -> str:
+    text = _base_clean(value)
+    if not text:
+        return ""
+    outcome = normalize_report_sentence(outcome).rstrip(".")
+    stripped = _strip_bad_copula_suffix(text)
+    if stripped != text:
+        text = stripped
+    elif text.endswith("."):
+        return text
+    if text.endswith(("합니다.", "됩니다.", "있습니다.", "검토합니다.", "진행합니다.")):
+        return text
+    if text.endswith(("합니다", "됩니다", "있습니다", "검토합니다", "진행합니다")):
+        return f"{text}."
+    if text.endswith("경우"):
+        return f"{text} {outcome}."
+    if text.endswith("후 출원 진행"):
+        return f"{text}을 검토합니다."
+    if text.endswith("출원 진행"):
+        return f"{text}을 검토합니다."
+    if text.endswith("확보됨"):
+        return f"{text[:-2]}확보되면 {outcome}."
+    if text.endswith("구분됨"):
+        return f"{text[:-2]}구분되면 {outcome}."
+    if text.endswith("부족"):
+        return f"{text}하면 {outcome}."
+    return normalize_report_sentence(text)
+
+
+def normalize_task_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [normalize_task_sentence(item) for item in value if str(item or "").strip()]
+
+
+def normalize_task_sentence(value: Any) -> str:
+    text = _base_clean(value)
+    if not text:
+        return ""
+    stripped = _strip_bad_copula_suffix(text)
+    if stripped != text:
+        text = stripped
+    elif text.endswith("."):
+        return text
+    if text.endswith(("합니다.", "됩니다.", "있습니다.", "수행합니다.", "마련합니다.", "정리합니다.", "검증합니다.")):
+        return text
+    if text.endswith(("합니다", "됩니다", "있습니다", "수행합니다", "마련합니다", "정리합니다", "검증합니다")):
+        return f"{text}."
+    if text.endswith("작업 수행"):
+        return f"{text[:-2].strip()}을 수행합니다."
+    if text.endswith("방법론 마련"):
+        return f"{text[:-2].strip()}을 마련합니다."
+    if text.endswith("정리"):
+        return f"{text}를 수행합니다."
+    if text.endswith("보강"):
+        return f"{text}을 수행합니다."
+    if text.endswith("검색"):
+        return f"{text}을 수행합니다."
+    return normalize_report_sentence(text)
+
+
+def normalize_evidence_needed_list(value: Any) -> list[str]:
+    return _normalize_context_list(value, normalize_evidence_needed_sentence)
+
+
+def normalize_evidence_needed_sentence(value: Any) -> str:
+    text = _base_clean(value)
+    if not text:
+        return ""
+    if text.endswith("."):
+        return text
+    if text.endswith(("합니다.", "됩니다.", "있습니다.", "필요합니다.", "확보해야 합니다.", "검증해야 합니다.")):
+        return text
+    if text.endswith("조사 결과"):
+        return f"{text}를 확보해야 합니다."
+    if text.endswith("검증"):
+        return f"{text}을 수행해야 합니다."
+    if text.endswith("데이터"):
+        return f"{text}를 확보해야 합니다."
+    if text.endswith("근거"):
+        return f"{text}를 확보해야 합니다."
+    return normalize_report_sentence(text)
+
+
+def normalize_target_market(value: Any) -> str:
+    text = _base_clean(value)
+    if not text:
+        return ""
+    if text.endswith("."):
+        return text
+    if text.endswith(("입니다.", "합니다.", "됩니다.", "있습니다.")):
+        return text
+    if text.endswith(("고객군", "시장", "업체", "부서", "사용자")):
+        return f"{text}을 주요 시장으로 봅니다."
+    return normalize_report_sentence(text)
+
+
+def normalize_use_case_list(value: Any) -> list[str]:
+    return _normalize_context_list(value, normalize_use_case_sentence)
+
+
+def normalize_use_case_sentence(value: Any) -> str:
+    text = _base_clean(value)
+    if not text:
+        return ""
+    if text.endswith("."):
+        return text
+    if text.endswith(("합니다.", "됩니다.", "있습니다.")):
+        return text
+    if text.endswith("모니터링"):
+        return f"{text}합니다."
+    if text.endswith("제공"):
+        obj = text[:-2].strip()
+        return f"{obj}{_object_particle(obj)} 제공합니다."
+    if text.endswith("행동 분석"):
+        return f"{text}에 활용합니다."
+    if text.endswith("분석"):
+        obj = text[:-2].strip()
+        return f"{obj}{_object_particle(obj)} 분석합니다."
+    if text.endswith("예방"):
+        return f"{text}에 활용합니다."
+    return normalize_report_sentence(text)
+
+
+def normalize_monetization_list(value: Any) -> list[str]:
+    return _normalize_context_list(value, normalize_monetization_sentence)
+
+
+def normalize_monetization_sentence(value: Any) -> str:
+    text = _base_clean(value)
+    if not text:
+        return ""
+    if text.endswith("."):
+        return text
+    if text.endswith(("합니다.", "됩니다.", "있습니다.", "기대합니다.")):
+        return text
+    if text.endswith("창출"):
+        obj = text[:-2].strip()
+        return f"{obj}{_object_particle(obj)} 창출합니다."
+    if text.endswith("제공"):
+        obj = text[:-2].strip()
+        return f"{obj}{_object_particle(obj)} 제공합니다."
+    if text.endswith("수익"):
+        return f"{text}을 기대합니다."
+    if text.endswith("효과"):
+        return f"{text}를 기대합니다."
+    return normalize_report_sentence(text)
+
+
+def normalize_claim_idea_list(value: Any) -> list[str]:
+    return _normalize_context_list(value, normalize_claim_idea_sentence)
+
+
+def normalize_claim_idea_sentence(value: Any) -> str:
+    text = _base_clean(value)
+    if not text:
+        return ""
+    if text.endswith("."):
+        return text
+    if text.endswith(("합니다.", "됩니다.", "있습니다.", "구체화합니다.", "정의합니다.", "보강해야 합니다.")):
+        return text
+    if text.endswith("방법"):
+        return f"{text}을 종속항으로 구체화합니다."
+    if text.endswith("구현"):
+        return f"{text}을 종속항으로 구체화합니다."
+    if text.endswith("변형"):
+        return f"{text}을 종속항으로 구체화합니다."
+    return normalize_report_sentence(text)
+
+
+def normalize_filing_route(value: Any) -> str:
+    text = _base_clean(value)
+    if not text:
+        return ""
+    if text.endswith("."):
+        return text
+    if text.endswith(("권장합니다.", "검토합니다.", "진행합니다.", "수립합니다.")):
+        return text
+    if text.endswith("개별 출원"):
+        return f"{text}하는 경로를 권장합니다."
+    if text.endswith(("PCT", "우선출원", "출원")):
+        return f"{text}을 검토합니다."
+    return normalize_report_sentence(text)
+
+
+def _normalize_context_list(value: Any, normalizer) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [normalizer(item) for item in value if str(item or "").strip()]
+
+
+def _object_particle(text: str) -> str:
+    return "을" if _has_final_consonant(text) else "를"
+
+
+def _subject_particle(text: str) -> str:
+    return "이" if _has_final_consonant(text) else "가"
+
+
+def _has_final_consonant(text: str) -> bool:
+    stripped = re.sub(r"[^가-힣]", "", text or "")
+    if not stripped:
+        return False
+    code = ord(stripped[-1])
+    if not 0xAC00 <= code <= 0xD7A3:
+        return False
+    return (code - 0xAC00) % 28 != 0
+
+
+def _base_clean(value: Any) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip().rstrip(" ,;")
+    text = text.replace(".입니다.", ".")
+    text = text.replace(".입니다", ".")
+    return re.sub(r"\.{2,}$", ".", text)
+
+
+def _strip_bad_copula_suffix(text: str) -> str:
+    for suffix in ("입니다.", "입니다"):
+        if text.endswith(suffix):
+            return text[: -len(suffix)].rstrip(" .")
+    return text
