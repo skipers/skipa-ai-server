@@ -22,7 +22,10 @@ from .config import (
     MINIO_PATENT_PREFIX,
     MINIO_REINDEX_AFTER_SYNC,
     MINIO_SECRET_KEY,
+    MINIO_WIKI_PREFIX,
+    MINIO_WIKI_UPLOAD_ON_WRITE,
     SHARED_PATENT_ROOT,
+    WIKI_ROOT,
 )
 
 
@@ -32,6 +35,11 @@ def _now() -> str:
 
 def _prefix() -> str:
     prefix = MINIO_PATENT_PREFIX.strip("/")
+    return f"{prefix}/" if prefix else ""
+
+
+def _wiki_prefix() -> str:
+    prefix = MINIO_WIKI_PREFIX.strip("/")
     return f"{prefix}/" if prefix else ""
 
 
@@ -51,6 +59,16 @@ def _local_file_count() -> int:
     if not SHARED_PATENT_ROOT.exists():
         return 0
     return sum(1 for path in SHARED_PATENT_ROOT.rglob("*") if path.is_file())
+
+
+def _local_wiki_files() -> list[Path]:
+    if not WIKI_ROOT.exists():
+        return []
+    return [path for path in sorted(WIKI_ROOT.rglob("*")) if _is_wiki_data_file(path)]
+
+
+def _local_wiki_file_count() -> int:
+    return len(_local_wiki_files())
 
 
 def _local_patent_count() -> int:
@@ -76,6 +94,16 @@ def _local_total_size() -> int:
     return total
 
 
+def _local_wiki_total_size() -> int:
+    total = 0
+    for path in _local_wiki_files():
+        try:
+            total += path.stat().st_size
+        except OSError:
+            pass
+    return total
+
+
 def _base_status() -> dict[str, Any]:
     console_url = MINIO_CONSOLE_URL
     if not console_url and MINIO_ENDPOINT:
@@ -92,6 +120,25 @@ def _base_status() -> dict[str, Any]:
         "local_patent_count": _local_patent_count(),
         "local_file_count": _local_file_count(),
         "local_size_bytes": _local_total_size(),
+        "updated_at": _now(),
+    }
+
+
+def _base_wiki_status() -> dict[str, Any]:
+    console_url = MINIO_CONSOLE_URL
+    if not console_url and MINIO_ENDPOINT:
+        console_url = MINIO_ENDPOINT.replace(":9000", ":9001")
+    return {
+        "configured": _configured(),
+        "endpoint": MINIO_ENDPOINT,
+        "console_url": console_url,
+        "bucket": MINIO_BUCKET,
+        "prefix": _wiki_prefix(),
+        "access_key": _masked(MINIO_ACCESS_KEY),
+        "local_root": str(WIKI_ROOT),
+        "local_exists": WIKI_ROOT.exists(),
+        "local_wiki_file_count": _local_wiki_file_count(),
+        "local_size_bytes": _local_wiki_total_size(),
         "updated_at": _now(),
     }
 
@@ -167,6 +214,186 @@ def _run_aws(args: list[str]) -> subprocess.CompletedProcess[str]:
         env=_aws_env(),
         timeout=120,
     )
+
+
+def _is_wiki_data_file(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    try:
+        rel = path.resolve().relative_to(WIKI_ROOT.resolve())
+    except Exception:
+        return False
+    if any(part in {"qdrant", "__pycache__"} for part in rel.parts):
+        return False
+    if path.name.startswith(".") or path.name == ".DS_Store":
+        return False
+    return path.suffix.lower() in {".md", ".json", ".jsonl", ".txt"}
+
+
+def _wiki_object_key(path: Path) -> str:
+    rel = path.resolve().relative_to(WIKI_ROOT.resolve())
+    return (_wiki_prefix() + rel.as_posix()).lstrip("/")
+
+
+def _content_type(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix == ".md":
+        return "text/markdown; charset=utf-8"
+    if suffix == ".json":
+        return "application/json; charset=utf-8"
+    if suffix == ".jsonl":
+        return "application/x-ndjson; charset=utf-8"
+    return "text/plain; charset=utf-8"
+
+
+def upload_wiki_file_to_minio(path: str | Path, *, force: bool = False) -> dict[str, Any]:
+    """Upload one wiki data file to MinIO using the configured wiki prefix."""
+    path = Path(path)
+    if not force and not MINIO_WIKI_UPLOAD_ON_WRITE:
+        return {"status": "skipped", "reason": "MINIO_WIKI_UPLOAD_ON_WRITE=false", "path": str(path)}
+    if not _configured():
+        return {"status": "skipped", "reason": "MinIO not configured", "path": str(path)}
+    if not _is_wiki_data_file(path):
+        return {"status": "skipped", "reason": "not a wiki data file", "path": str(path)}
+
+    key = _wiki_object_key(path)
+    client = _boto3_client()
+    if client is not None:
+        try:
+            client.upload_file(
+                str(path),
+                MINIO_BUCKET,
+                key,
+                ExtraArgs={"ContentType": _content_type(path)},
+            )
+            return {
+                "status": "uploaded",
+                "backend": "boto3",
+                "bucket": MINIO_BUCKET,
+                "object_key": key,
+                "path": str(path),
+                "size": path.stat().st_size,
+            }
+        except Exception as exc:
+            return {"status": "error", "backend": "boto3", "object_key": key, "path": str(path), "error": str(exc)}
+
+    try:
+        result = _run_aws(["s3", "cp", str(path), f"s3://{MINIO_BUCKET}/{key}", "--content-type", _content_type(path)])
+    except Exception as exc:
+        return {"status": "error", "backend": "aws_cli", "object_key": key, "path": str(path), "error": str(exc)}
+    if result.returncode != 0:
+        return {"status": "error", "backend": "aws_cli", "object_key": key, "path": str(path), "error": (result.stderr or result.stdout).strip()}
+    return {"status": "uploaded", "backend": "aws_cli", "bucket": MINIO_BUCKET, "object_key": key, "path": str(path), "size": path.stat().st_size}
+
+
+def sync_wiki_data_to_minio() -> dict[str, Any]:
+    """Upload existing local wiki data to MinIO under ``MINIO_WIKI_PREFIX``."""
+    status = _base_wiki_status()
+    if not status["configured"]:
+        return {**status, "connected": False, "status": "not_configured", "error": "MINIO_ENDPOINT/ACCESS_KEY/SECRET_KEY/BUCKET is not configured"}
+
+    uploaded = 0
+    skipped = 0
+    errors: list[dict[str, Any]] = []
+    for path in _local_wiki_files():
+        result = upload_wiki_file_to_minio(path, force=True)
+        if result.get("status") == "uploaded":
+            uploaded += 1
+        elif result.get("status") == "skipped":
+            skipped += 1
+        else:
+            errors.append(result)
+    return {
+        **status,
+        "connected": not errors,
+        "status": "uploaded" if not errors else "completed_with_errors",
+        "uploaded_count": uploaded,
+        "skipped_count": skipped,
+        "error_count": len(errors),
+        "errors": errors[:20],
+    }
+
+
+def _remote_wiki_status_boto3() -> dict[str, Any]:
+    client = _boto3_client()
+    if client is None:
+        raise RuntimeError("boto3 is not installed")
+    paginator = client.get_paginator("list_objects_v2")
+    object_count = 0
+    total_size = 0
+    sample_keys: list[str] = []
+    for page in paginator.paginate(Bucket=MINIO_BUCKET, Prefix=_wiki_prefix()):
+        for item in page.get("Contents") or []:
+            key = str(item.get("Key") or "")
+            if not key or key.endswith("/"):
+                continue
+            object_count += 1
+            total_size += int(item.get("Size") or 0)
+            if len(sample_keys) < 20:
+                sample_keys.append(key)
+    return {
+        "remote_object_count": object_count,
+        "remote_size_bytes": total_size,
+        "sample_keys": sample_keys,
+        "backend": "boto3",
+    }
+
+
+def wiki_minio_status() -> dict[str, Any]:
+    status = _base_wiki_status()
+    if not status["configured"]:
+        status.update({"connected": False, "status": "not_configured", "error": "MINIO_ENDPOINT/ACCESS_KEY/SECRET_KEY/BUCKET is not configured"})
+        return status
+    try:
+        status.update(_remote_wiki_status_boto3())
+        status.update({"connected": True, "status": "ok"})
+    except Exception as exc:
+        status.update({"connected": False, "status": "error", "error": str(exc)})
+    return status
+
+
+def sync_wiki_data_from_minio() -> dict[str, Any]:
+    """Download MinIO ``wiki/`` data into local ``WIKI_ROOT`` without deleting local files."""
+    status = _base_wiki_status()
+    if not status["configured"]:
+        return {**status, "connected": False, "sync_status": "skipped", "error": "MinIO not configured"}
+    client = _boto3_client()
+    if client is None:
+        return {**status, "connected": False, "sync_status": "failed", "error": "boto3 not installed"}
+
+    downloaded = 0
+    skipped = 0
+    errors: list[dict[str, Any]] = []
+    paginator = client.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=MINIO_BUCKET, Prefix=_wiki_prefix()):
+        for item in page.get("Contents") or []:
+            key = str(item.get("Key") or "")
+            if not key or key.endswith("/"):
+                continue
+            rel = key[len(_wiki_prefix()):] if key.startswith(_wiki_prefix()) else key
+            target = WIKI_ROOT / rel
+            if any(part in {"qdrant", "__pycache__"} for part in target.parts):
+                skipped += 1
+                continue
+            remote_size = int(item.get("Size") or 0)
+            try:
+                if target.exists() and target.stat().st_size == remote_size:
+                    skipped += 1
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                client.download_file(MINIO_BUCKET, key, str(target))
+                downloaded += 1
+            except Exception as exc:
+                errors.append({"object_key": key, "target": str(target), "error": str(exc)})
+    return {
+        **status,
+        "connected": not errors,
+        "sync_status": "synced" if not errors else "completed_with_errors",
+        "downloaded_count": downloaded,
+        "skipped_count": skipped,
+        "error_count": len(errors),
+        "errors": errors[:20],
+    }
 
 
 def _remote_status_aws() -> dict[str, Any]:

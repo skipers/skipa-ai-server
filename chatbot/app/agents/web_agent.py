@@ -87,6 +87,12 @@ def _archive_web_results(state: ChatAgentState, result: dict) -> tuple[str | Non
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    try:
+        from ..minio_data import upload_wiki_file_to_minio
+
+        upload_wiki_file_to_minio(path)
+    except Exception:
+        pass
     return str(path), topic
 
 

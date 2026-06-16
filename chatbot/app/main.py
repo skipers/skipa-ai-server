@@ -15,7 +15,15 @@ from fastapi.staticfiles import StaticFiles
 
 import os
 
-from .config import BUSINESS_ROOT, DATA_ROOT, MINIO_SYNC_ON_STARTUP, PATENTS_ROOT, PRE_EVAL_ROOT, SHARED_DATA_ROOT
+from .config import (
+    BUSINESS_ROOT,
+    DATA_ROOT,
+    MINIO_SYNC_ON_STARTUP,
+    MINIO_WIKI_SYNC_ON_STARTUP,
+    PATENTS_ROOT,
+    PRE_EVAL_ROOT,
+    SHARED_DATA_ROOT,
+)
 from .routers.admin import router as admin_router
 from .routers.insights import router as insights_router
 from .routers.pre_eval import router as pre_eval_router
@@ -82,6 +90,23 @@ async def lifespan(application: FastAPI):
             )
         except Exception as exc:
             logger.error("MinIO patent sync failed: %s", exc)
+
+    if MINIO_WIKI_SYNC_ON_STARTUP:
+        try:
+            from .minio_data import sync_wiki_data_from_minio, sync_wiki_data_to_minio
+
+            pull_result = await asyncio.to_thread(sync_wiki_data_from_minio)
+            push_result = await asyncio.to_thread(sync_wiki_data_to_minio)
+            logger.info(
+                "MinIO wiki sync: pull=%s downloaded=%s push=%s uploaded=%s local_files=%s",
+                pull_result.get("sync_status") or pull_result.get("status"),
+                pull_result.get("downloaded_count"),
+                push_result.get("status"),
+                push_result.get("uploaded_count"),
+                push_result.get("local_wiki_file_count"),
+            )
+        except Exception as exc:
+            logger.error("MinIO wiki sync failed: %s", exc)
 
     # BM25 인덱스 pre-warm — 첫 요청 latency 제거
     async def _prewarm_bm25() -> None:

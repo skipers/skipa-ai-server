@@ -53,6 +53,7 @@ def _prepare_env() -> None:
     # This script performs explicit status checks. Avoid accidental startup sync
     # if a TestClient or imported app enters FastAPI lifespan in the future.
     os.environ.setdefault("MINIO_SYNC_ON_STARTUP", "false")
+    os.environ.setdefault("MINIO_WIKI_SYNC_ON_STARTUP", "false")
     os.environ.setdefault("REINDEX_INITIAL_DELAY_SECONDS", "86400")
 
 

@@ -21,7 +21,14 @@ from typing import Any, Iterable
 
 from fastapi import HTTPException
 
-from .config import BUSINESS_ROOT, PATENTS_ROOT, PROJECT_ROOT, WIKI_AUDITOR_ROOT, WIKI_ROOT
+from .config import (
+    BUSINESS_ROOT,
+    MINIO_WIKI_SYNC_BEFORE_REFRESH,
+    PATENTS_ROOT,
+    PROJECT_ROOT,
+    WIKI_AUDITOR_ROOT,
+    WIKI_ROOT,
+)
 from .config import QDRANT_COLLECTION_PREFIX
 from .qdrant_store import (
     bluegreen_collection_status,
@@ -195,6 +202,16 @@ def _read_json(path: Path) -> dict[str, Any]:
 def _write_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _upload_wiki_file(path: Path) -> dict[str, Any] | None:
+    """Best-effort upload for wiki data files written by the chatbot."""
+    try:
+        from .minio_data import upload_wiki_file_to_minio
+
+        return upload_wiki_file_to_minio(path)
+    except Exception:
+        return None
 
 
 def _read_jsonl(path: Path) -> Iterable[tuple[int, dict[str, Any]]]:
@@ -447,6 +464,7 @@ def normalize_wiki_context_files() -> dict[str, Any]:
         # Append to topic-level file rather than overwriting
         with wiki_md_path.open("a", encoding="utf-8") as f:
             f.write(wiki_markdown)
+        _upload_wiki_file(wiki_md_path)
 
         wiki_doc = _document(
             patent_id=f"_wiki_{topic}",
@@ -1112,6 +1130,7 @@ def _write_approved_files(
         wiki_markdown = _wiki_markdown_from_approved_docs(patent_id, approved_docs, audit_id=str(audit["audit_id"]))
         with wiki_md_path.open("a", encoding="utf-8") as f:
             f.write(wiki_markdown)
+        _upload_wiki_file(wiki_md_path)
         wiki_doc = _document(
             patent_id=f"_wiki_{topic}",
             text=wiki_markdown,
@@ -1427,6 +1446,7 @@ def _write_draft_index(topic_slug: str, index: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     index["updated_at"] = _now()
     path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+    _upload_wiki_file(path)
 
 
 def is_duplicate_web_query(patent_id: str, query_hash: str) -> bool:
@@ -1545,6 +1565,7 @@ def auto_approve_web_draft(
         approved_md.parent.mkdir(parents=True, exist_ok=True)
         with approved_md.open("a", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
+        _upload_wiki_file(approved_md)
 
         topic_docs = list(_topic_wiki_documents(topic))
         _write_vectorstore(
@@ -1592,6 +1613,14 @@ def full_rebuild_vectorstores() -> dict[str, Any]:
     from .qdrant_store import _json_request, _aliases_list, QDRANT_COLLECTION_PREFIX
 
     started_at = _now()
+    wiki_minio_sync: dict[str, Any] | None = None
+    if MINIO_WIKI_SYNC_BEFORE_REFRESH:
+        try:
+            from .minio_data import sync_wiki_data_from_minio
+
+            wiki_minio_sync = sync_wiki_data_from_minio()
+        except Exception as exc:
+            wiki_minio_sync = {"sync_status": "failed", "error": str(exc)}
     deleted: list[str] = []
     errors: list[str] = []
 
@@ -1694,6 +1723,7 @@ def full_rebuild_vectorstores() -> dict[str, Any]:
             "document_count": global_wiki_result.get("document_count"),
             "qdrant": global_wiki_result.get("qdrant"),
         },
+        "wiki_minio_sync": wiki_minio_sync,
     }
     _save_bluegreen_status({"type": "full_rebuild", **result})
     return result
@@ -1775,6 +1805,14 @@ def bluegreen_refresh_wiki_only() -> dict[str, Any]:
 
     started_at = _now()
     source = "bluegreen_hourly"
+    minio_sync: dict[str, Any] | None = None
+    if MINIO_WIKI_SYNC_BEFORE_REFRESH:
+        try:
+            from .minio_data import sync_wiki_data_from_minio
+
+            minio_sync = sync_wiki_data_from_minio()
+        except Exception as exc:
+            minio_sync = {"sync_status": "failed", "error": str(exc)}
 
     all_wiki_docs: list[dict[str, Any]] = []
     for topic_slug in all_active_topic_slugs():
@@ -1793,6 +1831,7 @@ def bluegreen_refresh_wiki_only() -> dict[str, Any]:
         "started_at": started_at,
         "finished_at": _now(),
         "wiki_doc_count": len(all_wiki_docs),
+        "minio_sync": minio_sync,
         "global_wiki": {
             "collection": global_wiki_result.get("collection"),
             "document_count": global_wiki_result.get("document_count"),

@@ -25,7 +25,13 @@ from ..rag.legacy_adapter import (
     render_page_image,
     write_feedback,
 )
-from ..minio_data import minio_patent_status, sync_patent_data_from_minio
+from ..minio_data import (
+    minio_patent_status,
+    sync_patent_data_from_minio,
+    sync_wiki_data_from_minio,
+    sync_wiki_data_to_minio,
+    wiki_minio_status,
+)
 from ..qdrant_store import collection_info, qdrant_status, wiki_collection
 from ..visual_data import (
     build_missing_patent_visual_indexes,
@@ -253,6 +259,18 @@ def get_minio_status() -> dict:
     return minio_patent_status()
 
 
+@router.get(
+    "/minio/wiki/status",
+    summary="MinIO Wiki 데이터 연결 상태 확인",
+    description=(
+        "MinIO `s3://{bucket}/wiki/` 의 wiki 데이터와 로컬 `data/wiki/` 캐시 상태를 반환합니다. "
+        "1시간 wiki vectorstore refresh는 이 prefix를 동기화한 뒤 실행됩니다."
+    ),
+)
+def get_minio_wiki_status() -> dict:
+    return wiki_minio_status()
+
+
 @router.post(
     "/minio/sync",
     summary="MinIO → 로컬 특허 데이터 동기화",
@@ -263,6 +281,24 @@ def get_minio_status() -> dict:
 )
 def post_minio_sync(rebuild_index: bool = Query(True, description="동기화 후 공유 특허 vectorstore를 재생성할지 여부")) -> dict:
     return sync_patent_data_from_minio(rebuild_index=rebuild_index)
+
+
+@router.post(
+    "/minio/wiki/sync-from-minio",
+    summary="MinIO → 로컬 Wiki 데이터 동기화",
+    description="MinIO `wiki/` prefix의 파일을 로컬 `data/wiki/`로 내려받습니다. 기존 로컬 파일은 삭제하지 않습니다.",
+)
+def post_minio_wiki_sync_from_minio() -> dict:
+    return sync_wiki_data_from_minio()
+
+
+@router.post(
+    "/minio/wiki/sync-to-minio",
+    summary="로컬 Wiki 데이터 → MinIO 업로드",
+    description="현재 로컬 `data/wiki/`의 approved_context, draft_index, web_search_data 파일을 MinIO `wiki/` prefix로 업로드합니다.",
+)
+def post_minio_wiki_sync_to_minio() -> dict:
+    return sync_wiki_data_to_minio()
 
 
 # ── [chatbot] Vectorstore 상태 · 관리 ────────────────────────────────────
@@ -290,6 +326,7 @@ def get_preprocess_status() -> dict:
     return {
         "vectorstore": vectorstore_status(),
         "minio": minio_patent_status(),
+        "wiki_minio": wiki_minio_status(),
         "qdrant": qdrant_status(),
     }
 
@@ -416,6 +453,7 @@ def get_wiki_vectorstore_status() -> dict:
         "alias": alias,
         "wiki_refreshed_at": wiki_at,
         "next_scheduled_run": next_run,
+        "minio_sync": last.get("minio_sync") or last.get("wiki_minio_sync"),
         "bluegreen": bg_status,
     }
 
