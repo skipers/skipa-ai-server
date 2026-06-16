@@ -225,7 +225,8 @@ def build_scoring_prompt(
 7. score_items는 반드시 체크리스트 1~12번을 모두 포함하세요. 누락, 병합, 이름 변경을 하지 마세요.
 8. "시장 조사 필요", "추가 자료 수집"처럼 일반론만 쓰지 말고, 무엇을 확인해야 하는지와 어떤 산출물이 나와야 하는지를 같이 쓰세요.
 9. 등급 문자를 직접 작성해야 하는 경우 S, A, B, C, D만 사용하고 A+, B+, C+ 같은 plus/minus 등급은 절대 쓰지 마세요.
-10. 모든 한국어 설명 문장은 보고서체로 작성하고, 문장 끝은 "~입니다.", "~합니다.", "~됩니다." 형태로 통일하세요.
+10. 모든 한국어 설명 문장은 자연스러운 보고서체로 작성하세요. 단순 명사구 뒤에 "입니다"를 붙이지 말고, 의미에 맞게 "~합니다.", "~됩니다.", "~있습니다.", "~검토합니다."처럼 완성된 문장으로 작성하세요.
+11. 조건/작업 리스트는 특히 자연스럽게 작성하세요. 예: "선행기술 조사 결과가 긍정적일 경우입니다."가 아니라 "선행기술 조사 결과가 긍정적일 경우 출원 진행을 검토합니다."라고 작성하세요.
 
 [점수 평가 품질 기준]
 - 각 score_items.reason은 최소 2문장으로 작성하고, 입력에서 확인된 근거와 부족한 근거를 모두 포함하세요.
@@ -307,6 +308,9 @@ def build_narrative_prompt(
 - claim_strategy.independent_claim_direction은 최소 4문장으로 작성하세요. 독립항 필수 구성, 넓게 잡을 표현, 좁혀야 할 구성, 거절/회피 리스크를 포함하세요.
 - claim_strategy.dependent_claim_ideas와 avoidance_design_notes는 각각 최소 4개 작성하세요.
 - filing_investment_decision.rationale은 최소 4문장으로 작성하세요. 이 필드는 최종 출원 판정이 아니라 다음 단계 추천입니다. 1문장은 종합 점수와 가장 약한 차원, 1문장은 권리화 관점, 1문장은 사업화/시장 검증 관점, 1문장은 다음 보완 스프린트 방향을 설명하세요.
+- filing_investment_decision.go_conditions는 "무엇이 충족되면 출원 진행을 검토한다" 형태의 완성 문장으로 작성하세요. "출원 진행입니다", "긍정적일 경우입니다" 같은 어색한 종결을 쓰지 마세요.
+- filing_investment_decision.stop_or_hold_conditions는 "무엇이 발생하면 보류 또는 중단을 검토한다" 형태의 완성 문장으로 작성하세요.
+- filing_investment_decision.recommended_next_sprint는 "무엇을 수행합니다/정리합니다/마련합니다" 형태의 실행 문장으로 작성하세요.
 - next_actions는 최소 6개 작성하고, 각 action은 "무엇을 한다"뿐 아니라 기대 산출물을 포함하세요.
 
 [입력]
@@ -362,9 +366,9 @@ def build_narrative_prompt(
   "filing_investment_decision": {{
     "decision": "go_to_prior_art_search_and_drafting | revise_then_file | hold_for_value_validation | do_not_file_yet",
     "rationale": "최소 4문장 다음 단계 추천 이유",
-    "go_conditions": ["출원 진행 조건"],
-    "stop_or_hold_conditions": ["보류 조건"],
-    "recommended_next_sprint": ["1~2주 안에 수행할 보완 작업"]
+    "go_conditions": ["선행기술 조사 결과가 긍정적일 경우 출원 진행을 검토합니다."],
+    "stop_or_hold_conditions": ["핵심 차별성이 보강되지 않을 경우 보류를 검토합니다."],
+    "recommended_next_sprint": ["1~2주 안에 기술적 문제와 차별 포인트를 정리합니다."]
   }},
   "limitations": ["평가 한계"]
 }}

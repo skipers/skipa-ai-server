@@ -49,6 +49,9 @@ def normalize_report_sentence(value: Any) -> str:
     text = text.replace(".입니다.", ".")
     text = text.replace(".입니다", ".")
     text = re.sub(r"\.{2,}$", ".", text)
+    text = re.sub(r"(리스크)\.?입니다\.?$", r"\1가 있습니다.", text)
+    text = re.sub(r"(위험)\.?입니다\.?$", r"\1이 있습니다.", text)
+    text = re.sub(r"(가능성|필요성|불확실성)\.?입니다\.?$", r"\1이 있습니다.", text)
 
     replacements = {
         "포함하고 있다": "포함하고 있습니다",
@@ -89,6 +92,11 @@ def normalize_report_sentence(value: Any) -> str:
         "어렵다": "어렵습니다",
         "높다": "높습니다",
         "낮다": "낮습니다",
+        "줄인다": "줄입니다",
+        "낮춘다": "낮춥니다",
+        "높인다": "높입니다",
+        "강화한다": "강화합니다",
+        "명확히 한다": "명확히 합니다",
         "크다": "큽니다",
         "같다": "같습니다",
         "상태다": "상태입니다",
@@ -191,3 +199,80 @@ def normalize_string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [normalize_report_sentence(item) for item in value if str(item or "").strip()]
+
+
+def normalize_condition_list(value: Any, *, outcome: str) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [
+        normalize_condition_sentence(item, outcome=outcome)
+        for item in value
+        if str(item or "").strip()
+    ]
+
+
+def normalize_condition_sentence(value: Any, *, outcome: str) -> str:
+    text = _base_clean(value)
+    if not text:
+        return ""
+    outcome = normalize_report_sentence(outcome).rstrip(".")
+    text = _strip_bad_copula_suffix(text)
+    if text.endswith(("합니다.", "됩니다.", "있습니다.", "검토합니다.", "진행합니다.")):
+        return text
+    if text.endswith(("합니다", "됩니다", "있습니다", "검토합니다", "진행합니다")):
+        return f"{text}."
+    if text.endswith("경우"):
+        return f"{text} {outcome}."
+    if text.endswith("후 출원 진행"):
+        return f"{text}을 검토합니다."
+    if text.endswith("출원 진행"):
+        return f"{text}을 검토합니다."
+    if text.endswith("확보됨"):
+        return f"{text[:-2]}확보되면 {outcome}."
+    if text.endswith("구분됨"):
+        return f"{text[:-2]}구분되면 {outcome}."
+    if text.endswith("부족"):
+        return f"{text}하면 {outcome}."
+    return normalize_report_sentence(text)
+
+
+def normalize_task_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [normalize_task_sentence(item) for item in value if str(item or "").strip()]
+
+
+def normalize_task_sentence(value: Any) -> str:
+    text = _base_clean(value)
+    if not text:
+        return ""
+    text = _strip_bad_copula_suffix(text)
+    if text.endswith(("합니다.", "됩니다.", "있습니다.", "수행합니다.", "마련합니다.", "정리합니다.", "검증합니다.")):
+        return text
+    if text.endswith(("합니다", "됩니다", "있습니다", "수행합니다", "마련합니다", "정리합니다", "검증합니다")):
+        return f"{text}."
+    if text.endswith("작업 수행"):
+        return f"{text[:-2].strip()}을 수행합니다."
+    if text.endswith("방법론 마련"):
+        return f"{text[:-2].strip()}을 마련합니다."
+    if text.endswith("정리"):
+        return f"{text}를 수행합니다."
+    if text.endswith("보강"):
+        return f"{text}을 수행합니다."
+    if text.endswith("검색"):
+        return f"{text}을 수행합니다."
+    return normalize_report_sentence(text)
+
+
+def _base_clean(value: Any) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip().rstrip(" ,;")
+    text = text.replace(".입니다.", ".")
+    text = text.replace(".입니다", ".")
+    return re.sub(r"\.{2,}$", ".", text)
+
+
+def _strip_bad_copula_suffix(text: str) -> str:
+    for suffix in ("입니다.", "입니다"):
+        if text.endswith(suffix):
+            return text[: -len(suffix)].rstrip(" .")
+    return text.rstrip(".")

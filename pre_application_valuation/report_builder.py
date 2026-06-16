@@ -8,9 +8,11 @@ from typing import Any
 from .schemas import PreApplicationValuationRequest
 from .text_normalizer import (
     normalize_grade,
+    normalize_condition_list,
     normalize_report_prose,
     normalize_report_sentence,
     normalize_string_list,
+    normalize_task_list,
 )
 
 
@@ -386,12 +388,21 @@ def build_filing_investment_decision(
     return {
         "decision": label,
         "rationale": normalize_report_prose(decision.get("rationale") or investment_decision_rationale(overall_score)),
-        "go_conditions": list_value(decision.get("go_conditions"))
-        or ["핵심 차별 포인트를 청구항 문장으로 고정", "선행기술 검색에서 직접 충돌 문헌 여부 확인"],
-        "stop_or_hold_conditions": list_value(decision.get("stop_or_hold_conditions"))
-        or key_risks[:3],
-        "recommended_next_sprint": list_value(decision.get("recommended_next_sprint"))
-        or [action["action"] for action in next_actions[:3] if action.get("action")],
+        "go_conditions": normalize_condition_list(
+            decision.get("go_conditions"),
+            outcome="출원 진행을 검토합니다.",
+        )
+        or normalize_condition_list(
+            ["핵심 차별 포인트를 청구항 문장으로 고정", "선행기술 검색에서 직접 충돌 문헌 여부 확인"],
+            outcome="출원 진행을 검토합니다.",
+        ),
+        "stop_or_hold_conditions": normalize_condition_list(
+            decision.get("stop_or_hold_conditions"),
+            outcome="보류 또는 중단을 검토합니다.",
+        )
+        or normalize_condition_list(key_risks[:3], outcome="보류 또는 중단을 검토합니다."),
+        "recommended_next_sprint": normalize_task_list(decision.get("recommended_next_sprint"))
+        or normalize_task_list([action["action"] for action in next_actions[:3] if action.get("action")]),
     }
 
 
