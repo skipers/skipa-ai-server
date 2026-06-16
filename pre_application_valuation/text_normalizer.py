@@ -49,11 +49,13 @@ def normalize_report_sentence(value: Any) -> str:
     text = text.replace(".입니다.", ".")
     text = text.replace(".입니다", ".")
     text = re.sub(r"\.{2,}$", ".", text)
+    if text.endswith("."):
+        return text
     text = re.sub(r"(리스크)\.?입니다\.?$", r"\1가 있습니다.", text)
     text = re.sub(r"(위험)\.?입니다\.?$", r"\1이 있습니다.", text)
     text = re.sub(r"(가능성|필요성|불확실성)\.?입니다\.?$", r"\1이 있습니다.", text)
-    if text.endswith("부족.") or text.endswith("부족"):
-        stem = text.removesuffix(".").removesuffix("부족").strip()
+    if text.endswith("부족"):
+        stem = text.removesuffix("부족").strip()
         return f"{stem}{_subject_particle(stem)} 부족합니다."
 
     replacements = {
@@ -219,7 +221,11 @@ def normalize_condition_sentence(value: Any, *, outcome: str) -> str:
     if not text:
         return ""
     outcome = normalize_report_sentence(outcome).rstrip(".")
-    text = _strip_bad_copula_suffix(text)
+    stripped = _strip_bad_copula_suffix(text)
+    if stripped != text:
+        text = stripped
+    elif text.endswith("."):
+        return text
     if text.endswith(("합니다.", "됩니다.", "있습니다.", "검토합니다.", "진행합니다.")):
         return text
     if text.endswith(("합니다", "됩니다", "있습니다", "검토합니다", "진행합니다")):
@@ -249,7 +255,11 @@ def normalize_task_sentence(value: Any) -> str:
     text = _base_clean(value)
     if not text:
         return ""
-    text = _strip_bad_copula_suffix(text)
+    stripped = _strip_bad_copula_suffix(text)
+    if stripped != text:
+        text = stripped
+    elif text.endswith("."):
+        return text
     if text.endswith(("합니다.", "됩니다.", "있습니다.", "수행합니다.", "마련합니다.", "정리합니다.", "검증합니다.")):
         return text
     if text.endswith(("합니다", "됩니다", "있습니다", "수행합니다", "마련합니다", "정리합니다", "검증합니다")):
@@ -272,9 +282,11 @@ def normalize_evidence_needed_list(value: Any) -> list[str]:
 
 
 def normalize_evidence_needed_sentence(value: Any) -> str:
-    text = _strip_bad_copula_suffix(_base_clean(value))
+    text = _base_clean(value)
     if not text:
         return ""
+    if text.endswith("."):
+        return text
     if text.endswith(("합니다.", "됩니다.", "있습니다.", "필요합니다.", "확보해야 합니다.", "검증해야 합니다.")):
         return text
     if text.endswith("조사 결과"):
@@ -289,9 +301,11 @@ def normalize_evidence_needed_sentence(value: Any) -> str:
 
 
 def normalize_target_market(value: Any) -> str:
-    text = _strip_bad_copula_suffix(_base_clean(value))
+    text = _base_clean(value)
     if not text:
         return ""
+    if text.endswith("."):
+        return text
     if text.endswith(("입니다.", "합니다.", "됩니다.", "있습니다.")):
         return text
     if text.endswith(("고객군", "시장", "업체", "부서", "사용자")):
@@ -304,9 +318,11 @@ def normalize_use_case_list(value: Any) -> list[str]:
 
 
 def normalize_use_case_sentence(value: Any) -> str:
-    text = _strip_bad_copula_suffix(_base_clean(value))
+    text = _base_clean(value)
     if not text:
         return ""
+    if text.endswith("."):
+        return text
     if text.endswith(("합니다.", "됩니다.", "있습니다.")):
         return text
     if text.endswith("모니터링"):
@@ -329,9 +345,11 @@ def normalize_monetization_list(value: Any) -> list[str]:
 
 
 def normalize_monetization_sentence(value: Any) -> str:
-    text = _strip_bad_copula_suffix(_base_clean(value))
+    text = _base_clean(value)
     if not text:
         return ""
+    if text.endswith("."):
+        return text
     if text.endswith(("합니다.", "됩니다.", "있습니다.", "기대합니다.")):
         return text
     if text.endswith("창출"):
@@ -352,9 +370,11 @@ def normalize_claim_idea_list(value: Any) -> list[str]:
 
 
 def normalize_claim_idea_sentence(value: Any) -> str:
-    text = _strip_bad_copula_suffix(_base_clean(value))
+    text = _base_clean(value)
     if not text:
         return ""
+    if text.endswith("."):
+        return text
     if text.endswith(("합니다.", "됩니다.", "있습니다.", "구체화합니다.", "정의합니다.", "보강해야 합니다.")):
         return text
     if text.endswith("방법"):
@@ -367,9 +387,11 @@ def normalize_claim_idea_sentence(value: Any) -> str:
 
 
 def normalize_filing_route(value: Any) -> str:
-    text = _strip_bad_copula_suffix(_base_clean(value))
+    text = _base_clean(value)
     if not text:
         return ""
+    if text.endswith("."):
+        return text
     if text.endswith(("권장합니다.", "검토합니다.", "진행합니다.", "수립합니다.")):
         return text
     if text.endswith("개별 출원"):
@@ -414,4 +436,4 @@ def _strip_bad_copula_suffix(text: str) -> str:
     for suffix in ("입니다.", "입니다"):
         if text.endswith(suffix):
             return text[: -len(suffix)].rstrip(" .")
-    return text.rstrip(".")
+    return text
