@@ -42,6 +42,7 @@ class WorkerConfig:
     rabbitmq_blocked_connection_timeout: float = _float_env("RABBITMQ_BLOCKED_CONNECTION_TIMEOUT", 300.0)
     prefetch_count: int = _int_env("WORKER_PREFETCH_COUNT", 1)
     requeue_on_callback_failure: bool = _bool_env("WORKER_REQUEUE_ON_CALLBACK_FAILURE", True)
+    pre_evaluation_max_attempts: int = _int_env("PRE_EVALUATION_MAX_ATTEMPTS", 3)
 
     report_queue: str = os.getenv("REPORT_GENERATE_QUEUE", "skipa.report.generate")
     patent_extract_queue: str = os.getenv("PATENT_EXTRACT_QUEUE", "skipa.patent-extract")

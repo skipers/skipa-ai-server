@@ -58,15 +58,7 @@ class PreEvaluationGenerateHandler:
                 raise RuntimeError("Pre-evaluation generation did not return a report_key.")
         except Exception as exc:
             LOGGER.exception("Pre-evaluation generation failed preEvaluationId=%s", pre_evaluation_id)
-            try:
-                self.backend.fail_pre_evaluation(pre_evaluation_id, str(exc))
-            except Exception as callback_exc:
-                if is_backend_conflict(callback_exc):
-                    LOGGER.warning("Pre-evaluation fail callback conflicted preEvaluationId=%s", pre_evaluation_id)
-                    return
-                LOGGER.exception("Pre-evaluation fail callback failed preEvaluationId=%s", pre_evaluation_id)
-                raise
-            return
+            raise RuntimeError("Pre-evaluation generation failed") from exc
 
         try:
             self.backend.complete_pre_evaluation_report(pre_evaluation_id, str(report_key))
@@ -106,10 +98,56 @@ class PreEvaluationGenerateHandler:
         )
 
 
+class PreEvaluationRetryExhaustedHandler:
+    def __init__(self, config: WorkerConfig | None = None) -> None:
+        self.config = config or load_worker_config()
+        self.backend = BackendCallbackClient(self.config)
+
+    def __call__(self, payload: dict[str, Any], exc: BaseException, attempts: int) -> None:
+        try:
+            pre_evaluation_id = _require(payload, "preEvaluationId")
+        except ValueError:
+            LOGGER.exception("Pre-evaluation retry exhausted but payload has no preEvaluationId")
+            return
+
+        LOGGER.error(
+            "Marking pre-evaluation failed after %s attempts preEvaluationId=%s error=%s",
+            attempts,
+            pre_evaluation_id,
+            _error_message(exc),
+        )
+        try:
+            self.backend.fail_pre_evaluation(pre_evaluation_id, _error_message(exc))
+        except Exception as callback_exc:
+            if is_backend_conflict(callback_exc):
+                LOGGER.warning("Pre-evaluation fail callback conflicted preEvaluationId=%s", pre_evaluation_id)
+                return
+            LOGGER.exception("Pre-evaluation fail callback failed preEvaluationId=%s", pre_evaluation_id)
+            raise
+
+
+def pre_evaluation_rabbit_worker(config: WorkerConfig) -> RabbitWorker:
+    max_attempts = config.pre_evaluation_max_attempts if config.pre_evaluation_max_attempts > 0 else None
+    return RabbitWorker(
+        config,
+        config.pre_evaluation_queue,
+        PreEvaluationGenerateHandler(config),
+        max_attempts=max_attempts,
+        on_retry_exhausted=PreEvaluationRetryExhaustedHandler(config),
+    )
+
+
+def _error_message(exc: BaseException) -> str:
+    cause = exc.__cause__
+    if cause is None:
+        return str(exc)
+    return f"{exc}: {cause}"
+
+
 def run() -> None:
     logging.basicConfig(level=logging.INFO)
     config = load_worker_config()
-    RabbitWorker(config, config.pre_evaluation_queue, PreEvaluationGenerateHandler(config)).run_forever()
+    pre_evaluation_rabbit_worker(config).run_forever()
 
 
 if __name__ == "__main__":

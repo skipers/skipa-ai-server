@@ -11,13 +11,26 @@ from workers.config import WorkerConfig
 
 LOGGER = logging.getLogger(__name__)
 MessageHandler = Callable[[dict[str, Any]], None]
+RetryExhaustedHandler = Callable[[dict[str, Any], BaseException, int], None]
+
+RETRY_COUNT_FIELD = "__worker_retry_count"
 
 
 class RabbitWorker:
-    def __init__(self, config: WorkerConfig, queue_name: str, handler: MessageHandler) -> None:
+    def __init__(
+        self,
+        config: WorkerConfig,
+        queue_name: str,
+        handler: MessageHandler,
+        *,
+        max_attempts: int | None = None,
+        on_retry_exhausted: RetryExhaustedHandler | None = None,
+    ) -> None:
         self.config = config
         self.queue_name = queue_name
         self.handler = handler
+        self.max_attempts = max_attempts
+        self.on_retry_exhausted = on_retry_exhausted
 
     def _connection_parameters(self) -> Any:
         try:
@@ -54,12 +67,58 @@ class RabbitWorker:
                 payload = json.loads(body.decode("utf-8"))
                 if not isinstance(payload, dict):
                     raise ValueError("RabbitMQ payload must be a JSON object.")
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+                LOGGER.exception("Discarding invalid RabbitMQ payload from %s", self.queue_name)
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                return
+
+            try:
                 self.handler(payload)
             except ValueError:
                 LOGGER.exception("Discarding invalid RabbitMQ payload from %s", self.queue_name)
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
-            except Exception:
+            except Exception as exc:
+                if self.max_attempts and self.max_attempts > 0:
+                    attempts = _retry_count(payload) + 1
+                    if attempts >= self.max_attempts:
+                        LOGGER.exception(
+                            "Discarding RabbitMQ message from %s after %s failed attempts",
+                            self.queue_name,
+                            attempts,
+                        )
+                        if self.on_retry_exhausted is not None:
+                            try:
+                                self.on_retry_exhausted(payload, exc, attempts)
+                            except Exception:
+                                LOGGER.exception(
+                                    "Retry-exhausted handler failed for RabbitMQ message from %s",
+                                    self.queue_name,
+                                )
+                        ch.basic_ack(delivery_tag=method.delivery_tag)
+                        return
+                    retry_payload = dict(payload)
+                    retry_payload[RETRY_COUNT_FIELD] = attempts
+                    headers = dict(getattr(properties, "headers", None) or {})
+                    headers["x-skipa-retry-count"] = attempts
+                    ch.basic_publish(
+                        exchange="",
+                        routing_key=self.queue_name,
+                        body=json.dumps(retry_payload, ensure_ascii=False).encode("utf-8"),
+                        properties=pika.BasicProperties(
+                            content_type="application/json",
+                            delivery_mode=2,
+                            headers=headers,
+                        ),
+                    )
+                    LOGGER.exception(
+                        "Failed to process RabbitMQ message from %s; requeued retry attempt %s/%s",
+                        self.queue_name,
+                        attempts + 1,
+                        self.max_attempts,
+                    )
+                    ch.basic_ack(delivery_tag=method.delivery_tag)
+                    return
                 LOGGER.exception("Failed to process RabbitMQ message from %s", self.queue_name)
                 ch.basic_nack(
                     delivery_tag=method.delivery_tag,
@@ -71,3 +130,10 @@ class RabbitWorker:
         channel.basic_consume(queue=self.queue_name, on_message_callback=on_message)
         LOGGER.info("Consuming RabbitMQ queue=%s host=%s", self.queue_name, self.config.rabbitmq_host)
         channel.start_consuming()
+
+
+def _retry_count(payload: dict[str, Any]) -> int:
+    try:
+        return max(0, int(payload.get(RETRY_COUNT_FIELD) or 0))
+    except (TypeError, ValueError):
+        return 0

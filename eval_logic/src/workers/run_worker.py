@@ -13,7 +13,7 @@ for path in (Path(__file__).resolve().parents[1], Path(__file__).resolve().paren
     if path_text not in sys.path:
         sys.path.insert(0, path_text)
 
-from pre_application_valuation.worker import PreEvaluationGenerateHandler
+from pre_application_valuation.worker import pre_evaluation_rabbit_worker
 from workers.config import load_worker_config
 from workers.patent_extract_worker import PatentExtractHandler
 from workers.rabbitmq import RabbitWorker
@@ -43,7 +43,7 @@ def main() -> None:
         RabbitWorker(config, config.patent_extract_queue, PatentExtractHandler(config)).run_forever()
         return
     if args.worker == "pre-evaluation":
-        RabbitWorker(config, config.pre_evaluation_queue, PreEvaluationGenerateHandler(config)).run_forever()
+        pre_evaluation_rabbit_worker(config).run_forever()
         return
 
     threads = [
@@ -58,7 +58,7 @@ def main() -> None:
             daemon=False,
         ),
         threading.Thread(
-            target=RabbitWorker(config, config.pre_evaluation_queue, PreEvaluationGenerateHandler(config)).run_forever,
+            target=pre_evaluation_rabbit_worker(config).run_forever,
             name="pre-evaluation-worker",
             daemon=False,
         ),
