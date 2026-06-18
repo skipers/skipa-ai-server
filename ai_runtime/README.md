@@ -25,25 +25,34 @@ OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 
 ```env
 AI_PROVIDER=opensource
-OPEN_SOURCE_BASE_URL=http://qwen-vllm:8000/v1
-OPEN_SOURCE_API_KEY=EMPTY
-OPEN_SOURCE_LLM_MODEL=Qwen/Qwen3-235B-A22B-Instruct-2507
-OPEN_SOURCE_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-8B
+OPEN_SOURCE_LLM_BASE_URL=http://skipa-llm:8000/v1
+OPEN_SOURCE_EMBEDDING_BASE_URL=http://skipa-embedding:8001/v1
+OPEN_SOURCE_LLM_API_KEY=EMPTY
+OPEN_SOURCE_EMBEDDING_API_KEY=EMPTY
+OPEN_SOURCE_LLM_MODEL=Qwen/Qwen2.5-1.5B-Instruct
+OPEN_SOURCE_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-4B
 OPEN_SOURCE_RERANKER_MODEL=Qwen/Qwen3-Reranker-4B
 EMBEDDING_REQUEST_DIMENSIONS=false
 LLM_REQUEST_JSON_RESPONSE_FORMAT=true
 ```
 
-`OPEN_SOURCE_BASE_URL`은 vLLM/SGLang의 OpenAI-compatible `/v1` 주소를 넣습니다. 배포가 `response_format`을 지원하지 않으면 `LLM_REQUEST_JSON_RESPONSE_FORMAT=false`로 바꿉니다.
+`OPEN_SOURCE_LLM_BASE_URL`과 `OPEN_SOURCE_EMBEDDING_BASE_URL`은 vLLM/SGLang/FastAPI model server의 OpenAI-compatible `/v1` 주소를 넣습니다. 클러스터 안에서는 Kubernetes service DNS를 쓰고, 로컬에서는 port-forward 주소를 씁니다.
 
-LLM과 embedding을 별도 서버로 띄우면 아래처럼 분리할 수 있습니다.
+현재 클러스터 기준:
 
 ```env
-OPEN_SOURCE_LLM_BASE_URL=http://qwen-llm-vllm:8000/v1
-OPEN_SOURCE_EMBEDDING_BASE_URL=http://qwen-embedding-vllm:8001/v1
-OPEN_SOURCE_LLM_API_KEY=EMPTY
-OPEN_SOURCE_EMBEDDING_API_KEY=EMPTY
+OPEN_SOURCE_LLM_BASE_URL=http://skipa-llm:8000/v1
+OPEN_SOURCE_EMBEDDING_BASE_URL=http://skipa-embedding:8001/v1
 ```
+
+로컬 port-forward 기준:
+
+```env
+OPEN_SOURCE_LLM_BASE_URL=http://127.0.0.1:18000/v1
+OPEN_SOURCE_EMBEDDING_BASE_URL=http://127.0.0.1:18001/v1
+```
+
+배포가 `response_format`을 지원하지 않으면 `LLM_REQUEST_JSON_RESPONSE_FORMAT=false`로 바꿉니다.
 
 ## Vector store separation
 
@@ -51,6 +60,7 @@ Qdrant를 공유할 때는 컬렉션 충돌을 피하기 위해 open-source 모�
 
 ```env
 QDRANT_COLLECTION_PREFIX=opensource
+QDRANT_VECTOR_SIZE=2560
 ```
 
 FAISS 파일을 쓰는 `eval_logic/src/business_rag`는 open-source 모드에서 자동으로 `opensource_faiss.index`, `opensource_metadata.pkl`, `opensource_bm25.pkl` 파일명을 사용합니다.

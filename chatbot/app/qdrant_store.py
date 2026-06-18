@@ -12,8 +12,6 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 import uuid
 
-import os
-
 from .config import (
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
@@ -27,9 +25,10 @@ from .config import (
     EMBEDDING_PROVIDER,
     EMBEDDING_MODEL,
 )
+from .provider_env import open_source_embedding_api_key, open_source_embedding_base_url
 
-_OPENSOURCE_EMBEDDING_BASE_URL = os.getenv("OPEN_SOURCE_EMBEDDING_BASE_URL", "http://127.0.0.1:8001/v1").rstrip("/")
-_OPENSOURCE_EMBEDDING_API_KEY = os.getenv("OPEN_SOURCE_EMBEDDING_API_KEY", "EMPTY")
+_OPENSOURCE_EMBEDDING_BASE_URL = open_source_embedding_base_url()
+_OPENSOURCE_EMBEDDING_API_KEY = open_source_embedding_api_key()
 
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
@@ -90,8 +89,8 @@ def qdrant_status() -> dict[str, Any]:
         "vector_size": QDRANT_VECTOR_SIZE,
         "distance": QDRANT_DISTANCE,
         "api_key_configured": bool(QDRANT_API_KEY),
-        "embedding_model": OPENAI_EMBEDDING_MODEL,
-        "embedding_provider": "openai" if OPENAI_API_KEY else "local_hash_fallback",
+        "embedding_model": EMBEDDING_MODEL if EMBEDDING_PROVIDER == "opensource" else OPENAI_EMBEDDING_MODEL,
+        "embedding_provider": EMBEDDING_PROVIDER,
     }
     try:
         response = _json_request("GET", "/collections", None)
@@ -584,7 +583,7 @@ def upsert_documents(
         "document_count": total,
         "refreshed_at": now_iso(),
         "embedding_provider": embedding_provider,
-        "embedding_model": OPENAI_EMBEDDING_MODEL if embedding_provider == "openai" else "local_hash_fallback",
+        "embedding_model": OPENAI_EMBEDDING_MODEL if embedding_provider == "openai" else EMBEDDING_MODEL if embedding_provider == "opensource" else "local_hash_fallback",
         "embedding_error": embedding_error,
         "dashboard_url": qdrant_dashboard_url(),
     }

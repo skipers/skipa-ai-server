@@ -7,11 +7,11 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from ..provider_env import open_source_llm_api_key, open_source_llm_base_url
 from .config import LLM_TIMEOUT, OPENAI_API_KEY, OPENAI_BASE_URL, OLLAMA_BASE_URL, OLLAMA_TEMPERATURE
-import os
 
-_OPENSOURCE_LLM_BASE_URL = os.getenv("OPEN_SOURCE_LLM_BASE_URL", "http://127.0.0.1:8000/v1").rstrip("/")
-_OPENSOURCE_LLM_API_KEY = os.getenv("OPEN_SOURCE_LLM_API_KEY", "EMPTY")
+_OPENSOURCE_LLM_BASE_URL = open_source_llm_base_url()
+_OPENSOURCE_LLM_API_KEY = open_source_llm_api_key()
 
 
 def call_ollama(

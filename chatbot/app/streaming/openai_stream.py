@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Iterator
 from typing import Any
 
 import requests
 
+from ..provider_env import open_source_llm_api_key, open_source_llm_base_url
 from ..rag.config import OPENAI_API_KEY, OPENAI_BASE_URL
 
-_OPENSOURCE_LLM_BASE_URL = os.getenv("OPEN_SOURCE_LLM_BASE_URL", "http://127.0.0.1:8000/v1").rstrip("/")
-_OPENSOURCE_LLM_API_KEY = os.getenv("OPEN_SOURCE_LLM_API_KEY", "EMPTY")
+_OPENSOURCE_LLM_BASE_URL = open_source_llm_base_url()
+_OPENSOURCE_LLM_API_KEY = open_source_llm_api_key()
 
 
 def _text_delta(data: dict[str, Any]) -> str:
@@ -135,4 +135,3 @@ def stream_opensource_prompt(
             delta = _text_delta(data)
             if delta:
                 yield delta
-

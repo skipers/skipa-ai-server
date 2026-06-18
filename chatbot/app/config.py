@@ -10,11 +10,16 @@ os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 CHATBOT_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = CHATBOT_ROOT.parent
+PROCESS_ENV_KEYS = set(os.environ)
 
 
-def _load_env_file(path: Path) -> None:
+OPEN_SOURCE_PROVIDER_ALIASES = {"opensource", "open_source", "openai_compatible", "vllm", "sglang"}
+
+
+def _load_env_file(path: Path, *, override: bool = False, protected_keys: set[str] | None = None) -> None:
     if not path.exists():
         return
+    protected = protected_keys or set()
     for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#") or "=" not in stripped:
@@ -22,8 +27,27 @@ def _load_env_file(path: Path) -> None:
         key, value = stripped.split("=", 1)
         key = key.strip()
         value = value.strip().strip('"').strip("'")
-        if key and key not in os.environ:
+        if key and key not in protected and (override or key not in os.environ):
             os.environ[key] = value
+
+
+def _sanitize_mode(value: str) -> str:
+    return "".join(ch for ch in value.strip().lower() if ch.isalnum() or ch in {"_", "-"})
+
+
+def _selected_ai_mode() -> str:
+    for key in ("AI_PROVIDER", "AI_MODE", "AI_PROVIDER_PROFILE", "LLM_PROVIDER", "MODEL_PROVIDER"):
+        value = os.getenv(key)
+        if value:
+            return _sanitize_mode(value)
+    return ""
+
+
+def _component_provider(name: str, *, fallback: str) -> str:
+    value = os.getenv(name, "").strip().lower()
+    if SELECTED_AI_MODE in OPEN_SOURCE_PROVIDER_ALIASES and (not value or value == "openai"):
+        return "opensource"
+    return value or fallback
 
 
 def _resolve_path(raw: str | None, default: Path) -> Path:
@@ -35,6 +59,10 @@ def _resolve_path(raw: str | None, default: Path) -> Path:
 
 _load_env_file(CHATBOT_ROOT / ".env")
 _load_env_file(PROJECT_ROOT / ".env")
+SELECTED_AI_MODE = _selected_ai_mode()
+if SELECTED_AI_MODE:
+    _load_env_file(PROJECT_ROOT / "ai_runtime" / "modes" / f"{SELECTED_AI_MODE}.env", override=True, protected_keys=PROCESS_ENV_KEYS)
+    SELECTED_AI_MODE = _selected_ai_mode()
 
 DEFAULT_DATA_ROOT = CHATBOT_ROOT / "data" if (CHATBOT_ROOT / "data").exists() else PROJECT_ROOT / "data"
 DATA_ROOT = _resolve_path(os.getenv("DATA_ROOT") or os.getenv("SKIPA_DATA_ROOT"), DEFAULT_DATA_ROOT)
@@ -80,15 +108,16 @@ OPENAI_INTENT_MODEL = os.getenv("OPENAI_INTENT_MODEL", "gpt-4.1-mini")
 OPENAI_ANSWER_MODEL = os.getenv("OPENAI_ANSWER_MODEL", "gpt-4.1")
 OPENAI_VLM_MODEL = os.getenv("OPENAI_VLM_MODEL", "gpt-4.1-mini")
 OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
-INTENT_PROVIDER = os.getenv("INTENT_PROVIDER", "openai").lower()
-ANSWER_PROVIDER = os.getenv("ANSWER_PROVIDER", "openai").lower()
+INTENT_PROVIDER = _component_provider("INTENT_PROVIDER", fallback="openai")
+ANSWER_PROVIDER = _component_provider("ANSWER_PROVIDER", fallback="openai")
 ENABLE_OLLAMA_INTENT_FALLBACK = os.getenv("ENABLE_OLLAMA_INTENT_FALLBACK", "false").lower() in ("1", "true", "yes")
-EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "openai" if OPENAI_API_KEY else "huggingface").lower()
+EMBEDDING_PROVIDER = _component_provider("EMBEDDING_PROVIDER", fallback="openai" if OPENAI_API_KEY else "huggingface")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", OPENAI_EMBEDDING_MODEL if EMBEDDING_PROVIDER == "openai" else "BAAI/bge-m3")
 GEN_MODEL = os.getenv("GEN_MODEL", "")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-INTENT_MODEL = os.getenv("INTENT_MODEL", OPENAI_INTENT_MODEL if INTENT_PROVIDER == "openai" else GEN_MODEL or "qwen2.5:1.5b")
-ANSWER_MODEL = os.getenv("ANSWER_MODEL", OPENAI_ANSWER_MODEL if ANSWER_PROVIDER == "openai" else GEN_MODEL or "qwen2.5:1.5b")
+OPEN_SOURCE_LLM_MODEL = os.getenv("OPEN_SOURCE_LLM_MODEL") or os.getenv("OPEN_SOURCE_REPORT_MODEL") or GEN_MODEL
+INTENT_MODEL = os.getenv("INTENT_MODEL", OPENAI_INTENT_MODEL if INTENT_PROVIDER == "openai" else OPEN_SOURCE_LLM_MODEL or "qwen2.5:1.5b")
+ANSWER_MODEL = os.getenv("ANSWER_MODEL", OPENAI_ANSWER_MODEL if ANSWER_PROVIDER == "openai" else OPEN_SOURCE_LLM_MODEL or "qwen2.5:1.5b")
 OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.0"))
 INTENT_NUM_PREDICT = int(os.getenv("INTENT_NUM_PREDICT", "220"))
 ANSWER_NUM_PREDICT = int(os.getenv("ANSWER_NUM_PREDICT", "2000"))

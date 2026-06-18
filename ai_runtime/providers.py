@@ -16,8 +16,8 @@ import requests
 
 OPENAI_BASE_URL = "https://api.openai.com/v1"
 OPEN_SOURCE_BASE_URL = "http://localhost:8000/v1"
-OPEN_SOURCE_LLM_MODEL = "Qwen/Qwen3-235B-A22B-Instruct-2507"
-OPEN_SOURCE_EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-8B"
+OPEN_SOURCE_LLM_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+OPEN_SOURCE_EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-4B"
 OPEN_SOURCE_RERANKER_MODEL = "Qwen/Qwen3-Reranker-4B"
 
 
