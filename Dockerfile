@@ -79,7 +79,11 @@ RUN set -eux; \
       -r /tmp/chatbot-docker-requirements.txt \
       -r /tmp/ai-insights-requirements.txt; \
     if [ "$INSTALL_LOCAL_EMBEDDINGS" = "true" ]; then \
-      python -m pip install 'langchain-huggingface>=0.0.3' 'sentence-transformers>=3.0.0' 'bert-score>=0.3.13'; \
+      python -m pip install \
+        'accelerate>=0.34.0' \
+        'langchain-huggingface>=0.0.3' \
+        'sentence-transformers>=3.0.0' \
+        'bert-score>=0.3.13'; \
     fi
 
 COPY . /app
