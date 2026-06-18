@@ -7,13 +7,11 @@ import os
 from pathlib import Path
 from typing import Any
 
-import requests
-
+from .providers.llm import llm_configured, provider, report_model, request_report_json
 from .schemas import PreApplicationValuationRequest
 from .text_normalizer import normalize_grade, normalize_report_prose, normalize_report_sentence, normalize_string_list
 
 
-OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
 DEFAULT_MODEL = "gpt-4o-mini"
 
 
@@ -23,46 +21,29 @@ def generate_llm_overall_comment(
     ipc: dict[str, Any],
     fallback_comment: str,
 ) -> dict[str, Any]:
-    """Generate an overall evaluation comment with OpenAI, falling back safely."""
-    api_key = _load_env_value("OPENAI_API_KEY")
-    model = _load_env_value("OPENAI_REPORT_MODEL") or _load_env_value("OPENAI_MODEL") or DEFAULT_MODEL
-    if not api_key:
-        return _fallback("OPENAI_API_KEY가 없어 규칙 기반 코멘트를 사용했습니다.", fallback_comment, model)
+    """Generate an overall evaluation comment with the configured LLM provider."""
+    model = report_model("OPENAI_REPORT_MODEL", "OPENAI_MODEL") or DEFAULT_MODEL
+    if not llm_configured():
+        return _fallback("LLM provider가 설정되지 않아 규칙 기반 코멘트를 사용했습니다.", fallback_comment, model)
 
     prompt = _build_prompt(request, scoring, ipc)
     try:
-        response = requests.post(
-            OPENAI_CHAT_COMPLETIONS_URL,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
-            },
-            json={
-                "model": model,
-                "temperature": 0.2,
-                "max_tokens": 700,
-                "response_format": {"type": "json_object"},
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a Korean patent valuation analyst. "
-                            "Return only one valid JSON object."
-                        ),
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-            },
-            timeout=30,
+        parsed = request_report_json(
+            system_prompt=(
+                "You are a Korean patent valuation analyst. "
+                "Return only one valid JSON object."
+            ),
+            user_prompt=prompt,
+            model=model,
+            timeout_seconds=30,
+            max_tokens=700,
+            temperature=0.2,
         )
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        parsed = _parse_json_object(content)
         comment = normalize_report_prose(parsed.get("overall_comment"))
         if not comment:
             return _fallback("LLM 응답에 overall_comment가 없어 규칙 기반 코멘트를 사용했습니다.", fallback_comment, model)
         return {
-            "source": "llm",
+            "source": f"llm:{provider()}",
             "model": model,
             "overall_comment": comment,
             "strengths": _string_list(parsed.get("strengths")),

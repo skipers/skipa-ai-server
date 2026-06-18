@@ -10,12 +10,9 @@ RAG 엔진: 검색 + GPT 기반 구조화 사업화 현황 생성.
 import json
 import re
 
-from openai import OpenAI
-
-from .config import OPENAI_API_KEY, LLM_MODEL, TOP_K
+from .config import LLM_MODEL, TOP_K
 from .vector_store import search
-
-_client = OpenAI(api_key=OPENAI_API_KEY)
+from providers.llm import request_json, request_text
 
 # ── 사업화 신호 패턴 ───────────────────────────────────────────────────────────
 
@@ -74,16 +71,13 @@ _EXPANSION_SYSTEM = (
 
 def _expand_query(query: str) -> str:
     """LLM으로 검색 최적화 쿼리 생성."""
-    resp = _client.chat.completions.create(
+    return request_text(
+        system_prompt=_EXPANSION_SYSTEM,
+        user_prompt=query,
         model=LLM_MODEL,
-        messages=[
-            {"role": "system", "content": _EXPANSION_SYSTEM},
-            {"role": "user", "content": query},
-        ],
         temperature=0.0,
         max_tokens=120,
     )
-    return resp.choices[0].message.content.strip()
 
 
 def _multi_query_retrieve(query: str, top_k: int) -> list[dict]:
@@ -202,23 +196,14 @@ def ask(query: str, top_k: int = TOP_K) -> dict:
     comm_info = _score_commercialization(retrieved)
     context   = _build_context(retrieved, comm_info)
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": f"[참고 문서 및 신호 분석]\n{context}\n\n[질문]\n{query}",
-        },
-    ]
-
-    resp = _client.chat.completions.create(
+    structured = request_json(
+        system_prompt=SYSTEM_PROMPT,
+        user_prompt=f"[참고 문서 및 신호 분석]\n{context}\n\n[질문]\n{query}",
         model=LLM_MODEL,
-        messages=messages,
         temperature=0.3,
         max_tokens=1024,
-        response_format={"type": "json_object"},
     )
-    answer = resp.choices[0].message.content.strip()
-    structured = _parse_answer_json(answer)
+    answer = json.dumps(structured, ensure_ascii=False)
 
     sources = [
         {

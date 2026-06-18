@@ -1103,7 +1103,52 @@
       "avg_relevance": 0.5,
       "status": "auto_approved",
       "auto_approved_at": "2026-06-10T18:17:29"
+    },
+    {
+      "query_hash": "9364ac962931",
+      "query": "본 특허 청구항이 현재 반도체 시장 환경(공정 미세화 한계)에서 갖는 경쟁 우위는 무엇인가요?",
+      "patent_id": "10-1959627",
+      "topic": "반도체_전자",
+      "created_at": "2026-06-15T21:18:48",
+      "draft_file": "20260615_211848_660325.md",
+      "result_count": 4,
+      "avg_relevance": 0.4584,
+      "status": "pending"
+    },
+    {
+      "query_hash": "50299017272a",
+      "query": "경쟁 유사 특허의 평균 피인용 수와 10-2839217 특허의 피인용 수는 어떻게 비교됩니까?",
+      "patent_id": "10-2839217",
+      "topic": "반도체_전자",
+      "created_at": "2026-06-15T22:15:08",
+      "draft_file": "20260615_221508_125368.md",
+      "result_count": 4,
+      "avg_relevance": 0.875,
+      "status": "auto_approved",
+      "auto_approved_at": "2026-06-15T22:15:08"
+    },
+    {
+      "query_hash": "a977f28f4db3",
+      "query": "시장성 차원의 점수와 평가 근거는 무엇이며, 어떤 참고 문헌이 활용되었습니까?",
+      "patent_id": "10-2839217",
+      "topic": "반도체_전자",
+      "created_at": "2026-06-15T22:20:03",
+      "draft_file": "20260615_222003_380842.md",
+      "result_count": 4,
+      "avg_relevance": 0.4583,
+      "status": "pending"
+    },
+    {
+      "query_hash": "c34237eaa133",
+      "query": "특허 평가에 참고된 반도체 시장 동향 자료는 무엇입니까?",
+      "patent_id": "10-1959627",
+      "topic": "반도체_전자",
+      "created_at": "2026-06-16T11:30:40",
+      "draft_file": "20260616_113040_666278.md",
+      "result_count": 4,
+      "avg_relevance": 0.2,
+      "status": "pending"
     }
   ],
-  "updated_at": "2026-06-10T18:17:30"
+  "updated_at": "2026-06-16T11:30:40"
 }

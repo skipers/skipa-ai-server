@@ -2,8 +2,9 @@
 Compare the target patent with collected similar patents.
 
 This module intentionally separates deterministic similarity signals from LLM
-wording. The deterministic scores are always produced. If OPENAI_API_KEY is
-available and --use-llm is passed, a short comparison summary is added.
+wording. The deterministic scores are always produced. If a configured LLM
+provider is available and --use-llm is passed, a short comparison summary is
+added.
 
 Usage:
     python3 similar_patent_analyzer.py
@@ -27,6 +28,8 @@ from core.paths import RUNTIME_ANALYSIS_DIR, ROOT_DIR, SAMPLE_DATA_DIR
 from core.schemas import normalize_patent_input
 
 load_runtime_env()
+
+from providers.llm import llm_configured, report_model, request_text  # noqa: E402
 
 
 DEFAULT_TARGET = SAMPLE_DATA_DIR / "patent_input.json"
@@ -473,25 +476,16 @@ def infer_technical_analysis(target: dict[str, Any], detail: dict[str, Any], sig
 
 
 def call_llm(prompt: str, max_tokens: int = 450) -> str:
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
+    if not llm_configured():
         return ""
     try:
-        import openai
-
-        client = openai.OpenAI(api_key=api_key)
-        response = client.chat.completions.create(
-            model=os.environ.get("OPENAI_REPORT_MODEL", "gpt-4o"),
+        return request_text(
+            system_prompt="특허 비교 분석가입니다. 입력 근거에 기반해 한국어로 간결하게 답하세요.",
+            user_prompt=prompt,
+            model=report_model("OPENAI_REPORT_MODEL"),
             max_tokens=max_tokens,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "특허 비교 분석가입니다. 입력 근거에 기반해 한국어로 간결하게 답하세요.",
-                },
-                {"role": "user", "content": prompt},
-            ],
+            temperature=0.0,
         )
-        return (response.choices[0].message.content or "").strip()
     except Exception as exc:
         print(f"LLM 비교 요약 생략: {exc}")
         return ""
@@ -927,7 +921,7 @@ def analyze_similar_patents(
 
     ecosystem = build_ecosystem_summary(target, analyses)
     target_position = compare_target_position(target, ecosystem)
-    if use_llm and os.environ.get("OPENAI_API_KEY"):
+    if use_llm and llm_configured():
         enhanced_by_number: dict[str, dict[str, Any]] = {}
         for item in analyses[:10]:
             enhanced = enhance_top_comparison_with_llm(target, item)
@@ -940,7 +934,7 @@ def analyze_similar_patents(
         ]
     top_comparisons = select_top_comparisons(analyses, limit=3)
     interpretation = build_interpretation(ecosystem, target_position, top_comparisons)
-    if use_llm and os.environ.get("OPENAI_API_KEY"):
+    if use_llm and llm_configured():
         interpretation = enhance_interpretation_with_llm(target, ecosystem, interpretation, top_comparisons)
     else:
         interpretation["analysis_summary"] = fallback_analysis_summary(ecosystem, top_comparisons)
@@ -962,7 +956,7 @@ def analyze_similar_patents(
             "source_details": str(details_path),
             "generated_at": datetime.now().isoformat(timespec="seconds"),
             "llm_requested": use_llm,
-            "llm_available": bool(os.environ.get("OPENAI_API_KEY")),
+            "llm_available": llm_configured(),
             "llm_used": llm_used,
             "top_comparison_rule": "등록/유지 중인 유사 특허 중 종합 유사도 상위 3개, 동점 시 피인용 수 우선",
         },
@@ -984,7 +978,7 @@ def main() -> None:
     parser.add_argument("--target", default=None, help="분석 대상 특허 JSON")
     parser.add_argument("--details", default=None, help="유사 특허 상세정보 JSON")
     parser.add_argument("--output", default=None, help="분석 결과 JSON")
-    parser.add_argument("--use-llm", action="store_true", help="OPENAI_API_KEY가 있으면 LLM 비교 요약 생성")
+    parser.add_argument("--use-llm", action="store_true", help="설정된 LLM provider가 있으면 비교 요약 생성")
     args = parser.parse_args()
     patent_id = normalize_patent_id_for_path(args.patent_id)
     output_dir = Path(args.output_dir)

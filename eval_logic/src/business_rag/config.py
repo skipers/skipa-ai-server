@@ -1,6 +1,7 @@
 import os
 from core.env import load_runtime_env
 from core.paths import BUSINESS_RAG_DATA_DIR
+from providers.llm import embedding_model, provider, report_model
 
 load_runtime_env()
 
@@ -9,13 +10,16 @@ RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 INDEX_DIR = DATA_DIR / "index"
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 SKAX_BASE_URL = os.getenv("SKAX_BASE_URL", "https://www.skax.com")
 CRAWL_DELAY = float(os.getenv("CRAWL_DELAY", "1.5"))
 MAX_PAGES_PER_KEYWORD = int(os.getenv("MAX_PAGES_PER_KEYWORD", "5"))
 
-EMBEDDING_MODEL = "text-embedding-3-small"
-LLM_MODEL = "gpt-4o-mini"
+EMBEDDING_MODEL = embedding_model("BUSINESS_RAG_EMBEDDING_MODEL")
+LLM_MODEL = report_model("BUSINESS_RAG_LLM_MODEL")
+INDEX_FILE_PREFIX = os.getenv(
+    "BUSINESS_RAG_INDEX_PREFIX",
+    "opensource_" if provider() in {"opensource", "open_source", "openai_compatible", "vllm", "sglang"} else "",
+)
 TOP_K = int(os.getenv("TOP_K", "5"))
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "300"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "50"))

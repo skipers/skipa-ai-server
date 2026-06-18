@@ -14,20 +14,18 @@ from pathlib import Path
 
 import faiss
 import numpy as np
-from openai import OpenAI
 from rank_bm25 import BM25Okapi
 
 from .config import (
-    OPENAI_API_KEY, EMBEDDING_MODEL,
-    INDEX_DIR, PROCESSED_DIR, TOP_K,
+    INDEX_DIR, INDEX_FILE_PREFIX, PROCESSED_DIR, TOP_K,
     CANDIDATE_K_MULTIPLIER, MMR_LAMBDA,
 )
+from providers.llm import request_embeddings
 
-_client = OpenAI(api_key=OPENAI_API_KEY)
 
-INDEX_FILE = INDEX_DIR / "faiss.index"
-META_FILE  = INDEX_DIR / "metadata.pkl"
-BM25_FILE  = INDEX_DIR / "bm25.pkl"
+INDEX_FILE = INDEX_DIR / f"{INDEX_FILE_PREFIX}faiss.index"
+META_FILE  = INDEX_DIR / f"{INDEX_FILE_PREFIX}metadata.pkl"
+BM25_FILE  = INDEX_DIR / f"{INDEX_FILE_PREFIX}bm25.pkl"
 
 
 # ── 유틸 ──────────────────────────────────────────────────────────────────────
@@ -36,8 +34,7 @@ def _embed(texts: list[str], batch_size: int = 100) -> np.ndarray:
     all_vectors: list[list[float]] = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
-        resp = _client.embeddings.create(model=EMBEDDING_MODEL, input=batch)
-        all_vectors.extend([d.embedding for d in resp.data])
+        all_vectors.extend(request_embeddings(batch, timeout_seconds=60))
     return np.array(all_vectors, dtype="float32")
 
 

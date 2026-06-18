@@ -34,6 +34,8 @@ from core.env import load_runtime_env
 
 load_runtime_env()
 
+from providers.llm import report_model, request_json  # noqa: E402
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -51,8 +53,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default=os.getenv("OPENAI_GLOBAL_PARSE_MODEL") or os.getenv("OPENAI_INTENT_MODEL") or "gpt-4.1-mini",
-        help="번역/구조화에 사용할 OpenAI 모델.",
+        default=report_model("OPENAI_GLOBAL_PARSE_MODEL", "OPENAI_INTENT_MODEL"),
+        help="번역/구조화에 사용할 LLM provider 모델.",
     )
     parser.add_argument(
         "--only",
@@ -419,24 +421,13 @@ def select_prompt_text(text: str, max_chars: int) -> str:
 
 
 def call_openai_structurer(text: str, fallback: dict[str, Any], language: str, model: str) -> dict[str, Any]:
-    from openai import OpenAI
-
-    client = OpenAI()
-    response = client.chat.completions.create(
+    return request_json(
+        system_prompt="You are a careful multilingual patent parser and Korean technical translator.",
+        user_prompt=build_prompt(text, fallback, language),
         model=model,
-        response_format={"type": "json_object"},
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a careful multilingual patent parser and Korean technical translator.",
-            },
-            {"role": "user", "content": build_prompt(text, fallback, language)},
-        ],
         temperature=0.0,
         max_tokens=16000,
     )
-    content = response.choices[0].message.content or "{}"
-    return json.loads(content)
 
 
 def listify(value: Any) -> list[str]:

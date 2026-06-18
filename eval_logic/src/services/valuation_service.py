@@ -243,10 +243,12 @@ class PatentValuationService:
     def _run_llm_stage(self, patent: dict[str, Any], output: PatentEvaluationOutput) -> None:
         """인증 정보와 원문 텍스트가 있을 때만 LLM 평가를 실행합니다."""
         start = time.time()
-        has_openai_key = bool(os.environ.get("OPENAI_API_KEY"))
+        from providers.llm import llm_configured
+
+        has_llm_provider = llm_configured()
         has_llm_fields = bool(patent.get("description_summary") or patent.get("claims_text"))
-        if not has_openai_key or not has_llm_fields:
-            reason = "OPENAI_API_KEY 없음 또는 LLM 평가에 필요한 필드(description_summary/claims_text) 부족"
+        if not has_llm_provider or not has_llm_fields:
+            reason = "LLM provider 설정 없음 또는 LLM 평가에 필요한 필드(description_summary/claims_text) 부족"
             output.summary["llm_skipped"] = reason
             output.steps.append(EvaluationStepResult("llm_scores", "skipped", time.time() - start, reason))
             return

@@ -8,13 +8,11 @@ import re
 from pathlib import Path
 from typing import Any
 
-import requests
-
+from .providers.llm import llm_configured, report_model, request_report_json
 from .schemas import PreApplicationValuationRequest
 from .text_normalizer import normalize_report_prose, normalize_report_sentence, normalize_string_list
 
 
-OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
 DEFAULT_MODEL = "gpt-4o-mini"
 CHECKLIST_PATH = Path(__file__).resolve().parent / "resources" / "pre_application_checklist.md"
 
@@ -25,12 +23,11 @@ def evaluate_checklist(
     ipc: dict[str, Any],
 ) -> dict[str, Any]:
     checklist = parse_checklist_markdown(CHECKLIST_PATH)
-    model = load_env_value("OPENAI_PRE_APPLICATION_MODEL") or load_env_value("OPENAI_REPORT_MODEL") or load_env_value("OPENAI_MODEL") or DEFAULT_MODEL
+    model = report_model("OPENAI_PRE_APPLICATION_MODEL", "OPENAI_REPORT_MODEL", "OPENAI_MODEL") or DEFAULT_MODEL
     if load_env_value("PRE_APPLICATION_USE_LLM").lower() in {"0", "false", "no", "off"}:
         raise RuntimeError("사전가치평가 보고서는 LLM 평가가 필수입니다. PRE_APPLICATION_USE_LLM 값을 제거하거나 true로 설정하세요.")
-    api_key = load_env_value("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("사전가치평가 보고서는 LLM 평가가 필수입니다. OPENAI_API_KEY가 필요합니다.")
+    if not llm_configured():
+        raise RuntimeError("사전가치평가 보고서는 LLM 평가가 필수입니다. AI_PROVIDER/LLM provider 설정이 필요합니다.")
 
     timeout_seconds = int_value(load_env_value("OPENAI_PRE_APPLICATION_TIMEOUT")) or 120
 
@@ -46,7 +43,6 @@ def evaluate_checklist(
             )
         try:
             parsed = request_llm_json(
-                api_key=api_key,
                 model=model,
                 prompt=request_prompt,
                 timeout_seconds=timeout_seconds,
@@ -92,7 +88,6 @@ def evaluate_checklist(
             )
         try:
             narrative = request_llm_json(
-                api_key=api_key,
                 model=model,
                 prompt=request_prompt,
                 timeout_seconds=timeout_seconds,
@@ -122,39 +117,23 @@ def evaluate_checklist(
 
 def request_llm_json(
     *,
-    api_key: str,
     model: str,
     prompt: str,
     timeout_seconds: int,
     max_tokens: int,
     temperature: float,
 ) -> dict[str, Any]:
-    response = requests.post(
-        OPENAI_CHAT_COMPLETIONS_URL,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        },
-        json={
-            "model": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "response_format": {"type": "json_object"},
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a Korean patent attorney and early-stage IP strategy analyst. "
-                        "Return only one valid JSON object that exactly follows the requested schema."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-        },
-        timeout=timeout_seconds,
+    return request_report_json(
+        system_prompt=(
+            "You are a Korean patent attorney and early-stage IP strategy analyst. "
+            "Return only one valid JSON object that exactly follows the requested schema."
+        ),
+        user_prompt=prompt,
+        model=model,
+        timeout_seconds=timeout_seconds,
+        max_tokens=max_tokens,
+        temperature=temperature,
     )
-    response.raise_for_status()
-    return parse_json_object(response.json()["choices"][0]["message"]["content"])
 
 
 def parse_checklist_markdown(path: Path = CHECKLIST_PATH) -> list[dict[str, Any]]:

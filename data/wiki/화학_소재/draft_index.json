@@ -1,0 +1,28 @@
+{
+  "topic": "화학_소재",
+  "drafts": [
+    {
+      "query_hash": "babc9817fbed",
+      "query": "10-2762042 특허가 속한 출원인 분포에서 경쟁 특허군 대비 차별점은 무엇인가요?",
+      "patent_id": "10-2762042",
+      "topic": "화학_소재",
+      "created_at": "2026-06-15T22:04:54",
+      "draft_file": "20260615_220454_053257.md",
+      "result_count": 1,
+      "avg_relevance": 0.3333,
+      "status": "pending"
+    },
+    {
+      "query_hash": "ec2abe1df30b",
+      "query": "이 특허의 시장 섹터(산업 분야)는 무엇입니까?",
+      "patent_id": "10-2762042",
+      "topic": "화학_소재",
+      "created_at": "2026-06-15T22:12:48",
+      "draft_file": "20260615_221248_371054.md",
+      "result_count": 4,
+      "avg_relevance": 0.45,
+      "status": "pending"
+    }
+  ],
+  "updated_at": "2026-06-15T22:12:48"
+}

@@ -14,6 +14,7 @@ import pypdf
 from wcwidth import wcswidth
 from core.env import load_runtime_env
 from core.paths import RUNTIME_ARTIFACTS_DIR, SAMPLE_PATENT_DOCUMENT_DIR
+from providers.llm import llm_configured, report_model, request_json
 
 load_runtime_env()
 
@@ -628,13 +629,13 @@ def parse_global_or_scanned_patent(pdf_path: Path) -> dict:
     fallback = module.regex_fallback(text, pdf_path.name, extraction_info.get("pdf_metadata") or {})
     language = module.detect_language(text, pdf_path.name, fallback.get("identifier", ""))
 
-    no_llm = not os.getenv("OPENAI_API_KEY") or os.getenv("DISABLE_GLOBAL_PATENT_PARSE_LLM", "").lower() in {
+    no_llm = not llm_configured() or os.getenv("DISABLE_GLOBAL_PATENT_PARSE_LLM", "").lower() in {
         "1",
         "true",
         "yes",
         "on",
     }
-    model = os.getenv("OPENAI_GLOBAL_PARSE_MODEL") or os.getenv("OPENAI_INTENT_MODEL") or "gpt-4.1-mini"
+    model = report_model("OPENAI_GLOBAL_PARSE_MODEL", "OPENAI_INTENT_MODEL")
     llm_cache = cache_dir / "structured.json"
     if llm_cache.exists():
         structured = module.read_json(llm_cache)
@@ -746,62 +747,52 @@ def parse_patent(pdf_path: Path) -> dict:
     }
 
 
-# ── OpenAI 키워드 추출 ────────────────────────────────────────────────────
+# ── LLM 키워드 추출 ───────────────────────────────────────────────────────
 def extract_keywords(title: str, abstract: str) -> list[str]:
-    """OpenAI로 키워드 추출. API 키 미설정·호출 실패·파싱 오류 시 빈 리스트 반환."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    """Configured LLM으로 키워드 추출. 호출 실패 시 빈 리스트 반환."""
+    if not llm_configured():
         return []
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            response_format={"type": "json_object"},
-            messages=[{"role": "user", "content":
+        data = request_json(
+            system_prompt="Return only one valid JSON object.",
+            user_prompt=(
                 f"다음 특허의 제목과 요약을 읽고, 기술적 핵심 키워드를 10개 이내로 추출해주세요.\n"
                 f"반드시 {{\"keywords\": [\"키워드1\", ...]}} 형태의 JSON만 반환하세요.\n\n"
                 f"제목: {title}\n요약: {abstract}"
-            }],
+            ),
             temperature=0.2,
             max_tokens=200,
+            timeout_seconds=30,
         )
-        content = resp.choices[0].message.content or "{}"
-        data = json.loads(content)
         return data.get("keywords", [])
     except Exception:
         return []
 
 
 def make_brief_summary(title: str, abstract: str) -> dict:
-    """개요와 핵심 내용을 1~2줄로 생성. OpenAI 실패 시 원문 요약에서 짧게 대체한다."""
+    """개요와 핵심 내용을 1~2줄로 생성. LLM 실패 시 원문 요약에서 짧게 대체한다."""
     fallback = {
         "개요": title if title and title != "-" else "-",
         "핵심_내용": _shorten_abstract(abstract),
     }
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key or not abstract or abstract == "-":
+    if not llm_configured() or not abstract or abstract == "-":
         return fallback
 
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            response_format={"type": "json_object"},
-            messages=[{"role": "user", "content":
+        data = request_json(
+            system_prompt="Return only one valid JSON object.",
+            user_prompt=(
                 f"다음 특허의 제목과 요약을 바탕으로 독자가 빠르게 이해할 수 있게 정리해주세요.\n"
                 f"반드시 {{\"overview\": \"개요 1문장\", \"key_points\": \"핵심 내용 1~2문장\"}} "
                 f"형태의 JSON만 반환하세요.\n"
                 f"각 값은 한국어로 간결하게 작성하고, 원문에 없는 내용을 추측하지 마세요.\n\n"
                 f"제목: {title}\n요약: {abstract}"
-            }],
+            ),
             temperature=0.2,
             max_tokens=350,
+            timeout_seconds=30,
         )
-        content = resp.choices[0].message.content or "{}"
-        data = json.loads(content)
         overview = str(data.get("overview", "")).strip()
         key_points = str(data.get("key_points", "")).strip()
         return {
@@ -963,13 +954,13 @@ def _process(pdf_files: list[Path], save_json: bool = False) -> None:
         print(f"[{i}/{len(pdf_files)}] {pdf_path.name}", flush=True)
         p = parse_patent(pdf_path)
         if not p.get("error"):
-            print("        키워드 추출 중 (OpenAI)...", end=" ", flush=True)
+            print("        키워드 추출 중 (LLM provider)...", end=" ", flush=True)
             p["keywords"] = extract_keywords(
                 p["meta"].get("발명의_명칭", ""),
                 p["meta"].get("요약", ""),
             )
             print("완료")
-            print("        개요/핵심 내용 생성 중 (OpenAI)...", end=" ", flush=True)
+            print("        개요/핵심 내용 생성 중 (LLM provider)...", end=" ", flush=True)
             p["brief_summary"] = make_brief_summary(
                 p["meta"].get("발명의_명칭", ""),
                 p["meta"].get("요약", ""),

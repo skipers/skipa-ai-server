@@ -22,7 +22,119 @@
       "result_count": 4,
       "avg_relevance": 0.2,
       "status": "pending"
+    },
+    {
+      "query_hash": "e523bcba5c8c",
+      "query": "회피설계와 관련해 외부 근거 확보가 중요한 이유는 무엇인가요?",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-15T20:58:10",
+      "draft_file": "20260615_205810_216168.md",
+      "result_count": 3,
+      "avg_relevance": 0.2222,
+      "status": "pending"
+    },
+    {
+      "query_hash": "4c0f6cc2ca89",
+      "query": "10-2042318 특허가 속한 생태계 내에서 등록된 유사 특허 개수와 본 특허의 등록 상태는 어떻게 되며, 경쟁 상황에서 어떤 위치를 점하나요?",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-15T21:33:43",
+      "draft_file": "20260615_213343_384855.md",
+      "result_count": 1,
+      "avg_relevance": 0.3333,
+      "status": "pending"
+    },
+    {
+      "query_hash": "b2c6e2d1ef1f",
+      "query": "10-2042318 특허가 속한 유사 특허 생태계의 활성화 정도와 비교하여, 본 특허의 시장 내 포지셔닝은 어떻게 차별화됩니까?",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-15T21:34:22",
+      "draft_file": "20260615_213422_091754.md",
+      "result_count": 3,
+      "avg_relevance": 0.6667,
+      "status": "auto_approved",
+      "auto_approved_at": "2026-06-15T21:34:22"
+    },
+    {
+      "query_hash": "7f859d366deb",
+      "query": "경쟁사가 본 특허를 회피하기 위해 고려할 수 있는 전략은 무엇인가요?",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-15T21:35:01",
+      "draft_file": "20260615_213501_056423.md",
+      "result_count": 2,
+      "avg_relevance": 0.75,
+      "status": "auto_approved",
+      "auto_approved_at": "2026-06-15T21:35:01"
+    },
+    {
+      "query_hash": "5fb3fa5cbd49",
+      "query": "시장성 평가의 평균 점수, 총 항목 수, 등급 및 참고 문헌은 어떻게 되나요?",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-15T21:36:09",
+      "draft_file": "20260615_213609_077674.md",
+      "result_count": 3,
+      "avg_relevance": 0.2222,
+      "status": "pending"
+    },
+    {
+      "query_hash": "4426cd736f22",
+      "query": "기술성 평가에서 체계화된 알고리즘 기반 자동 설계의 독창성 근거로 직접 인용된 외부 문헌은 무엇인가요?",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-15T21:37:04",
+      "draft_file": "20260615_213704_192632.md",
+      "result_count": 5,
+      "avg_relevance": 0.4333,
+      "status": "pending"
+    },
+    {
+      "query_hash": "106f8108c758",
+      "query": "이 특허가 속한 시장 섹터는 어디입니까?",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-15T21:39:25",
+      "draft_file": "20260615_213925_388906.md",
+      "result_count": 3,
+      "avg_relevance": 0.3333,
+      "status": "pending"
+    },
+    {
+      "query_hash": "ec989d340c90",
+      "query": "Industry 5.0 동향이 본 특허의 무효 가능성에 미치는 구체적 영향은?",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-16T11:39:36",
+      "draft_file": "20260616_113936_472190.md",
+      "result_count": 5,
+      "avg_relevance": 0.3,
+      "status": "pending"
+    },
+    {
+      "query_hash": "dc4cd80c2cd4",
+      "query": "스마트팩토리 관련 최신 기술 동향 참고자료의 URL을 알려주세요.",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-16T11:43:17",
+      "draft_file": "20260616_114317_526665.md",
+      "result_count": 3,
+      "avg_relevance": 0.2,
+      "status": "pending"
+    },
+    {
+      "query_hash": "88565146252f",
+      "query": "스마트팩토리 정의에 참고된 외부 자료는 무엇인가요?",
+      "patent_id": "10-2042318",
+      "topic": "스마트_팩토리",
+      "created_at": "2026-06-16T11:43:50",
+      "draft_file": "20260616_114350_496918.md",
+      "result_count": 3,
+      "avg_relevance": 0.2667,
+      "status": "pending"
     }
   ],
-  "updated_at": "2026-06-13T23:03:50"
+  "updated_at": "2026-06-16T11:43:50"
 }

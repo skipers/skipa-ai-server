@@ -27,6 +27,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+ai_runtime/modes/*.env
+!ai_runtime/modes/*.env.example
 eval_logic/.env
 eval_logic/.env.*
 !eval_logic/.env.example
@@ -84,6 +86,10 @@ eval_logic/.git/
 chatbot/.env
 chatbot/.env.*
 !chatbot/.env.example
+
+# 로컬 eval 전용 파일 (서버 Qdrant와 격리된 Docker 환경)
+docker-compose.eval.yml
+chatbot/scripts/eval_local.sh
 chatbot/.venv/
 chatbot/logs/
 chatbot/tmp/

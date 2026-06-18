@@ -41,10 +41,10 @@ def generate_portfolio_insights(request: PortfolioInsightsRequest) -> list[str]:
             insights = _normalize_insight_style(_request_openai_insights(retry_prompt), payload)
             validation_error = _insights_validation_error(insights)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"OpenAI portfolio insight generation failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail=f"LLM provider portfolio insight generation failed: {exc}") from exc
 
     if validation_error:
-        raise HTTPException(status_code=502, detail=f"OpenAI portfolio insight response is invalid: {validation_error}")
+        raise HTTPException(status_code=502, detail=f"LLM provider portfolio insight response is invalid: {validation_error}")
     return insights
 
 

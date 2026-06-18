@@ -26,7 +26,6 @@ LLM 기반 특허 평가 모듈
 
 import os
 import json
-import requests
 from pathlib import Path
 import re
 
@@ -34,10 +33,10 @@ from evaluation.web_searcher import search_patent_evidence, get_search_strategy
 from evaluation.ipc_ksic_mapper import load_mapping_table, map_ipc_to_ksic
 from core.env import load_runtime_env
 from core.paths import RESOURCES_DIR, ROOT_DIR
+from providers.llm import llm_configured, report_model, request_json
 
 load_runtime_env()
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_MODEL   = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+LLM_MODEL = report_model("OPENAI_MODEL")
 CHECKLIST_PATH = RESOURCES_DIR / "checklist_fixed.md"
 
 # 엑셀 매핑 테이블 경로 (.env 또는 기본값)
@@ -524,41 +523,18 @@ def build_prompt_hybrid(
 
 
 # ──────────────────────────────────────────
-# OpenAI API 호출
+# LLM API 호출
 # ──────────────────────────────────────────
 def call_openai(prompt: str) -> dict:
-    """OpenAI 채팅 완성 API를 호출하고 JSON 객체 응답 1개를 파싱합니다.
-
-    아직은 프로토타입 HTTP 호출을 직접 사용합니다. 서버 통합 단계에서는 테스트
-    시 mock 처리할 수 있고 운영 환경에서 재시도/사용량 제한 정책을 중앙화할 수
-    있도록 주입 가능한 LLM 클라이언트로 바꾸는 것이 좋습니다.
-    """
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-    }
-    body = {
-        "model": OPENAI_MODEL,
-        "max_tokens": 800,   # 항목 1개씩이므로 토큰 절감
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {"role": "system", "content": "Return only one valid JSON object."},
-            {"role": "user",   "content": prompt},
-        ],
-    }
-    resp = requests.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers=headers, json=body, timeout=60,
+    """Configured LLM provider를 호출하고 JSON 객체 응답 1개를 파싱합니다."""
+    return request_json(
+        system_prompt="Return only one valid JSON object.",
+        user_prompt=prompt,
+        model=LLM_MODEL,
+        timeout_seconds=60,
+        max_tokens=800,
+        temperature=0.0,
     )
-    resp.raise_for_status()
-    text = resp.json()["choices"][0]["message"]["content"].strip()
-
-    if "```json" in text:
-        text = text.split("```json")[1].split("```")[0].strip()
-    elif "```" in text:
-        text = text.split("```")[1].split("```")[0].strip()
-
-    return json.loads(text)
 
 
 # ──────────────────────────────────────────
@@ -773,8 +749,8 @@ def evaluate_all(patent: dict) -> list[dict]:
 # 실행
 # ──────────────────────────────────────────
 if __name__ == "__main__":
-    if not OPENAI_API_KEY:
-        print("❌ OPENAI_API_KEY 없음. .env 파일에 추가하세요.")
+    if not llm_configured():
+        print("❌ LLM provider 설정 없음. AI_PROVIDER/OPEN_SOURCE_BASE_URL 또는 OPENAI_API_KEY를 확인하세요.")
         exit(1)
 
     for fname in ["patent_10_2212093.json", "example_input.json"]:

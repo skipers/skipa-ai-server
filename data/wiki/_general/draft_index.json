@@ -22,7 +22,143 @@
       "result_count": 4,
       "avg_relevance": 0.4166,
       "status": "pending"
+    },
+    {
+      "query_hash": "04a1ff9b1afb",
+      "query": "기술성 평가에서 인용된 외부 참고 문헌의 제목 2가지를 구체적으로 말씀해 주세요.",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T20:36:55",
+      "draft_file": "20260615_203655_909901.md",
+      "result_count": 4,
+      "avg_relevance": 0.4583,
+      "status": "pending"
+    },
+    {
+      "query_hash": "e126528a00ce",
+      "query": "10-2042318이 Industry 5.0 동향과 부합하는 기술로 평가받는 근거는 경쟁 특허와 어떤 측면에서 차별성이 있나요?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T21:31:49",
+      "draft_file": "20260615_213149_111195.md",
+      "result_count": 5,
+      "avg_relevance": 0.2334,
+      "status": "pending"
+    },
+    {
+      "query_hash": "46fbb128cbf8",
+      "query": "유사 특허의 최근 5년 내 출원 비율과 10-2042318의 출원 시점은 어떻게 비교되며, 기술 동향 반영 측면의 차별점은 무엇인가요?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T21:33:58",
+      "draft_file": "20260615_213358_436357.md",
+      "result_count": 5,
+      "avg_relevance": 0.3333,
+      "status": "pending"
+    },
+    {
+      "query_hash": "9b6475c9f098",
+      "query": "10-2686678이 속한 생태계의 권리 행사 제한 가능성 점수(100점)는 경쟁 특허와 비교해 어떤 의미가 있나요?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T21:38:49",
+      "draft_file": "20260615_213849_261935.md",
+      "result_count": 1,
+      "avg_relevance": 1.0,
+      "status": "auto_approved",
+      "auto_approved_at": "2026-06-15T21:38:49"
+    },
+    {
+      "query_hash": "5fd034d60d2f",
+      "query": "10-2686678의 전체적 생태계 내 포지션은 경쟁 특허 대비 어떤 특징이 있나요?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T21:39:36",
+      "draft_file": "20260615_213936_168799.md",
+      "result_count": 3,
+      "avg_relevance": 0.6667,
+      "status": "auto_approved",
+      "auto_approved_at": "2026-06-15T21:39:36"
+    },
+    {
+      "query_hash": "de8ac6deee59",
+      "query": "카테고리 2개라는 점이 시장 내 기술 변화에 따른 회피설계 대응에 미치는 한계는?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T21:41:11",
+      "draft_file": "20260615_214111_288246.md",
+      "result_count": 4,
+      "avg_relevance": 0.25,
+      "status": "pending"
+    },
+    {
+      "query_hash": "df60131f400a",
+      "query": "특허 10-2142205가 회피설계와 관련하여 경쟁사 대응에 미치는 영향은?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T21:41:52",
+      "draft_file": "20260615_214152_755406.md",
+      "result_count": 1,
+      "avg_relevance": 0.1667,
+      "status": "pending"
+    },
+    {
+      "query_hash": "617d46cfb370",
+      "query": "10-2142205가 속한 유사 특허군의 최근 출원 비율과 그 의미는 무엇인가요?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T21:45:59",
+      "draft_file": "20260615_214559_444495.md",
+      "result_count": 5,
+      "avg_relevance": 0.2667,
+      "status": "pending"
+    },
+    {
+      "query_hash": "8eddcde5accd",
+      "query": "10-2737902의 권리 행사 제한 가능성과 유사 특허군 내 경쟁 특허들의 차별화 포인트는 무엇입니까?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T21:46:06",
+      "draft_file": "20260615_214606_710932.md",
+      "result_count": 5,
+      "avg_relevance": 0.5,
+      "status": "auto_approved",
+      "auto_approved_at": "2026-06-15T21:46:06"
+    },
+    {
+      "query_hash": "b79f98bc3c96",
+      "query": "유사 특허 생태계 내에서 10-2663094의 인용 수는 경쟁 특허 대비 어떤 위치입니까?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T21:53:16",
+      "draft_file": "20260615_215316_347148.md",
+      "result_count": 4,
+      "avg_relevance": 0.5,
+      "status": "auto_approved",
+      "auto_approved_at": "2026-06-15T21:53:16"
+    },
+    {
+      "query_hash": "7bb1d7d433ce",
+      "query": "유사 특허 중 최근 5년 내 출원된 비중과 10-2753879의 진입 시기는 어떻게 다릅니까?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T21:57:58",
+      "draft_file": "20260615_215758_418079.md",
+      "result_count": 2,
+      "avg_relevance": 0.25,
+      "status": "pending"
+    },
+    {
+      "query_hash": "072907942c6b",
+      "query": "특허 10-2753879의 시장성 평가 점수와 평가 근거가 된 항목 및 참고문헌은 무엇인가요?",
+      "patent_id": "2",
+      "topic": "_general",
+      "created_at": "2026-06-15T22:03:17",
+      "draft_file": "20260615_220317_491754.md",
+      "result_count": 2,
+      "avg_relevance": 0.3333,
+      "status": "pending"
     }
   ],
-  "updated_at": "2026-06-11T00:43:27"
+  "updated_at": "2026-06-15T22:03:17"
 }
