@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 import hashlib
 import json
+import os
 import re
 from typing import Any, Iterable
 from urllib.error import HTTPError, URLError
@@ -34,7 +35,11 @@ _OPENSOURCE_EMBEDDING_API_KEY = open_source_embedding_api_key()
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
 MAX_EMBED_TEXT_CHARS = 6000
 UPSERT_BATCH_SIZE = 64
-EMBED_BATCH_SIZE = 32
+EMBED_BATCH_SIZE = max(1, int(os.getenv("EMBED_BATCH_SIZE", "4" if EMBEDDING_PROVIDER == "opensource" else "32")))
+ALLOW_EMBEDDING_HASH_FALLBACK = os.getenv(
+    "ALLOW_EMBEDDING_HASH_FALLBACK",
+    "false" if EMBEDDING_PROVIDER == "opensource" else "true",
+).lower() in {"1", "true", "yes"}
 
 
 def now_iso() -> str:
@@ -257,6 +262,8 @@ def embed_texts(texts: list[str]) -> tuple[list[list[float]], str, str | None]:
         try:
             return _opensource_embeddings(normalized), "opensource", None
         except Exception as exc:
+            if not ALLOW_EMBEDDING_HASH_FALLBACK:
+                raise
             fallback = [_hash_embedding(text) for text in normalized]
             return fallback, "local_hash_fallback", str(exc)
     if OPENAI_API_KEY:
