@@ -6,7 +6,7 @@ from datetime import datetime
 
 from ..rag.config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_PROVIDER
 from ..rag.evaluation import answer_quality_metrics
-from ..rag.llm import call_openai_prompt
+from ..rag.llm import call_openai_prompt, call_opensource_prompt
 from ..rag.pipeline import answer_question
 from ..rag.quality import compact_text, filter_usable_hits
 from ..rag.sources import cards_from_hits, cards_from_web
@@ -102,7 +102,7 @@ def _merge_context_sections(result: dict, state: ChatAgentState, web_context: di
         answer = "내부 원문/보고서 근거가 충분하지 않아 웹 근거를 중심으로 답변합니다."
 
     # needs_web 질문에서 웹 결과가 있으면 LLM으로 내부+외부 통합 답변 생성
-    if needs_web and web_results and ANSWER_PROVIDER == "openai":
+    if needs_web and web_results and ANSWER_PROVIDER in {"openai", "opensource"}:
         try:
             combined_prompt = (
                 f"질문: {state.get('query', '')}\n\n"
@@ -114,7 +114,8 @@ def _merge_context_sections(result: dict, state: ChatAgentState, web_context: di
                 "- 내부 근거와 외부 근거가 충돌하면 내부 특허 원문·보고서를 우선하고 차이를 짧게 설명합니다.\n"
                 "- '확인 필요 사항', '근거', '해석' 섹션은 추가하지 않습니다."
             )
-            llm = call_openai_prompt(
+            call_fn = call_opensource_prompt if ANSWER_PROVIDER == "opensource" else call_openai_prompt
+            llm = call_fn(
                 combined_prompt,
                 model=ANSWER_MODEL,
                 timeout=ANSWER_LLM_TIMEOUT,

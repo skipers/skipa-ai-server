@@ -27,7 +27,7 @@ from ..rag.pipeline import finalize_prepared_answer, prepare_answer_generation
 from ..rag.quality import compact_text, filter_usable_hits
 from ..rag.sources import cards_from_hits, cards_from_web
 from ..vectorstore import CORE_SEARCH_SOURCE_TYPES
-from .openai_stream import stream_openai_prompt
+from .openai_stream import stream_openai_prompt, stream_opensource_prompt
 from .sse import public_source_cards, sse_event
 
 
@@ -73,15 +73,15 @@ def _append_context_cards(result: dict[str, Any], state: dict[str, Any]) -> dict
 
 
 def _stream_answer(prepared: dict[str, Any]) -> Iterator[tuple[str, str]]:
-    if ANSWER_PROVIDER != "openai":
-        raise RuntimeError("streaming chat currently requires ANSWER_PROVIDER=openai")
+    prompt = str(prepared.get("prompt") or "")
     text_parts: list[str] = []
-    for delta in stream_openai_prompt(
-        str(prepared.get("prompt") or ""),
-        model=ANSWER_MODEL,
-        timeout=ANSWER_LLM_TIMEOUT,
-        temperature=0.2,
-    ):
+    if ANSWER_PROVIDER == "opensource":
+        stream_fn = stream_opensource_prompt(prompt, model=ANSWER_MODEL, timeout=ANSWER_LLM_TIMEOUT, temperature=0.2)
+    elif ANSWER_PROVIDER == "openai":
+        stream_fn = stream_openai_prompt(prompt, model=ANSWER_MODEL, timeout=ANSWER_LLM_TIMEOUT, temperature=0.2)
+    else:
+        raise RuntimeError(f"streaming chat does not support ANSWER_PROVIDER={ANSWER_PROVIDER}")
+    for delta in stream_fn:
         text_parts.append(delta)
         yield delta, "".join(text_parts)
 

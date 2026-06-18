@@ -12,6 +12,8 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 import uuid
 
+import os
+
 from .config import (
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
@@ -22,7 +24,12 @@ from .config import (
     QDRANT_TIMEOUT,
     QDRANT_URL,
     QDRANT_VECTOR_SIZE,
+    EMBEDDING_PROVIDER,
+    EMBEDDING_MODEL,
 )
+
+_OPENSOURCE_EMBEDDING_BASE_URL = os.getenv("OPEN_SOURCE_EMBEDDING_BASE_URL", "http://127.0.0.1:8001/v1").rstrip("/")
+_OPENSOURCE_EMBEDDING_API_KEY = os.getenv("OPEN_SOURCE_EMBEDDING_API_KEY", "EMPTY")
 
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
@@ -225,8 +232,34 @@ def _openai_embeddings(texts: list[str]) -> list[list[float]]:
     return [[float(value) for value in vector] for vector in vectors]
 
 
+def _opensource_embeddings(texts: list[str]) -> list[list[float]]:
+    payload: dict[str, Any] = {"model": EMBEDDING_MODEL, "input": texts}
+    request = Request(
+        f"{_OPENSOURCE_EMBEDDING_BASE_URL}/embeddings",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {_OPENSOURCE_EMBEDDING_API_KEY}"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=QDRANT_TIMEOUT) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"Opensource embedding failed: {exc}") from exc
+    items = data.get("data") or []
+    vectors = [item.get("embedding") for item in sorted(items, key=lambda item: item.get("index", 0))]
+    if len(vectors) != len(texts) or not all(isinstance(v, list) for v in vectors):
+        raise RuntimeError("Opensource embedding response shape is invalid")
+    return [[float(v) for v in vec] for vec in vectors]
+
+
 def embed_texts(texts: list[str]) -> tuple[list[list[float]], str, str | None]:
     normalized = [_text_for_embedding(text) for text in texts]
+    if EMBEDDING_PROVIDER == "opensource":
+        try:
+            return _opensource_embeddings(normalized), "opensource", None
+        except Exception as exc:
+            fallback = [_hash_embedding(text) for text in normalized]
+            return fallback, "local_hash_fallback", str(exc)
     if OPENAI_API_KEY:
         try:
             return _openai_embeddings(normalized), "openai", None

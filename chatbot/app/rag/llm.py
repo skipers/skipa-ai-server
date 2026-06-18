@@ -8,6 +8,10 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from .config import LLM_TIMEOUT, OPENAI_API_KEY, OPENAI_BASE_URL, OLLAMA_BASE_URL, OLLAMA_TEMPERATURE
+import os
+
+_OPENSOURCE_LLM_BASE_URL = os.getenv("OPEN_SOURCE_LLM_BASE_URL", "http://127.0.0.1:8000/v1").rstrip("/")
+_OPENSOURCE_LLM_API_KEY = os.getenv("OPEN_SOURCE_LLM_API_KEY", "EMPTY")
 
 
 def call_ollama(
@@ -177,6 +181,85 @@ def call_openai_prompt(
     temperature: float | None = None,
 ) -> dict[str, Any]:
     return call_openai_messages(
+        messages=[{"role": "user", "content": prompt}],
+        model=model,
+        timeout=timeout,
+        max_output_tokens=max_output_tokens,
+        temperature=temperature,
+    )
+
+
+def call_opensource_messages(
+    *,
+    messages: list[dict[str, str]],
+    model: str,
+    timeout: int | None = None,
+    max_output_tokens: int | None = None,
+    temperature: float | None = None,
+) -> dict[str, Any]:
+    """Call local opensource LLM server (Chat Completions API format)."""
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_output_tokens or 2000,
+        "temperature": temperature if temperature is not None else 0.2,
+    }
+    request = Request(
+        f"{_OPENSOURCE_LLM_BASE_URL}/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {_OPENSOURCE_LLM_API_KEY}"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=timeout or LLM_TIMEOUT) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except (OSError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+        return {"ok": False, "text": "", "error": str(exc), "model": model, "provider": "opensource"}
+    text = str(((data.get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip()
+    return {"ok": bool(text), "text": text, "error": None if text else "empty response", "model": model, "provider": "opensource", "raw": data}
+
+
+def call_opensource_json(
+    *,
+    system_prompt: str,
+    user_prompt: str,
+    model: str,
+    timeout: int | None = None,
+) -> dict[str, Any]:
+    """Call opensource LLM and parse JSON response."""
+    result = call_opensource_messages(
+        messages=[
+            {"role": "system", "content": system_prompt + "\nRespond with valid JSON only."},
+            {"role": "user", "content": user_prompt},
+        ],
+        model=model,
+        timeout=timeout,
+    )
+    if not result.get("ok"):
+        return result
+    text = result["text"]
+    # strip markdown code fences if present
+    if "```" in text:
+        lines = text.split("\n")
+        text = "\n".join(l for l in lines if not l.strip().startswith("```"))
+    try:
+        parsed = json.loads(text.strip())
+    except json.JSONDecodeError as exc:
+        return {"ok": False, "text": text, "error": f"JSON parse failed: {exc}", "model": model, "provider": "opensource"}
+    if not isinstance(parsed, dict):
+        return {"ok": False, "text": text, "error": "JSON root is not object", "model": model, "provider": "opensource"}
+    return {"ok": True, "text": json.dumps(parsed, ensure_ascii=False), "json": parsed, "error": None, "model": model, "provider": "opensource"}
+
+
+def call_opensource_prompt(
+    prompt: str,
+    *,
+    model: str,
+    timeout: int | None = None,
+    max_output_tokens: int | None = None,
+    temperature: float | None = None,
+) -> dict[str, Any]:
+    return call_opensource_messages(
         messages=[{"role": "user", "content": prompt}],
         model=model,
         timeout=timeout,

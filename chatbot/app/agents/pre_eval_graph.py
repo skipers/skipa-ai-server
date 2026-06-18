@@ -10,8 +10,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from ..rag.llm import call_openai_prompt
-from ..rag.config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL
+from ..rag.llm import call_openai_prompt, call_opensource_prompt
+from ..rag.config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_PROVIDER
 from ..rag.evaluation import answer_quality_metrics
 from ..rag.quality import compact_text, filter_usable_hits
 from ..rag.sources import cards_from_hits, cards_from_web
@@ -117,7 +117,8 @@ def answer_pre_eval_question(state: ChatAgentState) -> ChatAgentState:
     )
 
     try:
-        llm_result = call_openai_prompt(
+        call_fn = call_opensource_prompt if ANSWER_PROVIDER == "opensource" else call_openai_prompt
+        llm_result = call_fn(
             prompt,
             model=ANSWER_MODEL,
             timeout=ANSWER_LLM_TIMEOUT,

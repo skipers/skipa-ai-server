@@ -15,7 +15,7 @@ from .config import (
     INTENT_PROVIDER,
     OPENAI_INTENT_MODEL,
 )
-from .llm import call_ollama, call_openai_json
+from .llm import call_ollama, call_openai_json, call_opensource_json
 
 
 ALLOWED_INTENTS = {"patent_original", "patent_report", "wiki", "comparison", "general"}
@@ -452,6 +452,13 @@ def classify_intent(
             user_prompt=user_prompt,
             schema=INTENT_SCHEMA,
             model=INTENT_MODEL or OPENAI_INTENT_MODEL,
+            timeout=INTENT_LLM_TIMEOUT,
+        )
+    elif INTENT_PROVIDER == "opensource":
+        llm = call_opensource_json(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model=INTENT_MODEL,
             timeout=INTENT_LLM_TIMEOUT,
         )
     elif INTENT_PROVIDER in {"ollama", "local", "ollama_chat"}:
