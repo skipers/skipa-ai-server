@@ -33,9 +33,13 @@ _OPENSOURCE_EMBEDDING_API_KEY = open_source_embedding_api_key()
 
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
-MAX_EMBED_TEXT_CHARS = 6000
+MAX_EMBED_TEXT_CHARS = max(200, int(os.getenv("MAX_EMBED_TEXT_CHARS", "2000" if EMBEDDING_PROVIDER == "opensource" else "6000")))
 UPSERT_BATCH_SIZE = 64
-EMBED_BATCH_SIZE = max(1, int(os.getenv("EMBED_BATCH_SIZE", "4" if EMBEDDING_PROVIDER == "opensource" else "32")))
+EMBED_BATCH_SIZE = max(1, int(os.getenv("EMBED_BATCH_SIZE", "2" if EMBEDDING_PROVIDER == "opensource" else "32")))
+EMBEDDING_REQUEST_TIMEOUT = max(
+    QDRANT_TIMEOUT,
+    int(os.getenv("EMBEDDING_REQUEST_TIMEOUT", "120" if EMBEDDING_PROVIDER == "opensource" else str(QDRANT_TIMEOUT))),
+)
 ALLOW_EMBEDDING_HASH_FALLBACK = os.getenv(
     "ALLOW_EMBEDDING_HASH_FALLBACK",
     "false" if EMBEDDING_PROVIDER == "opensource" else "true",
@@ -222,7 +226,7 @@ def _openai_embeddings(texts: list[str]) -> list[list[float]]:
         method="POST",
     )
     try:
-        with urlopen(request, timeout=QDRANT_TIMEOUT) as response:
+        with urlopen(request, timeout=EMBEDDING_REQUEST_TIMEOUT) as response:
             data = json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="ignore")
@@ -245,7 +249,7 @@ def _opensource_embeddings(texts: list[str]) -> list[list[float]]:
         method="POST",
     )
     try:
-        with urlopen(request, timeout=QDRANT_TIMEOUT) as response:
+        with urlopen(request, timeout=EMBEDDING_REQUEST_TIMEOUT) as response:
             data = json.loads(response.read().decode("utf-8"))
     except Exception as exc:
         raise RuntimeError(f"Opensource embedding failed: {exc}") from exc
