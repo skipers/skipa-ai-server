@@ -11,6 +11,7 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
+from prometheus_fastapi_instrumentator import Instrumentator
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -98,6 +99,8 @@ def health() -> dict[str, Any]:
 
 for _, sub_app in DIRECT_API_APPS:
     app.include_router(sub_app.router, include_in_schema=False)
+
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 app.mount("/", chatbot_app, name="chatbot")
 
