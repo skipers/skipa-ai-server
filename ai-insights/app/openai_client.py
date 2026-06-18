@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from .providers.llm import portfolio_model, request_portfolio_insights
+
+_LLM_TIMEOUT = int(os.getenv("INSIGHTS_LLM_TIMEOUT", "120"))
 
 
 def call_openai_portfolio_insights(
     *,
     system_prompt: str,
     user_prompt: str,
-    timeout: int = 30,
+    timeout: int = _LLM_TIMEOUT,
 ) -> dict[str, Any]:
     result = request_portfolio_insights(
         system_prompt=system_prompt,
