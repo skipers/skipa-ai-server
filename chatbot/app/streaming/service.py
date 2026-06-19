@@ -139,7 +139,7 @@ def stream_re_eval_chat_events(
             yield sse_event("done", {**result, "stream": True})
             return
 
-        preview = finalize_prepared_answer(prepared, {"ok": True, "text": "", "model": ANSWER_MODEL, "provider": "openai"})
+        preview = finalize_prepared_answer(prepared, {"ok": True, "text": "", "model": ANSWER_MODEL, "provider": ANSWER_PROVIDER})
         preview = _append_context_cards(preview, state)
         yield sse_event("source_cards", {"source_cards": public_source_cards(list(preview.get("source_cards") or []))})
 
@@ -148,7 +148,7 @@ def stream_re_eval_chat_events(
 
         final = finalize_prepared_answer(
             prepared,
-            {"ok": bool(answer), "text": answer, "error": None if answer else "empty response", "model": ANSWER_MODEL, "provider": "openai"},
+            {"ok": bool(answer), "text": answer, "error": None if answer else "empty response", "model": ANSWER_MODEL, "provider": ANSWER_PROVIDER},
         )
         final = _append_context_cards(final, state)
         state = finish_answer({**state, "result": final})

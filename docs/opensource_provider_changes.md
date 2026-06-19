@@ -101,8 +101,8 @@ LLM과 embedding 서버가 같은 OpenAI-compatible endpoint이면:
 AI_PROVIDER=opensource
 OPEN_SOURCE_BASE_URL=http://127.0.0.1:8000/v1
 OPEN_SOURCE_API_KEY=EMPTY
-OPEN_SOURCE_LLM_MODEL=Qwen/Qwen3-235B-A22B-Instruct-2507
-OPEN_SOURCE_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-8B
+OPEN_SOURCE_LLM_MODEL=Qwen/Qwen2.5-1.5B-Instruct
+OPEN_SOURCE_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-4B
 OPEN_SOURCE_RERANKER_MODEL=Qwen/Qwen3-Reranker-4B
 ```
 
@@ -110,10 +110,17 @@ LLM과 embedding 서버가 분리되어 있으면:
 
 ```env
 AI_PROVIDER=opensource
-OPEN_SOURCE_LLM_BASE_URL=http://127.0.0.1:8000/v1
-OPEN_SOURCE_EMBEDDING_BASE_URL=http://127.0.0.1:8001/v1
+OPEN_SOURCE_LLM_BASE_URL=http://skipa-llm:8000/v1
+OPEN_SOURCE_EMBEDDING_BASE_URL=http://skipa-embedding:8001/v1
 OPEN_SOURCE_LLM_API_KEY=EMPTY
 OPEN_SOURCE_EMBEDDING_API_KEY=EMPTY
+```
+
+로컬에서 Kubernetes service를 port-forward로 붙이면 아래 주소를 사용합니다.
+
+```env
+OPEN_SOURCE_LLM_BASE_URL=http://127.0.0.1:18000/v1
+OPEN_SOURCE_EMBEDDING_BASE_URL=http://127.0.0.1:18001/v1
 ```
 
 vLLM/SGLang 배포가 `response_format`을 지원하지 않으면:

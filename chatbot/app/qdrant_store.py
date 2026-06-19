@@ -5,14 +5,13 @@ from __future__ import annotations
 from datetime import datetime
 import hashlib
 import json
+import os
 import re
 from typing import Any, Iterable
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 import uuid
-
-import os
 
 from .config import (
     OPENAI_API_KEY,
@@ -27,15 +26,24 @@ from .config import (
     EMBEDDING_PROVIDER,
     EMBEDDING_MODEL,
 )
+from .provider_env import open_source_embedding_api_key, open_source_embedding_base_url
 
-_OPENSOURCE_EMBEDDING_BASE_URL = os.getenv("OPEN_SOURCE_EMBEDDING_BASE_URL", "http://127.0.0.1:8001/v1").rstrip("/")
-_OPENSOURCE_EMBEDDING_API_KEY = os.getenv("OPEN_SOURCE_EMBEDDING_API_KEY", "EMPTY")
+_OPENSOURCE_EMBEDDING_BASE_URL = open_source_embedding_base_url()
+_OPENSOURCE_EMBEDDING_API_KEY = open_source_embedding_api_key()
 
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
-MAX_EMBED_TEXT_CHARS = 6000
+MAX_EMBED_TEXT_CHARS = max(200, int(os.getenv("MAX_EMBED_TEXT_CHARS", "2000" if EMBEDDING_PROVIDER == "opensource" else "6000")))
 UPSERT_BATCH_SIZE = 64
-EMBED_BATCH_SIZE = 32
+EMBED_BATCH_SIZE = max(1, int(os.getenv("EMBED_BATCH_SIZE", "2" if EMBEDDING_PROVIDER == "opensource" else "32")))
+EMBEDDING_REQUEST_TIMEOUT = max(
+    QDRANT_TIMEOUT,
+    int(os.getenv("EMBEDDING_REQUEST_TIMEOUT", "120" if EMBEDDING_PROVIDER == "opensource" else str(QDRANT_TIMEOUT))),
+)
+ALLOW_EMBEDDING_HASH_FALLBACK = os.getenv(
+    "ALLOW_EMBEDDING_HASH_FALLBACK",
+    "false" if EMBEDDING_PROVIDER == "opensource" else "true",
+).lower() in {"1", "true", "yes"}
 
 
 def now_iso() -> str:
@@ -90,8 +98,8 @@ def qdrant_status() -> dict[str, Any]:
         "vector_size": QDRANT_VECTOR_SIZE,
         "distance": QDRANT_DISTANCE,
         "api_key_configured": bool(QDRANT_API_KEY),
-        "embedding_model": OPENAI_EMBEDDING_MODEL,
-        "embedding_provider": "openai" if OPENAI_API_KEY else "local_hash_fallback",
+        "embedding_model": EMBEDDING_MODEL if EMBEDDING_PROVIDER == "opensource" else OPENAI_EMBEDDING_MODEL,
+        "embedding_provider": EMBEDDING_PROVIDER,
     }
     try:
         response = _json_request("GET", "/collections", None)
@@ -218,7 +226,7 @@ def _openai_embeddings(texts: list[str]) -> list[list[float]]:
         method="POST",
     )
     try:
-        with urlopen(request, timeout=QDRANT_TIMEOUT) as response:
+        with urlopen(request, timeout=EMBEDDING_REQUEST_TIMEOUT) as response:
             data = json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="ignore")
@@ -241,7 +249,7 @@ def _opensource_embeddings(texts: list[str]) -> list[list[float]]:
         method="POST",
     )
     try:
-        with urlopen(request, timeout=QDRANT_TIMEOUT) as response:
+        with urlopen(request, timeout=EMBEDDING_REQUEST_TIMEOUT) as response:
             data = json.loads(response.read().decode("utf-8"))
     except Exception as exc:
         raise RuntimeError(f"Opensource embedding failed: {exc}") from exc
@@ -258,6 +266,8 @@ def embed_texts(texts: list[str]) -> tuple[list[list[float]], str, str | None]:
         try:
             return _opensource_embeddings(normalized), "opensource", None
         except Exception as exc:
+            if not ALLOW_EMBEDDING_HASH_FALLBACK:
+                raise
             fallback = [_hash_embedding(text) for text in normalized]
             return fallback, "local_hash_fallback", str(exc)
     if OPENAI_API_KEY:
@@ -584,7 +594,7 @@ def upsert_documents(
         "document_count": total,
         "refreshed_at": now_iso(),
         "embedding_provider": embedding_provider,
-        "embedding_model": OPENAI_EMBEDDING_MODEL if embedding_provider == "openai" else "local_hash_fallback",
+        "embedding_model": OPENAI_EMBEDDING_MODEL if embedding_provider == "openai" else EMBEDDING_MODEL if embedding_provider == "opensource" else "local_hash_fallback",
         "embedding_error": embedding_error,
         "dashboard_url": qdrant_dashboard_url(),
     }

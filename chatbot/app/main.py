@@ -10,7 +10,6 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 import os
@@ -141,8 +140,6 @@ async def lifespan(application: FastAPI):
     except asyncio.CancelledError:
         pass
 
-
-STATIC_ROOT = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(
     lifespan=lifespan,
@@ -278,9 +275,6 @@ app.include_router(streaming_router)
 app.include_router(insights_router)
 app.include_router(admin_router)
 
-if STATIC_ROOT.exists():
-    app.mount("/ui/static", StaticFiles(directory=str(STATIC_ROOT)), name="ui_static")
-
 if DATA_ROOT.exists():
     app.mount("/files/data", StaticFiles(directory=str(DATA_ROOT)), name="data_files")
 
@@ -302,21 +296,9 @@ if SHARED_DATA_ROOT.exists():
 def root() -> dict[str, str]:
     return {
         "service": "skipa-chatbot-api",
-        "ui": "/ui",
-        "chat": "/chat",
         "docs": "/docs",
         "openapi": "/openapi.json",
     }
-
-
-@app.get("/ui", tags=["system"], summary="챗봇 테스트 UI")
-def ui() -> FileResponse:
-    return FileResponse(STATIC_ROOT / "index.html")
-
-
-@app.get("/chat", tags=["system"], summary="특허 챗봇 테스트 UI")
-def chat() -> FileResponse:
-    return FileResponse(STATIC_ROOT / "index.html")
 
 
 @app.get("/health", tags=["system"], summary="챗봇 API 헬스체크")

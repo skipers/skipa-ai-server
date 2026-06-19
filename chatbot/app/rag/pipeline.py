@@ -8,7 +8,7 @@ from typing import Any
 from ..prompts import ANSWER_PROMPT
 from .answer_utils import build_metrics, fallback_answer
 from .config import ANSWER_LLM_TIMEOUT, ANSWER_MODEL, ANSWER_NUM_PREDICT, ANSWER_PROVIDER, ENABLE_QUERY_EXPANSION, ENABLE_RERANK
-from .llm import call_ollama, call_openai_prompt
+from .llm import call_ollama, call_openai_prompt, call_opensource_prompt
 from .policy import classify_intent
 from .quality import filter_usable_hits
 from .retrieval import retrieve_local
@@ -495,6 +495,13 @@ def answer_question(
 
     if ANSWER_PROVIDER == "openai":
         llm_result = call_openai_prompt(
+            str(prepared.get("prompt") or ""),
+            model=ANSWER_MODEL,
+            timeout=ANSWER_LLM_TIMEOUT,
+            temperature=0.2,
+        )
+    elif ANSWER_PROVIDER == "opensource":
+        llm_result = call_opensource_prompt(
             str(prepared.get("prompt") or ""),
             model=ANSWER_MODEL,
             timeout=ANSWER_LLM_TIMEOUT,

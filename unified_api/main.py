@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import importlib
+import os
 import sys
 from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import PlainTextResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 
@@ -100,7 +102,13 @@ def health() -> dict[str, Any]:
 for _, sub_app in DIRECT_API_APPS:
     app.include_router(sub_app.router, include_in_schema=False)
 
-Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+ENABLE_PROMETHEUS_INSTRUMENTATOR = os.getenv("ENABLE_PROMETHEUS_INSTRUMENTATOR", "false").lower() in {"1", "true", "yes"}
+if ENABLE_PROMETHEUS_INSTRUMENTATOR:
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+else:
+    @app.get("/metrics", include_in_schema=False)
+    def metrics_disabled() -> PlainTextResponse:
+        return PlainTextResponse("# prometheus instrumentator disabled\n")
 
 app.mount("/", chatbot_app, name="chatbot")
 
