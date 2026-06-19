@@ -1,23 +1,62 @@
 # SKIPA AI Server
 
-특허 재평가 보고서 생성, 특허 RAG 챗봇, 특허 출원/실패 원인 분석 도우미, wiki 감사 및 vectorstore 갱신을 함께 제공하는 AI 백엔드입니다.
+특허 가치평가 보고서 자동 생성, RAG 기반 특허 챗봇, 출원 도우미, 출원 전 사전평가, wiki 감사 및 vectorstore 관리를 함께 제공하는 AI 백엔드입니다.
 
-현재 구조는 `eval_logic`의 보고서 생성 workflow와 `chatbot`의 LangGraph 기반 답변 workflow가 데이터 폴더를 기준으로 연결되는 형태입니다. 보고서 생성 로직은 특허 PDF/JSON을 평가 보고서로 만들고, 챗봇은 특허 원문, 평가 보고서, 승인 wiki, 출원 공식팩, 실패특허 케이스별 보고서를 검색해 답변합니다.
+**현재 구현 상태:**
+- 185개 특허의 가치평가 보고서 생성 완료
+- 보고서 자동 검증(근거 신뢰도, 수치 무결성 확인) 기능 운영
+- LangGraph 기반 다중 챗봇 시스템 (특허 질의응답, 출원 도우미, 사전평가)
+- Qdrant 기반 특허 원본/보고서/wiki/visual 멀티 vectorstore 관리
+- 분야별 wiki 감시 및 자동 승인 시스템
+- OpenAI/Tavily 기반 의도 라우팅 및 검색 증강
+
+구조는 `eval_logic`의 보고서 생성 workflow와 `chatbot`의 LangGraph 기반 답변 workflow가 공유 데이터(`/data`)를 중심으로 연결됩니다. 각 모듈은 독립적으로 실행 가능하며 FastAPI 또는 CLI로 제어됩니다.
 
 ## 핵심 기능
 
-- 특허 PDF 또는 JSON 입력 기반 가치평가/재평가 보고서 생성
-- 보고서 생성 후 자동 신뢰도 검증(`verify_report`) 및 `report_verification` 제공
-- 특허별 원문 PDF, 표준 input JSON, 보고서 JSON, chunk, Qdrant vectorstore 통합 관리
-- 가벼운 LLM 의도 라우팅 기반 특허 챗봇
-- OpenAI 기반 의도 분류, 답변 생성, embedding 설정 지원
-- Qdrant + OpenAI embedding 기반 retrieval
-- 특허 원본 PDF의 표/도표/도면/이미지를 별도 visual Qdrant collection으로 관리. 기존 처리 특허는 manifest SHA1로 건너뛰고, 신규 특허만 매일 00시 증분 색인
-- **분야별 wiki gate**: 웹검색 결과를 특허별이 아닌 기술 분야(소프트웨어_IT / 화학_소재 / 반도체_전자 등) 폴더로 관리하고, 감사 후 승인 데이터만 분야별 Qdrant collection에 반영. Tavily/web 검색 보강 포함. 매일 00시 자동 재빌드.
-- 특허 출원 공식팩 기반 출원 도우미 챗봇
-- 실패특허 원본 PDF 업로드, 선택 거절사유 업로드, 재평가 보고서 생성, 케이스별 vectorstore 분리
-- 출원 전 아이디어/청구항 사전평가 보고서 생성 및 케이스별 챗봇
-- Swagger UI와 브라우저 UI를 통한 기능 테스트
+### 보고서 생성 (eval_logic)
+- **특허 입력**: PDF 또는 JSON 기반 특허 정보 수집
+- **자동 평가**: 권리성(78점) / 기술성(75점) / 시장성(70점) / 사업성(60점) 4가지 축으로 종합점수(0~100점) 및 등급(A/B/C) 산출
+- **근거 검증**: LLM 평가 항목별 출처 확인, 고평가 항목 근거, 수치 무결성, 공식/전문 출처 비율 자동 검증
+- **유사특허 분석**: 최근 20년 관련 특허(38건), 활성 특허(17건) 등 자동 수집 및 분석
+
+### 특허 챗봇 (chatbot - Patent Chat)
+- **다중 의도 라우팅**: 원문 질문 / 보고서 질문 / 외부정보 질문 자동 분류
+- **멀티 vectorstore 검색**:
+  - 텍스트: 특허 원본 + 보고서 (Qdrant `skipa_shared_patents`)
+  - 시각자료: 도면/표/이미지 (Qdrant `skipa_patent_visuals`)
+  - 외부정보: 분야별 wiki + web 검색 (Tavily)
+- **생성**: 표/다이어그램/체크리스트 형식화 + visual asset 근거 카드 연결 + 신뢰도 지표
+
+### 출원 도우미 (chatbot - Application Assistant)
+- **공식팩 기반**: 출원/거절대응/등록전략 4개 guide MD + 다운로드 자료 색인
+- **실패특허 케이스**: 원본 PDF + 거절의견서/사유서 + 재평가 보고서 case별 관리
+- **보고서 자동 생성**: 선택 실패특허에 대해 eval_logic 연결하여 재평가 보고서 즉시 생성
+- **답변**: 공식팩 index + 선택 case index + web 검색으로 절차/서식/청구항/거절대응 지원
+
+### 출원 전 사전평가 (chatbot - Pre-Evaluation)
+- **입력**: 아이디어/기술설명/청구항 텍스트
+- **평가 보고서**: eval_logic 기반 사전평가 종합 보고서 생성
+- **사전평가 챗봇**: case별 vectorstore + web 검색으로 보강 방향/거절 가능성/다음 액션 제시
+
+### wiki 감시 및 분야별 관리 (chatbot - Wiki Gate)
+- **분야 분류**: 특허 제목 키워드 매칭으로 기술 분야 자동 결정 (소프트웨어_IT / 화학_소재 / 반도체_전자 등 7개 + _general)
+- **웹검색 수집**: Tavily 검색 → 분야 `web_search_data/` 저장
+- **자동 감시**: 나쁜 데이터 후보 판별 → 사람 검토 또는 자동 제외
+- **승인 및 색인**: approved_context.md 저장 → 분야별 Qdrant collection 즉시 재빌드
+- **매일 00시**: CronJob으로 신규/누락 특허 visual asset 증분 추출 + 전체 wiki/특허 vectorstore 재빌드
+
+### 데이터 관리
+- **특허별 DB**: `/data/patent/<id>/` 경로에 original.pdf + parsed.json + report.json + 생성 산출물 중앙화
+- **멀티 vectorstore**: 특허 원문/보고서 + wiki(분야별) + 공식팩 + 시각자료 separate collections
+- **visual index**: PDF SHA1 manifest 기반 중복 제외, 신규만 증분 처리
+- **MinIO 동기화**: K8s에서 자동 시작 시 MinIO `s3://skipa/patent/` → 로컬 캐시 동기화
+
+### 운영 기능
+- **Swagger UI**: eval_logic + chatbot 모두 `/docs`에서 API 테스트
+- **브라우저 UI**: chatbot `/ui`에서 특허 질의응답 테스트
+- **상태 조회 API**: vectorstore / wiki / visual index / 전처리 상태 실시간 확인
+- **수동 실행**: 전체 보고서 생성, wiki 감시, visual index 갱신 등 CLI/API로 즉시 실행 가능
 
 ## 전체 아키텍처
 
@@ -139,73 +178,82 @@ flowchart TB
 ## 디렉토리 구조
 
 ```text
-skipers-ai/
-  README.md
+skipa-ai-server/
+  README.md (이 파일)
 
-  eval_logic/
+  eval_logic/                 # 보고서 생성 엔진
     README.md
     STRUCTURE.md
     requirements.txt
     src/
       apps/
-        api/                 # 권장 FastAPI entrypoint
-        cli/                 # 권장 CLI entrypoint
-      api/                   # 기존 import/uvicorn 호환 wrapper
-      cli/                   # 기존 CLI 호환 wrapper
+        api/                 # FastAPI entrypoint
+        cli/                 # CLI entrypoint
       agent/                 # 보고서 생성 supervisor workflow
       services/              # 평가/근거수집/검증 서비스
       core/                  # 경로, schema, normalizer
       evaluation/            # 자동점수, LLM 평가, KOSIS, web
       patent_analysis/       # 유사 특허 분석
       document_processing/   # PDF 처리
-      business_rag/          # 사업화 RAG
+      business_rag/          # 사업화 근거 RAG
     data/
-      samples/               # 샘플 입력/PDF/참조 데이터
-      resources/             # 체크리스트, KSIC-IPC, RAG 리소스
+      samples/               # 샘플 입력/PDF
+      resources/             # KSIC-IPC 연계표, 체크리스트
       api_test/              # Swagger 테스트 입출력
-      runtime_artifacts/     # CLI/agent 산출물
-      legacy_artifacts/      # 이전 산출물/cache
+      runtime_artifacts/     # 보고서/그래프 산출물
 
-  chatbot/
+  chatbot/                    # 특허 챗봇 및 출원/사전평가 도우미
     README.md
     requirements.txt
     .env.example
     app/
-      main.py                # 챗봇 FastAPI entrypoint
-      config.py              # DATA_ROOT, 모델, 외부검색 설정
-      application_data.py    # 출원 공식팩/실패특허 케이스/index 관리
-      store.py               # 특허 데이터 조회/search helper
-      routers/chatbot.py     # chatbot, patent-chat, wiki, application API
+      main.py                # FastAPI entrypoint
+      config.py              # 설정 (경로, 모델, 외부API)
+      store.py               # 특허 데이터 조회/검색 헬퍼
+      routers/
+        chatbot.py           # API: 특허/wiki/application/pre-eval
       agents/
-        graph.py             # 특허 챗봇 LangGraph
-        application_graph.py # 출원 도우미 LangGraph
-        ingestion_graph.py   # 전처리/재색인 workflow
-        wiki_graph.py        # wiki 감사 workflow
-      legacy/                # rag.zip 기반 hybrid retrieval 복구 코드
-      rag/                   # 현재 데이터 구조와 legacy RAG adapter
+        graph.py             # LangGraph: 특허 챗봇
+        application_graph.py # LangGraph: 출원 도우미
+        ingestion_graph.py   # LangGraph: 전처리/색인
+        wiki_graph.py        # LangGraph: wiki 감시
       wiki/
-        topics.py            # 특허 제목 → 기술 분야 분류, topic 경로 헬퍼
-        web_archive.py       # wiki 파일 목록 유틸
-      static/                # /ui 화면
+        topics.py            # 특허 분야 자동 분류
+        web_archive.py       # wiki 파일 관리
+      static/                # UI 화면 (/ui)
     data/
-      README.md
-      artifacts/             # 챗봇 검증/테스트 산출물 (루트 data/artifacts 사용 금지)
+      artifacts/             # 챗봇 검증/테스트 산출물
       patent_application_official_pack/
-    docs/
-      API_SPEC.md
-      CHATBOT_ARCHITECTURE_AND_USAGE.md
+        downloads/           # 공식 PDF/웹문서
+        failed_patent/        # 실패특허 케이스
     scripts/
       start_chatbot_server.sh
       preprocess_chatbot_data.sh
 
+  pre_application_valuation/  # 출원 전 사전평가 (독립 모듈)
+    api.py, schemas.py, service.py, storage.py
+    llm_evaluator.py, report_builder.py
+    scoring.py, cli.py
+
+  unified_api/                # API 통합 관리 (기획)
+  ai_runtime/                 # AI 런타임 관리
+  ai-insights/                # AI 인사이트 생성
+
+  patents/                    # 특허 데이터 (185개)
+    <id>/
+      original.pdf
+      parsed.json
+      reports/<id>/report.json
+    _report_generation_manifest_latest.json
+    patents_summary.csv       # ID/점수/등급 요약
+
   data/
     patent/
-      <patent_id>/            # 챗봇과 eval_logic이 공유하는 특허별 원본/보고서 DB
-        patent.pdf
+      <patent_id>/            # 공유 특허 DB
+        patent.pdf            # (또는 original.pdf)
         parsed.json
         report.json
-    qdrant collections        # 공유 특허 DB / wiki / 출원팩 / 실패특허 case index
-    wiki/                     # 분야별 wiki vectorstore (WIKI_ROOT)
+    wiki/                     # 분야별 wiki (WIKI_ROOT)
       _patent_topics.json
       소프트웨어_IT/
       화학_소재/
@@ -215,7 +263,23 @@ skipers-ai/
       에너지_환경/
       _general/
       _global/
-    pre_application_cases/    # 출원 전 사전평가 케이스
+    pre_application_cases/    # 사전평가 케이스
+
+  scripts/                    # 배치 작업 및 유틸리티
+    generate_missing_patent_reports.py
+    serve_reranker.py
+    (기타 운영 스크립트)
+
+  tests/                      # 테스트
+    conftest.py
+    (테스트 코드)
+
+  parsing_data/               # 파싱 데이터
+  patent_citation_collection/ # 특허 인용 수집
+
+  docker/
+  .github/workflows/          # CI/CD (deploy-ai.yml)
+  Dockerfile                  # K8s 배포용
 ```
 
 ## 데이터 계약
@@ -951,6 +1015,57 @@ bash chatbot/scripts/preprocess_chatbot_data.sh --mode application-case-generate
 - [챗봇 데이터 README](chatbot/data/README.md)
 - [특허 출원 공식팩 README](chatbot/data/patent_application_official_pack/README.md)
 - [eval_logic 구조 요약](eval_logic/STRUCTURE.md)
+
+## 현재 구현 상태 (2026-06-19)
+
+### ✅ 완료된 기능
+
+**보고서 생성 (eval_logic)**
+- 185개 특허 가치평가 보고서 전수 생성 완료
+- 4축(권리성/기술성/시장성/사업성) 자동 평가 및 종합 점수(0~100점) 산출
+- LLM 기반 평가 항목별 근거 신뢰도 검증
+- 유사특허 자동 분석 및 인용 수집
+
+**특허 챗봇 (chatbot)**
+- LangGraph 기반 3가지 라우팅 경로 (원문/보고서/외부정보)
+- Qdrant 멀티 vectorstore 운영 (텍스트/시각자료/wiki)
+- 도면/표/이미지 visual asset 추출 및 근거 카드 연결
+- OpenAI 기반 의도 분류 및 답변 생성
+- Swagger + 브라우저 UI 테스트 환경
+
+**출원 도우미 챗봇**
+- 공식팩(출원/거절대응/등록전략 가이드) 색인 및 검색
+- 실패특허 케이스별 관리 (PDF + 거절의견서 + 재평가 보고서)
+- eval_logic 연결로 선택 실패특허 재평가 보고서 즉시 생성
+
+**사전평가 챗봇**
+- 아이디어/기술설명/청구항 입력 기반 사전평가 보고서 생성
+- case별 vectorstore + web 검색으로 보강 방향 제시
+
+**wiki 감시 및 분야별 관리**
+- 7개 기술 분야 + _general 자동 분류
+- Tavily web 검색 → 분야별 `web_search_data/` 저장
+- 관련도 기반 자동/수동 감사 및 승인
+- 분야별 Qdrant collection 실시간 재빌드
+
+**데이터 관리**
+- 185개 특허 `/data/patent/<id>/` 중앙화 관리
+- patents/summary CSV 생성 (ID/점수/등급)
+- MinIO 동기화 지원 (K8s)
+- manifest SHA1 기반 visual index 증분 처리
+
+### 🔄 부분 구현/계획
+
+- **unified_api**: 통합 API 엔드포인트 (기획 중)
+- **AI 인사이트**: 추가 분석 모듈 (prototype)
+- **배치 운영**: 보고서 검증 및 대량 생성 스크립트 작성됨
+
+### 🚀 배포 상태
+
+- **Docker**: K8s용 Dockerfile 준비 완료
+- **GitHub Actions**: deploy-ai.yml로 Harbor registry push 자동화
+- **로컬 테스트**: Docker Compose로 chatbot + eval_logic 검증 가능
+- **CronJob**: 매일 00시 nightly reindex 설정 가능
 
 ## 커밋 전 확인
 
