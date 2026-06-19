@@ -14,6 +14,8 @@ MessageHandler = Callable[[dict[str, Any]], None]
 RetryExhaustedHandler = Callable[[dict[str, Any], BaseException, int], None]
 
 RETRY_COUNT_FIELD = "__worker_retry_count"
+DLQ_ERROR_FIELD = "__worker_dlq_error"
+DLQ_SOURCE_QUEUE_FIELD = "__worker_source_queue"
 
 
 class RabbitWorker:
@@ -24,12 +26,14 @@ class RabbitWorker:
         handler: MessageHandler,
         *,
         max_attempts: int | None = None,
+        dlq_queue_name: str | None = None,
         on_retry_exhausted: RetryExhaustedHandler | None = None,
     ) -> None:
         self.config = config
         self.queue_name = queue_name
         self.handler = handler
         self.max_attempts = max_attempts
+        self.dlq_queue_name = dlq_queue_name
         self.on_retry_exhausted = on_retry_exhausted
 
     def _connection_parameters(self) -> Any:
@@ -61,6 +65,8 @@ class RabbitWorker:
         channel = connection.channel()
         channel.basic_qos(prefetch_count=self.config.prefetch_count)
         channel.queue_declare(queue=self.queue_name, durable=True)
+        if self.dlq_queue_name:
+            channel.queue_declare(queue=self.dlq_queue_name, durable=True)
 
         def on_message(ch: Any, method: Any, properties: Any, body: bytes) -> None:
             try:
@@ -95,6 +101,30 @@ class RabbitWorker:
                                     "Retry-exhausted handler failed for RabbitMQ message from %s",
                                     self.queue_name,
                                 )
+                        if self.dlq_queue_name:
+                            dlq_payload = dict(payload)
+                            dlq_payload[RETRY_COUNT_FIELD] = attempts
+                            dlq_payload[DLQ_SOURCE_QUEUE_FIELD] = self.queue_name
+                            dlq_payload[DLQ_ERROR_FIELD] = _error_message(exc)
+                            headers = dict(getattr(properties, "headers", None) or {})
+                            headers["x-skipa-retry-count"] = attempts
+                            headers["x-skipa-source-queue"] = self.queue_name
+                            headers["x-skipa-error"] = _error_message(exc)
+                            ch.basic_publish(
+                                exchange="",
+                                routing_key=self.dlq_queue_name,
+                                body=json.dumps(dlq_payload, ensure_ascii=False).encode("utf-8"),
+                                properties=pika.BasicProperties(
+                                    content_type="application/json",
+                                    delivery_mode=2,
+                                    headers=headers,
+                                ),
+                            )
+                            LOGGER.error(
+                                "Published retry-exhausted RabbitMQ message from %s to DLQ %s",
+                                self.queue_name,
+                                self.dlq_queue_name,
+                            )
                         ch.basic_ack(delivery_tag=method.delivery_tag)
                         return
                     retry_payload = dict(payload)
@@ -137,3 +167,8 @@ def _retry_count(payload: dict[str, Any]) -> int:
         return max(0, int(payload.get(RETRY_COUNT_FIELD) or 0))
     except (TypeError, ValueError):
         return 0
+
+
+def _error_message(exc: BaseException) -> str:
+    message = str(exc) or exc.__class__.__name__
+    return message[:500]

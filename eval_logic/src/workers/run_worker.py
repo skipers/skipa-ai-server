@@ -37,10 +37,10 @@ def main() -> None:
     config = load_worker_config()
 
     if args.worker == "report":
-        RabbitWorker(config, config.report_queue, ReportGenerateHandler(config)).run_forever()
+        _report_worker(config).run_forever()
         return
     if args.worker == "patent-extract":
-        RabbitWorker(config, config.patent_extract_queue, PatentExtractHandler(config)).run_forever()
+        _patent_extract_worker(config).run_forever()
         return
     if args.worker == "pre-evaluation":
         pre_evaluation_rabbit_worker(config).run_forever()
@@ -48,12 +48,12 @@ def main() -> None:
 
     threads = [
         threading.Thread(
-            target=RabbitWorker(config, config.report_queue, ReportGenerateHandler(config)).run_forever,
+            target=_report_worker(config).run_forever,
             name="report-worker",
             daemon=False,
         ),
         threading.Thread(
-            target=RabbitWorker(config, config.patent_extract_queue, PatentExtractHandler(config)).run_forever,
+            target=_patent_extract_worker(config).run_forever,
             name="patent-extract-worker",
             daemon=False,
         ),
@@ -67,6 +67,30 @@ def main() -> None:
         thread.start()
     for thread in threads:
         thread.join()
+
+
+def _max_attempts(value: int) -> int | None:
+    return value if value > 0 else None
+
+
+def _report_worker(config) -> RabbitWorker:
+    return RabbitWorker(
+        config,
+        config.report_queue,
+        ReportGenerateHandler(config),
+        max_attempts=_max_attempts(config.report_max_attempts),
+        dlq_queue_name=config.report_dlq,
+    )
+
+
+def _patent_extract_worker(config) -> RabbitWorker:
+    return RabbitWorker(
+        config,
+        config.patent_extract_queue,
+        PatentExtractHandler(config),
+        max_attempts=_max_attempts(config.patent_extract_max_attempts),
+        dlq_queue_name=config.patent_extract_dlq,
+    )
 
 
 if __name__ == "__main__":
