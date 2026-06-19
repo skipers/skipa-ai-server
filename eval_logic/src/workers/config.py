@@ -42,11 +42,26 @@ class WorkerConfig:
     rabbitmq_blocked_connection_timeout: float = _float_env("RABBITMQ_BLOCKED_CONNECTION_TIMEOUT", 300.0)
     prefetch_count: int = _int_env("WORKER_PREFETCH_COUNT", 1)
     requeue_on_callback_failure: bool = _bool_env("WORKER_REQUEUE_ON_CALLBACK_FAILURE", True)
-    pre_evaluation_max_attempts: int = _int_env("PRE_EVALUATION_MAX_ATTEMPTS", 3)
+    worker_max_attempts: int = _int_env("WORKER_MAX_ATTEMPTS", 3)
+    report_max_attempts: int = _int_env("REPORT_WORKER_MAX_ATTEMPTS", _int_env("WORKER_MAX_ATTEMPTS", 3))
+    patent_extract_max_attempts: int = _int_env("PATENT_EXTRACT_WORKER_MAX_ATTEMPTS", _int_env("WORKER_MAX_ATTEMPTS", 3))
+    pre_evaluation_max_attempts: int = _int_env("PRE_EVALUATION_MAX_ATTEMPTS", _int_env("WORKER_MAX_ATTEMPTS", 3))
 
     report_queue: str = os.getenv("REPORT_GENERATE_QUEUE", "skipa.report.generate")
     patent_extract_queue: str = os.getenv("PATENT_EXTRACT_QUEUE", "skipa.patent-extract")
     pre_evaluation_queue: str = os.getenv("PRE_EVALUATION_GENERATE_QUEUE", "skipa.pre-evaluation.generate")
+    report_dlq: str = os.getenv(
+        "REPORT_GENERATE_DLQ",
+        f"{os.getenv('REPORT_GENERATE_QUEUE', 'skipa.report.generate')}.dlq",
+    )
+    patent_extract_dlq: str = os.getenv(
+        "PATENT_EXTRACT_DLQ",
+        f"{os.getenv('PATENT_EXTRACT_QUEUE', 'skipa.patent-extract')}.dlq",
+    )
+    pre_evaluation_dlq: str = os.getenv(
+        "PRE_EVALUATION_GENERATE_DLQ",
+        f"{os.getenv('PRE_EVALUATION_GENERATE_QUEUE', 'skipa.pre-evaluation.generate')}.dlq",
+    )
 
     backend_base_url: str = os.getenv("BACKEND_INTERNAL_BASE_URL", "").rstrip("/")
     internal_api_key: str = os.getenv("INTERNAL_API_KEY", "")

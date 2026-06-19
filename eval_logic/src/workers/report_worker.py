@@ -211,7 +211,14 @@ class ReportGenerateHandler:
 def run() -> None:
     logging.basicConfig(level=logging.INFO)
     config = load_worker_config()
-    RabbitWorker(config, config.report_queue, ReportGenerateHandler(config)).run_forever()
+    max_attempts = config.report_max_attempts if config.report_max_attempts > 0 else None
+    RabbitWorker(
+        config,
+        config.report_queue,
+        ReportGenerateHandler(config),
+        max_attempts=max_attempts,
+        dlq_queue_name=config.report_dlq,
+    ).run_forever()
 
 
 if __name__ == "__main__":

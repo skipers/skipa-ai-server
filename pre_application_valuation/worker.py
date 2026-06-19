@@ -133,6 +133,7 @@ def pre_evaluation_rabbit_worker(config: WorkerConfig) -> RabbitWorker:
         config.pre_evaluation_queue,
         PreEvaluationGenerateHandler(config),
         max_attempts=max_attempts,
+        dlq_queue_name=config.pre_evaluation_dlq,
         on_retry_exhausted=PreEvaluationRetryExhaustedHandler(config),
     )
 

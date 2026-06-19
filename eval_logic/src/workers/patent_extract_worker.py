@@ -278,7 +278,14 @@ class PatentExtractHandler:
 def run() -> None:
     logging.basicConfig(level=logging.INFO)
     config = load_worker_config()
-    RabbitWorker(config, config.patent_extract_queue, PatentExtractHandler(config)).run_forever()
+    max_attempts = config.patent_extract_max_attempts if config.patent_extract_max_attempts > 0 else None
+    RabbitWorker(
+        config,
+        config.patent_extract_queue,
+        PatentExtractHandler(config),
+        max_attempts=max_attempts,
+        dlq_queue_name=config.patent_extract_dlq,
+    ).run_forever()
 
 
 if __name__ == "__main__":
