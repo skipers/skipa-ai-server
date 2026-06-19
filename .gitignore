@@ -136,3 +136,7 @@ patent_citation_collection/cache/
 sample_report.json
 report copy.json
 특허리스트_등록_20260423기준*.xlsx
+reports_2/
+api-spec.md 
+patents/ 
+list.csv

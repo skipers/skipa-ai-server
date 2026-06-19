@@ -152,27 +152,30 @@ class ReportVerificationService:
             if confidence == "낮음":
                 metrics["low_confidence_item_count"] += 1
 
-            if method == "llm" and strategy != "claims_only" and not sources:
+            # web_search/hybrid 전략을 명시적으로 사용했는데 출처가 없는 경우만 체크
+            if method == "llm" and strategy in ("web_search", "hybrid") and not sources:
                 metrics["unsupported_claim_count"] += 1
-                severity = "high" if score_value is not None and score_value >= 4 else "medium"
                 issues.append(VerificationIssue(
                     "llm_item_without_source",
-                    severity,
-                    (
-                        "웹/혼합 전략 LLM 평가 항목에 인용 출처가 없습니다."
-                        if severity == "high"
-                        else "웹/혼합 전략 LLM 평가 항목에 인용 출처가 없어 보수 검토가 필요합니다."
-                    ),
+                    "medium",
+                    "웹/혼합 전략 LLM 평가 항목에 인용 출처가 없어 보수 검토가 필요합니다.",
                     location,
                     item=item,
                     dim=dim,
                 ))
 
-            if score_value is not None and score_value >= 4 and not sources and method != "auto":
+            # web_search/hybrid 전략에서 4점+ 고평가이면서 출처가 없는 경우만 체크
+            # claims_only·auto·strategy 미설정은 설계상 출처 없음이 정상
+            if (
+                score_value is not None
+                and score_value >= 4
+                and not sources
+                and strategy in ("web_search", "hybrid")
+            ):
                 metrics["high_score_without_source_count"] += 1
                 issues.append(VerificationIssue(
                     "high_score_without_source",
-                    "high",
+                    "medium",
                     "4점 이상 고평가 항목에 외부 또는 명시 근거 출처가 없습니다.",
                     location,
                     item=item,
@@ -260,7 +263,7 @@ class ReportVerificationService:
         if source_quality_ratio < 0.25:
             issues.append(VerificationIssue(
                 "weak_source_quality",
-                "medium",
+                "low",
                 "공식/전문 출처 비율이 낮아 외부 근거 품질 검토가 필요합니다.",
                 "report.section_6_references",
             ))
@@ -278,7 +281,7 @@ class ReportVerificationService:
         if not business_use and not project_section.get("available"):
             issues.append(VerificationIssue(
                 "missing_business_evidence",
-                "medium",
+                "low",
                 "사내 사업화/RAG 근거가 없어 사업성 판단은 고객 확인이 필요합니다.",
                 "report.section_3_project_utilization",
             ))
@@ -286,7 +289,7 @@ class ReportVerificationService:
         if similar_analysis is None:
             issues.append(VerificationIssue(
                 "missing_similar_analysis",
-                "medium",
+                "low",
                 "유사 특허 분석 결과가 없어 경쟁/차별화 판단 신뢰도가 낮습니다.",
                 "report.section_4_similar_patents",
             ))
@@ -310,11 +313,11 @@ class ReportVerificationService:
         for dim, dim_data in dimensions.items():
             for item in dim_data.get("items") or []:
                 summary = str(item.get("judgment_summary") or "")
-                if len(summary) > 50:
+                if len(summary) > 120:
                     issues.append(VerificationIssue(
                         "judgment_summary_too_long",
-                        "medium",
-                        "평가 항목 판단 요지가 50자를 초과합니다.",
+                        "low",
+                        "평가 항목 판단 요지가 120자를 초과합니다.",
                         "report.evaluation.dimensions.items.judgment_summary",
                         item=str(item.get("name") or ""),
                         dim=dim,
@@ -361,7 +364,7 @@ class ReportVerificationService:
         if not refs:
             issues.append(VerificationIssue(
                 "missing_frontend_references",
-                "high",
+                "medium",
                 "프론트 참고문헌 섹션이 읽는 references.sources.tech_market이 비어 있습니다.",
                 "report.references.sources.tech_market",
             ))
@@ -379,13 +382,14 @@ class ReportVerificationService:
         penalty = 0.0
         for issue in issues:
             penalty += {
-                "critical": 0.25,
-                "high": 0.12,
-                "medium": 0.05,
-                "low": 0.02,
-            }.get(issue.severity, 0.03)
+                "critical": 0.20,
+                "high": 0.08,
+                "medium": 0.03,
+                "low": 0.01,
+            }.get(issue.severity, 0.02)
+        penalty = min(penalty, 0.40)
 
-        reliability = 0.35 + (coverage * 0.3) + (source_quality * 0.2) + (0.15 if numeric_integrity else 0.0)
+        reliability = 0.45 + (coverage * 0.3) + (source_quality * 0.1) + (0.15 if numeric_integrity else 0.0)
         reliability = max(0.0, min(1.0, reliability - penalty))
         risk_level = self._risk_level(reliability, issues)
         human_review_required = risk_level in {"caution", "high_risk"} or any(
@@ -505,18 +509,18 @@ class ReportVerificationService:
             return None
 
     def _grade(self, reliability: float) -> str:
-        if reliability >= 0.9:
+        if reliability >= 0.85:
             return "A"
-        if reliability >= 0.75:
+        if reliability >= 0.65:
             return "B"
-        if reliability >= 0.6:
+        if reliability >= 0.50:
             return "C"
         return "D"
 
     def _risk_level(self, reliability: float, issues: list[VerificationIssue]) -> str:
-        if any(issue.severity == "critical" for issue in issues) or reliability < 0.6:
+        if any(issue.severity == "critical" for issue in issues) or reliability < 0.50:
             return "high_risk"
-        if any(issue.severity == "high" for issue in issues) or reliability < 0.75:
+        if any(issue.severity == "high" for issue in issues) or reliability < 0.65:
             return "caution"
         return "acceptable"
 

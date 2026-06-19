@@ -182,12 +182,7 @@ json_patents as (
             else null
         end as examination_claim_count,
         coalesce(meta -> 'keywords', parsed_payload -> 'keywords', '[]'::jsonb) as keywords,
-        case
-            when jsonb_typeof(patent -> 'brief_summary') = 'string' then patent ->> 'brief_summary'
-            when patent ? 'brief_summary' then (patent -> 'brief_summary')::text
-            when parsed_payload ? 'brief_summary' then parsed_payload ->> 'brief_summary'
-            else patent ->> 'description_summary'
-        end as summary,
+        nullif(nullif(raw_meta ->> '요약', ''), '-') as summary,
         coalesce(
             nullif(patent ->> 'source_pdf', ''),
             nullif(parsed_payload ->> 'source_pdf', '')

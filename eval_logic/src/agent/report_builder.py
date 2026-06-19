@@ -60,6 +60,26 @@ TARGET_EVALUATION_ITEMS: tuple[dict[str, Any], ...] = (
     {"dim": "사업성", "item": "매출 성장성", "sources": ("매출 성장성",)},
 )
 
+REPORT_ITEM_STRATEGY: dict[str, str] = {
+    "차별성 및 파급성": "hybrid",
+    "혁신성 및 개척성": "hybrid",
+    "대체기술 및 경쟁성": "web_search",
+    "기술 모방 및 회피설계 난이도": "claims_only",
+    "IP 원천성": "web_search",
+    "권리의 충실성": "claims_only",
+    "권리행사 제한 가능성": "claims_only",
+    "무효 가능성": "claims_only",
+    "회피설계 용이성": "claims_only",
+    "권리범위 적절성": "claims_only",
+    "권리의 구성요소": "claims_only",
+    "권리의 추상성": "claims_only",
+    "IP 포트폴리오 구축 적절성": "claims_only",
+    "침해 발견 및 입증 용이성": "claims_only",
+    "특허출원 활성도": "web_search",
+    "고객에 미치는 영향": "hybrid",
+    "매출 성장성": "web_search",
+}
+
 
 # ─────────────────────────────────────────────
 # 등급 / 위험도 매핑
@@ -336,6 +356,18 @@ def _merge_methods(items: list[dict[str, Any]]) -> str:
     return "mixed"
 
 
+def _strategy_for_item(item_name: Any) -> str | None:
+    return REPORT_ITEM_STRATEGY.get(str(item_name or "").strip())
+
+
+def _merge_strategy(target: dict[str, Any], items: list[dict[str, Any]]) -> str | None:
+    for item in items:
+        strategy = str(item.get("strategy") or "").strip()
+        if strategy:
+            return strategy
+    return _strategy_for_item(target.get("item"))
+
+
 def _merge_confidence(items: list[dict[str, Any]]) -> str:
     order = {"낮음": 0, "보통": 1, "높음": 2}
     confidences = [_confidence_for_score(item)[0] for item in items]
@@ -367,6 +399,7 @@ def _merge_score_items(target: dict[str, Any], items: list[dict[str, Any]]) -> d
         "reason": normalize_report_prose(" ".join(bases)),
         "sources": merged_sources,
         "method": _merge_methods(items),
+        "strategy": _merge_strategy(target, items),
         "confidence": _merge_confidence(items),
         "merged_from": [item.get("item") for item in items if item.get("item")],
     }
@@ -776,7 +809,7 @@ def _build_evaluation(auto_scores: list[dict[str, Any]], llm_scores: list[dict[s
                 "score_out_of_100": item.get("score_out_of_100"),
                 "grade": _to_grade(float(item.get("score") or 0)) if isinstance(item.get("score"), (int, float)) else None,
                 "method": item.get("method", ""),
-                "strategy": item.get("strategy"),
+                "strategy": item.get("strategy") or _strategy_for_item(item.get("item")),
                 "confidence": item.get("confidence"),
                 "judgment_summary": normalize_report_sentence(
                     _short_text(item.get("judgment_summary") or item.get("judgment_basis"), 50)
@@ -1338,7 +1371,7 @@ def _build_section2_detailed_scores(
                     "score": s.get("score"),
                     "score_out_of_100": _score_to_100(s.get("score")),
                     "method": s.get("method", ""),
-                    "strategy": s.get("strategy"),
+                    "strategy": s.get("strategy") or _strategy_for_item(s.get("item")),
                     "confidence": _confidence_for_score(s)[0],
                     "confidence_source": _confidence_for_score(s)[1],
                     "judgment_summary": _score_summary(s),
